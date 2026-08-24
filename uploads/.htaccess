@@ -1,0 +1,7 @@
+# Defense in depth: even if a malicious file ever slipped past the
+# upload validation in includes/functions.php, this stops the web
+# server from ever executing it as a script.
+<FilesMatch "\.(php|phtml|php\d|phar|cgi|pl|py|sh)$">
+    Require all denied
+</FilesMatch>
+php_flag engine off

@@ -1,0 +1,49 @@
+RewriteEngine On
+RewriteBase /
+
+# ---------------------------------------------------------------------
+# 1. Canonicalize: anyone hitting an old *.php URL directly (bookmarks,
+#    old links, search engines) gets redirected to the clean version.
+# ---------------------------------------------------------------------
+RewriteCond %{THE_REQUEST} \s/+index\.php[?\s] [NC]
+RewriteRule ^index\.php$ /? [R=301,L]
+
+RewriteCond %{THE_REQUEST} \s/+(.+)\.php[?\s] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# ---------------------------------------------------------------------
+# 2. Drop trailing slashes on virtual (non-directory) routes, e.g.
+#    /products/ -> /products. Real directories are left
+#    alone so PHP's normal DirectoryIndex handling still applies.
+# ---------------------------------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/(.+)/$
+RewriteRule ^ /%1 [R=301,L]
+
+# ---------------------------------------------------------------------
+# 3. Single post: /posts/some-slug -> post.php?slug=some-slug
+#    (must come before the generic rule below, since there's no
+#    posts/some-slug.php file on disk)
+# ---------------------------------------------------------------------
+RewriteRule ^posts/([a-zA-Z0-9-]+)$ post.php?slug=$1 [L,QSA]
+
+# ---------------------------------------------------------------------
+# 4. Generic clean URL: /anything -> anything.php, only if that file
+#    actually exists. Covers every current and future plain page
+#    (products, about, contact, forgot-password, ...)
+#    without needing one rule per route.
+# ---------------------------------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.php -f
+RewriteRule ^(.*)$ $1.php [L,QSA]
+
+# ---------------------------------------------------------------------
+# Security: deny direct access to data files and stop scripts from
+# executing inside uploads/, even if validation were ever bypassed.
+# (Duplicated here in case your host ignores per-directory .htaccess —
+# the originals in data/.htaccess and uploads/.htaccess still apply too.)
+# ---------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteRule ^data/ - [F,L]
+</IfModule>

@@ -1,0 +1,18 @@
+[
+    {
+        "id": "member-1",
+        "name": "Spont",
+        "role": "Founder",
+        "initials": "S",
+        "photo": null,
+        "discord_id": "1227918600753512480"
+    },
+    {
+        "id": "member-2",
+        "name": "Ninja",
+        "role": "Tester",
+        "initials": "N",
+        "photo": null,
+        "discord_id": null
+    }
+]
