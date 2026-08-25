@@ -63,7 +63,7 @@
     </div>
 
     <div class="card">
-      <h2>Fields</h2>
+      <h2>🧩 Fields</h2>
       <div id="fields-container">
         <% (loaded?.data?.fields?.length ? loaded.data.fields : []).forEach(f => { %>
           <div class="field-row">
@@ -86,12 +86,12 @@
 
   <div class="sticky">
     <div class="card">
-      <h2>Live preview</h2>
+      <h2>👁️ Live preview</h2>
       <div id="preview" class="discord-embed-preview"></div>
     </div>
 
     <div class="card">
-      <h2>Send now</h2>
+      <h2>🚀 Send now</h2>
       <form method="post" action="/dashboard/<%= guild.id %>/embeds/send" id="send-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label for="channelId">Channel</label>
@@ -112,7 +112,7 @@
 </div>
 
 <div class="card">
-  <h2>Saved templates</h2>
+  <h2>💾 Saved templates</h2>
   <% if (templates.length === 0) { %>
     <p class="empty">No templates saved yet.</p>
   <% } else { %>

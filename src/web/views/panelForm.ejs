@@ -18,13 +18,19 @@
   <label for="color">Color</label>
   <input type="color" id="color" name="color" value="<%= panel?.color || '#5865F2' %>">
 
-  <label for="ticketTypeIds">Ticket types offered by this panel</label>
-  <select id="ticketTypeIds" name="ticketTypeIds" multiple size="6">
+  <label>Ticket types offered by this panel</label>
+  <div class="type-picker">
     <% ticketTypes.forEach(t => { %>
-      <option value="<%= t.id %>" <%= panel?.ticket_type_ids?.includes(t.id) ? 'selected' : '' %>><%= t.emoji ? t.emoji + ' ' : '' %><%= t.name %></option>
+      <label class="type-card" style="--type-color: <%= t.welcome_color || '#5865F2' %>">
+        <input type="checkbox" name="ticketTypeIds" value="<%= t.id %>" <%= panel?.ticket_type_ids?.includes(t.id) ? 'checked' : '' %>>
+        <span class="type-emoji"><%= t.emoji || '🎫' %></span>
+        <span class="type-name"><%= t.name %></span>
+        <span class="type-meta"><%= t.support_role_ids.length %> role(s)</span>
+        <span class="type-check"></span>
+      </label>
     <% }) %>
-  </select>
-  <div class="hint">Ctrl/Cmd-click to select multiple.</div>
+  </div>
+  <div class="hint">Click to toggle. Pick one for a single button, several for buttons/dropdown (your choice below).</div>
 
   <label>How should multiple ticket types be shown?</label>
   <div class="style-choice">

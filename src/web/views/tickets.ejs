@@ -4,7 +4,7 @@
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h2>Ticket types</h2>
+    <h2>🎫 Ticket types</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/ticket-types/new">+ New ticket type</a>
   </div>
   <% if (ticketTypes.length === 0) { %>
@@ -32,7 +32,7 @@
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h2>Panels</h2>
+    <h2>📋 Panels</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/panels/new">+ New panel</a>
   </div>
   <p class="hint" style="margin-bottom:12px;">A panel is the message with the button/dropdown users click to open a ticket.</p>
@@ -63,7 +63,7 @@
 </div>
 
 <div class="card">
-  <h2>Recent tickets</h2>
+  <h2>🗂️ Recent tickets</h2>
   <% if (recentTickets.length === 0) { %>
     <p class="empty">No tickets yet.</p>
   <% } else { %>
