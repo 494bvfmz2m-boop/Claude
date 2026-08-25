@@ -137,6 +137,8 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 h1 { color: var(--text-bright); font-size: 26px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 4px; }
 h2 { color: var(--text-bright); font-size: 17px; font-weight: 700; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
 .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 14.5px; }
+.subhead { font-size: 14px; font-weight: 700; color: var(--text-bright); margin: 0 0 12px; }
+.card-divider { border: none; border-top: 1px solid var(--border); margin: 26px 0 20px; }
 
 .card {
   background: var(--bg-elevated);

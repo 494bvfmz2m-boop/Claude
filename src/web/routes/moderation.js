@@ -3,6 +3,7 @@ const client = require('../../bot/client');
 const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
 const { logAction, parseDuration, applyWarningThreshold } = require('../../bot/moderation');
+const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 
 const router = express.Router({ mergeParams: true });
@@ -41,9 +42,9 @@ router.get('/moderation', async (req, res) => {
   await renderPage(req, res, guild);
 });
 
-function redirectWithNotice(res, guildId, ok, text) {
+function redirectWithNotice(res, guildId, ok, text, anchor = 'actions') {
   const qs = new URLSearchParams({ ok: ok ? '1' : '0', msg: text });
-  res.redirect(`/dashboard/${guildId}/moderation?${qs.toString()}#actions`);
+  res.redirect(`/dashboard/${guildId}/moderation?${qs.toString()}#${anchor}`);
 }
 
 router.post('/moderation/swear-filter', async (req, res) => {
@@ -63,7 +64,23 @@ router.post('/moderation/staff-list-channel', async (req, res) => {
   if (!guild) return;
   GuildSettings.setStaffListChannel(guild.id, req.body.channelId || null);
   GuildSettings.setStaffListColor(guild.id, req.body.color || '#5865F2');
-  res.redirect(`/dashboard/${guild.id}/moderation`);
+  res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
+});
+
+router.post('/moderation/staff-list/post', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const settings = GuildSettings.get(guild.id);
+  if (!settings.staff_list_channel_id) {
+    return redirectWithNotice(res, guild.id, false, 'Pick a channel for the staff list first.', 'hierarchy');
+  }
+  try {
+    await guild.members.fetch();
+    await renderStaffList(guild);
+    return redirectWithNotice(res, guild.id, true, 'Staff list posted/updated.', 'hierarchy');
+  } catch (err) {
+    return redirectWithNotice(res, guild.id, false, `Couldn't post the staff list: ${err.message}`, 'hierarchy');
+  }
 });
 
 router.post('/moderation/hierarchy/add', async (req, res) => {
@@ -87,17 +104,24 @@ router.post('/moderation/hierarchy/remove', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
 });
 
-router.post('/moderation/hierarchy/move', async (req, res) => {
+router.post('/moderation/hierarchy/reorder', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
-  const i = current.indexOf(req.body.roleId);
-  const swapWith = req.body.direction === 'up' ? i + 1 : i - 1;
-  if (i !== -1 && swapWith >= 0 && swapWith < current.length) {
-    [current[i], current[swapWith]] = [current[swapWith], current[i]];
-    StaffRanks.replaceAll(guild.id, current);
-    cache.invalidateStaffRanks(guild.id);
-  }
+  const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank);
+
+  // Sort by whatever rank number each row was given (ties keep their original
+  // relative order), then renumber cleanly 1..N -- so typos/duplicates/gaps
+  // in what was typed can't corrupt the stored ranks.
+  const reordered = current
+    .map((r, i) => {
+      const typed = parseInt(req.body[`rank_${r.role_id}`], 10);
+      return { roleId: r.role_id, sortKey: Number.isInteger(typed) ? typed : r.rank, i };
+    })
+    .sort((a, b) => a.sortKey - b.sortKey || a.i - b.i)
+    .map((r) => r.roleId);
+
+  StaffRanks.replaceAll(guild.id, reordered);
+  cache.invalidateStaffRanks(guild.id);
   res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
 });
 
@@ -132,36 +156,75 @@ function moderatorFromSession(req) {
   return { id: req.session.discordUser.id, tag: req.session.discordUser.username };
 }
 
+// Web-only convenience: slash commands get Discord's own @mention picker, but
+// a plain text box needs to accept a username too, not just a raw ID. Only
+// works for someone currently in the server (banned/left users need their ID).
+async function resolveMember(guild, input) {
+  const raw = input.replace(/^@/, '');
+  if (DISCORD_ID.test(raw)) {
+    return guild.members.fetch(raw).catch(() => null);
+  }
+  const lower = raw.toLowerCase();
+  const cached = guild.members.cache.find((m) =>
+    m.user.username.toLowerCase() === lower ||
+    m.user.tag.toLowerCase() === lower ||
+    (m.nickname && m.nickname.toLowerCase() === lower));
+  if (cached) return cached;
+
+  const results = await guild.members.fetch({ query: raw, limit: 5 }).catch(() => null);
+  if (!results || results.size === 0) return null;
+  return results.find((m) => m.user.username.toLowerCase() === lower || (m.nickname && m.nickname.toLowerCase() === lower)) || results.first();
+}
+
 router.post('/moderation/actions', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
 
   const action = req.body.action;
-  const targetId = (req.body.targetId || '').trim();
+  const rawTarget = (req.body.targetId || '').trim();
   const reason = (req.body.reason || '').trim() || null;
   const moderator = moderatorFromSession(req);
 
-  if (!DISCORD_ID.test(targetId)) {
-    return redirectWithNotice(res, guild.id, false, "That doesn't look like a valid Discord user ID.");
+  if (!rawTarget) {
+    return redirectWithNotice(res, guild.id, false, 'Enter a Discord user ID or username.');
+  }
+
+  if (action === 'unban') {
+    if (!DISCORD_ID.test(rawTarget)) {
+      return redirectWithNotice(res, guild.id, false, "Unban needs their exact Discord user ID -- banned users can't be looked up by username.");
+    }
+    try {
+      await guild.members.unban(rawTarget, reason || undefined);
+      await logAction(guild, { action: '✅ Member unbanned', target: rawTarget, moderator, reason, source: 'dashboard' });
+      return redirectWithNotice(res, guild.id, true, `Unbanned ${rawTarget}.`);
+    } catch (err) {
+      return redirectWithNotice(res, guild.id, false, `Couldn't unban: ${err.message}`);
+    }
   }
 
   try {
     if (action === 'ban') {
+      // Banning can target someone no longer in the server, so a raw ID is
+      // taken as-is; a username only resolves if they're still a member.
+      let targetId = rawTarget;
+      let fallbackName = rawTarget;
+      if (!DISCORD_ID.test(rawTarget)) {
+        const member = await resolveMember(guild, rawTarget);
+        if (!member) {
+          return redirectWithNotice(res, guild.id, false, `Couldn't find a member named "${rawTarget}". Use their Discord user ID instead (needed to ban someone no longer in the server).`);
+        }
+        targetId = member.id;
+        fallbackName = member.user.tag;
+      }
       const user = await client.users.fetch(targetId).catch(() => null);
       await guild.members.ban(targetId, { reason: reason || undefined });
       await logAction(guild, { action: '🔨 Member banned', target: user || targetId, moderator, reason, source: 'dashboard' });
-      return redirectWithNotice(res, guild.id, true, `Banned ${user ? user.tag : targetId}.`);
+      return redirectWithNotice(res, guild.id, true, `Banned ${user ? user.tag : fallbackName}.`);
     }
 
-    if (action === 'unban') {
-      await guild.members.unban(targetId, reason || undefined);
-      await logAction(guild, { action: '✅ Member unbanned', target: targetId, moderator, reason, source: 'dashboard' });
-      return redirectWithNotice(res, guild.id, true, `Unbanned ${targetId}.`);
-    }
-
-    const targetMember = await guild.members.fetch(targetId).catch(() => null);
+    const targetMember = await resolveMember(guild, rawTarget);
     if (!targetMember) {
-      return redirectWithNotice(res, guild.id, false, "They're not in this server.");
+      return redirectWithNotice(res, guild.id, false, `Couldn't find "${rawTarget}" in this server.`);
     }
 
     if (action === 'kick') {
@@ -189,8 +252,8 @@ router.post('/moderation/actions', async (req, res) => {
 
     if (action === 'warn') {
       if (!reason) return redirectWithNotice(res, guild.id, false, 'A reason is required for warnings.');
-      Warnings.add(guild.id, targetId, moderator.id, reason);
-      const count = Warnings.listForUser(guild.id, targetId).length;
+      Warnings.add(guild.id, targetMember.id, moderator.id, reason);
+      const count = Warnings.listForUser(guild.id, targetMember.id).length;
       await logAction(guild, { action: '⚠️ Member warned', target: targetMember.user, moderator, reason, source: 'dashboard' });
       const autoNote = await applyWarningThreshold(guild, targetMember, moderator, count);
       await targetMember.user.send({ content: `You were warned in **${guild.name}**: ${reason}` }).catch(() => {});

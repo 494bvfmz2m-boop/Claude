@@ -1,6 +1,6 @@
 <%- include('partials/header', { title: 'Moderation', guild }) %>
 <h1>🛡️ Moderation</h1>
-<p class="subtitle">Swear filter, staff hierarchy, auto-punishments, and moderation actions.</p>
+<p class="subtitle">Swear filter, staff list, auto-punishments, and moderation actions.</p>
 
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
@@ -35,50 +35,40 @@
 </div>
 
 <div class="card" id="hierarchy">
-  <h2>👮 Staff hierarchy</h2>
+  <h2>👮 Staff List</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Powers <code>/promote</code> and <code>/demote</code>, and the auto-updating staff list below.
-    Highest rank at the top. You can only promote/demote someone to a rank strictly below your own
-    (server owners and Administrators bypass this).
+    Ranks power <code>/promote</code> and <code>/demote</code>, and drive the auto-updating list posted
+    to Discord below. Highest rank at the top. You can only promote/demote someone to a rank strictly
+    below your own (server owners and Administrators bypass this).
   </p>
 
   <% if (hierarchy.length === 0) { %>
     <p class="empty">No hierarchy set up yet — add a role below to get started.</p>
   <% } else { %>
-    <ul class="list">
-      <% hierarchy.forEach((h, i) => { %>
-        <li class="list-item">
-          <div class="list-item-title">
-            <span class="role-dot" style="background:<%= h.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
-            <%= h.name %>
-            <span class="badge" style="margin-left:8px;">Rank <%= h.rank %></span>
-          </div>
-          <div class="actions">
-            <% if (i > 0) { %>
-              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/move">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="roleId" value="<%= h.roleId %>">
-                <input type="hidden" name="direction" value="up">
-                <button class="btn btn-sm btn-ghost" type="submit" title="Move up">↑</button>
-              </form>
-            <% } %>
-            <% if (i < hierarchy.length - 1) { %>
-              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/move">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="roleId" value="<%= h.roleId %>">
-                <input type="hidden" name="direction" value="down">
-                <button class="btn btn-sm btn-ghost" type="submit" title="Move down">↓</button>
-              </form>
-            <% } %>
-            <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/remove" onsubmit="return confirm('Remove this rank from the hierarchy?');">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="roleId" value="<%= h.roleId %>">
-              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
-            </form>
-          </div>
-        </li>
-      <% }) %>
-    </ul>
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/reorder">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <ul class="list">
+        <% hierarchy.forEach((h) => { %>
+          <li class="list-item">
+            <div class="list-item-title">
+              <span class="role-dot" style="background:<%= h.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
+              <%= h.name %>
+            </div>
+            <div class="actions">
+              <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted);">
+                Rank
+                <input type="number" name="rank_<%= h.roleId %>" value="<%= h.rank %>" min="1" style="width:70px;">
+              </label>
+              <button class="btn btn-sm btn-danger" type="submit" formnovalidate formaction="/dashboard/<%= guild.id %>/moderation/hierarchy/remove" name="roleId" value="<%= h.roleId %>" onclick="return confirm('Remove this rank from the hierarchy?');">Remove</button>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+      <div class="hint" style="margin-bottom:10px;">Higher number = higher rank. Edit any rank and hit Save — order updates however you've numbered them.</div>
+      <div class="btn-row">
+        <button class="btn" type="submit">Save order</button>
+      </div>
+    </form>
   <% } %>
 
   <% if (availableRoles.length > 0) { %>
@@ -95,6 +85,37 @@
       <button class="btn" type="submit">Add</button>
     </form>
   <% } %>
+
+  <hr class="card-divider">
+
+  <div class="subhead">Auto-updating list message</div>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list-channel" style="display:flex; gap:16px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:220px;">
+      <label for="channelId" style="margin-top:0;">Channel</label>
+      <select id="channelId" name="channelId">
+        <option value="">— None (no auto-updating list) —</option>
+        <% options.textChannels.forEach(c => { %>
+          <option value="<%= c.id %>" <%= settings.staff_list_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label for="staffColor" style="margin-top:0;">Embed color</label>
+      <input type="color" id="staffColor" name="color" value="<%= settings.staff_list_color %>">
+    </div>
+    <button class="btn" type="submit">Save</button>
+  </form>
+  <div class="hint" style="margin-top:10px;">
+    Posts (and keeps updated) one message here listing everyone in each hierarchy rank, one role per row,
+    with everyone in it actually @mentioned. Updates automatically a few seconds after anyone's staff role
+    changes — or hit the button below to post/refresh it right now.
+  </div>
+
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list/post" style="margin-top:14px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn btn-ghost" type="submit">📮 Post / refresh now</button>
+  </form>
 </div>
 
 <div class="card" id="thresholds">
@@ -147,31 +168,6 @@
   </form>
 </div>
 
-<div class="card">
-  <h2>📋 Staff list</h2>
-  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list-channel">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label for="channelId">Channel</label>
-    <select id="channelId" name="channelId">
-      <option value="">— None (no auto-updating list) —</option>
-      <% options.textChannels.forEach(c => { %>
-        <option value="<%= c.id %>" <%= settings.staff_list_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
-      <% }) %>
-    </select>
-    <div class="hint">
-      Posts (and keeps updated) one message here listing everyone in each hierarchy rank, one role per row,
-      with everyone in it actually @mentioned. Updates automatically a few seconds after anyone's staff role changes.
-    </div>
-
-    <label for="staffColor">Embed color</label>
-    <input type="color" id="staffColor" name="color" value="<%= settings.staff_list_color %>">
-
-    <div class="btn-row">
-      <button class="btn" type="submit">Save</button>
-    </div>
-  </form>
-</div>
-
 <div class="card" id="actions">
   <h2>⚡ Issue a punishment</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -192,8 +188,8 @@
       </select>
     </div>
     <div>
-      <label for="targetId" style="margin-top:0;">Discord user ID</label>
-      <input type="text" id="targetId" name="targetId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required style="width:200px;">
+      <label for="targetId" style="margin-top:0;">Discord user ID or username</label>
+      <input type="text" id="targetId" name="targetId" placeholder="username, or their ID" required style="width:200px;">
     </div>
     <div id="durationField" style="display:none;">
       <label for="actionDuration" style="margin-top:0;">Duration</label>
@@ -205,6 +201,7 @@
     </div>
     <button class="btn" type="submit">Do it</button>
   </form>
+  <div class="hint" style="margin-top:10px;">Unban needs their exact Discord user ID — banned users can't be found by username.</div>
 </div>
 
 <div class="card">
