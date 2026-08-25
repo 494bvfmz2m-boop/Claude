@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS panels (
   description TEXT NOT NULL DEFAULT 'Click below to open a ticket.',
   color TEXT DEFAULT '#5865F2',
   ticket_type_ids TEXT NOT NULL DEFAULT '[]',
+  style TEXT NOT NULL DEFAULT 'buttons',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -72,5 +73,16 @@ CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
 CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id);
 `);
+
+// Lightweight migrations for columns added after the initial release —
+// CREATE TABLE IF NOT EXISTS only helps fresh installs, existing databases need this.
+function addColumnIfMissing(table, column, definition) {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!existing.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+addColumnIfMissing('panels', 'style', "TEXT NOT NULL DEFAULT 'buttons'");
 
 module.exports = db;

@@ -20,6 +20,7 @@ router.post('/panels', async (req, res) => {
     description: req.body.description?.trim() || 'Click below to open a ticket.',
     color: req.body.color || '#5865F2',
     ticketTypeIds,
+    style: req.body.style,
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);
 });
@@ -44,6 +45,7 @@ router.post('/panels/:id', async (req, res) => {
     description: req.body.description?.trim() || 'Click below to open a ticket.',
     color: req.body.color || '#5865F2',
     ticketTypeIds,
+    style: req.body.style,
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);
 });

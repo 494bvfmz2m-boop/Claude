@@ -24,13 +24,23 @@
     <% }) %>
   </select>
 
-  <label for="supportRoleIds">Support role(s) who can see & manage these tickets</label>
-  <select id="supportRoleIds" name="supportRoleIds" multiple size="6">
+  <label>Support role(s) who can see & manage these tickets</label>
+  <div class="role-picker">
     <% options.roles.forEach(r => { %>
-      <option value="<%= r.id %>" <%= ticketType?.support_role_ids?.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+      <label class="role-chip" style="--role-color: <%= r.color %>">
+        <input type="checkbox" name="supportRoleIds" value="<%= r.id %>" <%= ticketType?.support_role_ids?.includes(r.id) ? 'checked' : '' %>>
+        <% if (r.iconURL) { %>
+          <img class="role-icon" src="<%= r.iconURL %>" alt="">
+        <% } else if (r.unicodeEmoji) { %>
+          <span><%= r.unicodeEmoji %></span>
+        <% } else { %>
+          <span class="role-dot"></span>
+        <% } %>
+        <%= r.name %>
+      </label>
     <% }) %>
-  </select>
-  <div class="hint">Ctrl/Cmd-click to select multiple.</div>
+  </div>
+  <div class="hint">Click to toggle. Colors and icons match how each role looks in Discord.</div>
 
   <div class="grid">
     <div>

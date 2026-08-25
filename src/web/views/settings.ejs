@@ -9,7 +9,7 @@
   <select id="transcriptChannelId" name="transcriptChannelId">
     <option value="">— None (ticket activity won't be logged anywhere) —</option>
     <% options.textChannels.forEach(c => { %>
-      <option value="<%= c.id %>" <%= settings.transcript_channel_id === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+      <option value="<%= c.id %>" <%= settings.transcript_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
     <% }) %>
   </select>
   <div class="hint">

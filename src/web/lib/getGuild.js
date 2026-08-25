@@ -10,11 +10,17 @@ async function getGuildOr404(req, res) {
   return guild;
 }
 
+const TEXTLIKE_TYPES = new Set([ChannelType.GuildText, ChannelType.GuildAnnouncement]);
+
 function guildChannelOptions(guild) {
   const textChannels = [...guild.channels.cache.values()]
-    .filter((c) => c.type === ChannelType.GuildText)
+    .filter((c) => TEXTLIKE_TYPES.has(c.type))
     .sort((a, b) => a.position - b.position)
-    .map((c) => ({ id: c.id, name: c.name }));
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      icon: c.type === ChannelType.GuildAnnouncement ? '📢' : '#',
+    }));
 
   const categories = [...guild.channels.cache.values()]
     .filter((c) => c.type === ChannelType.GuildCategory)
@@ -24,7 +30,13 @@ function guildChannelOptions(guild) {
   const roles = [...guild.roles.cache.values()]
     .filter((r) => r.id !== guild.id)
     .sort((a, b) => b.position - a.position)
-    .map((r) => ({ id: r.id, name: r.name }));
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      color: r.color !== 0 ? r.hexColor : '#99aab5',
+      iconURL: r.iconURL({ size: 32 }) || null,
+      unicodeEmoji: r.unicodeEmoji || null,
+    }));
 
   return { textChannels, categories, roles };
 }

@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const config = require('../config');
+const client = require('../bot/client');
 const { requireAuth, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -33,6 +34,16 @@ function createApp() {
   }));
 
   app.use(attachCsrf);
+
+  app.use((req, res, next) => {
+    const ready = client.isReady();
+    res.locals.botStatus = {
+      ready,
+      ping: ready && client.ws.ping >= 0 ? Math.round(client.ws.ping) : null,
+      guildCount: ready ? client.guilds.cache.size : 0,
+    };
+    next();
+  });
 
   app.use('/', authRoutes);
 

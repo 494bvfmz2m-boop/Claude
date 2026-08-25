@@ -24,7 +24,26 @@
       <option value="<%= t.id %>" <%= panel?.ticket_type_ids?.includes(t.id) ? 'selected' : '' %>><%= t.emoji ? t.emoji + ' ' : '' %><%= t.name %></option>
     <% }) %>
   </select>
-  <div class="hint">Pick one for a single button, or several for a dropdown menu. Ctrl/Cmd-click to select multiple.</div>
+  <div class="hint">Ctrl/Cmd-click to select multiple.</div>
+
+  <label>How should multiple ticket types be shown?</label>
+  <div class="style-choice">
+    <label class="style-option">
+      <input type="radio" name="style" value="buttons" <%= (panel?.style || 'buttons') === 'buttons' ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Buttons</div>
+        <div class="style-desc">One button per type, side by side</div>
+      </div>
+    </label>
+    <label class="style-option">
+      <input type="radio" name="style" value="select" <%= panel?.style === 'select' ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Dropdown menu</div>
+        <div class="style-desc">A single select menu to pick from</div>
+      </div>
+    </label>
+  </div>
+  <div class="hint">Only matters if this panel offers more than one ticket type — a single type always gets a single button.</div>
 
   <div class="btn-row">
     <button class="btn" type="submit"><%= panel ? 'Save changes' : 'Create panel' %></button>
@@ -48,7 +67,7 @@
     <select id="channelId" name="channelId" required>
       <option value="">— Select a channel —</option>
       <% options.textChannels.forEach(c => { %>
-        <option value="<%= c.id %>" <%= panel.channel_id === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+        <option value="<%= c.id %>" <%= panel.channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
       <% }) %>
     </select>
     <div class="btn-row">

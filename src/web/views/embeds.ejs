@@ -98,7 +98,7 @@
         <select id="channelId" name="channelId" required>
           <option value="">— Select a channel —</option>
           <% options.textChannels.forEach(c => { %>
-            <option value="<%= c.id %>">#<%= c.name %></option>
+            <option value="<%= c.id %>"><%= c.icon %><%= c.name %></option>
           <% }) %>
         </select>
         <label for="messageContent">Message text (optional, above the embed)</label>

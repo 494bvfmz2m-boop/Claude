@@ -91,20 +91,22 @@ const Panels = {
   },
   create(guildId, data) {
     const info = db.prepare(`
-      INSERT INTO panels (guild_id, title, description, color, ticket_type_ids)
-      VALUES (@guildId, @title, @description, @color, @ticketTypeIds)
+      INSERT INTO panels (guild_id, title, description, color, ticket_type_ids, style)
+      VALUES (@guildId, @title, @description, @color, @ticketTypeIds, @style)
     `).run({
       guildId,
       title: data.title || 'Support',
       description: data.description || 'Click below to open a ticket.',
       color: data.color || '#5865F2',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
+      style: data.style === 'select' ? 'select' : 'buttons',
     });
     return info.lastInsertRowid;
   },
   update(id, data) {
     db.prepare(`
-      UPDATE panels SET title = @title, description = @description, color = @color, ticket_type_ids = @ticketTypeIds
+      UPDATE panels SET title = @title, description = @description, color = @color,
+        ticket_type_ids = @ticketTypeIds, style = @style
       WHERE id = @id
     `).run({
       id,
@@ -112,6 +114,7 @@ const Panels = {
       description: data.description || 'Click below to open a ticket.',
       color: data.color || '#5865F2',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
+      style: data.style === 'select' ? 'select' : 'buttons',
     });
   },
   setDeployed(id, channelId, messageId) {

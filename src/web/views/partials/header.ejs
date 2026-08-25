@@ -17,6 +17,10 @@
       <a href="/dashboard/<%= guild.id %>/settings">Settings</a>
     </nav>
   <% } %>
+  <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
+    <span class="dot"></span>
+    <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
+  </span>
   <% if (typeof hideLogout === 'undefined' || !hideLogout) { %>
     <form action="/logout" method="post" class="logout-form">
       <button class="btn btn-ghost" type="submit">Log out</button>
