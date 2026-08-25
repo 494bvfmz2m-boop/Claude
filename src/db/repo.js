@@ -56,6 +56,31 @@ const GuildSettings = {
   },
 };
 
+const AppSettings = {
+  get() {
+    const row = db.prepare('SELECT beta_locked FROM app_settings WHERE id = 1').get();
+    return { betaLocked: !!(row && row.beta_locked) };
+  },
+  setBetaLocked(enabled) {
+    db.prepare('UPDATE app_settings SET beta_locked = ? WHERE id = 1').run(enabled ? 1 : 0);
+  },
+};
+
+const BetaAllowlist = {
+  list() {
+    return db.prepare('SELECT discord_user_id, added_at FROM beta_allowlist ORDER BY added_at').all();
+  },
+  has(discordUserId) {
+    return !!db.prepare('SELECT 1 FROM beta_allowlist WHERE discord_user_id = ?').get(discordUserId);
+  },
+  add(discordUserId) {
+    db.prepare('INSERT OR IGNORE INTO beta_allowlist (discord_user_id) VALUES (?)').run(discordUserId);
+  },
+  remove(discordUserId) {
+    db.prepare('DELETE FROM beta_allowlist WHERE discord_user_id = ?').run(discordUserId);
+  },
+};
+
 const TicketTypes = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM ticket_types WHERE guild_id = ? ORDER BY id').all(guildId)
@@ -247,4 +272,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist };

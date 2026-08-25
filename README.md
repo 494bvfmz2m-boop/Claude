@@ -98,6 +98,7 @@ Fill in `.env`:
 | `SESSION_SECRET` | Random long string for signing session cookies — change it |
 | `PORT` | Port the dashboard listens on (default `3000`) |
 | `COOKIE_SECURE` | Leave `false` while accessing over plain `http://IP:PORT`. Set to `true` once the dashboard is behind HTTPS (e.g. a domain + Let's Encrypt via Coolify) |
+| `OWNER_DISCORD_ID` | Optional — your Discord user ID, for running a closed beta. See step 2b below |
 
 ## 2a. Set up "Log in with Discord"
 
@@ -116,6 +117,22 @@ permission — never any other server, even other ones Quellum is in.
    (your actual `DASHBOARD_URL` + `/auth/discord/callback` — must match exactly, including https).
 5. Set both `DISCORD_CLIENT_SECRET` and `DASHBOARD_URL` in your `.env`. The app refuses
    to start without them.
+
+## 2b. (Optional) Run a closed beta
+
+Want to keep the dashboard invite-only for now — only specific people you pick can log
+in and invite the bot? Set `OWNER_DISCORD_ID` in your `.env` to your own Discord user ID
+(Discord → User Settings → Advanced → enable Developer Mode, then right-click your own
+name → **Copy User ID**).
+
+Log in with that Discord account and you'll see an **🔒 Admin** link in the header. From
+there, flip on **Closed beta enabled** and add the Discord user IDs of everyone else
+you want to let in (same copy-ID trick, on their account). While it's on, anyone not on
+that list — and not you — gets turned away at login. Leave `OWNER_DISCORD_ID` unset to
+skip this feature entirely; nobody gets locked out and the admin panel doesn't exist.
+
+Note: this only gates *new* logins — someone already logged in before you enabled it
+stays logged in until their session expires (7 days) or they log out.
 
 ## 3. Run it
 

@@ -7,6 +7,7 @@ const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const dashboardRoutes = require('./routes/dashboard');
 const ticketTypeRoutes = require('./routes/ticketTypes');
 const panelRoutes = require('./routes/panels');
@@ -45,11 +46,17 @@ function createApp() {
       guildCount: ready ? client.guilds.cache.size : 0,
     };
     res.locals.discordUser = req.session?.discordUser || null;
+    res.locals.isOwner = Boolean(req.session?.isOwner);
     res.locals.inviteUrl = buildGenericInviteUrl();
     next();
   });
 
   app.use('/', authRoutes);
+
+  app.use('/admin', requireAuth, (req, res, next) => {
+    if (req.method === 'POST') return verifyCsrf(req, res, next);
+    next();
+  }, adminRoutes);
 
   app.use('/', requireAuth, dashboardRoutes);
 

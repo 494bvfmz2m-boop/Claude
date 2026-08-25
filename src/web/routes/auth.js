@@ -1,6 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
+const config = require('../../config');
 const { buildAuthorizeUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds } = require('../lib/discordOAuth');
+const { AppSettings, BetaAllowlist } = require('../../db/repo');
 
 const router = express.Router();
 
@@ -34,8 +36,14 @@ router.get('/auth/discord/callback', async (req, res) => {
       fetchManageableGuilds(token.access_token),
     ]);
 
+    const isOwner = Boolean(config.ownerDiscordId) && user.id === config.ownerDiscordId;
+    if (!isOwner && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
+      return res.render('login', { error: "Quellum is in closed beta right now — your Discord account isn't on the list. Ask the owner to add you." });
+    }
+
     req.session.authenticated = true;
     req.session.discordUser = { id: user.id, username: user.username, avatar: user.avatar };
+    req.session.isOwner = isOwner;
     req.session.manageableGuilds = manageableGuilds;
     res.redirect('/');
   } catch (err) {

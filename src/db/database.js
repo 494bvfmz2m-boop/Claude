@@ -88,6 +88,17 @@ CREATE TABLE IF NOT EXISTS embed_templates (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  beta_locked INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO app_settings (id, beta_locked) VALUES (1, 0);
+
+CREATE TABLE IF NOT EXISTS beta_allowlist (
+  discord_user_id TEXT PRIMARY KEY,
+  added_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_panels_guild ON panels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id);

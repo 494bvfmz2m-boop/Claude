@@ -1,0 +1,56 @@
+<%- include('partials/header', { title: 'Admin' }) %>
+<h1>🔒 Closed beta</h1>
+<p class="subtitle">Owner-only. Controls who can log into this dashboard at all.</p>
+
+<div class="card">
+  <form method="post" action="/admin/beta-lock">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="style-option" style="max-width:420px;">
+      <input type="checkbox" name="enabled" onchange="this.form.requestSubmit()" <%= settings.betaLocked ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Closed beta enabled</div>
+        <div class="style-desc">
+          When on, only Discord accounts on the list below (plus you) can log in.
+          Everyone else gets turned away at login.
+        </div>
+      </div>
+    </label>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Allowed Discord users</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Find a Discord user ID via Discord → User Settings → Advanced → enable Developer Mode,
+    then right-click someone → Copy User ID.
+  </p>
+
+  <% if (allowlist.length === 0) { %>
+    <p class="empty">No one's been added yet — only you can log in while closed beta is on.</p>
+  <% } else { %>
+    <ul class="list">
+      <% allowlist.forEach(a => { %>
+        <li class="list-item">
+          <div class="list-item-title"><%= a.discord_user_id %></div>
+          <div class="actions">
+            <form method="post" action="/admin/allowlist/remove" onsubmit="return confirm('Remove this user from the allowlist?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="discordUserId" value="<%= a.discord_user_id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/allowlist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1;">
+      <label for="discordUserId" style="margin-top:0;">Discord user ID</label>
+      <input type="text" id="discordUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+    </div>
+    <button class="btn" type="submit">Add</button>
+  </form>
+</div>
+<%- include('partials/footer') %>

@@ -69,7 +69,10 @@
     <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
   </span>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
-    <a class="btn btn-ghost" style="margin-left:auto;" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
+    <% if (isOwner) { %>
+      <a class="btn btn-ghost" style="margin-left:auto;" href="/admin">🔒 Admin</a>
+    <% } %>
+    <a class="btn btn-ghost" style="<%= isOwner ? '' : 'margin-left:auto;' %>" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
     <span class="guild-name" style="border-right:none;"><%= discordUser.username %></span>
     <form action="/logout" method="post" class="logout-form" style="margin-left:0;">
       <button class="btn btn-ghost" type="submit">Log out</button>
