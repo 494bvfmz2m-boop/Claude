@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { Warnings, GuildSettings } = require('../db/repo');
+const { recordModAction } = require('./modLog');
 
 const MOD_COLOR = '#ed4245';
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // Discord's own cap
@@ -10,7 +11,9 @@ async function getLogChannel(guild) {
   return guild.channels.fetch(settings.mod_log_channel_id).catch(() => null);
 }
 
-async function logAction(guild, { action, target, moderator, reason, extra }) {
+async function logAction(guild, { action, target, moderator, reason, extra, source }) {
+  recordModAction(guild.id, { action, target, moderator, reason, source });
+
   const logChannel = await getLogChannel(guild);
   if (!logChannel) return;
   const embed = new EmbedBuilder()
@@ -23,6 +26,7 @@ async function logAction(guild, { action, target, moderator, reason, extra }) {
     )
     .setTimestamp();
   if (extra) embed.addFields(extra);
+  if (source === 'dashboard') embed.addFields({ name: 'Via', value: '🌐 Dashboard', inline: true });
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }
 
@@ -150,6 +154,42 @@ async function handleUntimeout(interaction) {
   await logAction(interaction.guild, { action: '🔊 Timeout removed', target: user, moderator: interaction.user, reason });
 }
 
+// If the server owner set up "N warnings -> action" thresholds on the
+// dashboard, and this warning just made the count hit one exactly, apply it.
+// Returns a short human-readable note to tack onto the reply, or null.
+async function applyWarningThreshold(guild, targetMember, moderator, count) {
+  if (!targetMember) return null;
+  const settings = GuildSettings.get(guild.id);
+  const match = (settings.warning_thresholds || []).find((t) => t.count === count);
+  if (!match) return null;
+
+  const reason = `Auto-punishment: reached ${count} warning${count === 1 ? '' : 's'}`;
+  try {
+    if (match.action === 'kick') {
+      await targetMember.kick(reason);
+      await logAction(guild, { action: '👢 Auto-kick (warnings)', target: targetMember.user, moderator, reason });
+      return `and was automatically kicked (${count} warnings)`;
+    }
+    if (match.action === 'ban') {
+      await guild.members.ban(targetMember.id, { reason });
+      await logAction(guild, { action: '🔨 Auto-ban (warnings)', target: targetMember.user, moderator, reason });
+      return `and was automatically banned (${count} warnings)`;
+    }
+    if (match.action === 'timeout') {
+      const ms = parseDuration(match.duration) || 3600000;
+      await targetMember.timeout(ms, reason);
+      await logAction(guild, {
+        action: '🔇 Auto-timeout (warnings)', target: targetMember.user, moderator, reason,
+        extra: [{ name: 'Duration', value: match.duration || '1h', inline: true }],
+      });
+      return `and was automatically timed out (${count} warnings)`;
+    }
+  } catch {
+    return null; // couldn't apply (missing perms, role hierarchy, member left, etc.) -- the warning itself still stands
+  }
+  return null;
+}
+
 async function handleWarn(interaction) {
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
@@ -164,6 +204,9 @@ async function handleWarn(interaction) {
 
   await interaction.reply({ content: `⚠️ Warned **${user.tag}**. Reason: ${reason} (${count} total warning${count === 1 ? '' : 's'})` });
   await logAction(interaction.guild, { action: '⚠️ Member warned', target: user, moderator: interaction.user, reason });
+
+  const autoNote = await applyWarningThreshold(interaction.guild, targetMember, interaction.user, count);
+  if (autoNote) await interaction.followUp({ content: `⚠️ **${user.tag}** ${autoNote}.` }).catch(() => {});
 
   await user.send({ content: `You were warned in **${interaction.guild.name}**: ${reason}` }).catch(() => {});
 }
@@ -221,4 +264,7 @@ module.exports = {
   clearwarnings: handleClearWarnings,
   purge: handlePurge,
   canActOn,
+  logAction,
+  parseDuration,
+  applyWarningThreshold,
 };

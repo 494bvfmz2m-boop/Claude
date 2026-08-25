@@ -1,8 +1,16 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { testSwearFilter } = require('./cache');
 const { GuildSettings } = require('../db/repo');
+const { recordModAction } = require('./modLog');
 
 async function logDeletion(guild, message, matchedWord) {
+  recordModAction(guild.id, {
+    action: '🧼 Swear filter triggered',
+    target: message.author,
+    moderator: guild.client.user,
+    reason: `matched "${matchedWord}" in #${message.channel.name}`,
+  });
+
   const settings = GuildSettings.get(guild.id);
   if (!settings.mod_log_channel_id) return;
   const logChannel = await guild.channels.fetch(settings.mod_log_channel_id).catch(() => null);

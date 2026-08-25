@@ -99,7 +99,21 @@ CREATE TABLE IF NOT EXISTS beta_allowlist (
   added_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS mod_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target_id TEXT,
+  target_tag TEXT,
+  moderator_id TEXT NOT NULL,
+  moderator_tag TEXT,
+  reason TEXT,
+  source TEXT NOT NULL DEFAULT 'discord',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
+CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions(guild_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_panels_guild ON panels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
@@ -123,5 +137,7 @@ addColumnIfMissing('guild_settings', 'swear_filter_enabled', 'INTEGER NOT NULL D
 addColumnIfMissing('guild_settings', 'swear_words', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'staff_list_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#5865F2'");
+addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
 
 module.exports = db;

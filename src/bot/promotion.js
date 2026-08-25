@@ -1,6 +1,7 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getRankForRoleIds, getRoleIdForRank, getMaxRank } = require('./cache');
 const { GuildSettings } = require('../db/repo');
+const { recordModAction } = require('./modLog');
 
 const PROMO_COLOR = '#5865F2';
 
@@ -9,6 +10,8 @@ function isOverride(guild, member) {
 }
 
 async function logAction(guild, title, target, moderator, detail) {
+  recordModAction(guild.id, { action: title, target, moderator, reason: detail });
+
   const settings = GuildSettings.get(guild.id);
   if (!settings.mod_log_channel_id) return;
   const logChannel = await guild.channels.fetch(settings.mod_log_channel_id).catch(() => null);

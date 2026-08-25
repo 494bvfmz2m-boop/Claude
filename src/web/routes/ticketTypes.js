@@ -13,6 +13,13 @@ router.get('/tickets', async (req, res) => {
   res.render('tickets', { guild, ticketTypes, panels, recentTickets });
 });
 
+router.post('/tickets/clear-history', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  Tickets.clearClosedForGuild(guild.id);
+  res.redirect(`/dashboard/${guild.id}/tickets`);
+});
+
 router.get('/ticket-types/new', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;

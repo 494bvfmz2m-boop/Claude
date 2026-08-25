@@ -10,25 +10,25 @@ function requireOwner(req, res, next) {
   next();
 }
 
-router.get('/admin', requireOwner, (req, res) => {
+router.get('/', requireOwner, (req, res) => {
   res.render('admin', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
   });
 });
 
-router.post('/admin/beta-lock', requireOwner, (req, res) => {
+router.post('/beta-lock', requireOwner, (req, res) => {
   AppSettings.setBetaLocked(req.body.enabled === 'on');
   res.redirect('/admin');
 });
 
-router.post('/admin/allowlist/add', requireOwner, (req, res) => {
+router.post('/allowlist/add', requireOwner, (req, res) => {
   const id = (req.body.discordUserId || '').trim();
   if (/^\d{5,25}$/.test(id)) BetaAllowlist.add(id);
   res.redirect('/admin');
 });
 
-router.post('/admin/allowlist/remove', requireOwner, (req, res) => {
+router.post('/allowlist/remove', requireOwner, (req, res) => {
   BetaAllowlist.remove(req.body.discordUserId);
   res.redirect('/admin');
 });

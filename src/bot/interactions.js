@@ -8,7 +8,11 @@ const chatCommandHandlers = {
   ...moderation,
   ...promotion,
 };
-delete chatCommandHandlers.canActOn; // moderation.js exports this helper too, not a command
+// moderation.js exports these helpers too, not commands
+delete chatCommandHandlers.canActOn;
+delete chatCommandHandlers.logAction;
+delete chatCommandHandlers.parseDuration;
+delete chatCommandHandlers.applyWarningThreshold;
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {

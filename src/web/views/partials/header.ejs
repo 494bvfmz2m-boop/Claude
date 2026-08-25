@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= typeof title !== 'undefined' ? title + ' · Quellum' : 'Quellum' %></title>
+  <link rel="icon" type="image/svg+xml" href="/img/quellum-favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -73,7 +74,10 @@
       <a class="btn btn-ghost" style="margin-left:auto;" href="/admin">🔒 Admin</a>
     <% } %>
     <a class="btn btn-ghost" style="<%= isOwner ? '' : 'margin-left:auto;' %>" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
-    <span class="guild-name" style="border-right:none;"><%= discordUser.username %></span>
+    <span class="user-chip" style="border-right:none;">
+      <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
+      <%= discordUser.username %>
+    </span>
     <form action="/logout" method="post" class="logout-form" style="margin-left:0;">
       <button class="btn btn-ghost" type="submit">Log out</button>
     </form>

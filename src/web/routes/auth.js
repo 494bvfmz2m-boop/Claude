@@ -38,7 +38,7 @@ router.get('/auth/discord/callback', async (req, res) => {
 
     const isOwner = Boolean(config.ownerDiscordId) && user.id === config.ownerDiscordId;
     if (!isOwner && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
-      return res.render('login', { error: "Quellum is in closed beta right now — your Discord account isn't on the list. Ask the owner to add you." });
+      return res.render('login', { error: `You weren't invited to the beta. Ask ${config.betaContactHandle} on Discord to add you to the beta list.` });
     }
 
     req.session.authenticated = true;

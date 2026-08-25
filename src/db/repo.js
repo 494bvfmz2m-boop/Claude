@@ -22,9 +22,15 @@ const GuildSettings = {
       return {
         guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
+        staff_list_color: '#5865F2', warning_thresholds: [],
       };
     }
-    return { ...row, swear_filter_enabled: !!row.swear_filter_enabled, swear_words: parseJSON(row.swear_words, []) };
+    return {
+      ...row,
+      swear_filter_enabled: !!row.swear_filter_enabled,
+      swear_words: parseJSON(row.swear_words, []),
+      warning_thresholds: parseJSON(row.warning_thresholds, []),
+    };
   },
   setTranscriptChannel(guildId, channelId) {
     ensureGuildSettingsRow(guildId);
@@ -54,6 +60,15 @@ const GuildSettings = {
     ensureGuildSettingsRow(guildId);
     db.prepare('UPDATE guild_settings SET staff_list_message_id = ? WHERE guild_id = ?').run(messageId || null, guildId);
   },
+  setStaffListColor(guildId, color) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare('UPDATE guild_settings SET staff_list_color = ? WHERE guild_id = ?').run(color || '#5865F2', guildId);
+  },
+  setWarningThresholds(guildId, thresholds) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare('UPDATE guild_settings SET warning_thresholds = ? WHERE guild_id = ?')
+      .run(JSON.stringify(thresholds || []), guildId);
+  },
 };
 
 const AppSettings = {
@@ -78,6 +93,18 @@ const BetaAllowlist = {
   },
   remove(discordUserId) {
     db.prepare('DELETE FROM beta_allowlist WHERE discord_user_id = ?').run(discordUserId);
+  },
+};
+
+const ModActions = {
+  log(guildId, { action, targetId, targetTag, moderatorId, moderatorTag, reason, source }) {
+    db.prepare(`
+      INSERT INTO mod_actions (guild_id, action, target_id, target_tag, moderator_id, moderator_tag, reason, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(guildId, action, targetId || null, targetTag || null, moderatorId, moderatorTag || null, reason || null, source || 'discord');
+  },
+  listForGuild(guildId, limit = 50) {
+    return db.prepare('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY id DESC LIMIT ?').all(guildId, limit);
   },
 };
 
@@ -217,6 +244,9 @@ const Tickets = {
   listForGuild(guildId, limit = 50) {
     return db.prepare('SELECT * FROM tickets WHERE guild_id = ? ORDER BY id DESC LIMIT ?').all(guildId, limit);
   },
+  clearClosedForGuild(guildId) {
+    return db.prepare("DELETE FROM tickets WHERE guild_id = ? AND status = 'closed'").run(guildId).changes;
+  },
 };
 
 const EmbedTemplates = {
@@ -272,4 +302,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions };

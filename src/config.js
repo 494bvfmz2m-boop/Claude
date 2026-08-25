@@ -24,6 +24,7 @@ module.exports = {
   // The one Discord user ID that can reach /admin to toggle closed-beta mode
   // and manage who's allowed to log in. Leave unset to disable that entirely.
   ownerDiscordId: required('OWNER_DISCORD_ID', null),
+  betaContactHandle: required('BETA_CONTACT_HANDLE', 'spontanedonder'),
   sessionSecret: required('SESSION_SECRET', 'insecure-dev-secret'),
   port: Number.isNaN(parsedPort) ? 3000 : parsedPort,
   cookieSecure: required('COOKIE_SECURE', 'false') === 'true',

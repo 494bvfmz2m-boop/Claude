@@ -21,12 +21,12 @@ async function renderStaffList(guild) {
     const role = guild.roles.cache.get(r.role_id);
     const members = role ? [...role.members.values()] : [];
     const list = members.length > 0 ? members.map((m) => `<@${m.id}>`).join('\n') : '*Nobody*';
-    return { name: role ? role.name : `Unknown role (${r.role_id})`, value: list, inline: true };
+    return { name: role ? role.name : `Unknown role (${r.role_id})`, value: list, inline: false };
   });
 
   const embed = new EmbedBuilder()
     .setTitle('👮 Staff List')
-    .setColor('#5865F2')
+    .setColor(settings.staff_list_color || '#5865F2')
     .addFields(fields)
     .setTimestamp()
     .setFooter({ text: 'Auto-updates when staff roles change' });

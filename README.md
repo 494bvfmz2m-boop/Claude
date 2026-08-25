@@ -31,10 +31,14 @@ their own Discord account and can only configure their own server.
   it, and pings the new team — all in the same channel, so nothing in the
   conversation is lost.
 - **Moderation** — `/ban`, `/unban`, `/kick`, `/timeout`, `/untimeout`, `/warn`,
-  `/warnings`, `/clearwarnings`, `/purge`. Every action (plus swear filter
-  deletions and promotions/demotions) can log to a moderation channel you pick
-  on the dashboard. Timeouts use Discord's own native timeout feature, not a
-  custom mute role.
+  `/warnings`, `/clearwarnings`, `/purge`, all also available as a form right on the
+  **Moderation** tab of the dashboard — same real Discord actions either way, so staff
+  without Discord open can still act. Every action (plus swear filter deletions and
+  promotions/demotions) can log to a moderation channel you pick on the dashboard, and
+  is recorded either way in a searchable-by-eye log on that same page. Timeouts use
+  Discord's own native timeout feature, not a custom mute role. Set up **auto-punishments**
+  (e.g. "5 warnings → kick") and they fire automatically the moment a warning crosses
+  that count, from either source.
 - **Swear filter** — a banned-word list you manage entirely from the dashboard.
   Deletes matching messages (whole-word match, not substring), posts a
   self-deleting notice, and logs it. Staff with Manage Messages are never
@@ -46,10 +50,10 @@ their own Discord account and can only configure their own server.
   rank you're changing them to) — you can never touch a peer or a superior.
   Server owners and Administrators bypass this. Demoting the lowest rank
   removes their staff role entirely.
-- **Auto-updating staff list** — pick a channel on the dashboard and the bot
-  keeps one message there listing everyone in each hierarchy rank, live. Role
-  changes are debounced (batched a few seconds after the last change) so a
-  bulk role update doesn't spam edits.
+- **Auto-updating staff list** — pick a channel (and an embed color) on the dashboard
+  and the bot keeps one message there listing everyone in each hierarchy rank, live —
+  one role per row, everyone in it actually @mentioned. Role changes are debounced
+  (batched a few seconds after the last change) so a bulk role update doesn't spam edits.
 - **Everything above is configured from the web dashboard** — no code edits, no
   redeploys needed to change wording, roles, channels, or colors.
 
@@ -128,8 +132,10 @@ name → **Copy User ID**).
 Log in with that Discord account and you'll see an **🔒 Admin** link in the header. From
 there, flip on **Closed beta enabled** and add the Discord user IDs of everyone else
 you want to let in (same copy-ID trick, on their account). While it's on, anyone not on
-that list — and not you — gets turned away at login. Leave `OWNER_DISCORD_ID` unset to
-skip this feature entirely; nobody gets locked out and the admin panel doesn't exist.
+that list — and not you — gets turned away at login with a message telling them who to
+ask (set `BETA_CONTACT_HANDLE` in `.env` to your Discord handle; defaults to
+`spontanedonder`). Leave `OWNER_DISCORD_ID` unset to skip this feature entirely; nobody
+gets locked out and the admin panel doesn't exist.
 
 Note: this only gates *new* logins — someone already logged in before you enabled it
 stays logged in until their session expires (7 days) or they log out.
