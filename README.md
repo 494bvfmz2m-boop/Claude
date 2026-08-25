@@ -28,6 +28,26 @@ external panel — one Node.js app, one SQLite file, deployable on any VPS.
   type. Renames the channel, moves it to the new category, updates who can see
   it, and pings the new team — all in the same channel, so nothing in the
   conversation is lost.
+- **Moderation** — `/ban`, `/unban`, `/kick`, `/timeout`, `/untimeout`, `/warn`,
+  `/warnings`, `/clearwarnings`, `/purge`. Every action (plus swear filter
+  deletions and promotions/demotions) can log to a moderation channel you pick
+  on the dashboard. Timeouts use Discord's own native timeout feature, not a
+  custom mute role.
+- **Swear filter** — a banned-word list you manage entirely from the dashboard.
+  Deletes matching messages (whole-word match, not substring), posts a
+  self-deleting notice, and logs it. Staff with Manage Messages are never
+  filtered. The word list is cached in memory, not re-read from the database
+  on every message, so it doesn't add real load even on a busy server.
+- **Staff hierarchy + `/promote` `/demote`** — define an ordered list of staff
+  roles on the dashboard. You can only promote or demote someone to a rank
+  *strictly below your own* (checked against both their current rank and the
+  rank you're changing them to) — you can never touch a peer or a superior.
+  Server owners and Administrators bypass this. Demoting the lowest rank
+  removes their staff role entirely.
+- **Auto-updating staff list** — pick a channel on the dashboard and the bot
+  keeps one message there listing everyone in each hierarchy rank, live. Role
+  changes are debounced (batched a few seconds after the last change) so a
+  bulk role update doesn't spam edits.
 - **Everything above is configured from the web dashboard** — no code edits, no
   redeploys needed to change wording, roles, channels, or colors.
 
@@ -36,25 +56,28 @@ external panel — one Node.js app, one SQLite file, deployable on any VPS.
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**.
 2. Go to **Bot** → **Reset Token** → copy it. This is your `DISCORD_TOKEN`.
 3. On the same **Bot** page, scroll to **Privileged Gateway Intents** and enable
-   **Message Content Intent** (needed to include message text in transcripts).
+   **Message Content Intent** (needed for transcripts and the swear filter) **and
+   Server Members Intent** (needed for the staff list and `/promote`/`/demote`
+   to see everyone's current roles reliably).
 4. Go to **OAuth2** → **General** and copy the **Client ID**. This is your `DISCORD_CLIENT_ID`.
 5. Invite the bot to your server. Build the URL like this (or use the OAuth2 URL
    Generator in the portal: scopes `bot` **and** `applications.commands`, permissions below):
 
    ```
-   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot+applications.commands&permissions=268561424
+   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot+applications.commands&permissions=1099780189206
    ```
 
-   The `applications.commands` scope is required for the `/change` slash command
-   (used inside a ticket to move it to a different category) to show up. If your
-   bot is already in your server from before this scope was added, just open this
-   same link again and re-authorize — you don't need to kick and re-add the bot.
+   The `applications.commands` scope is required for slash commands to show up.
+   If your bot is already in your server from an earlier setup, just open this
+   same link again and re-authorize to pick up the new scopes/permissions —
+   you don't need to kick and re-add the bot.
 
-   That permissions value covers: View Channels, Manage Channels, Manage Roles,
-   Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages
-   — everything the bot needs to create ticket channels, set their permissions, and
-   clean them up. (You can grant `Administrator` instead if you'd rather not think
-   about it, but the above is the minimum it actually needs.)
+   That permissions value covers everything from before (View Channels, Manage
+   Channels, Manage Roles, Send Messages, Embed Links, Attach Files, Read
+   Message History, Manage Messages) plus **Kick Members**, **Ban Members**,
+   and **Moderate Members** (Discord's name for the timeout permission), for
+   the moderation commands. (`Administrator` also works if you'd rather not
+   think about it, but the above is the minimum it actually needs.)
 
 ## 2. Configure
 
@@ -117,6 +140,12 @@ volume mounted at `/app/data` so the database isn't wiped on redeploy.
    the embed + button/dropdown into your server.
 5. **Embeds** → build any embed with the live preview, save it as a template for
    reuse, or send it straight to a channel (e.g. for announcements, rules, etc.).
+6. **Moderation** → optionally set up the swear filter (enable it + paste in your
+   word list), build your staff hierarchy (add roles, lowest to highest — use the
+   ↑/↓ buttons to reorder), and pick a channel for the auto-updating staff list.
+   None of this is required for moderation *commands* to work — `/ban`, `/kick`,
+   `/timeout`, `/warn`, etc. work immediately based on real Discord permissions.
+   The hierarchy is only needed for `/promote` and `/demote`.
 
 Ticket flow after that is automatic: a user clicks the panel button → gets a
 private channel → staff get pinged → staff can **Claim** or **Close** (with an
@@ -130,3 +159,11 @@ channel and the ticket channel is deleted a few seconds later.
   no per-user Discord OAuth login. Keep the password private.
 - The database is a single SQLite file at `DB_PATH` (`/app/data/bot.sqlite` in
   Docker). Back it up by copying that file.
+- **On resource usage**: the swear filter and staff hierarchy are cached in memory
+  per server and only recomputed when you actually change them on the dashboard —
+  the bot isn't hitting the database on every single message. The staff list
+  batches rapid role changes into one update instead of editing the message
+  repeatedly. Member data (needed for the staff list and promote/demote) is only
+  fetched for servers that actually use the staff list feature, not eagerly for
+  every server the bot is in. Still just one lightweight Node process — this
+  doesn't meaningfully change what the VPS needs to handle it.

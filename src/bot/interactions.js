@@ -1,13 +1,21 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType } = require('./tickets');
+const moderation = require('./moderation');
+const promotion = require('./promotion');
+
+const chatCommandHandlers = {
+  change: startChangeType,
+  ...moderation,
+  ...promotion,
+};
+delete chatCommandHandlers.canActOn; // moderation.js exports this helper too, not a command
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {
     try {
       if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'change') {
-          return startChangeType(interaction);
-        }
+        const handler = chatCommandHandlers[interaction.commandName];
+        if (handler) return handler(interaction);
       }
 
       if (interaction.isButton()) {

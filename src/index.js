@@ -5,6 +5,8 @@ const { Events } = require('discord.js');
 const client = require('./bot/client');
 const { register: registerInteractions } = require('./bot/interactions');
 const { registerAllGuildCommands, registerCommandsForGuild } = require('./bot/commands');
+const { register: registerSwearFilter } = require('./bot/swearFilter');
+const { register: registerStaffList, warmUpAndRefreshAll } = require('./bot/staffList');
 const createApp = require('./web/app');
 
 if (!config.discordToken) {
@@ -13,10 +15,13 @@ if (!config.discordToken) {
 }
 
 registerInteractions(client);
+registerSwearFilter(client);
+registerStaffList(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
   await registerAllGuildCommands(client);
+  warmUpAndRefreshAll(client).catch((err) => console.error('Staff list warm-up failed:', err.message));
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommandsForGuild(guild));

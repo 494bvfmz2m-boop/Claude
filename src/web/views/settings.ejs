@@ -17,6 +17,18 @@
     and when it's closed — who closed it, why, and the full transcript as a file.
   </div>
 
+  <label for="modLogChannelId">Moderation log channel</label>
+  <select id="modLogChannelId" name="modLogChannelId">
+    <option value="">— None (moderation actions won't be logged anywhere) —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.mod_log_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">
+    Bans, kicks, timeouts, warnings, promotions/demotions, and swear filter
+    deletions all get posted here.
+  </div>
+
   <div class="btn-row">
     <button class="btn" type="submit">Save</button>
   </div>

@@ -14,9 +14,8 @@ router.get('/settings', async (req, res) => {
 router.post('/settings', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  GuildSettings.upsert(guild.id, {
-    transcriptChannelId: req.body.transcriptChannelId || null,
-  });
+  GuildSettings.setTranscriptChannel(guild.id, req.body.transcriptChannelId || null);
+  GuildSettings.setModLogChannel(guild.id, req.body.modLogChannelId || null);
   res.redirect(`/dashboard/${guild.id}/settings`);
 });
 

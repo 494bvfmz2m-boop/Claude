@@ -13,7 +13,28 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id TEXT PRIMARY KEY,
   transcript_channel_id TEXT,
+  mod_log_channel_id TEXT,
+  swear_filter_enabled INTEGER NOT NULL DEFAULT 0,
+  swear_words TEXT NOT NULL DEFAULT '[]',
+  staff_list_channel_id TEXT,
+  staff_list_message_id TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS warnings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  moderator_id TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS staff_ranks (
+  guild_id TEXT NOT NULL,
+  role_id TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS ticket_types (
@@ -72,6 +93,8 @@ CREATE INDEX IF NOT EXISTS idx_panels_guild ON panels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
 CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id);
+CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 `);
 
 // Lightweight migrations for columns added after the initial release —
@@ -84,5 +107,10 @@ function addColumnIfMissing(table, column, definition) {
 }
 
 addColumnIfMissing('panels', 'style', "TEXT NOT NULL DEFAULT 'buttons'");
+addColumnIfMissing('guild_settings', 'mod_log_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'swear_filter_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('guild_settings', 'swear_words', "TEXT NOT NULL DEFAULT '[]'");
+addColumnIfMissing('guild_settings', 'staff_list_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
 
 module.exports = db;

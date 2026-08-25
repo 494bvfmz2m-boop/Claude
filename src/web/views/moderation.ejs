@@ -1,0 +1,114 @@
+<%- include('partials/header', { title: 'Moderation', guild }) %>
+<h1>🛡️ Moderation</h1>
+<p class="subtitle">Swear filter, staff hierarchy, and the auto-updating staff list.</p>
+
+<div class="card">
+  <h2>🧼 Swear filter</h2>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="style-option" style="max-width:280px;">
+      <input type="checkbox" name="enabled" <%= settings.swear_filter_enabled ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Enabled</div>
+        <div class="style-desc">Delete messages containing any word below</div>
+      </div>
+    </label>
+
+    <label for="words">Banned words</label>
+    <textarea id="words" name="words" placeholder="one per line, or comma-separated" style="min-height:120px;"><%= settings.swear_words.join('\n') %></textarea>
+    <div class="hint">
+      Case-insensitive, whole-word matching (won't flag a word just for containing one of these as a substring).
+      Staff with the Manage Messages permission are never filtered.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>👮 Staff hierarchy</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Powers <code>/promote</code> and <code>/demote</code>, and the auto-updating staff list below.
+    Highest rank at the top. You can only promote/demote someone to a rank strictly below your own
+    (server owners and Administrators bypass this).
+  </p>
+
+  <% if (hierarchy.length === 0) { %>
+    <p class="empty">No hierarchy set up yet — add a role below to get started.</p>
+  <% } else { %>
+    <ul class="list">
+      <% hierarchy.forEach((h, i) => { %>
+        <li class="list-item">
+          <div class="list-item-title">
+            <span class="role-dot" style="background:<%= h.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
+            <%= h.name %>
+            <span class="badge" style="margin-left:8px;">Rank <%= h.rank %></span>
+          </div>
+          <div class="actions">
+            <% if (i > 0) { %>
+              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/move">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="roleId" value="<%= h.roleId %>">
+                <input type="hidden" name="direction" value="up">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Move up">↑</button>
+              </form>
+            <% } %>
+            <% if (i < hierarchy.length - 1) { %>
+              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/move">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="roleId" value="<%= h.roleId %>">
+                <input type="hidden" name="direction" value="down">
+                <button class="btn btn-sm btn-ghost" type="submit" title="Move down">↓</button>
+              </form>
+            <% } %>
+            <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/remove" onsubmit="return confirm('Remove this rank from the hierarchy?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="roleId" value="<%= h.roleId %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <% if (availableRoles.length > 0) { %>
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div style="flex:1;">
+        <label for="roleId" style="margin-top:0;">Add a rank (becomes the new highest)</label>
+        <select id="roleId" name="roleId">
+          <% availableRoles.forEach(r => { %>
+            <option value="<%= r.id %>"><%= r.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button class="btn" type="submit">Add</button>
+    </form>
+  <% } %>
+</div>
+
+<div class="card">
+  <h2>📋 Staff list</h2>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list-channel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="channelId">Channel</label>
+    <select id="channelId" name="channelId">
+      <option value="">— None (no auto-updating list) —</option>
+      <% options.textChannels.forEach(c => { %>
+        <option value="<%= c.id %>" <%= settings.staff_list_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+      <% }) %>
+    </select>
+    <div class="hint">
+      Posts (and keeps updated) one message here listing everyone in each hierarchy rank.
+      Updates automatically a few seconds after anyone's staff role changes.
+    </div>
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+<%- include('partials/footer') %>

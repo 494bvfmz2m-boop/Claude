@@ -8,19 +8,51 @@ function parseJSON(str, fallback) {
   }
 }
 
+function ensureGuildSettingsRow(guildId) {
+  db.prepare(`
+    INSERT INTO guild_settings (guild_id) VALUES (?)
+    ON CONFLICT(guild_id) DO NOTHING
+  `).run(guildId);
+}
+
 const GuildSettings = {
   get(guildId) {
     const row = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
-    return row || { guild_id: guildId, transcript_channel_id: null };
+    if (!row) {
+      return {
+        guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
+        swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
+      };
+    }
+    return { ...row, swear_filter_enabled: !!row.swear_filter_enabled, swear_words: parseJSON(row.swear_words, []) };
   },
-  upsert(guildId, { transcriptChannelId }) {
+  setTranscriptChannel(guildId, channelId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET transcript_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(channelId || null, guildId);
+  },
+  setModLogChannel(guildId, channelId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET mod_log_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(channelId || null, guildId);
+  },
+  setSwearFilter(guildId, { enabled, words }) {
+    ensureGuildSettingsRow(guildId);
     db.prepare(`
-      INSERT INTO guild_settings (guild_id, transcript_channel_id, updated_at)
-      VALUES (@guildId, @transcriptChannelId, datetime('now'))
-      ON CONFLICT(guild_id) DO UPDATE SET
-        transcript_channel_id = excluded.transcript_channel_id,
-        updated_at = datetime('now')
-    `).run({ guildId, transcriptChannelId: transcriptChannelId || null });
+      UPDATE guild_settings SET swear_filter_enabled = ?, swear_words = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(enabled ? 1 : 0, JSON.stringify(words || []), guildId);
+  },
+  setStaffListChannel(guildId, channelId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare(`
+      UPDATE guild_settings SET staff_list_channel_id = ?, staff_list_message_id = NULL, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(channelId || null, guildId);
+  },
+  setStaffListMessage(guildId, messageId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare('UPDATE guild_settings SET staff_list_message_id = ? WHERE guild_id = ?').run(messageId || null, guildId);
   },
 };
 
@@ -186,4 +218,33 @@ const EmbedTemplates = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates };
+const Warnings = {
+  add(guildId, userId, moderatorId, reason) {
+    db.prepare('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)')
+      .run(guildId, userId, moderatorId, reason || null);
+  },
+  listForUser(guildId, userId) {
+    return db.prepare('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY id DESC').all(guildId, userId);
+  },
+  clearForUser(guildId, userId) {
+    const info = db.prepare('DELETE FROM warnings WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
+    return info.changes;
+  },
+};
+
+const StaffRanks = {
+  // Ordered lowest (rank 1) to highest.
+  listForGuild(guildId) {
+    return db.prepare('SELECT role_id, rank FROM staff_ranks WHERE guild_id = ? ORDER BY rank ASC').all(guildId);
+  },
+  replaceAll(guildId, roleIdsInOrder) {
+    const tx = db.transaction((ids) => {
+      db.prepare('DELETE FROM staff_ranks WHERE guild_id = ?').run(guildId);
+      const insert = db.prepare('INSERT INTO staff_ranks (guild_id, role_id, rank) VALUES (?, ?, ?)');
+      ids.forEach((roleId, i) => insert.run(guildId, roleId, i + 1));
+    });
+    tx(roleIdsInOrder);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks };

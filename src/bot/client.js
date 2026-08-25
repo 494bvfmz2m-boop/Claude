@@ -5,6 +5,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers, // needed for the staff list + promote/demote to see current roles reliably
   ],
   partials: [Partials.Channel, Partials.Message],
 });
