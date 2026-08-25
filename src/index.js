@@ -24,8 +24,8 @@ client.on(Events.GuildCreate, (guild) => registerCommandsForGuild(guild));
 client.on('error', (err) => console.error('Discord client error:', err));
 
 client.login(config.discordToken).catch((err) => {
-  console.error('Failed to log in to Discord. Check DISCORD_TOKEN.', err);
-  process.exit(1);
+  console.error('Failed to log in to Discord. Check DISCORD_TOKEN and that Message Content Intent is enabled in the Developer Portal.', err.message);
+  console.error('The dashboard will keep running so you can still access it; the bot itself will stay offline until this is fixed and redeployed.');
 });
 
 const app = createApp();
