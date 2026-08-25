@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const config = require('../config');
 const client = require('../bot/client');
-const { requireAuth, attachCsrf, verifyCsrf } = require('./middleware/auth');
+const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -43,6 +43,7 @@ function createApp() {
       ping: ready && client.ws.ping >= 0 ? Math.round(client.ws.ping) : null,
       guildCount: ready ? client.guilds.cache.size : 0,
     };
+    res.locals.discordUser = req.session?.discordUser || null;
     next();
   });
 
@@ -58,7 +59,7 @@ function createApp() {
   guildRouter.use(moderationRoutes);
 
   // CSRF check on every state-changing POST under the dashboard
-  app.use('/dashboard/:guildId', requireAuth, (req, res, next) => {
+  app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);

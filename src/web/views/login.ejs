@@ -1,13 +1,33 @@
 <%- include('partials/header', { title: 'Login', hideLogout: true }) %>
 <div class="login-wrap">
-  <h1>Ticket Bot</h1>
-  <p class="subtitle">Log in to manage tickets, panels, embeds and settings.</p>
+  <h1>Quellum</h1>
+  <p class="subtitle">Log in to manage tickets, moderation, embeds and settings.</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>
-  <form action="/login" method="post">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" autofocus required>
-    <div class="btn-row"><button class="btn" type="submit">Log in</button></div>
-  </form>
+
+  <% if (oauthEnabled) { %>
+    <div class="card" style="padding:24px;">
+      <a class="btn" href="/auth/discord" style="width:100%; justify-content:center;">Log in with Discord</a>
+      <p class="hint" style="text-align:center; margin-top:12px;">
+        You'll only see and manage servers where you're the owner or have Manage Server.
+      </p>
+    </div>
+
+    <details style="margin-top:18px;">
+      <summary style="cursor:pointer; color:var(--text-muted); font-size:13px;">Server owner with the admin password instead?</summary>
+      <form action="/login" method="post" style="margin-top:14px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password">
+        <div class="btn-row"><button class="btn btn-ghost" type="submit">Log in</button></div>
+      </form>
+    </details>
+  <% } else { %>
+    <form action="/login" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autofocus required>
+      <div class="btn-row"><button class="btn" type="submit">Log in</button></div>
+    </form>
+  <% } %>
 </div>
 <%- include('partials/footer') %>

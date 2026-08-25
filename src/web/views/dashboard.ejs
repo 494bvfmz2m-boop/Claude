@@ -4,22 +4,43 @@
   <% if (!botReady) { %>
     ⚠️ The bot is still connecting to Discord. Refresh in a few seconds.
   <% } else { %>
-    Pick a server to manage its ticket bot.
+    Pick a server to manage it.
   <% } %>
 </p>
 
-<% if (guilds.length === 0) { %>
+<% if (guilds.length === 0 && inviteGuilds.length === 0) { %>
   <div class="card empty">
-    The bot isn't in any servers yet. Invite it using the OAuth2 URL from the README, then refresh this page.
+    <% if (typeof discordUser !== 'undefined' && discordUser) { %>
+      No servers found where you're the owner or have Manage Server. Quellum can only be
+      configured by a server's own admins.
+    <% } else { %>
+      The bot isn't in any servers yet. Invite it using the OAuth2 URL from the README, then refresh this page.
+    <% } %>
   </div>
 <% } else { %>
-  <div class="guild-grid">
-    <% guilds.forEach(g => { %>
-      <a class="guild-card" href="/dashboard/<%= g.id %>/tickets">
-        <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
-        <div><%= g.name %></div>
-      </a>
-    <% }) %>
-  </div>
+  <% if (guilds.length > 0) { %>
+    <div class="guild-grid">
+      <% guilds.forEach(g => { %>
+        <a class="guild-card" href="/dashboard/<%= g.id %>/tickets">
+          <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+          <div><%= g.name %></div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (inviteGuilds.length > 0) { %>
+    <h2 style="margin-top:32px;">➕ Add Quellum to one of your other servers</h2>
+    <p class="hint" style="margin-bottom:14px;">You manage these too, but Quellum isn't in them yet.</p>
+    <div class="guild-grid">
+      <% inviteGuilds.forEach(g => { %>
+        <a class="guild-card" href="<%= g.inviteUrl %>" target="_blank" rel="noopener" style="opacity:.8;">
+          <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+          <div><%= g.name %></div>
+          <div class="hint" style="margin-top:4px;">Invite →</div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
 <% } %>
 <%- include('partials/footer') %>

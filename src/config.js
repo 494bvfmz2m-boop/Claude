@@ -8,9 +8,19 @@ function required(name, fallback) {
 
 const parsedPort = parseInt(required('PORT', '3000'), 10);
 
+// Discord OAuth login is optional — only enabled when both of these are set.
+// DASHBOARD_URL is this app's own public base URL, e.g. https://tickets.example.com
+// (no trailing slash), used to build the exact redirect_uri Discord expects.
+const dashboardUrl = required('DASHBOARD_URL', null);
+const discordClientSecret = required('DISCORD_CLIENT_SECRET', null);
+
 module.exports = {
   discordToken: required('DISCORD_TOKEN'),
   discordClientId: required('DISCORD_CLIENT_ID'),
+  discordClientSecret,
+  dashboardUrl,
+  oauthRedirectUri: dashboardUrl ? `${dashboardUrl.replace(/\/+$/, '')}/auth/discord/callback` : null,
+  oauthEnabled: Boolean(dashboardUrl && discordClientSecret),
   adminPassword: required('ADMIN_PASSWORD', 'change-me'),
   sessionSecret: required('SESSION_SECRET', 'insecure-dev-secret'),
   port: Number.isNaN(parsedPort) ? 3000 : parsedPort,

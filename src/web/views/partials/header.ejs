@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? title + ' · Ticket Bot' : 'Ticket Bot' %></title>
+  <title><%= typeof title !== 'undefined' ? title + ' · Quellum' : 'Quellum' %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">🎫 Ticket Bot</a>
+  <a class="brand" href="/">Quellum</a>
   <% if (typeof guild !== 'undefined' && guild) { %>
     <nav class="topnav">
       <span class="guild-name"><%= guild.name %></span>
@@ -26,7 +26,10 @@
     <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
   </span>
   <% if (typeof hideLogout === 'undefined' || !hideLogout) { %>
-    <form action="/logout" method="post" class="logout-form">
+    <% if (typeof discordUser !== 'undefined' && discordUser) { %>
+      <span class="guild-name" style="border-right:none; margin-left:auto;"><%= discordUser.username %></span>
+    <% } %>
+    <form action="/logout" method="post" class="logout-form" style="<%= (typeof discordUser !== 'undefined' && discordUser) ? 'margin-left:0;' : '' %>">
       <button class="btn btn-ghost" type="submit">Log out</button>
     </form>
   <% } %>
