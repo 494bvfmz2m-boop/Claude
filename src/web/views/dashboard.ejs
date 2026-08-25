@@ -1,25 +1,81 @@
-<%- include('partials/header', { title: 'Servers' }) %>
-<h1>Your servers</h1>
-<p class="subtitle">
-  <% if (!botReady) { %>
-    ⚠️ The bot is still connecting to Discord. Refresh in a few seconds.
-  <% } else { %>
-    Pick a server to manage its ticket bot.
-  <% } %>
-</p>
+<%- include('partials/header', { title: 'Dashboard' }) %>
+<%
+  function barClass(p) {
+    if (p >= 90) return 'critical';
+    if (p >= 75) return 'warning';
+    return '';
+  }
+  const healthIcon = { ok: '✅', warning: '⚠️', critical: '🔴' }[health.level];
+%>
+<h1>Server status</h1>
+<p class="subtitle">Auto-refreshes every 15 seconds.</p>
 
-<% if (guilds.length === 0) { %>
-  <div class="card empty">
-    The bot isn't in any servers yet. Invite it using the OAuth2 URL from the README, then refresh this page.
+<div class="health-banner <%= health.level %>">
+  <span class="health-icon"><%= healthIcon %></span>
+  <div>
+    <div class="health-title">
+      <% if (health.level === 'ok') { %>All good — no upgrade needed
+      <% } else if (health.level === 'warning') { %>Getting tight on resources
+      <% } else { %>Time to consider upgrading
+      <% } %>
+    </div>
+    <div class="health-detail"><%= health.message %></div>
+    <% if (health.issues.length > 1) { %>
+      <ul>
+        <% health.issues.forEach(issue => { %><li><%= issue %></li><% }) %>
+      </ul>
+    <% } %>
   </div>
-<% } else { %>
-  <div class="guild-grid">
-    <% guilds.forEach(g => { %>
-      <a class="guild-card" href="/dashboard/<%= g.id %>/tickets">
-        <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
-        <div><%= g.name %></div>
-      </a>
-    <% }) %>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">⚙️ CPU</div>
+    <div class="stat-value"><%= cpu.percent %>%</div>
+    <div class="stat-sub"><%= cpu.cores %> core(s) · load <%= cpu.load1.toFixed(2) %> / <%= cpu.load5.toFixed(2) %> / <%= cpu.load15.toFixed(2) %></div>
+    <div class="stat-bar"><div class="stat-bar-fill <%= barClass(cpu.percent) %>" style="width:<%= Math.min(100, cpu.percent) %>%"></div></div>
   </div>
-<% } %>
+
+  <div class="stat-card">
+    <div class="stat-label">🧠 Memory</div>
+    <div class="stat-value"><%= mem.percent %>%</div>
+    <div class="stat-sub"><%= formatBytes(mem.usedBytes) %> / <%= formatBytes(mem.totalBytes) %></div>
+    <div class="stat-bar"><div class="stat-bar-fill <%= barClass(mem.percent) %>" style="width:<%= mem.percent %>%"></div></div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-label">💾 Disk</div>
+    <% if (disk.available) { %>
+      <div class="stat-value"><%= disk.percent %>%</div>
+      <div class="stat-sub"><%= formatBytes(disk.usedBytes) %> / <%= formatBytes(disk.totalBytes) %></div>
+      <div class="stat-bar"><div class="stat-bar-fill <%= barClass(disk.percent) %>" style="width:<%= disk.percent %>%"></div></div>
+    <% } else { %>
+      <div class="stat-value">—</div>
+      <div class="stat-sub">Host disk not mounted — see README to enable this.</div>
+    <% } %>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📦 Services on this VPS</h2>
+  <% if (!dockerAvailable) { %>
+    <p class="empty">Can't reach Docker (<%= dockerError %>) — mount the Docker socket to see this. See README.</p>
+  <% } else if (containers.length === 0) { %>
+    <p class="empty">No containers found.</p>
+  <% } else { %>
+    <ul class="list">
+      <% containers.forEach(c => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><span class="state-dot <%= c.state %>"></span><%= c.name %></div>
+            <div class="list-item-meta"><%= c.image %> · <%= c.status %></div>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<p class="refresh-note">Last checked <%= new Date().toLocaleTimeString() %></p>
+<meta http-equiv="refresh" content="15">
 <%- include('partials/footer') %>

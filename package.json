@@ -1,15 +1,14 @@
 {
-  "name": "ticket-bot",
+  "name": "vps-dashboard",
   "version": "1.0.0",
-  "description": "Self-hosted Discord ticket + embed bot with a web dashboard for full customization",
+  "description": "Password-protected status dashboard for the VPS: CPU/RAM/disk and running services",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
-    "discord.js": "^14.15.3",
+    "dockerode": "^4.0.2",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.0",

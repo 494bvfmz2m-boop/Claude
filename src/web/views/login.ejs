@@ -1,7 +1,7 @@
 <%- include('partials/header', { title: 'Login', hideLogout: true }) %>
 <div class="login-wrap">
-  <h1>Ticket Bot</h1>
-  <p class="subtitle">Log in to manage tickets, panels, embeds and settings.</p>
+  <h1>VPS Dashboard</h1>
+  <p class="subtitle">Log in to see server health and running services.</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>
   <form action="/login" method="post">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
