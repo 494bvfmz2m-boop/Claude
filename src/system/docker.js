@@ -22,15 +22,18 @@ async function getContainerStats(id) {
   }
 }
 
-// Coolify (and docker-compose, which Coolify generates under the hood) tags
-// containers with labels carrying the human-readable name, separate from the
-// actual container hostname — which is often a random-looking generated id
-// you can't change. Prefer whichever of these is present.
+// vps-dashboard.name is a label you can set yourself in Coolify — no SSH needed:
+// go to a resource's General settings -> Container Labels -> add
+//   vps-dashboard.name=Whatever You Want
+// and redeploy that resource. Checked first since it's always reliable.
+// The coolify.* ones are best-effort guesses at Coolify's own labels; skip
+// com.docker.compose.project — on Coolify's own internal containers that's
+// just the literal word "source", not a useful name.
 const NAME_LABEL_CANDIDATES = [
+  'vps-dashboard.name',
   'coolify.name',
   'coolify.applicationName',
   'coolify.resourceName',
-  'com.docker.compose.project',
   'com.docker.compose.service',
 ];
 
