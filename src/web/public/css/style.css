@@ -180,3 +180,14 @@ input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px 
 .state-dot.dead, .state-dot.paused { background: var(--danger); }
 
 .refresh-note { color: var(--text-muted); font-size: 12.5px; text-align: center; margin-top: 8px; }
+
+.service-usage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}

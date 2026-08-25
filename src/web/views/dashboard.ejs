@@ -70,6 +70,12 @@
             <div class="list-item-title"><span class="state-dot <%= c.state %>"></span><%= c.name %></div>
             <div class="list-item-meta"><%= c.image %> · <%= c.status %></div>
           </div>
+          <% if (c.stats) { %>
+            <div class="service-usage">
+              <span><%= c.stats.cpuPercent %>% CPU</span>
+              <span><%= formatBytes(c.stats.memBytes) %> RAM</span>
+            </div>
+          <% } %>
         </li>
       <% }) %>
     </ul>
