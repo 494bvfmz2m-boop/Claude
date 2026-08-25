@@ -8,7 +8,7 @@ function register(client) {
         const [action, ...rest] = interaction.customId.split(':');
 
         if (action === 'panel_open') {
-          const [, ticketTypeId] = rest;
+          const [ticketTypeId] = rest;
           return openTicket(interaction, Number(ticketTypeId));
         }
 
