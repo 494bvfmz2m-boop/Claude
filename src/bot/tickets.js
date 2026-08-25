@@ -100,6 +100,13 @@ async function openTicket(interaction, ticketTypeId) {
 
   await interaction.editReply({ content: `Your ticket has been created: <#${channel.id}>` });
 
+  if (interaction.isStringSelectMenu()) {
+    // Discord's select menus keep showing your last pick as "selected" for you
+    // until the message re-renders — re-editing with the same components resets
+    // that, so you can immediately pick the same option again.
+    await interaction.message.edit({ components: interaction.message.components }).catch(() => {});
+  }
+
   const logChannel = await getLogChannel(guild);
   if (logChannel) {
     const logEmbed = new EmbedBuilder()
