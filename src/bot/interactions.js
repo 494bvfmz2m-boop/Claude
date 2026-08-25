@@ -1,9 +1,15 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const { openTicket, claimTicket, closeTicket } = require('./tickets');
+const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType } = require('./tickets');
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {
     try {
+      if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'change') {
+          return startChangeType(interaction);
+        }
+      }
+
       if (interaction.isButton()) {
         const [action, ...rest] = interaction.customId.split(':');
 
@@ -34,10 +40,15 @@ function register(client) {
       }
 
       if (interaction.isStringSelectMenu()) {
-        const [action, panelId] = interaction.customId.split(':');
+        const [action, param] = interaction.customId.split(':');
         if (action === 'panel_select') {
           const ticketTypeId = interaction.values[0];
           return openTicket(interaction, Number(ticketTypeId));
+        }
+        if (action === 'ticket_change_type') {
+          const ticketDbId = param;
+          const newTypeId = interaction.values[0];
+          return applyChangeType(interaction, Number(ticketDbId), Number(newTypeId));
         }
       }
 

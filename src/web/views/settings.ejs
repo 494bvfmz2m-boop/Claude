@@ -5,23 +5,17 @@
 <form class="card" method="post" action="/dashboard/<%= guild.id %>/settings">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-  <label for="transcriptChannelId">Transcript channel</label>
+  <label for="transcriptChannelId">Ticket log channel</label>
   <select id="transcriptChannelId" name="transcriptChannelId">
-    <option value="">— None (transcripts won't be saved anywhere) —</option>
+    <option value="">— None (ticket activity won't be logged anywhere) —</option>
     <% options.textChannels.forEach(c => { %>
       <option value="<%= c.id %>" <%= settings.transcript_channel_id === c.id ? 'selected' : '' %>>#<%= c.name %></option>
     <% }) %>
   </select>
-  <div class="hint">When a ticket is closed, its full transcript (as an HTML file) is posted here.</div>
-
-  <label for="logChannelId">Log channel (optional)</label>
-  <select id="logChannelId" name="logChannelId">
-    <option value="">— None —</option>
-    <% options.textChannels.forEach(c => { %>
-      <option value="<%= c.id %>" <%= settings.log_channel_id === c.id ? 'selected' : '' %>>#<%= c.name %></option>
-    <% }) %>
-  </select>
-  <div class="hint">Reserved for future bot activity logging.</div>
+  <div class="hint">
+    Every ticket's full lifecycle gets posted here: who opened it and when, who claimed it,
+    and when it's closed — who closed it, why, and the full transcript as a file.
+  </div>
 
   <div class="btn-row">
     <button class="btn" type="submit">Save</button>

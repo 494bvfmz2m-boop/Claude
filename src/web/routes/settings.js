@@ -16,7 +16,6 @@ router.post('/settings', async (req, res) => {
   if (!guild) return;
   GuildSettings.upsert(guild.id, {
     transcriptChannelId: req.body.transcriptChannelId || null,
-    logChannelId: req.body.logChannelId || null,
   });
   res.redirect(`/dashboard/${guild.id}/settings`);
 });

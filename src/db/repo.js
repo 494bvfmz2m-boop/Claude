@@ -11,17 +11,16 @@ function parseJSON(str, fallback) {
 const GuildSettings = {
   get(guildId) {
     const row = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
-    return row || { guild_id: guildId, transcript_channel_id: null, log_channel_id: null };
+    return row || { guild_id: guildId, transcript_channel_id: null };
   },
-  upsert(guildId, { transcriptChannelId, logChannelId }) {
+  upsert(guildId, { transcriptChannelId }) {
     db.prepare(`
-      INSERT INTO guild_settings (guild_id, transcript_channel_id, log_channel_id, updated_at)
-      VALUES (@guildId, @transcriptChannelId, @logChannelId, datetime('now'))
+      INSERT INTO guild_settings (guild_id, transcript_channel_id, updated_at)
+      VALUES (@guildId, @transcriptChannelId, datetime('now'))
       ON CONFLICT(guild_id) DO UPDATE SET
         transcript_channel_id = excluded.transcript_channel_id,
-        log_channel_id = excluded.log_channel_id,
         updated_at = datetime('now')
-    `).run({ guildId, transcriptChannelId: transcriptChannelId || null, logChannelId: logChannelId || null });
+    `).run({ guildId, transcriptChannelId: transcriptChannelId || null });
   },
 };
 
@@ -133,6 +132,9 @@ const Tickets = {
   },
   getByChannel(channelId) {
     return db.prepare('SELECT * FROM tickets WHERE channel_id = ?').get(channelId);
+  },
+  updateType(id, ticketTypeId) {
+    db.prepare('UPDATE tickets SET ticket_type_id = ? WHERE id = ?').run(ticketTypeId, id);
   },
   get(id) {
     return db.prepare('SELECT * FROM tickets WHERE id = ?').get(id);

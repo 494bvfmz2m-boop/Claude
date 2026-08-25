@@ -21,6 +21,13 @@ external panel — one Node.js app, one SQLite file, deployable on any VPS.
 - **Embed builder** — build any embed (title, description, color, author,
   thumbnail, image, footer, fields) with a live preview, save it as a reusable
   template, or send it to any channel immediately.
+- **Ticket log channel** — pick one channel on the dashboard that gets a full
+  audit trail: who opened each ticket and when, who claimed it, and on close —
+  who closed it, why, and the full transcript file.
+- **`/change`** — run inside any open ticket to move it to a different ticket
+  type. Renames the channel, moves it to the new category, updates who can see
+  it, and pings the new team — all in the same channel, so nothing in the
+  conversation is lost.
 - **Everything above is configured from the web dashboard** — no code edits, no
   redeploys needed to change wording, roles, channels, or colors.
 
@@ -32,11 +39,16 @@ external panel — one Node.js app, one SQLite file, deployable on any VPS.
    **Message Content Intent** (needed to include message text in transcripts).
 4. Go to **OAuth2** → **General** and copy the **Client ID**. This is your `DISCORD_CLIENT_ID`.
 5. Invite the bot to your server. Build the URL like this (or use the OAuth2 URL
-   Generator in the portal: scope `bot`, permissions below):
+   Generator in the portal: scopes `bot` **and** `applications.commands`, permissions below):
 
    ```
-   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=268561424
+   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot+applications.commands&permissions=268561424
    ```
+
+   The `applications.commands` scope is required for the `/change` slash command
+   (used inside a ticket to move it to a different category) to show up. If your
+   bot is already in your server from before this scope was added, just open this
+   same link again and re-authorize — you don't need to kick and re-add the bot.
 
    That permissions value covers: View Channels, Manage Channels, Manage Roles,
    Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages

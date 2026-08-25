@@ -4,6 +4,7 @@ require('./db/database'); // ensures schema exists before anything else runs
 const { Events } = require('discord.js');
 const client = require('./bot/client');
 const { register: registerInteractions } = require('./bot/interactions');
+const { registerAllGuildCommands, registerCommandsForGuild } = require('./bot/commands');
 const createApp = require('./web/app');
 
 if (!config.discordToken) {
@@ -13,9 +14,12 @@ if (!config.discordToken) {
 
 registerInteractions(client);
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
+  await registerAllGuildCommands(client);
 });
+
+client.on(Events.GuildCreate, (guild) => registerCommandsForGuild(guild));
 
 client.on('error', (err) => console.error('Discord client error:', err));
 

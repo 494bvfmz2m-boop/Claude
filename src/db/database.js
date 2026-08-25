@@ -13,7 +13,6 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id TEXT PRIMARY KEY,
   transcript_channel_id TEXT,
-  log_channel_id TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 

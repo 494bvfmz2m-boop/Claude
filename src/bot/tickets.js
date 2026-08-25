@@ -5,6 +5,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
 } = require('discord.js');
 const { TicketTypes, Tickets, GuildSettings } = require('../db/repo');
 const { buildTranscript } = require('./transcript');
@@ -18,6 +19,12 @@ function ticketControlsRow(ticketDbId) {
     new ButtonBuilder().setCustomId(`ticket_claim:${ticketDbId}`).setLabel('Claim').setStyle(ButtonStyle.Success).setEmoji('🙋'),
     new ButtonBuilder().setCustomId(`ticket_close:${ticketDbId}`).setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
   );
+}
+
+async function getLogChannel(guild) {
+  const settings = GuildSettings.get(guild.id);
+  if (!settings.transcript_channel_id) return null;
+  return guild.channels.fetch(settings.transcript_channel_id).catch(() => null);
 }
 
 async function openTicket(interaction, ticketTypeId) {
@@ -92,6 +99,20 @@ async function openTicket(interaction, ticketTypeId) {
   });
 
   await interaction.editReply({ content: `Your ticket has been created: <#${channel.id}>` });
+
+  const logChannel = await getLogChannel(guild);
+  if (logChannel) {
+    const logEmbed = new EmbedBuilder()
+      .setTitle('🎫 Ticket opened')
+      .addFields(
+        { name: 'Ticket', value: `<#${channel.id}> (${channel.name})`, inline: true },
+        { name: 'Type', value: ticketType.name, inline: true },
+        { name: 'Opened by', value: `<@${interaction.user.id}>`, inline: true },
+      )
+      .setColor('#23a55a')
+      .setTimestamp();
+    await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
+  }
 }
 
 async function claimTicket(interaction, ticketDbId) {
@@ -111,7 +132,6 @@ async function closeTicket(interaction, ticketDbId, reason) {
   await interaction.deferReply();
 
   const channel = interaction.channel;
-  const settings = GuildSettings.get(interaction.guildId);
 
   let transcriptFile = null;
   try {
@@ -120,23 +140,24 @@ async function closeTicket(interaction, ticketDbId, reason) {
     // still close the ticket even if the transcript fails to build
   }
 
-  if (settings.transcript_channel_id) {
+  const logChannel = await getLogChannel(interaction.guild);
+  if (logChannel) {
     try {
-      const transcriptChannel = await interaction.guild.channels.fetch(settings.transcript_channel_id);
-      if (transcriptChannel) {
-        const embed = new EmbedBuilder()
-          .setTitle(`Ticket closed: ${channel.name}`)
-          .addFields(
-            { name: 'Opened by', value: `<@${ticket.opener_id}>`, inline: true },
-            { name: 'Closed by', value: `<@${interaction.user.id}>`, inline: true },
-            { name: 'Reason', value: reason || 'No reason provided', inline: false },
-          )
-          .setColor('#ed4245')
-          .setTimestamp();
-        await transcriptChannel.send({ embeds: [embed], files: transcriptFile ? [transcriptFile] : [] });
-      }
+      const embed = new EmbedBuilder()
+        .setTitle(`🔒 Ticket closed: ${channel.name}`)
+        .addFields(
+          { name: 'Opened by', value: `<@${ticket.opener_id}>`, inline: true },
+          { name: 'Closed by', value: `<@${interaction.user.id}>`, inline: true },
+          { name: 'Claimed by', value: ticket.claimed_by ? `<@${ticket.claimed_by}>` : 'Nobody', inline: true },
+          { name: 'Opened at', value: `<t:${Math.floor(new Date(ticket.created_at + 'Z').getTime() / 1000)}:F>`, inline: true },
+          { name: 'Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: 'Reason', value: reason || 'No reason provided', inline: false },
+        )
+        .setColor('#ed4245')
+        .setTimestamp();
+      await logChannel.send({ embeds: [embed], files: transcriptFile ? [transcriptFile] : [] });
     } catch (err) {
-      // transcript channel might be misconfigured; don't block closing the ticket
+      // log channel might be misconfigured; don't block closing the ticket
     }
   }
 
@@ -149,4 +170,95 @@ async function closeTicket(interaction, ticketDbId, reason) {
   }, 5000);
 }
 
-module.exports = { openTicket, claimTicket, closeTicket, ticketControlsRow };
+async function startChangeType(interaction) {
+  const ticket = Tickets.getByChannel(interaction.channelId);
+  if (!ticket || ticket.status === 'closed') {
+    return interaction.reply({ content: "This isn't an open ticket channel.", ephemeral: true });
+  }
+
+  const otherTypes = TicketTypes.listForGuild(interaction.guildId).filter((t) => t.id !== ticket.ticket_type_id);
+  if (otherTypes.length === 0) {
+    return interaction.reply({ content: 'There are no other ticket types to move this to. Create one on the dashboard first.', ephemeral: true });
+  }
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`ticket_change_type:${ticket.id}`)
+    .setPlaceholder('Choose a new category')
+    .addOptions(otherTypes.slice(0, 25).map((t) => ({
+      label: t.name,
+      value: String(t.id),
+      emoji: t.emoji || undefined,
+    })));
+
+  await interaction.reply({
+    content: 'Pick the new category for this ticket. It stays the same channel — all messages so far are kept.',
+    components: [new ActionRowBuilder().addComponents(select)],
+    ephemeral: true,
+  });
+}
+
+async function applyChangeType(interaction, ticketDbId, newTypeId) {
+  const ticket = Tickets.get(ticketDbId);
+  if (!ticket || ticket.status === 'closed') {
+    return interaction.update({ content: 'This ticket is no longer open.', components: [] });
+  }
+
+  const newType = TicketTypes.get(newTypeId);
+  if (!newType) {
+    return interaction.update({ content: 'That ticket type no longer exists.', components: [] });
+  }
+
+  await interaction.update({ content: `Moving this ticket to **${newType.name}**...`, components: [] });
+
+  const channel = interaction.channel;
+  const guild = interaction.guild;
+  const everyoneId = guild.roles.everyone.id;
+
+  const opener = await guild.members.fetch(ticket.opener_id).catch(() => null);
+  const newName = sanitizeForChannelName(
+    (newType.name_pattern || 'ticket-{username}')
+      .replace('{username}', opener?.user?.username || ticket.opener_id)
+      .replace('{id}', ticket.opener_id),
+  );
+
+  const overwrites = [
+    { id: everyoneId, deny: [PermissionFlagsBits.ViewChannel] },
+    {
+      id: ticket.opener_id,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles],
+    },
+    {
+      id: guild.members.me.id,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory],
+    },
+    ...newType.support_role_ids.map((roleId) => ({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages],
+    })),
+  ];
+
+  try {
+    await channel.edit({
+      name: newName,
+      parent: newType.category_channel_id || null,
+      lockPermissions: false,
+      permissionOverwrites: overwrites,
+    });
+  } catch (err) {
+    return interaction.followUp({ content: `Couldn't update the channel: ${err.message}`, ephemeral: true });
+  }
+
+  Tickets.updateType(ticketDbId, newType.id);
+
+  const mentionRoles = newType.support_role_ids.map((r) => `<@&${r}>`).join(' ');
+  await channel.send({
+    content: mentionRoles || undefined,
+    embeds: [new EmbedBuilder()
+      .setDescription(`🔄 This ticket was moved to **${newType.name}** by <@${interaction.user.id}>. Everything above stays right here.`)
+      .setColor(newType.welcome_color || '#5865F2')],
+  });
+
+  await interaction.followUp({ content: `Done — moved to **${newType.name}**.`, ephemeral: true });
+}
+
+module.exports = { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType, ticketControlsRow };
