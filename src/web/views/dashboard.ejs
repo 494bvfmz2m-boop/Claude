@@ -1,0 +1,25 @@
+<%- include('partials/header', { title: 'Servers' }) %>
+<h1>Your servers</h1>
+<p class="subtitle">
+  <% if (!botReady) { %>
+    ⚠️ The bot is still connecting to Discord. Refresh in a few seconds.
+  <% } else { %>
+    Pick a server to manage its ticket bot.
+  <% } %>
+</p>
+
+<% if (guilds.length === 0) { %>
+  <div class="card empty">
+    The bot isn't in any servers yet. Invite it using the OAuth2 URL from the README, then refresh this page.
+  </div>
+<% } else { %>
+  <div class="guild-grid">
+    <% guilds.forEach(g => { %>
+      <a class="guild-card" href="/dashboard/<%= g.id %>/tickets">
+        <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+        <div><%= g.name %></div>
+      </a>
+    <% }) %>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

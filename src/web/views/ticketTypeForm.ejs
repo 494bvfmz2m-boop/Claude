@@ -1,0 +1,61 @@
+<%- include('partials/header', { title: ticketType ? 'Edit ticket type' : 'New ticket type', guild }) %>
+<h1><%= ticketType ? 'Edit ticket type' : 'New ticket type' %></h1>
+<p class="subtitle">Defines a category of ticket: where its channel goes, who gets access, and its welcome message.</p>
+
+<form class="card" method="post" action="<%= ticketType ? `/dashboard/${guild.id}/ticket-types/${ticketType.id}` : `/dashboard/${guild.id}/ticket-types` %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="grid">
+    <div>
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="<%= ticketType?.name || '' %>" placeholder="General Support" required>
+    </div>
+    <div>
+      <label for="emoji">Emoji (optional)</label>
+      <input type="text" id="emoji" name="emoji" value="<%= ticketType?.emoji || '' %>" placeholder="🎫">
+    </div>
+  </div>
+
+  <label for="categoryChannelId">Discord category channel for new tickets</label>
+  <select id="categoryChannelId" name="categoryChannelId">
+    <option value="">— None (created at top level) —</option>
+    <% options.categories.forEach(c => { %>
+      <option value="<%= c.id %>" <%= ticketType?.category_channel_id === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label for="supportRoleIds">Support role(s) who can see & manage these tickets</label>
+  <select id="supportRoleIds" name="supportRoleIds" multiple size="6">
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= ticketType?.support_role_ids?.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Ctrl/Cmd-click to select multiple.</div>
+
+  <div class="grid">
+    <div>
+      <label for="namePattern">Ticket channel name pattern</label>
+      <input type="text" id="namePattern" name="namePattern" value="<%= ticketType?.name_pattern || 'ticket-{username}' %>">
+      <div class="hint">Use <code>{username}</code> or <code>{id}</code>.</div>
+    </div>
+    <div>
+      <label for="maxOpenPerUser">Max open tickets per user (this type)</label>
+      <input type="number" id="maxOpenPerUser" name="maxOpenPerUser" min="1" value="<%= ticketType?.max_open_per_user || 1 %>">
+    </div>
+  </div>
+
+  <label for="welcomeTitle">Welcome embed title</label>
+  <input type="text" id="welcomeTitle" name="welcomeTitle" value="<%= ticketType?.welcome_title || '' %>" placeholder="General Support ticket">
+
+  <label for="welcomeDescription">Welcome embed description</label>
+  <textarea id="welcomeDescription" name="welcomeDescription" placeholder="Thanks for reaching out! Support will be with you shortly."><%= ticketType?.welcome_description || '' %></textarea>
+
+  <label for="welcomeColor">Welcome embed color</label>
+  <input type="color" id="welcomeColor" name="welcomeColor" value="<%= ticketType?.welcome_color || '#5865F2' %>">
+
+  <div class="btn-row">
+    <button class="btn" type="submit"><%= ticketType ? 'Save changes' : 'Create ticket type' %></button>
+    <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/tickets">Cancel</a>
+  </div>
+</form>
+<%- include('partials/footer') %>

@@ -1,0 +1,21 @@
+{
+  "name": "ticket-bot",
+  "version": "1.0.0",
+  "description": "Self-hosted Discord ticket + embed bot with a web dashboard for full customization",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

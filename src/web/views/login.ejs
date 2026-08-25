@@ -1,0 +1,13 @@
+<%- include('partials/header', { title: 'Login', hideLogout: true }) %>
+<div class="login-wrap">
+  <h1>Ticket Bot</h1>
+  <p class="subtitle">Log in to manage tickets, panels, embeds and settings.</p>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+  <form action="/login" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" autofocus required>
+    <div class="btn-row"><button class="btn" type="submit">Log in</button></div>
+  </form>
+</div>
+<%- include('partials/footer') %>
