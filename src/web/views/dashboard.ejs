@@ -68,7 +68,9 @@
         <li class="list-item">
           <div>
             <div class="list-item-title"><span class="state-dot <%= c.state %>"></span><%= c.name %></div>
-            <div class="list-item-meta"><%= c.image %> · <%= c.status %></div>
+            <div class="list-item-meta">
+              <%= c.image %> · <%= c.status %><% if (c.name !== c.hostname) { %> · <code><%= c.hostname %></code><% } %>
+            </div>
           </div>
           <% if (c.stats) { %>
             <div class="service-usage">

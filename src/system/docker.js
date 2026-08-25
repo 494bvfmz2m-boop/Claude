@@ -22,14 +22,37 @@ async function getContainerStats(id) {
   }
 }
 
+// Coolify (and docker-compose, which Coolify generates under the hood) tags
+// containers with labels carrying the human-readable name, separate from the
+// actual container hostname — which is often a random-looking generated id
+// you can't change. Prefer whichever of these is present.
+const NAME_LABEL_CANDIDATES = [
+  'coolify.name',
+  'coolify.applicationName',
+  'coolify.resourceName',
+  'com.docker.compose.project',
+  'com.docker.compose.service',
+];
+
+function friendlyName(labels, hostname) {
+  for (const key of NAME_LABEL_CANDIDATES) {
+    const val = labels?.[key];
+    if (val && val.trim()) return val.trim();
+  }
+  return hostname;
+}
+
 async function getContainers() {
   try {
     const raw = await docker.listContainers({ all: true });
 
     const containers = await Promise.all(raw.map(async (c) => {
+      const hostname = (c.Names?.[0] || c.Id).replace(/^\//, '');
+      const name = friendlyName(c.Labels, hostname);
       const base = {
         id: c.Id.slice(0, 12),
-        name: (c.Names?.[0] || c.Id).replace(/^\//, ''),
+        name,
+        hostname,
         image: c.Image,
         state: c.State,
         status: c.Status,
