@@ -93,19 +93,17 @@ Fill in `.env`:
 |---|---|
 | `DISCORD_TOKEN` | Bot token from step 1 |
 | `DISCORD_CLIENT_ID` | Application/client ID from step 1 |
-| `ADMIN_PASSWORD` | Password to log into the web dashboard with full access to every server — change it |
+| `DISCORD_CLIENT_SECRET` | Required — powers "Log in with Discord". See step 2a below |
+| `DASHBOARD_URL` | Required — this app's own public URL. See step 2a below |
 | `SESSION_SECRET` | Random long string for signing session cookies — change it |
 | `PORT` | Port the dashboard listens on (default `3000`) |
 | `COOKIE_SECURE` | Leave `false` while accessing over plain `http://IP:PORT`. Set to `true` once the dashboard is behind HTTPS (e.g. a domain + Let's Encrypt via Coolify) |
-| `DISCORD_CLIENT_SECRET` | Optional — enables "Log in with Discord". See step 2a below |
-| `DASHBOARD_URL` | Optional — required alongside the client secret. See step 2a below |
 
-## 2a. (Optional) Let other server owners log in with their own Discord account
+## 2a. Set up "Log in with Discord"
 
-Skip this entirely if it's just your own servers — the admin password covers that
-fine. Set this up if you're inviting Quellum to other people's servers and want
-*them* to be able to configure it without knowing your password (and without
-being able to touch any server but their own).
+The dashboard has one login method: Discord OAuth. Anyone who logs in only sees
+and can configure servers where they're the owner or have the **Manage Server**
+permission — never any other server, even other ones Quellum is in.
 
 1. In the Developer Portal, go to **OAuth2** → **General**.
 2. Under **Client Secret**, click **Reset Secret** and copy it → this is `DISCORD_CLIENT_SECRET`.
@@ -116,12 +114,8 @@ being able to touch any server but their own).
    https://tickets.example.com/auth/discord/callback
    ```
    (your actual `DASHBOARD_URL` + `/auth/discord/callback` — must match exactly, including https).
-5. Set both `DISCORD_CLIENT_SECRET` and `DASHBOARD_URL` in your `.env`.
-
-Once both are set, the login page shows a **"Log in with Discord"** button automatically.
-Anyone who logs in that way only sees and can configure servers where they're the
-owner or have the **Manage Server** permission — never any other server, even other
-ones Quellum is in. The admin password still works too, as a full-access override.
+5. Set both `DISCORD_CLIENT_SECRET` and `DASHBOARD_URL` in your `.env`. The app refuses
+   to start without them.
 
 ## 3. Run it
 
@@ -132,7 +126,7 @@ npm install
 npm start
 ```
 
-Then open `http://YOUR_VPS_IP:3000` and log in with `ADMIN_PASSWORD`.
+Then open `http://YOUR_VPS_IP:3000` and log in with Discord.
 
 **With Docker (recommended for the VPS — this is what Coolify will do for you):**
 
@@ -156,9 +150,9 @@ volume mounted at `/app/data` so the database isn't wiped on redeploy.
 
 ## 4. Using the dashboard
 
-1. Log in at `/` — with `ADMIN_PASSWORD` (full access to every server), or **Log in with
-   Discord** if you set that up (only servers you own or have Manage Server on; if
-   Quellum isn't in one of those yet, you'll see an **invite** button for it right there).
+1. Log in at `/` with **Log in with Discord** — you'll see every server Quellum is in
+   that you own or have Manage Server on, plus an **+ Invite to Server** button in the
+   header to add it to any other server of yours.
 2. Pick a server → **Settings** → choose your **transcript channel** (where closed
    ticket transcripts get posted). This is the one thing worth setting first.
 3. **Tickets** → **New ticket type** → name it, pick the category channel tickets
@@ -183,10 +177,9 @@ channel and the ticket channel is deleted a few seconds later.
 
 ## Notes
 
-- Two ways to log in: the shared `ADMIN_PASSWORD` (full access to every server —
-  keep it private) and, if configured, **Discord OAuth** (scoped per-user to only
-  servers they own or have Manage Server on). You don't have to set up OAuth —
-  the password alone is a complete, working setup for managing your own servers.
+- Logging in is Discord-only (**Discord OAuth**), scoped per-user to only servers
+  they own or have Manage Server on — nobody can see or touch a server that isn't
+  theirs, including you.
 - The database is a single SQLite file at `DB_PATH` (`/app/data/bot.sqlite` in
   Docker). Back it up by copying that file.
 - **On resource usage**: the swear filter and staff hierarchy are cached in memory

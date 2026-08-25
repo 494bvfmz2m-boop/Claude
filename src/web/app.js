@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const config = require('../config');
 const client = require('../bot/client');
+const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -44,6 +45,7 @@ function createApp() {
       guildCount: ready ? client.guilds.cache.size : 0,
     };
     res.locals.discordUser = req.session?.discordUser || null;
+    res.locals.inviteUrl = buildGenericInviteUrl();
     next();
   });
 

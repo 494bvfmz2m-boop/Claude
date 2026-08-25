@@ -20,6 +20,18 @@ function buildBotInviteUrl(guildId) {
   return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
+// Same invite, but with no server preselected — for the generic "Invite to
+// Server" button, which lets the user pick any server they manage from
+// Discord's own picker instead of us listing them one by one.
+function buildGenericInviteUrl() {
+  const params = new URLSearchParams({
+    client_id: config.discordClientId,
+    scope: 'bot applications.commands',
+    permissions: BOT_INVITE_PERMISSIONS,
+  });
+  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
 function buildAuthorizeUrl(state) {
   const params = new URLSearchParams({
     client_id: config.discordClientId,
@@ -81,4 +93,4 @@ async function fetchManageableGuilds(accessToken) {
     }));
 }
 
-module.exports = { buildAuthorizeUrl, buildBotInviteUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds };
+module.exports = { buildAuthorizeUrl, buildBotInviteUrl, buildGenericInviteUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds };

@@ -9,8 +9,13 @@ const { register: registerSwearFilter } = require('./bot/swearFilter');
 const { register: registerStaffList, warmUpAndRefreshAll } = require('./bot/staffList');
 const createApp = require('./web/app');
 
-if (!config.discordToken) {
-  console.error('DISCORD_TOKEN is not set. Copy .env.example to .env and fill it in.');
+if (!config.discordToken || !config.discordClientId) {
+  console.error('DISCORD_TOKEN / DISCORD_CLIENT_ID is not set. Copy .env.example to .env and fill it in.');
+  process.exit(1);
+}
+
+if (!config.discordClientSecret || !config.dashboardUrl) {
+  console.error('DISCORD_CLIENT_SECRET and DASHBOARD_URL are required — Discord login is the only way into the dashboard. Copy .env.example to .env and fill them in.');
   process.exit(1);
 }
 
