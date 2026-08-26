@@ -105,8 +105,21 @@ a:hover { color: #8fc8ff; text-decoration: none; }
   background: var(--bg);
   transition: opacity .35s ease;
 }
-.quellum-splash img { width: 120px; height: 120px; }
+.quellum-splash img {
+  width: 120px; height: 120px;
+  animation: quellum-impact .6s cubic-bezier(.2, .9, .3, 1.4) both;
+}
 .quellum-splash--out { opacity: 0; pointer-events: none; }
+@keyframes quellum-impact {
+  0% { transform: scale(2.4); opacity: 0; }
+  45% { transform: scale(.92); opacity: 1; }
+  65% { transform: scale(1.08); }
+  82% { transform: scale(.97); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quellum-splash img { animation: none; }
+}
 .topnav { display: flex; align-items: center; gap: 4px; flex: 1; }
 .topnav a {
   color: var(--text-muted);
