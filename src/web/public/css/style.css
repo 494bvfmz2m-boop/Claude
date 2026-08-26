@@ -459,3 +459,42 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   0%, 100% { box-shadow: 0 0 0 3px rgba(35, 165, 90, .25); }
   50% { box-shadow: 0 0 0 6px rgba(35, 165, 90, .12); }
 }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 780px) {
+  .container { padding: 20px 14px 60px; }
+  h1 { font-size: 21px; }
+  .login-wrap { margin: 48px auto; padding: 0 16px; }
+
+  /* Topbar: brand/status/actions can wrap freely; the nav becomes its own
+     full-width horizontally-scrollable strip rather than wrapping link by
+     link, which reads like a tab bar instead of a jumble. */
+  .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; }
+  .topnav {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 2px;
+    padding-bottom: 2px;
+  }
+  .topnav a { padding: 6px 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+  .topnav .guild-chip { flex-shrink: 0; }
+  .topnav .guild-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .guild-chip, .user-chip { margin-right: 6px; padding-right: 10px; font-size: 13px; }
+  .bot-status { font-size: 11.5px; padding: 5px 9px; gap: 5px; }
+  .topbar .btn { padding: 7px 11px; font-size: 12.5px; }
+
+  /* Any inline flex row (form fields, list headers with a button, etc.)
+     wraps instead of squeezing -- covers every "display:flex" inline style
+     across every view in one place rather than editing each template. */
+  [style*="display:flex"] { flex-wrap: wrap; }
+
+  .field-row { grid-template-columns: 1fr !important; gap: 8px; }
+  .grid { gap: 12px; }
+  .style-choice { flex-direction: column; }
+  .list-item { flex-wrap: wrap; }
+  .discord-embed-preview .fields.has-inline { grid-template-columns: 1fr; }
+  .mention-tools select, .mention-tools input[type="text"] { max-width: none; flex: 1 1 auto; }
+}
