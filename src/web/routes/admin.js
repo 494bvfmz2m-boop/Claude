@@ -3,6 +3,7 @@ const { EmbedBuilder } = require('discord.js');
 const { AppSettings, BetaAllowlist } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
+const dmForm = require('../../bot/dmForm');
 
 const router = express.Router();
 
@@ -52,6 +53,7 @@ router.post('/send-dm', requireOwner, async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
   const color = req.body.color || '#5865F2';
+  const attachForm = req.body.attachForm === 'on';
 
   if (!DISCORD_ID.test(userId)) {
     return redirectWithNotice(res, false, "Enter a valid Discord user ID.");
@@ -60,12 +62,24 @@ router.post('/send-dm', requireOwner, async (req, res) => {
     return redirectWithNotice(res, false, 'A message is required.');
   }
 
-  const embed = new EmbedBuilder().setColor(color).setDescription(description).setTimestamp();
-  if (title) embed.setTitle(title);
+  const sendDefault = async (user) => {
+    const embed = new EmbedBuilder().setColor(color).setDescription(description).setTimestamp();
+    if (title) embed.setTitle(title);
+    await user.send({ embeds: [embed] });
+  };
 
   try {
     const user = await client.users.fetch(userId);
-    await user.send({ embeds: [embed] });
+    if (attachForm) {
+      const result = await dmForm.sendWithForm(client, {
+        recipientId: user.id,
+        recipientTag: user.tag,
+        context: 'manual',
+        defaultSend: () => sendDefault(user),
+      });
+      return redirectWithNotice(res, true, result === 'form' ? `Sent the form to ${user.tag}.` : `Sent to ${user.tag}.`);
+    }
+    await sendDefault(user);
     return redirectWithNotice(res, true, `Sent to ${user.tag}.`);
   } catch (err) {
     // Most common cause: the bot doesn't share a server with them, or they
@@ -73,6 +87,19 @@ router.post('/send-dm', requireOwner, async (req, res) => {
     // already says which, so just surface it rather than guessing.
     return redirectWithNotice(res, false, `Couldn't send: ${err.message}`);
   }
+});
+
+router.post('/dm-form', requireOwner, (req, res) => {
+  const enabled = req.body.enabled === 'on';
+  const title = (req.body.title || '').trim().slice(0, 200);
+  const intro = (req.body.intro || '').trim().slice(0, 1000);
+  const questions = [1, 2, 3, 4, 5]
+    .map((i) => (req.body[`question${i}`] || '').trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  AppSettings.setDmForm({ enabled, title, intro, questions });
+  return redirectWithNotice(res, true, 'Application form saved.', 'dm-form');
 });
 
 router.post('/leave-guild', requireOwner, async (req, res) => {

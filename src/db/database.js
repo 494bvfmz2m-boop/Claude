@@ -138,6 +138,22 @@ CREATE TABLE IF NOT EXISTS command_permissions (
   PRIMARY KEY (guild_id, role_id, action)
 );
 
+CREATE TABLE IF NOT EXISTS dm_form_sends (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipient_id TEXT NOT NULL,
+  recipient_tag TEXT,
+  context TEXT NOT NULL DEFAULT 'manual',
+  guild_id TEXT,
+  guild_name TEXT,
+  title TEXT NOT NULL,
+  intro TEXT,
+  questions TEXT NOT NULL DEFAULT '[]',
+  responded INTEGER NOT NULL DEFAULT 0,
+  answers TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  responded_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);
@@ -150,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
 CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id);
 CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
+CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 `);
 
 // Lightweight migrations for columns added after the initial release —
@@ -177,5 +194,9 @@ addColumnIfMissing('guild_settings', 'leave_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'leave_message', 'TEXT');
 addColumnIfMissing('guild_settings', 'autorole_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'link_filter_mode', "TEXT NOT NULL DEFAULT 'off'");
+addColumnIfMissing('app_settings', 'dm_form_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('app_settings', 'dm_form_title', 'TEXT');
+addColumnIfMissing('app_settings', 'dm_form_intro', 'TEXT');
+addColumnIfMissing('app_settings', 'dm_form_questions', "TEXT NOT NULL DEFAULT '[]'");
 
 module.exports = db;

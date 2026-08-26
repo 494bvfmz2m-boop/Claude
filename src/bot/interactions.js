@@ -9,6 +9,7 @@ const help = require('./help');
 const lockdown = require('./lockdown');
 const config = require('../config');
 const { buildServerListEmbed } = require('./ownerPanel');
+const dmForm = require('./dmForm');
 
 const chatCommandHandlers = {
   change: startChangeType,
@@ -71,6 +72,11 @@ function register(client) {
           return interaction.editReply({ embeds: [embed] });
         }
 
+        if (action === 'dmform_open') {
+          const [sendId] = rest;
+          return dmForm.handleOpenButton(interaction, Number(sendId));
+        }
+
         if (action === 'ticket_close') {
           const [ticketDbId] = rest;
           const modal = new ModalBuilder()
@@ -101,10 +107,13 @@ function register(client) {
       }
 
       if (interaction.isModalSubmit()) {
-        const [action, ticketDbId] = interaction.customId.split(':');
+        const [action, param] = interaction.customId.split(':');
         if (action === 'ticket_close_modal') {
           const reason = interaction.fields.getTextInputValue('reason');
-          return closeTicket(interaction, Number(ticketDbId), reason);
+          return closeTicket(interaction, Number(param), reason);
+        }
+        if (action === 'dmform_submit') {
+          return dmForm.handleSubmitModal(interaction, Number(param));
         }
       }
     } catch (err) {

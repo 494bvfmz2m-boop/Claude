@@ -111,11 +111,50 @@ const GuildSettings = {
 
 const AppSettings = {
   get() {
-    const row = db.prepare('SELECT beta_locked FROM app_settings WHERE id = 1').get();
-    return { betaLocked: !!(row && row.beta_locked) };
+    const row = db.prepare(
+      'SELECT beta_locked, dm_form_enabled, dm_form_title, dm_form_intro, dm_form_questions FROM app_settings WHERE id = 1',
+    ).get();
+    return {
+      betaLocked: !!(row && row.beta_locked),
+      dmForm: {
+        enabled: !!(row && row.dm_form_enabled),
+        title: (row && row.dm_form_title) || '',
+        intro: (row && row.dm_form_intro) || '',
+        questions: row ? JSON.parse(row.dm_form_questions || '[]') : [],
+      },
+    };
   },
   setBetaLocked(enabled) {
     db.prepare('UPDATE app_settings SET beta_locked = ? WHERE id = 1').run(enabled ? 1 : 0);
+  },
+  setDmForm({ enabled, title, intro, questions }) {
+    db.prepare(
+      'UPDATE app_settings SET dm_form_enabled = ?, dm_form_title = ?, dm_form_intro = ?, dm_form_questions = ? WHERE id = 1',
+    ).run(enabled ? 1 : 0, title || null, intro || null, JSON.stringify(questions || []));
+  },
+};
+
+const DmFormSends = {
+  create({ recipientId, recipientTag, context, guildId, guildName, title, intro, questions }) {
+    const result = db.prepare(`
+      INSERT INTO dm_form_sends (recipient_id, recipient_tag, context, guild_id, guild_name, title, intro, questions)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(recipientId, recipientTag || null, context, guildId || null, guildName || null, title, intro || null, JSON.stringify(questions || []));
+    return result.lastInsertRowid;
+  },
+  get(id) {
+    const row = db.prepare('SELECT * FROM dm_form_sends WHERE id = ?').get(id);
+    if (!row) return null;
+    return {
+      ...row,
+      questions: JSON.parse(row.questions || '[]'),
+      answers: row.answers ? JSON.parse(row.answers) : null,
+      responded: !!row.responded,
+    };
+  },
+  markResponded(id, answers) {
+    db.prepare("UPDATE dm_form_sends SET responded = 1, answers = ?, responded_at = datetime('now') WHERE id = ?")
+      .run(JSON.stringify(answers), id);
   },
 };
 
@@ -434,4 +473,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends };

@@ -5,6 +5,7 @@
 <%- include('partials/subnav', { sections: [
   { id: 'beta-toggle', label: 'Closed beta' },
   { id: 'allowlist', label: 'Allowed users' },
+  { id: 'dm-form', label: 'Application form' },
   { id: 'send-dm', label: 'Send a DM' },
   { id: 'remove-server', label: 'Remove from a server' },
 ] }) %>
@@ -67,6 +68,44 @@
   </form>
 </div>
 
+<div class="card" id="dm-form">
+  <h2>Application form</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    A short form people can fill out from a DM. When it's on, it automatically replaces the plain
+    "message me on Discord" text anyone gets from hitting the closed-beta wall — they get a button instead,
+    it opens a quick form, and you get their answers by DM the moment they submit. You can also attach it
+    to a one-off DM below. Leave it off (or leave the questions empty) and everything stays exactly as it
+    is today.
+  </p>
+  <form method="post" action="/admin/dm-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="style-option" style="max-width:420px; margin-bottom:14px;">
+      <input type="checkbox" name="enabled" <%= settings.dmForm.enabled ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Form enabled</div>
+        <div class="style-desc">Needs a title and at least one question below to actually go out.</div>
+      </div>
+    </label>
+
+    <label for="dmFormTitle">Title</label>
+    <input type="text" id="dmFormTitle" name="title" placeholder="Request beta access" maxlength="200" value="<%= settings.dmForm.title %>">
+
+    <label for="dmFormIntro">Intro (optional)</label>
+    <textarea id="dmFormIntro" name="intro" placeholder="A couple sentences shown above the button." maxlength="1000"><%= settings.dmForm.intro %></textarea>
+
+    <label>Questions (up to 5, shown as short modal fields — keep them under 45 characters)</label>
+    <% for (let i = 1; i <= 5; i++) { %>
+      <input type="text" name="question<%= i %>" placeholder="Question <%= i %>" maxlength="45"
+        value="<%= settings.dmForm.questions[i - 1] || '' %>" style="margin-bottom:8px;">
+    <% } %>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save form</button>
+    </div>
+  </form>
+</div>
+
 <div class="card" id="send-dm">
   <h2>Send a DM as Quellum</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -87,6 +126,21 @@
 
     <label for="dmColor">Color</label>
     <input type="color" id="dmColor" name="color" value="#5865F2">
+
+    <label class="style-option" style="max-width:420px; margin-top:14px;">
+      <input type="checkbox" name="attachForm" <%= settings.dmForm.enabled ? '' : 'disabled' %>>
+      <div>
+        <div class="style-title">Attach the application form instead</div>
+        <div class="style-desc">
+          <% if (settings.dmForm.enabled) { %>
+            Sends the form above (title/intro/questions) instead of the message and color set here — this
+            is just picking who it goes to.
+          <% } else { %>
+            Set up and enable the application form above first.
+          <% } %>
+        </div>
+      </div>
+    </label>
 
     <div class="btn-row">
       <button class="btn" type="submit">Send DM</button>
