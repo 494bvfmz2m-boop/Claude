@@ -59,6 +59,8 @@
 
   <label for="welcomeDescription">Welcome embed description</label>
   <textarea id="welcomeDescription" name="welcomeDescription" placeholder="Thanks for reaching out! Support will be with you shortly."><%= ticketType?.welcome_description || '' %></textarea>
+  <%- include('partials/mentionTools', { targetId: 'welcomeDescription', roles: options.roles, guildId: guild.id }) %>
+  <div class="hint">Mentions only render in the description here — not the title.</div>
 
   <label for="welcomeColor">Welcome embed color</label>
   <input type="color" id="welcomeColor" name="welcomeColor" value="<%= ticketType?.welcome_color || '#5865F2' %>">
@@ -68,4 +70,5 @@
     <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/tickets">Cancel</a>
   </div>
 </form>
+<script src="/js/mentionInsert.js"></script>
 <%- include('partials/footer') %>

@@ -5,10 +5,10 @@ const cache = require('../../bot/cache');
 const { logAction, parseDuration, applyWarningThreshold } = require('../../bot/moderation');
 const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
+const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
 
 const router = express.Router({ mergeParams: true });
 
-const DISCORD_ID = /^\d{5,25}$/;
 const THRESHOLD_ACTIONS = new Set(['timeout', 'kick', 'ban']);
 
 function hierarchyWithRoleInfo(guild) {
@@ -154,26 +154,6 @@ router.post('/moderation/thresholds/remove', async (req, res) => {
 
 function moderatorFromSession(req) {
   return { id: req.session.discordUser.id, tag: req.session.discordUser.username };
-}
-
-// Web-only convenience: slash commands get Discord's own @mention picker, but
-// a plain text box needs to accept a username too, not just a raw ID. Only
-// works for someone currently in the server (banned/left users need their ID).
-async function resolveMember(guild, input) {
-  const raw = input.replace(/^@/, '');
-  if (DISCORD_ID.test(raw)) {
-    return guild.members.fetch(raw).catch(() => null);
-  }
-  const lower = raw.toLowerCase();
-  const cached = guild.members.cache.find((m) =>
-    m.user.username.toLowerCase() === lower ||
-    m.user.tag.toLowerCase() === lower ||
-    (m.nickname && m.nickname.toLowerCase() === lower));
-  if (cached) return cached;
-
-  const results = await guild.members.fetch({ query: raw, limit: 5 }).catch(() => null);
-  if (!results || results.size === 0) return null;
-  return results.find((m) => m.user.username.toLowerCase() === lower || (m.nickname && m.nickname.toLowerCase() === lower)) || results.first();
 }
 
 router.post('/moderation/actions', async (req, res) => {

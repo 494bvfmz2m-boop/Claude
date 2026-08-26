@@ -1,0 +1,9 @@
+<div class="mention-tools">
+  <select id="roleSel_<%= targetId %>">
+    <option value="">Insert role…</option>
+    <% roles.forEach(r => { %><option value="<%= r.id %>"><%= r.name %></option><% }) %>
+  </select>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="insertRoleMention('<%= targetId %>','roleSel_<%= targetId %>')">+ Role</button>
+  <input type="text" id="userInput_<%= targetId %>" placeholder="username" style="width:110px;">
+  <button type="button" class="btn btn-ghost btn-sm" onclick="insertUserMention('<%= targetId %>','userInput_<%= targetId %>','<%= guildId %>')">+ User</button>
+</div>

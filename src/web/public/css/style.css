@@ -177,6 +177,9 @@ textarea { min-height: 80px; resize: vertical; }
 select[multiple] { min-height: 110px; }
 input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 7px; cursor: pointer; }
 .hint { color: var(--text-muted); font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
+.mention-tools { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.mention-tools select { padding: 6px 8px; font-size: 12.5px; width: auto; max-width: 140px; }
+.mention-tools input[type="text"] { padding: 6px 8px; font-size: 12.5px; }
 
 .btn {
   display: inline-flex;

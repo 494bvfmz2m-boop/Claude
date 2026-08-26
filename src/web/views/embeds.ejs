@@ -16,6 +16,8 @@
 
       <label for="description">Description</label>
       <textarea id="description" name="description"><%= loaded?.data?.description || '' %></textarea>
+      <%- include('partials/mentionTools', { targetId: 'description', roles: options.roles, guildId: guild.id }) %>
+      <div class="hint">Mentions only render inside the description and field values — not the title, author, or footer.</div>
 
       <div class="grid">
         <div>
@@ -65,10 +67,14 @@
     <div class="card">
       <h2>🧩 Fields</h2>
       <div id="fields-container">
-        <% (loaded?.data?.fields?.length ? loaded.data.fields : []).forEach(f => { %>
+        <% (loaded?.data?.fields?.length ? loaded.data.fields : []).forEach((f, i) => { %>
           <div class="field-row">
             <div><label style="margin:0 0 4px;">Name</label><input type="text" name="fieldName[]" value="<%= f.name %>"></div>
-            <div><label style="margin:0 0 4px;">Value</label><input type="text" name="fieldValue[]" value="<%= f.value %>"></div>
+            <div>
+              <label style="margin:0 0 4px;">Value</label>
+              <input type="text" name="fieldValue[]" id="fieldValue_<%= i %>" value="<%= f.value %>">
+              <%- include('partials/mentionTools', { targetId: `fieldValue_${i}`, roles: options.roles, guildId: guild.id }) %>
+            </div>
             <div><label style="margin:0 0 4px;">Inline</label>
               <select name="fieldInline[]"><option value="false" <%= !f.inline ? 'selected' : '' %>>No</option><option value="true" <%= f.inline ? 'selected' : '' %>>Yes</option></select>
             </div>
@@ -149,5 +155,10 @@
     }
   });
 </script>
+<script>
+  window.QUELLUM_GUILD_ID = <%- JSON.stringify(guild.id) %>;
+  window.QUELLUM_ROLES = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))) %>;
+</script>
+<script src="/js/mentionInsert.js"></script>
 <script src="/js/embedPreview.js"></script>
 <%- include('partials/footer') %>

@@ -4,12 +4,40 @@
   const addFieldBtn = document.getElementById('add-field');
   const preview = document.getElementById('preview');
 
+  // New rows start numbering after however many the server already rendered,
+  // so their mention-target IDs never collide with the existing ones.
+  let nextFieldIndex = fieldsContainer.querySelectorAll('.field-row').length;
+
+  function roleOptionsHtml() {
+    return (window.QUELLUM_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+  }
+
+  function mentionToolsHtml(targetId) {
+    const guildId = window.QUELLUM_GUILD_ID || '';
+    return `
+      <div class="mention-tools">
+        <select id="roleSel_${targetId}">
+          <option value="">Insert role…</option>
+          ${roleOptionsHtml()}
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="insertRoleMention('${targetId}','roleSel_${targetId}')">+ Role</button>
+        <input type="text" id="userInput_${targetId}" placeholder="username" style="width:110px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="insertUserMention('${targetId}','userInput_${targetId}','${guildId}')">+ User</button>
+      </div>
+    `;
+  }
+
   function fieldRowTemplate() {
+    const targetId = `fieldValue_${nextFieldIndex++}`;
     const row = document.createElement('div');
     row.className = 'field-row';
     row.innerHTML = `
       <div><label style="margin:0 0 4px;">Name</label><input type="text" name="fieldName[]"></div>
-      <div><label style="margin:0 0 4px;">Value</label><input type="text" name="fieldValue[]"></div>
+      <div>
+        <label style="margin:0 0 4px;">Value</label>
+        <input type="text" name="fieldValue[]" id="${targetId}">
+        ${mentionToolsHtml(targetId)}
+      </div>
       <div><label style="margin:0 0 4px;">Inline</label>
         <select name="fieldInline[]"><option value="false">No</option><option value="true">Yes</option></select>
       </div>

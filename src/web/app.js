@@ -14,6 +14,7 @@ const panelRoutes = require('./routes/panels');
 const settingsRoutes = require('./routes/settings');
 const embedRoutes = require('./routes/embeds');
 const moderationRoutes = require('./routes/moderation');
+const mentionRoutes = require('./routes/mentions');
 
 function createApp() {
   const app = express();
@@ -66,6 +67,7 @@ function createApp() {
   guildRouter.use(settingsRoutes);
   guildRouter.use(embedRoutes);
   guildRouter.use(moderationRoutes);
+  guildRouter.use(mentionRoutes);
 
   // CSRF check on every state-changing POST under the dashboard
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {

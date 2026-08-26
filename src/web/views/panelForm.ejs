@@ -14,6 +14,8 @@
 
   <label for="description">Description</label>
   <textarea id="description" name="description"><%= panel?.description || 'Click below to open a ticket.' %></textarea>
+  <%- include('partials/mentionTools', { targetId: 'description', roles: options.roles, guildId: guild.id }) %>
+  <div class="hint">Mentions only render in the description here — not the title.</div>
 
   <label for="color">Color</label>
   <input type="color" id="color" name="color" value="<%= panel?.color || '#5865F2' %>">
@@ -84,4 +86,5 @@
 <% } %>
 
 <% } %>
+<script src="/js/mentionInsert.js"></script>
 <%- include('partials/footer') %>
