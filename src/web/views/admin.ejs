@@ -2,6 +2,12 @@
 <h1>🔒 Closed beta</h1>
 <p class="subtitle">Owner-only. Controls who can log into this dashboard at all.</p>
 
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
 <div class="card">
   <form method="post" action="/admin/beta-lock">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -51,6 +57,33 @@
       <input type="text" id="discordUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
     </div>
     <button class="btn" type="submit">Add</button>
+  </form>
+</div>
+
+<div class="card" id="send-dm">
+  <h2>✉️ Send a DM as Quellum</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Sends an embed straight to someone's DMs from the bot. Works for anyone Quellum shares a server with
+    (they need DMs from server members turned on) — you'll get an error here if it can't be delivered.
+  </p>
+  <form method="post" action="/admin/send-dm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="dmUserId">Discord user ID</label>
+    <input type="text" id="dmUserId" name="userId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+
+    <label for="dmTitle">Title (optional)</label>
+    <input type="text" id="dmTitle" name="title" placeholder="A message from the team">
+
+    <label for="dmDescription">Message</label>
+    <textarea id="dmDescription" name="description" required></textarea>
+
+    <label for="dmColor">Color</label>
+    <input type="color" id="dmColor" name="color" value="#5865F2">
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Send DM</button>
+    </div>
   </form>
 </div>
 <%- include('partials/footer') %>
