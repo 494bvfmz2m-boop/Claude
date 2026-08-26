@@ -60,17 +60,17 @@
     var isFullAccess = !access || access.level === 'full';
   %>
     <nav class="topnav">
-      <span class="guild-chip">
+      <span class="guild-chip" id="tourGuildChip">
         <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
         <span class="guild-name"><%= guild.name %></span>
       </span>
       <a href="/">Servers</a>
-      <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets">Tickets</a><% } %>
+      <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
       <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
       <% if (canSee('reaction_roles')) { %><a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>
-      <% if (canSee('moderation')) { %><a href="/dashboard/<%= guild.id %>/moderation">Moderation</a><% } %>
-      <% if (canSee('settings')) { %><a href="/dashboard/<%= guild.id %>/settings">Settings</a><% } %>
-      <% if (isFullAccess) { %><a href="/dashboard/<%= guild.id %>/permissions">Permissions</a><% } %>
+      <% if (canSee('moderation')) { %><a href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
+      <% if (canSee('settings')) { %><a href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
+      <% if (isFullAccess) { %><a href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>
     </nav>
   <% } %>
   <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
@@ -80,9 +80,9 @@
   <a class="btn btn-ghost" style="margin-left:auto;" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
     <% if (isOwner) { %>
-      <a class="btn btn-ghost" href="/admin">Admin</a>
+      <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
     <% } %>
-    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
+    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">+ Invite to Server</a>
     <span class="user-chip" style="border-right:none;">
       <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
       <%= discordUser.username %>
@@ -97,5 +97,30 @@
     <strong>Note:</strong> Drag Quellum's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
   </div>
+  <script src="/js/tour.js"></script>
+  <script>
+  (function () {
+    var SEEN_GUILD_NAV = 'quellumTourGuildNavSeen';
+    var seen = false;
+    try { seen = !!localStorage.getItem(SEEN_GUILD_NAV); } catch (e) {}
+    if (seen) return;
+
+    var STEPS = [
+      { selector: '#tourGuildChip', title: "This server's dashboard", body: 'Everything here only affects this server. Use "Servers" on the left to switch to another one you manage.' },
+      { selector: '#tourNavTickets', title: 'Tickets', body: 'Set up ticket types and panels, and see what\'s open.' },
+      { selector: '#tourNavModeration', title: 'Moderation', body: 'Swear/link filters, staff hierarchy, auto-punishments, and a log of every action.' },
+      { selector: '#tourNavSettings', title: 'Settings', body: 'Channels, roles, and welcome/leave messages for this server.' },
+      { selector: '#tourNavPermissions', title: 'Permissions', body: 'Control exactly what each role can do here, without touching real Discord permissions.' },
+    ];
+
+    setTimeout(function () {
+      new QuellumTour(STEPS, {
+        onEnd: function () {
+          try { localStorage.setItem(SEEN_GUILD_NAV, '1'); } catch (e) {}
+        },
+      }).start();
+    }, 900);
+  })();
+  </script>
 <% } %>
 <main class="container">

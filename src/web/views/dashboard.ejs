@@ -8,6 +8,8 @@
   <% } %>
 </p>
 
+<button type="button" id="replayTourBtn" class="btn btn-ghost btn-sm" style="margin-bottom:20px;">Take the tour</button>
+
 <% if (guilds.length === 0) { %>
   <div class="card empty">
     Quellum isn't in any of your servers yet — hit <strong>Invite to Server</strong> above to add it.
@@ -42,4 +44,42 @@
   })();
   </script>
 <% } %>
+
+<script src="/js/tour.js"></script>
+<script>
+(function () {
+  var SEEN_SERVER_LIST = 'quellumTourServerListSeen';
+  var SEEN_GUILD_NAV = 'quellumTourGuildNavSeen';
+
+  var STEPS = [
+    { title: 'Welcome to Quellum', body: "A 30-second look around the dashboard. Skip any time -- Take the tour on this page brings it back later." },
+    { selector: '.guild-grid', title: 'Your servers', body: 'Every server you manage shows up here. Click one to open its dashboard -- tickets, moderation, settings, all of it.' },
+    { selector: '#tourInviteBtn', title: 'Add Quellum somewhere new', body: 'Invite the bot to another server you manage, any time.' },
+    { selector: '#tourAdminBtn', title: 'Owner tools', body: "Closed beta settings, DMs, and server management for the whole install -- only you see this." },
+  ];
+
+  function startTour() {
+    new QuellumTour(STEPS, {
+      onEnd: function () {
+        try { localStorage.setItem(SEEN_SERVER_LIST, '1'); } catch (e) {}
+      },
+    }).start();
+  }
+
+  var replayBtn = document.getElementById('replayTourBtn');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', function () {
+      try { localStorage.removeItem(SEEN_SERVER_LIST); localStorage.removeItem(SEEN_GUILD_NAV); } catch (e) {}
+      startTour();
+    });
+  }
+
+  var seen = false;
+  try { seen = !!localStorage.getItem(SEEN_SERVER_LIST); } catch (e) {}
+  if (!seen) {
+    // Give the entrance splash screen (~800ms) time to clear first.
+    setTimeout(startTour, 900);
+  }
+})();
+</script>
 <%- include('partials/footer') %>

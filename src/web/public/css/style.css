@@ -508,6 +508,24 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   50% { box-shadow: 0 0 0 6px rgba(35, 165, 90, .12); }
 }
 
+/* ---------- Guided tour ---------- */
+.tour-blocker { position: fixed; inset: 0; z-index: 99989; background: transparent; }
+.tour-spotlight {
+  position: fixed; z-index: 99990; border-radius: 10px; pointer-events: none;
+  box-shadow: 0 0 0 4px var(--accent), 0 0 0 9999px rgba(6, 4, 4, .78);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+.tour-tooltip {
+  position: fixed; z-index: 99991; width: min(320px, calc(100vw - 24px));
+  background: var(--bg-elevated-2); border: 1px solid var(--border-bright); border-radius: var(--radius);
+  padding: 18px; box-shadow: var(--shadow-md);
+}
+.tour-progress { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); margin-bottom: 8px; }
+.tour-title { font-size: 16px; font-weight: 800; color: var(--text-bright); margin-bottom: 6px; }
+.tour-body { font-size: 13.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+.tour-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tour-actions .btn:last-child { margin-left: auto; }
+
 /* ---------- Mobile ---------- */
 /* Topbar: brand/status/actions can wrap freely; the nav becomes its own
    full-width horizontally-scrollable strip rather than wrapping link by
