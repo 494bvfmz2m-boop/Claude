@@ -1,0 +1,7 @@
+<% if (typeof sections !== 'undefined' && sections && sections.length > 1) { %>
+<nav class="subnav">
+  <% sections.forEach(s => { %>
+    <a href="#<%= s.id %>"><%= s.icon %> <%= s.label %></a>
+  <% }) %>
+</nav>
+<% } %>

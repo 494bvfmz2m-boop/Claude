@@ -2,10 +2,17 @@
 <h1>Settings</h1>
 <p class="subtitle">Server-wide options for this bot.</p>
 
+<%- include('partials/subnav', { sections: [
+  { id: 'logging', icon: '📋', label: 'Logging & tickets' },
+  { id: 'welcome', icon: '👋', label: 'Welcome & leave' },
+  { id: 'autorole', icon: '🎭', label: 'Autorole' },
+] }) %>
+
 <form method="post" action="/dashboard/<%= guild.id %>/settings">
 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-<div class="card">
+<div class="card" id="logging">
+  <h2>📋 Logging &amp; tickets</h2>
   <label for="transcriptChannelId">Ticket log channel</label>
   <select id="transcriptChannelId" name="transcriptChannelId">
     <option value="">— None (ticket activity won't be logged anywhere) —</option>
@@ -44,7 +51,7 @@
 
 </div>
 
-<div class="card">
+<div class="card" id="welcome">
   <h2>👋 Welcome &amp; leave messages</h2>
   <label for="welcomeChannelId">Welcome channel</label>
   <select id="welcomeChannelId" name="welcomeChannelId">
@@ -72,7 +79,7 @@
   <div class="hint">Same placeholders as above. Can be a different channel than the welcome one.</div>
 </div>
 
-<div class="card">
+<div class="card" id="autorole">
   <h2>🎭 Autorole</h2>
   <label for="autoroleId">Role to give new members</label>
   <select id="autoroleId" name="autoroleId">

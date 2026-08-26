@@ -2,8 +2,18 @@
 <h1>Tickets</h1>
 <p class="subtitle">Set up ticket categories, post panels, and see what's open.</p>
 
-<% if (setupChecklist.some(item => !item.done)) { %>
-  <div class="card">
+<%
+  var checklistIncomplete = setupChecklist.some(function (item) { return !item.done; });
+  var subnavSections = [];
+  if (checklistIncomplete) subnavSections.push({ id: 'checklist', icon: '✅', label: 'Setup checklist' });
+  subnavSections.push({ id: 'ticket-types', icon: '🎫', label: 'Ticket types' });
+  subnavSections.push({ id: 'panels', icon: '📋', label: 'Panels' });
+  subnavSections.push({ id: 'recent-tickets', icon: '🗂️', label: 'Recent tickets' });
+%>
+<%- include('partials/subnav', { sections: subnavSections }) %>
+
+<% if (checklistIncomplete) { %>
+  <div class="card" id="checklist">
     <h2>✅ Setup checklist</h2>
     <p class="hint" style="margin-bottom:14px;">Nothing here is required — just what's worth doing before people start using this server.</p>
     <ul class="list">
@@ -24,7 +34,7 @@
   </div>
 <% } %>
 
-<div class="card">
+<div class="card" id="ticket-types">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2>🎫 Ticket types</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/ticket-types/new">+ New ticket type</a>
@@ -52,7 +62,7 @@
   <% } %>
 </div>
 
-<div class="card">
+<div class="card" id="panels">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2>📋 Panels</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/panels/new">+ New panel</a>
@@ -84,7 +94,7 @@
   <% } %>
 </div>
 
-<div class="card">
+<div class="card" id="recent-tickets">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2>🗂️ Recent tickets</h2>
     <% if (recentTickets.some(t => t.status === 'closed')) { %>

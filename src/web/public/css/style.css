@@ -269,6 +269,17 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 .badge-claimed { background: rgba(224, 38, 63, .15); color: #f0576a; }
 .badge-closed { background: rgba(237, 66, 69, .15); color: #f18688; }
 
+/* ---------- Section sub-nav (in-page jump links for card-heavy pages) ---------- */
+.subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.subnav a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 13px; font-weight: 600;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.subnav a:hover { color: var(--text-bright); border-color: var(--border-bright); background: var(--bg-elevated-2); text-decoration: none; }
+
 .guild-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .guild-card {
   background: var(--bg-elevated);

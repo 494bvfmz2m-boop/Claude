@@ -2,13 +2,22 @@
 <h1>🛡️ Moderation</h1>
 <p class="subtitle">Swear filter, staff list, auto-punishments, and moderation actions.</p>
 
+<%- include('partials/subnav', { sections: [
+  { id: 'swear-filter', icon: '🧼', label: 'Swear filter' },
+  { id: 'link-filter', icon: '🔗', label: 'Link filter' },
+  { id: 'hierarchy', icon: '👮', label: 'Staff list' },
+  { id: 'thresholds', icon: '🚨', label: 'Auto-punishments' },
+  { id: 'actions', icon: '⚡', label: 'Issue a punishment' },
+  { id: 'mod-log', icon: '🗒️', label: 'Log' },
+] }) %>
+
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
     <%= notice.text %>
   </div>
 <% } %>
 
-<div class="card">
+<div class="card" id="swear-filter">
   <h2>🧼 Swear filter</h2>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -44,7 +53,7 @@
   </form>
 </div>
 
-<div class="card">
+<div class="card" id="link-filter">
   <h2>🔗 Link filter</h2>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/link-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -245,7 +254,7 @@
   <div class="hint" style="margin-top:10px;">Unban needs their exact Discord user ID — banned users can't be found by username.</div>
 </div>
 
-<div class="card">
+<div class="card" id="mod-log">
   <h2>🗒️ Moderation log</h2>
   <% if (actions.length === 0) { %>
     <p class="empty">Nothing logged yet.</p>

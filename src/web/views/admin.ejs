@@ -2,13 +2,20 @@
 <h1>🔒 Closed beta</h1>
 <p class="subtitle">Owner-only. Controls who can log into this dashboard at all.</p>
 
+<%- include('partials/subnav', { sections: [
+  { id: 'beta-toggle', icon: '🔒', label: 'Closed beta' },
+  { id: 'allowlist', icon: '👥', label: 'Allowed users' },
+  { id: 'send-dm', icon: '✉️', label: 'Send a DM' },
+  { id: 'remove-server', icon: '🚪', label: 'Remove from a server' },
+] }) %>
+
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
     <%= notice.text %>
   </div>
 <% } %>
 
-<div class="card">
+<div class="card" id="beta-toggle">
   <form method="post" action="/admin/beta-lock">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label class="style-option" style="max-width:420px;">
@@ -24,8 +31,8 @@
   </form>
 </div>
 
-<div class="card">
-  <h2>Allowed Discord users</h2>
+<div class="card" id="allowlist">
+  <h2>👥 Allowed Discord users</h2>
   <p class="hint" style="margin-bottom:14px;">
     Find a Discord user ID via Discord → User Settings → Advanced → enable Developer Mode,
     then right-click someone → Copy User ID.
