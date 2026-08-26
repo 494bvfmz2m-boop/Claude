@@ -1,0 +1,12 @@
+DirectoryIndex index.html
+
+RewriteEngine On
+
+# Canonicalize: if someone requests /page.html directly, redirect to /page
+RewriteCond %{THE_REQUEST} \s/+(.+)\.html[\s?] [NC]
+RewriteRule ^ /%1 [NC,L,R=301]
+
+# Serve page.html for a request to /page, without changing the visible URL
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.html -f
+RewriteRule ^(.*)$ $1.html [NC,L]

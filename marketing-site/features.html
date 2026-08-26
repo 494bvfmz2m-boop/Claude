@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Features — Quellum</title>
+<meta name="description" content="Everything Quellum does: support tickets, a full moderation suite, auto-punishments, a swear filter, staff hierarchy, reaction roles, an embed builder, and a real per-role permissions manager.">
+<meta property="og:title" content="Features — Quellum">
+<meta property="og:description" content="Everything Quellum does, in detail: tickets, moderation, staff tools, reaction roles, embeds, and a real permissions manager.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://quellum.site/features">
+<link rel="icon" type="image/svg+xml" href="img/quellum-favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg-mesh" aria-hidden="true"></div>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<div id="quellum-splash" class="quellum-splash" aria-hidden="true">
+  <img src="img/quellum-logo-impact.svg" alt="" width="130" height="130">
+</div>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-spin3d" aria-hidden="true">
+        <span class="brand-spin3d__rig">
+          <span class="brand-spin3d__face brand-spin3d__face--front">
+            <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+              <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
+              <path d="M64 66 L100 40 L136 66" stroke="#f0455f" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 100 L100 74 L136 100" stroke="#c8102e" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 134 L100 108 L136 134" stroke="#7d0a1d" stroke-width="14" stroke-linecap="square"/>
+            </svg>
+          </span>
+          <span class="brand-spin3d__face brand-spin3d__face--back">
+            <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+              <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#c8102e" stroke="#1d1f20" stroke-width="9"/>
+              <path d="M64 66 L100 40 L136 66" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 100 L100 74 L136 100" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 134 L100 108 L136 134" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+            </svg>
+          </span>
+        </span>
+      </span>
+      <span class="brand-word">Quellum</span>
+    </a>
+
+    <nav class="nav-links">
+      <a href="/features" class="is-active">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/#beta">Beta access</a>
+    </nav>
+
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
+      <a class="btn btn-ghost" href="https://bot.quellum.site" target="_blank" rel="noopener">Log in</a>
+      <a class="btn" href="https://bot.quellum.site" target="_blank" rel="noopener">Open Dashboard</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ---------- Page hero ---------- -->
+  <section class="hero" style="padding-bottom:40px;">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Everything, in detail
+      </div>
+      <h1 style="font-size:clamp(34px, 5vw, 56px);">Built for <span class="accent">real servers</span>, not demos.</h1>
+      <p class="lead">Every feature below is configured from the dashboard — no code, no redeploys, no waiting on us.</p>
+    </div>
+  </section>
+
+  <!-- ---------- Feature rows ---------- -->
+  <section style="padding-top:0;">
+    <div class="wrap">
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🎫</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Support</span>
+          <h2>Tickets that actually stay organized</h2>
+          <p>Define as many ticket types as your server needs — each with its own category, staff roles, naming pattern, and welcome embed.</p>
+          <ul class="feature-row-list">
+            <li>Panels with a button (single type) or dropdown (several) that users click to open a ticket</li>
+            <li>Opens a private channel, pings the right staff, and posts the welcome embed automatically</li>
+            <li><strong>Claim</strong> and <strong>Close</strong> buttons right on the ticket, with an optional close reason</li>
+            <li><code>/change</code> moves an open ticket to a different type mid-conversation — renames, re-pings, keeps every message</li>
+            <li>Closing generates a full HTML transcript, posted wherever you pick — turn it off per ticket type for anything sensitive (billing, appeals) while still logging the close itself</li>
+            <li>A dedicated ticket log channel tracks every open, claim, and close</li>
+            <li>Ban someone from opening tickets at all with a dedicated role, without touching their access to the rest of the server</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🛡️</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Moderation</span>
+          <h2>A full suite, on Discord or the web</h2>
+          <p>Ban, kick, mute, warn, and purge — as slash commands, or as a form right on the dashboard, for staff who don't have Discord open.</p>
+          <ul class="feature-row-list">
+            <li>Who can use each one is controlled entirely by the <a href="#permissions" style="color:var(--accent); font-weight:700;">Permissions manager</a> — not by handing out real Discord permissions</li>
+            <li>Target by username or Discord user ID, not just raw IDs</li>
+            <li><code>/purge 10</code> deletes the last 10 messages; <code>/purge</code> with no number clears the whole channel, behind a confirm step</li>
+            <li>Rank rules apply everywhere — you can't punish someone who outranks or matches you, on either side</li>
+            <li>The punished member gets a DM explaining what happened and why; every action — from Discord or the site — lands in one searchable moderation log</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🚨</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Automation</span>
+          <h2>Auto-punishments that enforce themselves</h2>
+          <p>Set thresholds once and stop tracking warning counts by hand.</p>
+          <ul class="feature-row-list">
+            <li>"At 3 warnings → mute", "At 5 → kick", "At 7 → ban" — however you want it staged</li>
+            <li>Fires the instant a warning crosses the count, no matter which side gave it</li>
+            <li>Logged just like any other moderation action, so there's always a paper trail</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🧼</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Chat</span>
+          <h2>A swear filter you actually control</h2>
+          <p>Manage the whole banned-word list from the dashboard — no code, no pull requests.</p>
+          <ul class="feature-row-list">
+            <li>Whole-word matching, case-insensitive — won't flag a word for containing one as a substring</li>
+            <li>Deletes the message, posts a self-deleting notice, and logs it</li>
+            <li>Staff with Manage Messages are never filtered</li>
+            <li>The word list is cached in memory, not re-read from the database on every message — busy servers don't add real load</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">👮</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Staff structure</span>
+          <h2>A real chain of command</h2>
+          <p><code>/promote</code> and <code>/demote</code>, backed by an ordered rank list you control.</p>
+          <ul class="feature-row-list">
+            <li>You can only act on someone strictly below your own rank — never a peer, never a superior</li>
+            <li>Server owners and Administrators bypass the rule; everyone else plays by it</li>
+            <li>Reorder ranks by typing numbers on the dashboard and hitting save — no more clicking arrows one at a time</li>
+            <li>Demoting the lowest rank removes the staff role entirely</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">📋</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Visibility</span>
+          <h2>A staff list that keeps itself current</h2>
+          <p>One message, always up to date, in a channel you pick.</p>
+          <ul class="feature-row-list">
+            <li>One role per row, with everyone in it actually @mentioned — not just named</li>
+            <li>Pick the embed color to match your server's branding</li>
+            <li>Updates automatically a few seconds after anyone's staff role changes, batched so a bulk update doesn't spam edits</li>
+            <li>Or hit "Post / refresh now" to push it on demand</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🎨</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Content</span>
+          <h2>An embed builder with a real preview</h2>
+          <p>Build any embed — title, description, color, author, thumbnail, image, footer, fields — and see exactly what it'll look like before you send it.</p>
+          <ul class="feature-row-list">
+            <li>Role and user mention pickers drop a real, working mention into the description or a field — no manual ID typing</li>
+            <li>Pick a date and time and it inserts Discord's own dynamic timestamp — "event at 5pm" shows correctly converted to every viewer's own timezone, automatically</li>
+            <li>One-click rules template to start from instead of a blank embed</li>
+            <li>Save it as a reusable template, or fire it at a channel immediately</li>
+            <li>The same builder — mentions, timestamps, and all — powers ticket welcome embeds and panel embeds too</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🎭</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Engagement</span>
+          <h2>Reaction roles, built and posted from the dashboard</h2>
+          <p>Map any emoji — unicode or a custom server emoji — to a role, and post the panel to a channel.</p>
+          <ul class="feature-row-list">
+            <li>React to get the role, remove the reaction to lose it — handled automatically</li>
+            <li>Edit and re-post an existing panel and it updates the live message and re-syncs the reactions to match</li>
+            <li>As many emoji → role mappings per panel as you need</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal" id="permissions">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🔐</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Permissions</span>
+          <h2>A real permissions manager, not just Manage Server</h2>
+          <p>Everyone logs into the dashboard with their own Discord account — and what they can do there is entirely up to you.</p>
+          <ul class="feature-row-list">
+            <li>Grant a role access to specific dashboard sections (tickets, embeds, reaction roles, moderation, settings) without giving it any real Discord permission</li>
+            <li>Grant a role specific moderation commands, one at a time — a helper can <code>/mute</code> without being able to <code>/ban</code>; a moderator can <code>/ban</code> without <code>/unban</code></li>
+            <li>The owner and real Administrators always have full access; the Permissions page itself can't be handed off, so a granted role can never expand its own access</li>
+            <li>You only ever see and manage servers you're the owner of, have Manage Server on, or have been granted access to — never anyone else's</li>
+            <li>Currently in closed, invite-controlled beta — see the front page for availability</li>
+          </ul>
+          <p class="step-note">⚠️ Quellum's role needs to sit above the roles you want it to manage in Server Settings → Roles — otherwise ticket access, staff ranks, mutes, and reaction roles won't work for those roles.</p>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph">🧰</span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Extras</span>
+          <h2>The small stuff that adds up</h2>
+          <ul class="feature-row-list">
+            <li><code>/poll</code> — a reaction poll with up to 5 options, posted and auto-reacted in one command</li>
+            <li><code>/info</code> — see exactly what access you (or anyone else) actually has, no guessing</li>
+            <li><code>/introduction</code> — Quellum introduces itself in-channel: what it does, how to set it up, and who added it</li>
+            <li>DMs anyone who messages it directly with the invite link, the dashboard, and a quick rundown</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ---------- CTA ---------- -->
+  <section>
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <h2>See it running in your server</h2>
+        <p>Log in, invite Quellum, and start configuring.</p>
+        <a class="btn btn-lg" href="https://bot.quellum.site" target="_blank" rel="noopener">Open Dashboard →</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-row">
+      <div>
+        <div class="footer-brand">
+          <span class="brand-spin3d" aria-hidden="true" style="width:22px; height:22px; perspective:100px;">
+            <span class="brand-spin3d__rig">
+              <span class="brand-spin3d__face brand-spin3d__face--front">
+                <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+                  <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
+                  <path d="M64 66 L100 40 L136 66" stroke="#f0455f" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 100 L100 74 L136 100" stroke="#c8102e" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 134 L100 108 L136 134" stroke="#7d0a1d" stroke-width="14" stroke-linecap="square"/>
+                </svg>
+              </span>
+              <span class="brand-spin3d__face brand-spin3d__face--back">
+                <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+                  <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#c8102e" stroke="#1d1f20" stroke-width="9"/>
+                  <path d="M64 66 L100 40 L136 66" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 100 L100 74 L136 100" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 134 L100 108 L136 134" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                </svg>
+              </span>
+            </span>
+          </span>
+          <span class="brand-word">Quellum</span>
+        </div>
+        <div class="footer-tagline">Tickets, moderation, and staff tools for Discord.</div>
+        <div class="footer-studio">A <a href="https://xyphros.net/" target="_blank" rel="noopener">Xyphros Studios</a> Product.</div>
+        <div class="footer-studio">Support: <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord only</a> for now — no email support yet.</div>
+      </div>
+
+      <div class="footer-links">
+        <a href="/features">Features</a>
+        <a href="/#how">How it works</a>
+        <a href="/#beta">Beta access</a>
+        <a href="https://bot.quellum.site" target="_blank" rel="noopener">Dashboard</a>
+        <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
+      </div>
+    </div>
+    <div class="footer-fine">© <span id="year"></span> Quellum, a Xyphros Studios product. Not affiliated with, endorsed, or sponsored by Discord Inc.</div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

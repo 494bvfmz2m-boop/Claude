@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quellum — Tickets &amp; Moderation for Discord</title>
+<meta name="description" content="Quellum is a hosted Discord bot with a full web dashboard: support tickets, a moderation suite, a swear filter, staff hierarchy, and an embed builder. Currently in closed beta.">
+<meta property="og:title" content="Quellum — Tickets & Moderation for Discord">
+<meta property="og:description" content="Support tickets, moderation, swear filter, staff hierarchy, embed builder — all in one bot, all configured from a web dashboard. Closed beta.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://quellum.site/">
+<link rel="icon" type="image/svg+xml" href="img/quellum-favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg-mesh" aria-hidden="true"></div>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<div id="quellum-splash" class="quellum-splash" aria-hidden="true">
+  <img src="img/quellum-logo-impact.svg" alt="" width="130" height="130">
+</div>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-spin3d" aria-hidden="true">
+        <span class="brand-spin3d__rig">
+          <span class="brand-spin3d__face brand-spin3d__face--front">
+            <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+              <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
+              <path d="M64 66 L100 40 L136 66" stroke="#f0455f" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 100 L100 74 L136 100" stroke="#c8102e" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 134 L100 108 L136 134" stroke="#7d0a1d" stroke-width="14" stroke-linecap="square"/>
+            </svg>
+          </span>
+          <span class="brand-spin3d__face brand-spin3d__face--back">
+            <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+              <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#c8102e" stroke="#1d1f20" stroke-width="9"/>
+              <path d="M64 66 L100 40 L136 66" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 100 L100 74 L136 100" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+              <path d="M64 134 L100 108 L136 134" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+            </svg>
+          </span>
+        </span>
+      </span>
+      <span class="brand-word">Quellum</span>
+    </a>
+
+    <nav class="nav-links">
+      <a href="/features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/#beta">Beta access</a>
+    </nav>
+
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
+      <a class="btn btn-ghost" href="https://bot.quellum.site" target="_blank" rel="noopener">Log in</a>
+      <a class="btn" href="https://bot.quellum.site" target="_blank" rel="noopener">Open Dashboard</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ---------- Hero ---------- -->
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="hero-logo-wrap">
+        <img class="hero-logo" src="img/quellum-logo-impact.svg" alt="Quellum shield logo" width="128" height="128">
+      </div>
+
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Closed beta — <span id="hero-spots-left">13</span> spots left
+      </div>
+
+      <h1>Tickets, moderation, and<br><span class="accent">a dashboard that actually helps.</span></h1>
+
+      <p class="lead">
+        Quellum runs your support tickets, moderation, and staff structure from one bot —
+        hosted for you, with a full web dashboard so nothing lives in a config file.
+        Log in with Discord, invite it, and configure only your own server.
+      </p>
+
+      <div class="hero-ctas">
+        <a class="btn btn-lg" href="https://bot.quellum.site" target="_blank" rel="noopener">
+          Open Dashboard →
+        </a>
+        <a class="btn btn-ghost btn-lg" href="/features">See all features</a>
+      </div>
+
+      <p class="hero-note">Hosted &amp; managed — nothing to set up on your end.</p>
+    </div>
+  </section>
+
+  <!-- ---------- Closed beta status ----------
+       The numbers below are fallbacks shown until js/main.js fetches live
+       counts from https://bot.quellum.site/api/beta-status on load; if that
+       fetch fails (offline, CORS, bot down) these stay as-is. No manual
+       updates needed as spots fill up. -->
+  <section id="beta" style="padding-top:0;">
+    <div class="wrap reveal">
+      <div class="beta-strip" data-beta-total="15" data-beta-taken="2">
+        <span class="lock">🔒</span>
+        <div>
+          <strong>Closed beta</strong> — only <strong id="beta-total-num">15</strong> spots total.
+        </div>
+        <div class="beta-count"><span class="beta-remaining">13</span> left</div>
+        <div class="beta-bar"><div class="beta-bar-fill"></div></div>
+        <div style="color:var(--text-muted); font-size:13px;">
+          Not on the list? Message <strong style="color:var(--text-bright);">spontanedonder</strong> on Discord.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Value strip ---------- -->
+  <section style="padding-top:0;">
+    <div class="wrap reveal">
+      <div class="stats" data-reveal-group>
+        <div class="stat">
+          <div class="stat-num">1 bot</div>
+          <div class="stat-label">Tickets + moderation together</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">2 controls</div>
+          <div class="stat-label">Slash commands or the web dashboard</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">Per-server</div>
+          <div class="stat-label">You only ever manage your own</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">Hosted</div>
+          <div class="stat-label">We run it — nothing for you to deploy</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Features (highlights) ---------- -->
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">What it does</span>
+        <h2>Everything your server's staff actually needs</h2>
+        <p>A quick look — see the <a href="/features" style="color:var(--accent); font-weight:700;">full feature breakdown</a> for the details.</p>
+      </div>
+
+      <div class="features-grid" data-reveal-group>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎫</div>
+          <h3>Support tickets</h3>
+          <p>Ticket types, panels, private channels, claim/close, and full HTML transcripts.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🛡️</div>
+          <h3>Full moderation suite</h3>
+          <p>Ban, kick, mute, warn, purge — as slash commands or right from the dashboard.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🚨</div>
+          <h3>Auto-punishments</h3>
+          <p>"N warnings → mute/kick/ban" enforces itself, from either side.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🧼</div>
+          <h3>Swear filter</h3>
+          <p>A banned-word list you manage from the dashboard, whole-word matched.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">👮</div>
+          <h3>Staff hierarchy</h3>
+          <p><code>/promote</code> and <code>/demote</code> with real rank rules, editable on the dashboard.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎨</div>
+          <h3>Embed builder</h3>
+          <p>Live preview, mentions, a one-click rules template, and an event-time picker that auto-converts per viewer.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🔐</div>
+          <h3>Permissions manager</h3>
+          <p>Grant a role <code>/mute</code> without <code>/ban</code>, or dashboard access without real Discord permissions — your call, per role.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎭</div>
+          <h3>Reaction roles</h3>
+          <p>React to a message, get a role — unicode or custom emoji, built and posted from the dashboard.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon">🧰</div>
+          <h3>Plus the extras</h3>
+          <p><code>/poll</code>, <code>/info</code>, <code>/introduction</code>, and a DM the moment Quellum joins — no setup required.</p>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:36px;" class="reveal">
+        <a class="btn btn-ghost" href="/features">View all features →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- How it works ---------- -->
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Getting started</span>
+        <h2>Up and running in four steps</h2>
+        <p>No hosting to set up on your end — the dashboard is already live.</p>
+      </div>
+
+      <div class="steps" data-reveal-group>
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <h3>Log in with Discord</h3>
+          <p>Head to the dashboard and sign in with your own Discord account — no separate password to remember.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <h3>Invite Quellum</h3>
+          <p>One click adds it to any server where you're the owner or have Manage Server.</p>
+          <p class="step-note">⚠️ Drag Quellum's role above the roles you want it to manage in Server Settings → Roles, or ticket access, staff ranks, mutes, and reaction roles won't work.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <h3>Configure it</h3>
+          <p>Set up ticket types, panels, moderation, the swear filter, and staff hierarchy — all from the dashboard.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">4</div>
+          <h3>It runs itself</h3>
+          <p>Tickets, moderation, and the staff list all update live from there on — check back whenever you need to.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- CTA ---------- -->
+  <section>
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <h2>Want in on the beta?</h2>
+        <p><span id="cta-spots-left">13</span> of <span id="cta-spots-total">15</span> spots are still open. Log in to check, or message spontanedonder on Discord to request access.</p>
+        <a class="btn btn-lg" href="https://bot.quellum.site" target="_blank" rel="noopener">Open Dashboard →</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-row">
+      <div>
+        <div class="footer-brand">
+          <span class="brand-spin3d" aria-hidden="true" style="width:22px; height:22px; perspective:100px;">
+            <span class="brand-spin3d__rig">
+              <span class="brand-spin3d__face brand-spin3d__face--front">
+                <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+                  <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
+                  <path d="M64 66 L100 40 L136 66" stroke="#f0455f" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 100 L100 74 L136 100" stroke="#c8102e" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 134 L100 108 L136 134" stroke="#7d0a1d" stroke-width="14" stroke-linecap="square"/>
+                </svg>
+              </span>
+              <span class="brand-spin3d__face brand-spin3d__face--back">
+                <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+                  <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#c8102e" stroke="#1d1f20" stroke-width="9"/>
+                  <path d="M64 66 L100 40 L136 66" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 100 L100 74 L136 100" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                  <path d="M64 134 L100 108 L136 134" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
+                </svg>
+              </span>
+            </span>
+          </span>
+          <span class="brand-word">Quellum</span>
+        </div>
+        <div class="footer-tagline">Tickets, moderation, and staff tools for Discord.</div>
+        <div class="footer-studio">A <a href="https://xyphros.net/" target="_blank" rel="noopener">Xyphros Studios</a> Product.</div>
+        <div class="footer-studio">Support: <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord only</a> for now — no email support yet.</div>
+      </div>
+
+      <div class="footer-links">
+        <a href="/features">Features</a>
+        <a href="/#how">How it works</a>
+        <a href="/#beta">Beta access</a>
+        <a href="https://bot.quellum.site" target="_blank" rel="noopener">Dashboard</a>
+        <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
+      </div>
+    </div>
+    <div class="footer-fine">© <span id="year"></span> Quellum, a Xyphros Studios product. Not affiliated with, endorsed, or sponsored by Discord Inc.</div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
