@@ -18,17 +18,15 @@
 (function () {
   var el = document.getElementById('quellum-splash');
   if (!el) return;
-  var skip = false;
-  try {
-    skip = Boolean(sessionStorage.getItem('quellumSplashShown')) || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!skip) sessionStorage.setItem('quellumSplashShown', '1');
-  } catch (e) {}
-  if (skip) { el.remove(); return; }
+  // Plays on every full page load (every dashboard nav click is one) --
+  // deliberately not gated to "once per session" anymore, since that made
+  // it disappear after the very first page and look broken.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   window.addEventListener('load', function () {
     setTimeout(function () {
       el.classList.add('quellum-splash--out');
-      setTimeout(function () { el.remove(); }, 350);
-    }, 700);
+      setTimeout(function () { el.remove(); }, 300);
+    }, 500);
   });
 })();
 </script>

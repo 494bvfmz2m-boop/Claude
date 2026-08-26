@@ -1,8 +1,10 @@
 const express = require('express');
 const { TicketTypes, Panels, Tickets } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
+const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
+router.use(requireArea('tickets'));
 
 router.get('/tickets', async (req, res) => {
   const guild = await getGuildOr404(req, res);

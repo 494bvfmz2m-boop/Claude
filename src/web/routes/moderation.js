@@ -7,8 +7,10 @@ const { logAction, parseDuration, applyWarningThreshold, canActOn, buildPunishme
 const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
+const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
+router.use(requireArea('moderation'));
 
 const THRESHOLD_ACTIONS = new Set(['timeout', 'kick', 'ban']);
 

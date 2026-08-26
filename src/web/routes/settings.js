@@ -1,8 +1,10 @@
 const express = require('express');
 const { GuildSettings } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
+const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
+router.use(requireArea('settings'));
 
 router.get('/settings', async (req, res) => {
   const guild = await getGuildOr404(req, res);

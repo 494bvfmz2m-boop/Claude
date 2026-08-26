@@ -2,8 +2,10 @@ const express = require('express');
 const { ReactionRolePanels } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { postPanel, buildReactionRoleMessage, parseEmojiInput } = require('../../bot/reactionRoles');
+const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
+router.use(requireArea('reaction_roles'));
 
 function parseMappingsFromBody(body) {
   const emojis = [].concat(body.emoji || []);

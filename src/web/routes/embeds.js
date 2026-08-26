@@ -2,8 +2,10 @@ const express = require('express');
 const { EmbedBuilder } = require('discord.js');
 const { EmbedTemplates } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
+const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
+router.use(requireArea('embeds'));
 
 function embedDataFromBody(body) {
   const names = [].concat(body.fieldName || []);

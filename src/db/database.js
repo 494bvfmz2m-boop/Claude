@@ -124,7 +124,23 @@ CREATE TABLE IF NOT EXISTS reaction_role_panels (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS dashboard_role_access (
+  guild_id TEXT NOT NULL,
+  role_id TEXT NOT NULL,
+  areas TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (guild_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS command_permissions (
+  guild_id TEXT NOT NULL,
+  role_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  PRIMARY KEY (guild_id, role_id, action)
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
+CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
+CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);
 CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions(guild_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_reaction_role_panels_guild ON reaction_role_panels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_reaction_role_panels_message ON reaction_role_panels(message_id);

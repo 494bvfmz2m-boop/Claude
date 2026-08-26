@@ -302,6 +302,46 @@ const ReactionRolePanels = {
   },
 };
 
+const DashboardRoleAccess = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT role_id, areas FROM dashboard_role_access WHERE guild_id = ?').all(guildId)
+      .map((r) => ({ roleId: r.role_id, areas: parseJSON(r.areas, []) }));
+  },
+  // Replaces the whole grant set for this guild in one go -- the Permissions
+  // page always submits the complete role/area grid, so there's no partial
+  // update to reconcile. Roles with an empty area list are dropped entirely
+  // rather than stored as a no-op row.
+  replaceAll(guildId, grants) {
+    const tx = db.transaction((rows) => {
+      db.prepare('DELETE FROM dashboard_role_access WHERE guild_id = ?').run(guildId);
+      const insert = db.prepare('INSERT INTO dashboard_role_access (guild_id, role_id, areas) VALUES (?, ?, ?)');
+      rows.forEach(({ roleId, areas }) => {
+        if (areas.length > 0) insert.run(guildId, roleId, JSON.stringify(areas));
+      });
+    });
+    tx(grants);
+  },
+};
+
+const CommandPermissions = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT role_id, action FROM command_permissions WHERE guild_id = ?').all(guildId)
+      .map((r) => ({ roleId: r.role_id, action: r.action }));
+  },
+  // Same all-or-nothing replace as DashboardRoleAccess.replaceAll -- the
+  // Permissions page always submits the full role/action grid.
+  replaceAll(guildId, grants) {
+    const tx = db.transaction((rows) => {
+      db.prepare('DELETE FROM command_permissions WHERE guild_id = ?').run(guildId);
+      const insert = db.prepare('INSERT INTO command_permissions (guild_id, role_id, action) VALUES (?, ?, ?)');
+      rows.forEach(({ roleId, actions }) => {
+        actions.forEach((action) => insert.run(guildId, roleId, action));
+      });
+    });
+    tx(grants);
+  },
+};
+
 const EmbedTemplates = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM embed_templates WHERE guild_id = ? ORDER BY id DESC').all(guildId)
@@ -355,4 +395,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions };
