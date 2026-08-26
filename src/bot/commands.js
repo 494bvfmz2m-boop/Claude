@@ -77,6 +77,10 @@ const commands = [
     .addUserOption((o) => o.setName('user').setDescription('Who to demote').setRequired(true)),
 
   new SlashCommandBuilder()
+    .setName('help')
+    .setDescription("See the commands you can actually use here, grouped by what they do"),
+
+  new SlashCommandBuilder()
     .setName('info')
     .setDescription('See what access you (or someone else) have -- permissions, dashboard access, staff rank')
     .addUserOption((o) => o.setName('user').setDescription('Check someone else instead of yourself').setRequired(false)),
