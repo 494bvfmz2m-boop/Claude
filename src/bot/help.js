@@ -41,7 +41,7 @@ async function handleHelp(interaction) {
   const utility = [
     '`/info [user]` — See permissions, dashboard access, and staff rank',
     "`/introduction` — ModSentry's full welcome message, plus every registered command",
-    '`/poll <question> <option1> <option2> ...` — Post a reaction poll',
+    '`/poll <question> <option1> <option2> ... [duration]` — Post a reaction poll, optionally auto-closing after a set time',
   ];
 
   const embed = new EmbedBuilder()

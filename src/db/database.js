@@ -171,6 +171,18 @@ CREATE TABLE IF NOT EXISTS contacts (
   added_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS polls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  question TEXT NOT NULL,
+  options TEXT NOT NULL DEFAULT '[]',
+  ends_at TEXT,
+  closed INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);
@@ -184,6 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id
 CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
 `);
 
 // Lightweight migrations for columns added after the initial release —

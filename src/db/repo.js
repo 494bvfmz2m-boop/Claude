@@ -514,4 +514,31 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts };
+const Polls = {
+  create(data) {
+    const info = db.prepare(`
+      INSERT INTO polls (guild_id, channel_id, message_id, question, options, ends_at)
+      VALUES (@guildId, @channelId, @messageId, @question, @options, @endsAt)
+    `).run({
+      guildId: data.guildId,
+      channelId: data.channelId,
+      messageId: data.messageId,
+      question: data.question,
+      options: JSON.stringify(data.options || []),
+      endsAt: data.endsAt || null,
+    });
+    return info.lastInsertRowid;
+  },
+  // Open polls with an end time that has already passed -- what the
+  // scheduler closes out on each sweep.
+  listDue(nowIso) {
+    return db.prepare('SELECT * FROM polls WHERE closed = 0 AND ends_at IS NOT NULL AND ends_at <= ?')
+      .all(nowIso)
+      .map((p) => ({ ...p, options: parseJSON(p.options, []) }));
+  },
+  markClosed(id) {
+    db.prepare('UPDATE polls SET closed = 1 WHERE id = ?').run(id);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls };

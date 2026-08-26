@@ -107,7 +107,8 @@ const commands = [
     .addStringOption((o) => o.setName('option2').setDescription('Option 2').setRequired(true))
     .addStringOption((o) => o.setName('option3').setDescription('Option 3').setRequired(false))
     .addStringOption((o) => o.setName('option4').setDescription('Option 4').setRequired(false))
-    .addStringOption((o) => o.setName('option5').setDescription('Option 5').setRequired(false)),
+    .addStringOption((o) => o.setName('option5').setDescription('Option 5').setRequired(false))
+    .addStringOption((o) => o.setName('duration').setDescription('Auto-close after, e.g. 10m, 2h, 1d (max 30d)').setRequired(false)),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {
