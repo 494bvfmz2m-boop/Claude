@@ -5,6 +5,7 @@
 <%- include('partials/subnav', { sections: [
   { id: 'beta-toggle', label: 'Closed beta' },
   { id: 'allowlist', label: 'Allowed users' },
+  { id: 'contacts', label: 'Contacts' },
   { id: 'dm-form', label: 'Application form' },
   { id: 'send-dm', label: 'Send a DM' },
   { id: 'remove-server', label: 'Remove from a server' },
@@ -68,6 +69,58 @@
   </form>
 </div>
 
+<div class="card" id="contacts">
+  <h2>Contacts</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Save people here once and pick them by name when sending a DM below — no more re-copying user IDs.
+    Usernames and pictures are always pulled live from Discord, so they stay current on their own.
+  </p>
+
+  <% if (contacts.length === 0) { %>
+    <p class="empty">No contacts saved yet — add one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% contacts.forEach(c => { %>
+        <li class="list-item">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <% if (c.resolved) { %>
+              <img src="<%= c.avatarURL %>" alt="" class="contact-avatar">
+            <% } else { %>
+              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);">?</span>
+            <% } %>
+            <div style="min-width:0;">
+              <div class="list-item-title"><%= c.resolved ? c.tag : 'Unknown user' %></div>
+              <div class="list-item-meta">
+                <span class="contact-id" style="display:inline;"><%= c.id %></span><% if (c.note) { %> · <%= c.note %><% } %><% if (!c.resolved) { %> · couldn't load from Discord<% } %>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/admin/contacts/remove" onsubmit="return confirm('Remove this contact?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="discordUserId" value="<%= c.id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/contacts/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:200px;">
+      <label for="contactUserId" style="margin-top:0;">Discord user ID</label>
+      <input type="text" id="contactUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <label for="contactNote" style="margin-top:0;">Note (optional)</label>
+      <input type="text" id="contactNote" name="note" placeholder="e.g. Beta tester" maxlength="200">
+    </div>
+    <button class="btn" type="submit">Add contact</button>
+  </form>
+</div>
+
 <div class="card" id="dm-form">
   <h2>Application form templates</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -128,16 +181,51 @@
 <div class="card" id="send-dm">
   <h2>Send a DM as Quellum</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Sends an embed straight to someone's DMs from the bot. Works for anyone Quellum shares a server with
-    (they need DMs from server members turned on) — you'll get an error here if it can't be delivered.
+    Sends an embed straight to one or more people's DMs from the bot — pick any mix of saved contacts and
+    pasted IDs, up to <%= 50 %> at once. Works for anyone Quellum shares a server with (they need DMs from
+    server members turned on); if a recipient can't be reached the rest still go out and you'll get told who failed.
   </p>
   <form method="post" action="/admin/send-dm" id="sendDmForm">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-    <label for="dmUserId">Discord user ID</label>
-    <input type="text" id="dmUserId" name="userId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+    <label>Recipients</label>
+    <% if (contacts.length === 0) { %>
+      <p class="hint" style="margin-top:0;">No saved contacts yet — add some above, or just paste IDs below.</p>
+    <% } else { %>
+      <div style="display:flex; gap:10px; margin-bottom:6px;">
+        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectAll">Select all</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectNone">Select none</button>
+      </div>
+      <div class="contact-picker">
+        <% contacts.forEach(c => { %>
+          <label class="contact-row">
+            <input type="checkbox" name="contactIds" value="<%= c.id %>">
+            <% if (c.resolved) { %>
+              <img src="<%= c.avatarURL %>" alt="" class="contact-avatar">
+            <% } else { %>
+              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-muted);">?</span>
+            <% } %>
+            <span style="min-width:0;">
+              <span class="contact-name"><%= c.resolved ? c.tag : 'Unknown user' %></span>
+              <span class="contact-id"><%= c.id %></span>
+            </span>
+          </label>
+        <% }) %>
+      </div>
+    <% } %>
 
-    <label for="dmTemplateId">Attach a form instead (optional)</label>
+    <label for="dmExtraIds">Or paste more user IDs (comma or newline separated)</label>
+    <textarea id="dmExtraIds" name="extraIds" placeholder="1227918600753512480, 998877665544332211" rows="2"></textarea>
+
+    <label class="style-option" style="max-width:420px; margin-top:10px;">
+      <input type="checkbox" name="saveNew" checked>
+      <div>
+        <div class="style-title">Save new IDs to contacts</div>
+        <div class="style-desc">Anyone pasted above who isn't already saved gets added once the send succeeds.</div>
+      </div>
+    </label>
+
+    <label for="dmTemplateId" style="margin-top:18px;">Attach a form instead (optional)</label>
     <select id="dmTemplateId" name="templateId">
       <option value="">— No form, just send the message below —</option>
       <% templates.forEach(t => { %>
@@ -157,7 +245,7 @@
     </div>
 
     <div class="btn-row">
-      <button class="btn" type="submit">Send DM</button>
+      <button class="btn" type="submit">Send</button>
     </div>
   </form>
 </div>
@@ -208,6 +296,17 @@
       var usingTemplate = !!templateSelect.value;
       plainFields.style.display = usingTemplate ? 'none' : '';
       description.required = !usingTemplate;
+    });
+  }
+
+  var selectAllBtn = document.getElementById('contactsSelectAll');
+  var selectNoneBtn = document.getElementById('contactsSelectNone');
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', function () {
+      document.querySelectorAll('input[name="contactIds"]').forEach(function (cb) { cb.checked = true; });
+    });
+    selectNoneBtn.addEventListener('click', function () {
+      document.querySelectorAll('input[name="contactIds"]').forEach(function (cb) { cb.checked = false; });
     });
   }
 })();

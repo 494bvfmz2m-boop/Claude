@@ -184,6 +184,21 @@ const DmFormSends = {
   },
 };
 
+const Contacts = {
+  list() {
+    return db.prepare('SELECT discord_user_id, note, added_at FROM contacts ORDER BY added_at DESC').all();
+  },
+  has(discordUserId) {
+    return !!db.prepare('SELECT 1 FROM contacts WHERE discord_user_id = ?').get(discordUserId);
+  },
+  add(discordUserId, note) {
+    db.prepare('INSERT OR IGNORE INTO contacts (discord_user_id, note) VALUES (?, ?)').run(discordUserId, note || null);
+  },
+  remove(discordUserId) {
+    db.prepare('DELETE FROM contacts WHERE discord_user_id = ?').run(discordUserId);
+  },
+};
+
 const BetaAllowlist = {
   list() {
     return db.prepare('SELECT discord_user_id, added_at FROM beta_allowlist ORDER BY added_at').all();
@@ -499,4 +514,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts };

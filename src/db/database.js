@@ -165,6 +165,12 @@ CREATE TABLE IF NOT EXISTS dm_form_templates (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS contacts (
+  discord_user_id TEXT PRIMARY KEY,
+  note TEXT,
+  added_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);

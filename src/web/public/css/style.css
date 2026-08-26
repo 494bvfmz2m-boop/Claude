@@ -474,6 +474,22 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 .style-option .style-title { color: var(--text-bright); font-weight: 700; font-size: 14px; }
 .style-option .style-desc { color: var(--text-muted); font-size: 12px; }
 
+/* Contact picker (send-DM recipients + the contacts card) */
+.contact-picker {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  background: var(--bg-input);
+}
+.contact-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.contact-row:hover { background: rgba(255, 255, 255, .03); }
+.contact-row input { margin: 0; accent-color: var(--accent); flex-shrink: 0; }
+.contact-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; background: var(--bg-elevated-2); }
+.contact-name { display: block; font-weight: 600; color: var(--text-bright); font-size: 13.5px; }
+.contact-id { display: block; font-size: 11.5px; color: var(--text-muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
 /* Bot status badge */
 .role-warning {
   background: rgba(217, 119, 6, .1);
