@@ -92,7 +92,7 @@ async function openTicket(interaction, ticketTypeId) {
   const welcomeEmbed = new EmbedBuilder()
     .setTitle(ticketType.welcome_title || `${ticketType.name} ticket`)
     .setDescription(ticketType.welcome_description || `Thanks for reaching out, <@${interaction.user.id}>. Support will be with you shortly.`)
-    .setColor(ticketType.welcome_color || '#5865F2')
+    .setColor(ticketType.welcome_color || '#a8e6ff')
     .setTimestamp();
 
   const mentionRoles = ticketType.support_role_ids.map((r) => `<@&${r}>`).join(' ');
@@ -272,7 +272,7 @@ async function applyChangeType(interaction, ticketDbId, newTypeId) {
     content: mentionRoles || undefined,
     embeds: [new EmbedBuilder()
       .setDescription(`🔄 This ticket was moved to **${newType.name}** by <@${interaction.user.id}>. Everything above stays right here.`)
-      .setColor(newType.welcome_color || '#5865F2')],
+      .setColor(newType.welcome_color || '#a8e6ff')],
   });
 
   await interaction.followUp({ content: `Done — moved to **${newType.name}**.`, ephemeral: true });

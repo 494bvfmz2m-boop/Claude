@@ -13,7 +13,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder
 const config = require('../config');
 const { DmFormSends } = require('../db/repo');
 
-const FORM_COLOR = '#5865F2';
+const FORM_COLOR = '#a8e6ff';
 
 async function sendWithForm(client, { recipientId, recipientTag, template, defaultSend }) {
   if (!template) return defaultSend();

@@ -1,7 +1,7 @@
 const { EmbedBuilder, AuditLogEvent } = require('discord.js');
 const config = require('../config');
 
-const INTRO_COLOR = '#5865F2';
+const INTRO_COLOR = '#a8e6ff';
 
 // Best-effort -- needs the bot to have View Audit Log, and Discord only
 // keeps bot-add entries for a limited time, so this can legitimately come

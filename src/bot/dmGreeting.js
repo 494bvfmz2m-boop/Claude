@@ -6,7 +6,7 @@ const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
 const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 const { handleOwnerKeyword } = require('./ownerKeywords');
 
-const GREETING_COLOR = '#5865F2';
+const GREETING_COLOR = '#a8e6ff';
 const WEBSITE_URL = 'https://modsentry.site';
 const DISCORD_INVITE = 'https://discord.gg/5bNyCzsyJ2';
 

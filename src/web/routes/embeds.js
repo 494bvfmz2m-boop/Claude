@@ -18,7 +18,7 @@ function embedDataFromBody(body) {
   return {
     title: (body.title || '').trim(),
     description: (body.description || '').trim(),
-    color: body.color || '#5865F2',
+    color: body.color || '#a8e6ff',
     url: (body.url || '').trim(),
     authorName: (body.authorName || '').trim(),
     authorIconUrl: (body.authorIconUrl || '').trim(),
@@ -31,7 +31,7 @@ function embedDataFromBody(body) {
 }
 
 function buildDiscordEmbed(data) {
-  const embed = new EmbedBuilder().setColor(data.color || '#5865F2');
+  const embed = new EmbedBuilder().setColor(data.color || '#a8e6ff');
   if (data.title) embed.setTitle(data.title.slice(0, 256));
   if (data.description) embed.setDescription(data.description.slice(0, 4096));
   if (data.url) embed.setURL(data.url);

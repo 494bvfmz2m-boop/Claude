@@ -22,7 +22,7 @@ const GuildSettings = {
       return {
         guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
-        staff_list_color: '#5865F2', warning_thresholds: [], ticket_banned_role_id: null,
+        staff_list_color: '#a8e6ff', warning_thresholds: [], ticket_banned_role_id: null,
         welcome_channel_id: null, welcome_message: null, leave_channel_id: null, leave_message: null,
         autorole_id: null, link_filter_mode: 'off',
       };
@@ -64,7 +64,7 @@ const GuildSettings = {
   },
   setStaffListColor(guildId, color) {
     ensureGuildSettingsRow(guildId);
-    db.prepare('UPDATE guild_settings SET staff_list_color = ? WHERE guild_id = ?').run(color || '#5865F2', guildId);
+    db.prepare('UPDATE guild_settings SET staff_list_color = ? WHERE guild_id = ?').run(color || '#a8e6ff', guildId);
   },
   setWarningThresholds(guildId, thresholds) {
     ensureGuildSettingsRow(guildId);
@@ -251,7 +251,7 @@ const TicketTypes = {
       maxOpenPerUser: data.maxOpenPerUser ?? 1,
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
-      welcomeColor: data.welcomeColor || '#5865F2',
+      welcomeColor: data.welcomeColor || '#a8e6ff',
       generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
     return info.lastInsertRowid;
@@ -275,7 +275,7 @@ const TicketTypes = {
       maxOpenPerUser: data.maxOpenPerUser ?? 1,
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
-      welcomeColor: data.welcomeColor || '#5865F2',
+      welcomeColor: data.welcomeColor || '#a8e6ff',
       generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
   },
@@ -302,7 +302,7 @@ const Panels = {
       guildId,
       title: data.title || 'Support',
       description: data.description || 'Click below to open a ticket.',
-      color: data.color || '#5865F2',
+      color: data.color || '#a8e6ff',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
       style: data.style === 'select' ? 'select' : 'buttons',
     });
@@ -317,7 +317,7 @@ const Panels = {
       id,
       title: data.title || 'Support',
       description: data.description || 'Click below to open a ticket.',
-      color: data.color || '#5865F2',
+      color: data.color || '#a8e6ff',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
       style: data.style === 'select' ? 'select' : 'buttons',
     });
@@ -396,7 +396,7 @@ const ReactionRolePanels = {
       guildId,
       title: data.title || 'Reaction Roles',
       description: data.description || 'React to get a role!',
-      color: data.color || '#5865F2',
+      color: data.color || '#a8e6ff',
       mappings: JSON.stringify(data.mappings || []),
     });
     return info.lastInsertRowid;
@@ -409,7 +409,7 @@ const ReactionRolePanels = {
       id,
       title: data.title || 'Reaction Roles',
       description: data.description || 'React to get a role!',
-      color: data.color || '#5865F2',
+      color: data.color || '#a8e6ff',
       mappings: JSON.stringify(data.mappings || []),
     });
   },

@@ -69,7 +69,7 @@ router.post('/allowlist/remove', requireOwner, (req, res) => {
 router.post('/send-dm', requireOwner, async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
-  const color = req.body.color || '#5865F2';
+  const color = req.body.color || '#a8e6ff';
   const templateId = req.body.templateId ? Number(req.body.templateId) : null;
   const saveNew = req.body.saveNew === 'on';
 

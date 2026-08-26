@@ -78,7 +78,7 @@
   function renderPreview() {
     const data = new FormData(form);
     preview.innerHTML = '';
-    preview.style.borderLeftColor = data.get('color') || '#5865F2';
+    preview.style.borderLeftColor = data.get('color') || '#a8e6ff';
 
     const authorName = data.get('authorName');
     const authorIconUrl = data.get('authorIconUrl');

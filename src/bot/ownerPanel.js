@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const { Tickets } = require('../db/repo');
 
-const OWNER_COLOR = '#5865F2';
+const OWNER_COLOR = '#a8e6ff';
 const MAX_FIELDS = 24; // leave room for a "+N more" field under Discord's 25-field cap
 
 function totalMembers(client) {

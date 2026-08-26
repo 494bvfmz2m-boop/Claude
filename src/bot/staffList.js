@@ -26,7 +26,7 @@ async function renderStaffList(guild) {
 
   const embed = new EmbedBuilder()
     .setTitle('👮 Staff List')
-    .setColor(settings.staff_list_color || '#5865F2')
+    .setColor(settings.staff_list_color || '#a8e6ff')
     .addFields(fields)
     .setTimestamp()
     .setFooter({ text: 'Auto-updates when staff roles change' });

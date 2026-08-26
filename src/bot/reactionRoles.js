@@ -25,7 +25,7 @@ function buildReactionRoleMessage(panel, guild) {
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
     .setDescription(`${panel.description}\n\n${lines.join('\n')}`)
-    .setColor(panel.color || '#5865F2');
+    .setColor(panel.color || '#a8e6ff');
 
   return { embeds: [embed] };
 }

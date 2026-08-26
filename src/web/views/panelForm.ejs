@@ -18,12 +18,12 @@
   <div class="hint">Mentions only render in the description here — not the title.</div>
 
   <label for="color">Color</label>
-  <input type="color" id="color" name="color" value="<%= panel?.color || '#5865F2' %>">
+  <input type="color" id="color" name="color" value="<%= panel?.color || '#a8e6ff' %>">
 
   <label>Ticket types offered by this panel</label>
   <div class="type-picker">
     <% ticketTypes.forEach(t => { %>
-      <label class="type-card" style="--type-color: <%= t.welcome_color || '#5865F2' %>">
+      <label class="type-card" style="--type-color: <%= t.welcome_color || '#a8e6ff' %>">
         <input type="checkbox" name="ticketTypeIds" value="<%= t.id %>" <%= panel?.ticket_type_ids?.includes(t.id) ? 'checked' : '' %>>
         <span class="type-emoji"><%= t.emoji || '🎫' %></span>
         <span class="type-name"><%= t.name %></span>

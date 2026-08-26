@@ -20,7 +20,7 @@ router.post('/panels', async (req, res) => {
   Panels.create(guild.id, {
     title: req.body.title?.trim() || 'Support',
     description: req.body.description?.trim() || 'Click below to open a ticket.',
-    color: req.body.color || '#5865F2',
+    color: req.body.color || '#a8e6ff',
     ticketTypeIds,
     style: req.body.style,
   });
@@ -45,7 +45,7 @@ router.post('/panels/:id', async (req, res) => {
   Panels.update(req.params.id, {
     title: req.body.title?.trim() || 'Support',
     description: req.body.description?.trim() || 'Click below to open a ticket.',
-    color: req.body.color || '#5865F2',
+    color: req.body.color || '#a8e6ff',
     ticketTypeIds,
     style: req.body.style,
   });

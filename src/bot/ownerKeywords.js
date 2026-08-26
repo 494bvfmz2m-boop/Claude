@@ -6,7 +6,7 @@ const { EmbedBuilder } = require('discord.js');
 const { AppSettings, BetaAllowlist, DmFormTemplates, DmFormSends, Contacts } = require('../db/repo');
 const { buildServerListEmbed } = require('./ownerPanel');
 
-const OWNER_COLOR = '#5865F2';
+const OWNER_COLOR = '#a8e6ff';
 const FORMS_LIST_LIMIT = 15;
 
 const KEYWORD_HELP = [

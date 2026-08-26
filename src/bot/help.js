@@ -2,7 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { canUseAction } = require('./commandPermissions');
 const { getRankForRoleIds } = require('./cache');
 
-const HELP_COLOR = '#5865F2';
+const HELP_COLOR = '#a8e6ff';
 
 // [action key used by canUseAction, usage string, description]
 const GATED_MOD_COMMANDS = [

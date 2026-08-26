@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS ticket_types (
   max_open_per_user INTEGER NOT NULL DEFAULT 1,
   welcome_title TEXT,
   welcome_description TEXT,
-  welcome_color TEXT DEFAULT '#5865F2',
+  welcome_color TEXT DEFAULT '#a8e6ff',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS panels (
   message_id TEXT,
   title TEXT NOT NULL DEFAULT 'Support',
   description TEXT NOT NULL DEFAULT 'Click below to open a ticket.',
-  color TEXT DEFAULT '#5865F2',
+  color TEXT DEFAULT '#a8e6ff',
   ticket_type_ids TEXT NOT NULL DEFAULT '[]',
   style TEXT NOT NULL DEFAULT 'buttons',
   created_at TEXT DEFAULT (datetime('now'))
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS reaction_role_panels (
   message_id TEXT,
   title TEXT NOT NULL DEFAULT 'Reaction Roles',
   description TEXT NOT NULL DEFAULT 'React to get a role!',
-  color TEXT DEFAULT '#5865F2',
+  color TEXT DEFAULT '#a8e6ff',
   mappings TEXT NOT NULL DEFAULT '[]',
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -201,7 +201,7 @@ addColumnIfMissing('guild_settings', 'swear_filter_enabled', 'INTEGER NOT NULL D
 addColumnIfMissing('guild_settings', 'swear_words', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'staff_list_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
-addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#5865F2'");
+addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#a8e6ff'");
 addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'ticket_banned_role_id', 'TEXT');
 addColumnIfMissing('ticket_types', 'generate_transcript', 'INTEGER NOT NULL DEFAULT 1');

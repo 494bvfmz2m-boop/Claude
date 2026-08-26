@@ -74,7 +74,7 @@
   <div class="hint">Mentions only render in the description here — not the title.</div>
 
   <label for="welcomeColor">Welcome embed color</label>
-  <input type="color" id="welcomeColor" name="welcomeColor" value="<%= ticketType?.welcome_color || '#5865F2' %>">
+  <input type="color" id="welcomeColor" name="welcomeColor" value="<%= ticketType?.welcome_color || '#a8e6ff' %>">
 
   <label class="role-chip" style="--role-color: #5865F2; margin-top:20px; width:fit-content;">
     <input type="checkbox" name="generateTranscript" <%= (ticketType ? ticketType.generate_transcript : true) ? 'checked' : '' %>>
@@ -97,7 +97,7 @@
     support: {
       name: 'General Support', emoji: '🎫', welcomeTitle: 'General Support ticket',
       welcomeDescription: "Thanks for reaching out! Describe your issue below and a member of the team will be with you shortly.",
-      welcomeColor: '#5865F2',
+      welcomeColor: '#a8e6ff',
     },
     bug: {
       name: 'Bug Report', emoji: '🐛', welcomeTitle: 'Bug Report',

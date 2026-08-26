@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 
-const POLL_COLOR = '#5865F2';
+const POLL_COLOR = '#a8e6ff';
 const NUMBER_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
 
 async function handlePoll(interaction) {

@@ -3,7 +3,7 @@ const { getRankForRoleIds } = require('./cache');
 const { getMemberAccess } = require('../web/lib/dashboardAccess');
 const { ACTIONS, canUseAction } = require('./commandPermissions');
 
-const INFO_COLOR = '#5865F2';
+const INFO_COLOR = '#a8e6ff';
 
 function permLine(label, has) {
   return `${has ? '✅' : '❌'} ${label}`;

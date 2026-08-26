@@ -3,7 +3,7 @@ const { getRankForRoleIds, getRoleIdForRank, getMaxRank } = require('./cache');
 const { GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 
-const PROMO_COLOR = '#5865F2';
+const PROMO_COLOR = '#a8e6ff';
 
 function isOverride(guild, member) {
   return guild.ownerId === member.id || member.permissions.has(PermissionFlagsBits.Administrator);

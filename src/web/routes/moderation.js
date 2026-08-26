@@ -157,7 +157,7 @@ router.post('/moderation/staff-list-channel', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
   GuildSettings.setStaffListChannel(guild.id, req.body.channelId || null);
-  GuildSettings.setStaffListColor(guild.id, req.body.color || '#5865F2');
+  GuildSettings.setStaffListColor(guild.id, req.body.color || '#a8e6ff');
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
