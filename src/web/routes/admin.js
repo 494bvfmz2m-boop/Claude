@@ -13,16 +13,20 @@ function requireOwner(req, res, next) {
   next();
 }
 
-function redirectWithNotice(res, ok, text) {
+function redirectWithNotice(res, ok, text, anchor = 'send-dm') {
   const qs = new URLSearchParams({ ok: ok ? '1' : '0', msg: text });
-  res.redirect(`/admin?${qs.toString()}#send-dm`);
+  res.redirect(`/admin?${qs.toString()}#${anchor}`);
 }
 
 router.get('/', requireOwner, (req, res) => {
   const notice = req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
+  const guilds = [...client.guilds.cache.values()]
+    .map((g) => ({ id: g.id, name: g.name, memberCount: g.memberCount, iconURL: g.iconURL({ size: 32 }) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   res.render('admin', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
+    guilds,
     notice,
   });
 });
@@ -68,6 +72,21 @@ router.post('/send-dm', requireOwner, async (req, res) => {
     // have DMs from server members turned off -- Discord's own error message
     // already says which, so just surface it rather than guessing.
     return redirectWithNotice(res, false, `Couldn't send: ${err.message}`);
+  }
+});
+
+router.post('/leave-guild', requireOwner, async (req, res) => {
+  const guildId = (req.body.guildId || '').trim();
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) {
+    return redirectWithNotice(res, false, "Quellum isn't in that server (anymore).", 'remove-server');
+  }
+  const name = guild.name;
+  try {
+    await guild.leave();
+    return redirectWithNotice(res, true, `Left ${name}.`, 'remove-server');
+  } catch (err) {
+    return redirectWithNotice(res, false, `Couldn't leave ${name}: ${err.message}`, 'remove-server');
   }
 });
 

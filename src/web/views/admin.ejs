@@ -86,4 +86,95 @@
     </div>
   </form>
 </div>
+
+<div class="card" id="remove-server">
+  <h2>🚪 Remove Quellum from a server</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Search by server name, then leave it. There's no undo here — whoever wants Quellum back has to re-invite it.
+  </p>
+  <label for="serverSearch">Search servers</label>
+  <input type="text" id="serverSearch" placeholder="Start typing a server name…" autocomplete="off">
+  <div id="serverResults" style="margin-top:10px;"></div>
+</div>
+
+<script>
+(function () {
+  var guilds = <%- JSON.stringify(guilds).replace(/</g, '\\u003c') %>;
+  var csrfToken = <%- JSON.stringify(csrfToken).replace(/</g, '\\u003c') %>;
+  var input = document.getElementById('serverSearch');
+  var results = document.getElementById('serverResults');
+
+  function row(g) {
+    var li = document.createElement('li');
+    li.className = 'list-item';
+
+    var left = document.createElement('div');
+    left.style.display = 'flex';
+    left.style.alignItems = 'center';
+    left.style.gap = '10px';
+    if (g.iconURL) {
+      var img = document.createElement('img');
+      img.src = g.iconURL;
+      img.alt = '';
+      img.style.cssText = 'width:28px;height:28px;border-radius:50%;';
+      left.appendChild(img);
+    }
+    var text = document.createElement('div');
+    var title = document.createElement('div');
+    title.className = 'list-item-title';
+    title.textContent = g.name;
+    var meta = document.createElement('div');
+    meta.className = 'list-item-meta';
+    meta.textContent = g.memberCount + ' member' + (g.memberCount === 1 ? '' : 's');
+    text.appendChild(title);
+    text.appendChild(meta);
+    left.appendChild(text);
+
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/admin/leave-guild';
+    form.onsubmit = function () {
+      return confirm('Remove Quellum from "' + g.name + '"? There\'s no undo here.');
+    };
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;
+    var gid = document.createElement('input');
+    gid.type = 'hidden'; gid.name = 'guildId'; gid.value = g.id;
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-danger';
+    btn.type = 'submit';
+    btn.textContent = 'Leave';
+    form.appendChild(csrf);
+    form.appendChild(gid);
+    form.appendChild(btn);
+
+    li.appendChild(left);
+    li.appendChild(form);
+    return li;
+  }
+
+  function render(query) {
+    results.innerHTML = '';
+    var q = query.trim().toLowerCase();
+    if (!q) return; // nothing shown until they actually search -- no crowded list
+
+    var matches = guilds.filter(function (g) { return g.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+    if (matches.length === 0) {
+      var empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No servers match "' + query + '".';
+      results.appendChild(empty);
+      return;
+    }
+
+    var list = document.createElement('ul');
+    list.className = 'list';
+    matches.forEach(function (g) { list.appendChild(row(g)); });
+    results.appendChild(list);
+  }
+
+  input.addEventListener('input', function () { render(input.value); });
+})();
+</script>
+
 <%- include('partials/footer') %>
