@@ -9,6 +9,7 @@ const { register: registerSwearFilter } = require('./bot/swearFilter');
 const { register: registerStaffList, warmUpAndRefreshAll } = require('./bot/staffList');
 const { register: registerReactionRoles } = require('./bot/reactionRoles');
 const { register: registerDmGreeting } = require('./bot/dmGreeting');
+const { register: registerBetaGate } = require('./bot/betaGate');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -26,6 +27,7 @@ registerSwearFilter(client);
 registerStaffList(client);
 registerReactionRoles(client);
 registerDmGreeting(client);
+registerBetaGate(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
