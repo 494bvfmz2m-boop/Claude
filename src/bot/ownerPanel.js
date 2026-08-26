@@ -26,7 +26,7 @@ function buildOwnerPanelEmbed(client) {
       { name: 'Open tickets', value: String(totalOpenTickets(client)), inline: true },
       { name: 'Ping', value: `${client.ws.ping}ms`, inline: true },
     )
-    .setFooter({ text: 'DM me "servers", "forms", or "info" any time for a direct answer instead of this panel.' });
+    .setFooter({ text: 'DM me "help" to see every keyword — a direct answer instead of this panel.' });
 }
 
 function buildOwnerPanelRow() {

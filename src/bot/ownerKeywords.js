@@ -3,11 +3,21 @@
 // worth checking often. Anything that isn't one of these keywords falls
 // through to the normal panel (handled by the caller).
 const { EmbedBuilder } = require('discord.js');
-const { AppSettings, BetaAllowlist, DmFormTemplates, DmFormSends } = require('../db/repo');
+const { AppSettings, BetaAllowlist, DmFormTemplates, DmFormSends, Contacts } = require('../db/repo');
 const { buildServerListEmbed } = require('./ownerPanel');
 
 const OWNER_COLOR = '#5865F2';
 const FORMS_LIST_LIMIT = 15;
+
+const KEYWORD_HELP = [
+  { word: 'servers', desc: 'Every server Quellum is in, with an invite link' },
+  { word: 'info', desc: 'Server/member counts, ping, uptime, and beta status' },
+  { word: 'forms', desc: 'Recent forms sent — "forms <id>" for one in full' },
+  { word: 'templates', desc: 'Saved DM form templates' },
+  { word: 'contacts', desc: 'Your saved contact book' },
+  { word: 'beta', desc: 'Closed beta status and the allowed-users list' },
+  { word: 'help', desc: 'This list' },
+];
 
 function formatUptime(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -39,7 +49,72 @@ function buildInfoEmbed(client) {
       { name: 'Form templates', value: String(DmFormTemplates.list().length), inline: true },
       { name: 'Forms sent', value: `${DmFormSends.count()} total, ${DmFormSends.countPending()} awaiting a reply`, inline: true },
     )
-    .setFooter({ text: 'DM me "servers" or "forms" for more.' });
+    .setFooter({ text: 'DM me "help" to see every keyword.' });
+}
+
+function buildBetaEmbed() {
+  const settings = AppSettings.get();
+  const allowlist = BetaAllowlist.list();
+
+  const embed = new EmbedBuilder()
+    .setTitle('🔒 Closed beta')
+    .setColor(OWNER_COLOR)
+    .addFields({
+      name: 'Status',
+      value: settings.betaLocked ? 'On — only allowed users can log in' : 'Off — anyone can log in',
+    });
+
+  if (allowlist.length === 0) {
+    embed.addFields({ name: 'Allowed users', value: 'None added yet' });
+  } else {
+    embed.addFields({
+      name: `Allowed users (${allowlist.length})`,
+      value: allowlist.map((a) => `<@${a.discord_user_id}>`).join('\n').slice(0, 1024),
+    });
+  }
+  return embed;
+}
+
+function buildTemplatesEmbed() {
+  const templates = DmFormTemplates.list();
+  const embed = new EmbedBuilder().setTitle(`📋 Form templates (${templates.length})`).setColor(OWNER_COLOR);
+
+  if (templates.length === 0) {
+    embed.setDescription('No templates yet — create one from /admin\'s "Application form templates" section.');
+    return embed;
+  }
+  templates.forEach((t) => {
+    embed.addFields({ name: t.name, value: `"${t.title}" — ${t.questions.length} question${t.questions.length === 1 ? '' : 's'}` });
+  });
+  return embed;
+}
+
+async function buildContactsEmbed(client) {
+  const contacts = Contacts.list();
+  const embed = new EmbedBuilder().setTitle(`📇 Contacts (${contacts.length})`).setColor(OWNER_COLOR);
+
+  if (contacts.length === 0) {
+    embed.setDescription('No contacts saved yet — add one from /admin\'s "Contacts" section.');
+    return embed;
+  }
+  const lines = await Promise.all(contacts.map(async (c) => {
+    try {
+      const user = await client.users.fetch(c.discord_user_id);
+      return `**${user.tag}** · \`${c.discord_user_id}\`${c.note ? ` · ${c.note}` : ''}`;
+    } catch {
+      return `Unknown user · \`${c.discord_user_id}\`${c.note ? ` · ${c.note}` : ''}`;
+    }
+  }));
+  embed.setDescription(lines.join('\n').slice(0, 4096));
+  return embed;
+}
+
+function buildHelpEmbed() {
+  return new EmbedBuilder()
+    .setTitle('🗒️ Owner keywords')
+    .setColor(OWNER_COLOR)
+    .setDescription(KEYWORD_HELP.map((k) => `**${k.word}** — ${k.desc}`).join('\n'))
+    .setFooter({ text: 'DM me any of these, plain text, any time.' });
 }
 
 function summarizeSend(send) {
@@ -112,7 +187,36 @@ async function handleOwnerKeyword(message) {
     return true;
   }
 
+  if (text === 'beta' || text === 'allowlist') {
+    await message.channel.send({ embeds: [buildBetaEmbed()] });
+    return true;
+  }
+
+  if (text === 'templates') {
+    await message.channel.send({ embeds: [buildTemplatesEmbed()] });
+    return true;
+  }
+
+  if (text === 'contacts') {
+    await message.channel.send({ embeds: [await buildContactsEmbed(message.client)] });
+    return true;
+  }
+
+  if (text === 'help') {
+    await message.channel.send({ embeds: [buildHelpEmbed()] });
+    return true;
+  }
+
   return false;
 }
 
-module.exports = { handleOwnerKeyword, buildInfoEmbed, buildFormsListEmbed, buildFormDetailEmbed };
+module.exports = {
+  handleOwnerKeyword,
+  buildInfoEmbed,
+  buildFormsListEmbed,
+  buildFormDetailEmbed,
+  buildBetaEmbed,
+  buildTemplatesEmbed,
+  buildContactsEmbed,
+  buildHelpEmbed,
+};
