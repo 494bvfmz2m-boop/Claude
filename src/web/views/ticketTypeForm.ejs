@@ -5,6 +5,17 @@
 <form class="card" method="post" action="<%= ticketType ? `/dashboard/${guild.id}/ticket-types/${ticketType.id}` : `/dashboard/${guild.id}/ticket-types` %>">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:20px;">
+    <select id="ticketTypeTemplate" style="flex:1;">
+      <option value="">— Load a starter template (optional) —</option>
+      <option value="support">🎫 General Support</option>
+      <option value="bug">🐛 Bug Report</option>
+      <option value="billing">💳 Billing</option>
+      <option value="appeal">⚖️ Ban Appeal</option>
+    </select>
+    <button type="button" id="loadTicketTemplate" class="btn btn-ghost btn-sm">Load</button>
+  </div>
+
   <div class="grid">
     <div>
       <label for="name">Name</label>
@@ -80,4 +91,44 @@
   </div>
 </form>
 <script src="/js/mentionInsert.js"></script>
+<script>
+(function () {
+  var TEMPLATES = {
+    support: {
+      name: 'General Support', emoji: '🎫', welcomeTitle: 'General Support ticket',
+      welcomeDescription: "Thanks for reaching out! Describe your issue below and a member of the team will be with you shortly.",
+      welcomeColor: '#5865F2',
+    },
+    bug: {
+      name: 'Bug Report', emoji: '🐛', welcomeTitle: 'Bug Report',
+      welcomeDescription: 'Thanks for the report! Please include steps to reproduce, what you expected to happen, and what happened instead.',
+      welcomeColor: '#ed4245',
+    },
+    billing: {
+      name: 'Billing', emoji: '💳', welcomeTitle: 'Billing support',
+      welcomeDescription: 'A member of the billing team will be with you shortly. Please have your order or transaction details ready.',
+      welcomeColor: '#23a55a',
+    },
+    appeal: {
+      name: 'Ban Appeal', emoji: '⚖️', welcomeTitle: 'Ban appeal',
+      welcomeDescription: 'Explain why you believe this action should be reconsidered. Appeals are reviewed by staff — please be honest and respectful.',
+      welcomeColor: '#f2c078',
+    },
+  };
+
+  var select = document.getElementById('ticketTypeTemplate');
+  var loadBtn = document.getElementById('loadTicketTemplate');
+  if (!select || !loadBtn) return;
+
+  loadBtn.addEventListener('click', function () {
+    var t = TEMPLATES[select.value];
+    if (!t) return;
+    document.getElementById('name').value = t.name;
+    document.getElementById('emoji').value = t.emoji;
+    document.getElementById('welcomeTitle').value = t.welcomeTitle;
+    document.getElementById('welcomeDescription').value = t.welcomeDescription;
+    document.getElementById('welcomeColor').value = t.welcomeColor;
+  });
+})();
+</script>
 <%- include('partials/footer') %>

@@ -22,10 +22,20 @@
     </label>
 
     <label for="words">Banned words</label>
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+      <select id="swearFilterPreset" style="flex:1;">
+        <option value="">— Load a starter list (optional) —</option>
+        <option value="mild">🟡 Mild profanity</option>
+        <option value="strict">🔴 Strict (extended list)</option>
+      </select>
+      <button type="button" id="loadSwearPreset" class="btn btn-ghost btn-sm">Load</button>
+    </div>
     <textarea id="words" name="words" placeholder="one per line, or comma-separated" style="min-height:120px;"><%= settings.swear_words.join('\n') %></textarea>
     <div class="hint">
       Case-insensitive, whole-word matching (won't flag a word just for containing one of these as a substring).
-      Staff with the Manage Messages permission are never filtered.
+      Staff with the Manage Messages permission are never filtered. Starter lists are just a starting point —
+      edit freely, and add/remove words to fit your server. They don't include slurs; add anything
+      community-specific yourself.
     </div>
 
     <div class="btn-row">
@@ -38,6 +48,13 @@
   <h2>🔗 Link filter</h2>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/link-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Quick presets</label>
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="invites">🚫 No advertising</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="all">🔒 Lockdown</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="off">✅ Open</button>
+    </div>
 
     <label for="linkFilterMode">Mode</label>
     <select id="linkFilterMode" name="mode">
@@ -250,4 +267,32 @@
     </ul>
   <% } %>
 </div>
+
+<script>
+(function () {
+  var SWEAR_PRESETS = {
+    mild: ['damn', 'hell', 'crap', 'ass', 'piss', 'bastard'],
+    strict: ['damn', 'hell', 'crap', 'ass', 'piss', 'bastard', 'bitch', 'dick', 'fuck', 'shit', 'cock', 'cunt', 'asshole', 'motherfucker'],
+  };
+
+  var presetSelect = document.getElementById('swearFilterPreset');
+  var loadBtn = document.getElementById('loadSwearPreset');
+  var wordsField = document.getElementById('words');
+  if (loadBtn && presetSelect && wordsField) {
+    loadBtn.addEventListener('click', function () {
+      var key = presetSelect.value;
+      if (!key || !SWEAR_PRESETS[key]) return;
+      if (wordsField.value.trim() && !confirm('Replace the current word list with this starter list?')) return;
+      wordsField.value = SWEAR_PRESETS[key].join('\n');
+    });
+  }
+
+  var linkFilterSelect = document.getElementById('linkFilterMode');
+  document.querySelectorAll('.link-filter-preset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (linkFilterSelect) linkFilterSelect.value = btn.dataset.mode;
+    });
+  });
+})();
+</script>
 <%- include('partials/footer') %>
