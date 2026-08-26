@@ -3,7 +3,7 @@ const { canUseAction } = require('./commandPermissions');
 const { recordModAction } = require('./modLog');
 const { GuildSettings } = require('../db/repo');
 
-const LOCK_COLOR = '#e0263f';
+const LOCK_COLOR = '#a8e6ff';
 const UNLOCK_COLOR = '#23a55a';
 
 function denyReply(interaction, command) {

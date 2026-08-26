@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="ModSentry">
   <g fill="none">
     <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
-    <path d="M64 66 L100 40 L136 66" stroke="#f0455f" stroke-width="14" stroke-linecap="square"/>
-    <path d="M64 100 L100 74 L136 100" stroke="#c8102e" stroke-width="14" stroke-linecap="square"/>
-    <path d="M64 134 L100 108 L136 134" stroke="#7d0a1d" stroke-width="14" stroke-linecap="square"/>
+    <path d="M64 66 L100 40 L136 66" stroke="#a8e6ff" stroke-width="14" stroke-linecap="square"/>
+    <path d="M64 100 L100 74 L136 100" stroke="#145a8c" stroke-width="14" stroke-linecap="square"/>
+    <path d="M64 134 L100 108 L136 134" stroke="#001020" stroke-width="14" stroke-linecap="square"/>
   </g>
 </svg>

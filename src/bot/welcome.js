@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
 
 const WELCOME_COLOR = '#23a55a';
-const LEAVE_COLOR = '#e0263f';
+const LEAVE_COLOR = '#a8e6ff';
 
 const DEFAULT_WELCOME = "Welcome {user} to **{server}**! We're now at {membercount} members.";
 const DEFAULT_LEAVE = '**{username}** has left **{server}**. Now at {membercount} members.';

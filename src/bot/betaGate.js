@@ -3,7 +3,7 @@ const config = require('../config');
 const { AppSettings, BetaAllowlist } = require('../db/repo');
 
 const JOIN_COLOR = '#5865F2';
-const LEFT_COLOR = '#e0263f';
+const LEFT_COLOR = '#a8e6ff';
 
 function isAuthorized(discordUserId) {
   if (!discordUserId) return false;
