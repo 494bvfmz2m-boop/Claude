@@ -1,4 +1,5 @@
 const express = require('express');
+const { PermissionFlagsBits } = require('discord.js');
 const client = require('../../bot/client');
 const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
@@ -10,6 +11,23 @@ const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
 const router = express.Router({ mergeParams: true });
 
 const THRESHOLD_ACTIONS = new Set(['timeout', 'kick', 'ban']);
+
+// The dashboard is reachable by anyone with Manage Server -- a much broader
+// permission than any one of these. Without this, a "helper" role given
+// Manage Server just to run the ticket system could also ban/kick/timeout
+// people from the dashboard even without Discord's Ban/Kick/Moderate Members
+// permission. This mirrors exactly what each slash command already requires
+// (see commands.js's setDefaultMemberPermissions), so Discord's own role
+// permissions are the single source of truth for who can do what -- not a
+// second, separate permission system to keep in sync.
+const ACTION_PERMISSION = {
+  ban: PermissionFlagsBits.BanMembers,
+  unban: PermissionFlagsBits.BanMembers,
+  kick: PermissionFlagsBits.KickMembers,
+  timeout: PermissionFlagsBits.ModerateMembers,
+  untimeout: PermissionFlagsBits.ModerateMembers,
+  warn: PermissionFlagsBits.ModerateMembers,
+};
 
 // Blunts a stolen/leaked dashboard session (or a bug in a script someone
 // wrote against it) from mass-banning/kicking a server -- not a substitute
@@ -198,6 +216,14 @@ router.post('/moderation/actions', async (req, res) => {
   // have refused. Fails closed: if we can't even find the dashboard user as
   // a member of this guild, treat them as unauthorized rather than allow it.
   const actingMember = await guild.members.fetch(moderator.id).catch(() => null);
+
+  const requiredPermission = ACTION_PERMISSION[action];
+  if (!requiredPermission) {
+    return redirectWithNotice(res, guild.id, false, 'Unknown action.');
+  }
+  if (!actingMember || !actingMember.permissions.has(requiredPermission)) {
+    return redirectWithNotice(res, guild.id, false, "You don't have permission in Discord for that action (Manage Server alone isn't enough) -- ask an admin to grant you the matching Discord permission.");
+  }
 
   if (action === 'unban') {
     if (!DISCORD_ID.test(rawTarget)) {
