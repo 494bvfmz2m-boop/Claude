@@ -1,6 +1,9 @@
-const { AuditLogEvent } = require('discord.js');
+const { AuditLogEvent, EmbedBuilder } = require('discord.js');
 const config = require('../config');
 const { AppSettings, BetaAllowlist } = require('../db/repo');
+
+const JOIN_COLOR = '#5865F2';
+const LEFT_COLOR = '#e0263f';
 
 function isAuthorized(discordUserId) {
   if (!discordUserId) return false;
@@ -26,16 +29,43 @@ async function getInviter(guild) {
   }
 }
 
-// Lets the owner know a server joined that couldn't be verified, so they can
-// check it manually -- silent failure here would mean unverified servers
-// slip through with nobody ever finding out.
-async function notifyOwnerUnverified(client, guild) {
+// One DM to the owner for every single guildCreate, whatever the outcome --
+// silent joins are how a compromised invite link or a slipped-through
+// unverified server goes unnoticed for weeks.
+async function notifyOwner(client, guild, { executor, status }) {
   if (!config.ownerDiscordId) return;
+
+  const STATUS_COPY = {
+    joined: { title: '➕ Joined a new server', color: JOIN_COLOR, note: null },
+    authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null },
+    unverified: {
+      title: '⚠️ Joined a new server (unverified)',
+      color: '#d97706',
+      note: "Couldn't identify who added me -- missing View Audit Log, the entry hasn't shown up yet, or it aged out. Closed beta is on, so I stayed rather than guess and kick someone legitimate. Worth a manual look.",
+    },
+    kicked: {
+      title: '❌ Left a server (closed beta)',
+      color: LEFT_COLOR,
+      note: 'Whoever added me is not on the beta allowlist, so I left and told them how to request access.',
+    },
+  };
+  const copy = STATUS_COPY[status];
+
   try {
     const owner = await client.users.fetch(config.ownerDiscordId);
-    await owner.send({
-      content: `⚠️ Quellum joined **${guild.name}** (${guild.id}) but couldn't identify who added it (missing View Audit Log, the entry hasn't shown up yet, or it aged out) -- closed beta is on, so I stayed rather than guess and kick someone legitimate. Worth a manual look.`,
-    }).catch(() => {});
+    const embed = new EmbedBuilder()
+      .setTitle(copy.title)
+      .setColor(copy.color)
+      .setThumbnail(guild.iconURL({ size: 128 }))
+      .addFields(
+        { name: 'Server', value: guild.name, inline: true },
+        { name: 'Members', value: String(guild.memberCount || '?'), inline: true },
+        { name: 'Server ID', value: guild.id, inline: false },
+        { name: 'Added by', value: executor ? `<@${executor.id}> (${executor.tag})` : 'Unknown', inline: false },
+      )
+      .setTimestamp();
+    if (copy.note) embed.setDescription(copy.note);
+    await owner.send({ embeds: [embed] }).catch(() => {});
   } catch {
     // can't reach the owner -- nothing more to do
   }
@@ -51,25 +81,37 @@ async function notifyOwnerUnverified(client, guild) {
 // that's NOT treated as unauthorized -- kicking the owner out of their own
 // server because of a permissions gap is worse than an unverified server
 // slipping through, so it stays and flags the owner instead.
+//
+// The owner gets exactly one DM per join either way (see notifyOwner above),
+// regardless of whether closed beta is even on.
 function register(client) {
   client.on('guildCreate', async (guild) => {
-    if (!AppSettings.get().betaLocked) return;
-
     const { found, executor } = await getInviter(guild);
+
+    if (!AppSettings.get().betaLocked) {
+      await notifyOwner(client, guild, { executor, status: 'joined' });
+      return;
+    }
 
     // Only a positive identification of an unauthorized inviter kicks the
     // bot out. "found but no entry yet" (a real possibility -- the audit
     // log entry isn't guaranteed to exist the instant guildCreate fires)
     // gets the same benefit of the doubt as "couldn't check at all".
     if (!found || !executor) {
-      await notifyOwnerUnverified(client, guild);
+      await notifyOwner(client, guild, { executor: null, status: 'unverified' });
       return;
     }
 
-    if (isAuthorized(executor.id)) return;
+    if (isAuthorized(executor.id)) {
+      await notifyOwner(client, guild, { executor, status: 'authorized' });
+      return;
+    }
 
     const message = `Quellum is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
     await executor.send({ content: message }).catch(() => {});
+    // Notify before leaving -- guild.memberCount/iconURL should stay readable
+    // on the same object either way, but there's no reason to rely on that.
+    await notifyOwner(client, guild, { executor, status: 'kicked' });
     await guild.leave().catch(() => {});
   });
 }
