@@ -58,7 +58,10 @@
   </a>
   <% if (typeof guild !== 'undefined' && guild) { %>
     <nav class="topnav">
-      <span class="guild-name"><%= guild.name %></span>
+      <span class="guild-chip">
+        <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+        <span class="guild-name"><%= guild.name %></span>
+      </span>
       <a href="/">🔁 Servers</a>
       <a href="/dashboard/<%= guild.id %>/tickets">Tickets</a>
       <a href="/dashboard/<%= guild.id %>/embeds">Embeds</a>

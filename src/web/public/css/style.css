@@ -117,7 +117,9 @@ a:hover { color: #8fc8ff; text-decoration: none; }
   transition: background .15s ease, color .15s ease;
 }
 .topnav a:hover { color: var(--text-bright); background: var(--bg-elevated-2); }
-.guild-name { color: var(--text-bright); font-weight: 700; margin-right: 10px; padding-right: 14px; border-right: 1px solid var(--border); }
+.guild-chip { display: inline-flex; align-items: center; gap: 8px; margin-right: 10px; padding-right: 14px; border-right: 1px solid var(--border); }
+.guild-icon { width: 26px; height: 26px; border-radius: 50%; display: block; object-fit: cover; background: var(--bg-elevated-2); flex-shrink: 0; }
+.guild-name { color: var(--text-bright); font-weight: 700; }
 .user-chip { display: inline-flex; align-items: center; gap: 8px; color: var(--text-bright); font-weight: 700; margin-right: 10px; padding-right: 14px; }
 .user-avatar { width: 26px; height: 26px; border-radius: 50%; display: block; }
 .logout-form { margin-left: auto; }
