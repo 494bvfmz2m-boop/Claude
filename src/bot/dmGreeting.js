@@ -4,7 +4,7 @@ const { AppSettings } = require('../db/repo');
 const { isAuthorized } = require('./betaGate');
 const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
 const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
-const { sendWithForm } = require('./dmForm');
+const { handleOwnerKeyword } = require('./ownerKeywords');
 
 const GREETING_COLOR = '#5865F2';
 const WEBSITE_URL = 'https://quellum.site';
@@ -49,6 +49,8 @@ function register(client) {
     if (message.author.bot || message.guildId) return; // only direct messages to the bot
 
     if (config.ownerDiscordId && message.author.id === config.ownerDiscordId) {
+      const handled = await handleOwnerKeyword(message).catch(() => false);
+      if (handled) return;
       await message.channel.send({
         embeds: [buildOwnerPanelEmbed(client)],
         components: [buildOwnerPanelRow()],
@@ -57,16 +59,8 @@ function register(client) {
     }
 
     const locked = AppSettings.get().betaLocked;
-    if (locked && !isAuthorized(message.author.id)) {
-      await sendWithForm(message.client, {
-        recipientId: message.author.id,
-        recipientTag: message.author.tag,
-        context: 'beta_gate',
-        defaultSend: () => message.channel.send({ embeds: [buildClosedBetaEmbed()] }),
-      }).catch(() => {});
-      return;
-    }
-    await message.channel.send({ embeds: [buildGreetingEmbed()] }).catch(() => {});
+    const embed = (locked && !isAuthorized(message.author.id)) ? buildClosedBetaEmbed() : buildGreetingEmbed();
+    await message.channel.send({ embeds: [embed] }).catch(() => {});
   });
 }
 

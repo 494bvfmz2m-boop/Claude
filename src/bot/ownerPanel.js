@@ -26,7 +26,7 @@ function buildOwnerPanelEmbed(client) {
       { name: 'Open tickets', value: String(totalOpenTickets(client)), inline: true },
       { name: 'Ping', value: `${client.ws.ping}ms`, inline: true },
     )
-    .setFooter({ text: 'Only you see this — everyone else gets the normal invite prompt.' });
+    .setFooter({ text: 'DM me "servers", "forms", or "info" any time for a direct answer instead of this panel.' });
 }
 
 function buildOwnerPanelRow() {

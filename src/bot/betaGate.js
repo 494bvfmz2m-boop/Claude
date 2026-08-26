@@ -1,7 +1,6 @@
 const { AuditLogEvent, EmbedBuilder } = require('discord.js');
 const config = require('../config');
 const { AppSettings, BetaAllowlist } = require('../db/repo');
-const { sendWithForm } = require('./dmForm');
 
 const JOIN_COLOR = '#5865F2';
 const LEFT_COLOR = '#e0263f';
@@ -109,14 +108,7 @@ function register(client) {
     }
 
     const message = `Quellum is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
-    await sendWithForm(client, {
-      recipientId: executor.id,
-      recipientTag: executor.tag,
-      context: 'beta_gate',
-      guildId: guild.id,
-      guildName: guild.name,
-      defaultSend: () => executor.send({ content: message }),
-    }).catch(() => {});
+    await executor.send({ content: message }).catch(() => {});
     // Notify before leaving -- guild.memberCount/iconURL should stay readable
     // on the same object either way, but there's no reason to rely on that.
     await notifyOwner(client, guild, { executor, status: 'kicked' });

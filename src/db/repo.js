@@ -111,35 +111,46 @@ const GuildSettings = {
 
 const AppSettings = {
   get() {
-    const row = db.prepare(
-      'SELECT beta_locked, dm_form_enabled, dm_form_title, dm_form_intro, dm_form_questions FROM app_settings WHERE id = 1',
-    ).get();
-    return {
-      betaLocked: !!(row && row.beta_locked),
-      dmForm: {
-        enabled: !!(row && row.dm_form_enabled),
-        title: (row && row.dm_form_title) || '',
-        intro: (row && row.dm_form_intro) || '',
-        questions: row ? JSON.parse(row.dm_form_questions || '[]') : [],
-      },
-    };
+    const row = db.prepare('SELECT beta_locked FROM app_settings WHERE id = 1').get();
+    return { betaLocked: !!(row && row.beta_locked) };
   },
   setBetaLocked(enabled) {
     db.prepare('UPDATE app_settings SET beta_locked = ? WHERE id = 1').run(enabled ? 1 : 0);
   },
-  setDmForm({ enabled, title, intro, questions }) {
+};
+
+const DmFormTemplates = {
+  list() {
+    return db.prepare('SELECT * FROM dm_form_templates ORDER BY name').all()
+      .map((row) => ({ ...row, questions: JSON.parse(row.questions || '[]') }));
+  },
+  get(id) {
+    const row = db.prepare('SELECT * FROM dm_form_templates WHERE id = ?').get(id);
+    if (!row) return null;
+    return { ...row, questions: JSON.parse(row.questions || '[]') };
+  },
+  create({ name, title, intro, questions }) {
+    const result = db.prepare(
+      'INSERT INTO dm_form_templates (name, title, intro, questions) VALUES (?, ?, ?, ?)',
+    ).run(name, title, intro || null, JSON.stringify(questions || []));
+    return result.lastInsertRowid;
+  },
+  update(id, { name, title, intro, questions }) {
     db.prepare(
-      'UPDATE app_settings SET dm_form_enabled = ?, dm_form_title = ?, dm_form_intro = ?, dm_form_questions = ? WHERE id = 1',
-    ).run(enabled ? 1 : 0, title || null, intro || null, JSON.stringify(questions || []));
+      "UPDATE dm_form_templates SET name = ?, title = ?, intro = ?, questions = ?, updated_at = datetime('now') WHERE id = ?",
+    ).run(name, title, intro || null, JSON.stringify(questions || []), id);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM dm_form_templates WHERE id = ?').run(id);
   },
 };
 
 const DmFormSends = {
-  create({ recipientId, recipientTag, context, guildId, guildName, title, intro, questions }) {
+  create({ recipientId, recipientTag, templateName, title, intro, questions }) {
     const result = db.prepare(`
-      INSERT INTO dm_form_sends (recipient_id, recipient_tag, context, guild_id, guild_name, title, intro, questions)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(recipientId, recipientTag || null, context, guildId || null, guildName || null, title, intro || null, JSON.stringify(questions || []));
+      INSERT INTO dm_form_sends (recipient_id, recipient_tag, context, template_name, title, intro, questions)
+      VALUES (?, ?, 'manual', ?, ?, ?, ?)
+    `).run(recipientId, recipientTag || null, templateName || null, title, intro || null, JSON.stringify(questions || []));
     return result.lastInsertRowid;
   },
   get(id) {
@@ -151,6 +162,21 @@ const DmFormSends = {
       answers: row.answers ? JSON.parse(row.answers) : null,
       responded: !!row.responded,
     };
+  },
+  list(limit = 15) {
+    return db.prepare('SELECT * FROM dm_form_sends ORDER BY id DESC LIMIT ?').all(limit)
+      .map((row) => ({
+        ...row,
+        questions: JSON.parse(row.questions || '[]'),
+        answers: row.answers ? JSON.parse(row.answers) : null,
+        responded: !!row.responded,
+      }));
+  },
+  count() {
+    return db.prepare('SELECT COUNT(*) AS n FROM dm_form_sends').get().n;
+  },
+  countPending() {
+    return db.prepare('SELECT COUNT(*) AS n FROM dm_form_sends WHERE responded = 0').get().n;
   },
   markResponded(id, answers) {
     db.prepare("UPDATE dm_form_sends SET responded = 1, answers = ?, responded_at = datetime('now') WHERE id = ?")
@@ -473,4 +499,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates };

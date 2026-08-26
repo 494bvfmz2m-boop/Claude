@@ -1,9 +1,11 @@
 const express = require('express');
 const { EmbedBuilder } = require('discord.js');
-const { AppSettings, BetaAllowlist } = require('../../db/repo');
+const { AppSettings, BetaAllowlist, DmFormTemplates } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
 const dmForm = require('../../bot/dmForm');
+
+const QUESTION_MAX_LEN = 300;
 
 const router = express.Router();
 
@@ -27,6 +29,7 @@ router.get('/', requireOwner, (req, res) => {
   res.render('admin', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
+    templates: DmFormTemplates.list(),
     guilds,
     notice,
   });
@@ -53,12 +56,14 @@ router.post('/send-dm', requireOwner, async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
   const color = req.body.color || '#5865F2';
-  const attachForm = req.body.attachForm === 'on';
+  const templateId = req.body.templateId ? Number(req.body.templateId) : null;
 
   if (!DISCORD_ID.test(userId)) {
     return redirectWithNotice(res, false, "Enter a valid Discord user ID.");
   }
-  if (!description) {
+
+  const template = templateId ? DmFormTemplates.get(templateId) : null;
+  if (!template && !description) {
     return redirectWithNotice(res, false, 'A message is required.');
   }
 
@@ -70,14 +75,14 @@ router.post('/send-dm', requireOwner, async (req, res) => {
 
   try {
     const user = await client.users.fetch(userId);
-    if (attachForm) {
-      const result = await dmForm.sendWithForm(client, {
+    if (template) {
+      await dmForm.sendWithForm(client, {
         recipientId: user.id,
         recipientTag: user.tag,
-        context: 'manual',
+        template,
         defaultSend: () => sendDefault(user),
       });
-      return redirectWithNotice(res, true, result === 'form' ? `Sent the form to ${user.tag}.` : `Sent to ${user.tag}.`);
+      return redirectWithNotice(res, true, `Sent "${template.name}" to ${user.tag}.`);
     }
     await sendDefault(user);
     return redirectWithNotice(res, true, `Sent to ${user.tag}.`);
@@ -89,17 +94,33 @@ router.post('/send-dm', requireOwner, async (req, res) => {
   }
 });
 
-router.post('/dm-form', requireOwner, (req, res) => {
-  const enabled = req.body.enabled === 'on';
+router.post('/dm-form-templates/save', requireOwner, (req, res) => {
+  const id = req.body.templateId ? Number(req.body.templateId) : null;
+  const name = (req.body.name || '').trim().slice(0, 100);
   const title = (req.body.title || '').trim().slice(0, 200);
   const intro = (req.body.intro || '').trim().slice(0, 1000);
   const questions = [1, 2, 3, 4, 5]
-    .map((i) => (req.body[`question${i}`] || '').trim())
+    .map((i) => (req.body[`question${i}`] || '').trim().slice(0, QUESTION_MAX_LEN))
     .filter(Boolean)
     .slice(0, 5);
 
-  AppSettings.setDmForm({ enabled, title, intro, questions });
-  return redirectWithNotice(res, true, 'Application form saved.', 'dm-form');
+  if (!name || !title || questions.length === 0) {
+    return redirectWithNotice(res, false, 'A name, a title, and at least one question are required.', 'dm-form');
+  }
+
+  if (id && DmFormTemplates.get(id)) {
+    DmFormTemplates.update(id, { name, title, intro, questions });
+    return redirectWithNotice(res, true, `"${name}" updated.`, 'dm-form');
+  }
+  DmFormTemplates.create({ name, title, intro, questions });
+  return redirectWithNotice(res, true, `"${name}" created.`, 'dm-form');
+});
+
+router.post('/dm-form-templates/delete', requireOwner, (req, res) => {
+  const id = Number(req.body.templateId);
+  const template = DmFormTemplates.get(id);
+  if (template) DmFormTemplates.remove(id);
+  return redirectWithNotice(res, true, template ? `"${template.name}" deleted.` : 'Already gone.', 'dm-form');
 });
 
 router.post('/leave-guild', requireOwner, async (req, res) => {

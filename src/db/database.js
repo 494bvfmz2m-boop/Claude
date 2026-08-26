@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS dm_form_sends (
   context TEXT NOT NULL DEFAULT 'manual',
   guild_id TEXT,
   guild_name TEXT,
+  template_name TEXT,
   title TEXT NOT NULL,
   intro TEXT,
   questions TEXT NOT NULL DEFAULT '[]',
@@ -152,6 +153,16 @@ CREATE TABLE IF NOT EXISTS dm_form_sends (
   answers TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   responded_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dm_form_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  intro TEXT,
+  questions TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
@@ -198,5 +209,39 @@ addColumnIfMissing('app_settings', 'dm_form_enabled', 'INTEGER NOT NULL DEFAULT 
 addColumnIfMissing('app_settings', 'dm_form_title', 'TEXT');
 addColumnIfMissing('app_settings', 'dm_form_intro', 'TEXT');
 addColumnIfMissing('app_settings', 'dm_form_questions', "TEXT NOT NULL DEFAULT '[]'");
+addColumnIfMissing('dm_form_sends', 'template_name', 'TEXT');
+addColumnIfMissing('app_settings', 'dm_templates_seeded', 'INTEGER NOT NULL DEFAULT 0');
+
+// One-time seed of a couple of starter form templates -- only ever runs
+// once (gated on the flag, not on the table being empty) so deleting them
+// doesn't bring them back on the next restart.
+const seeded = db.prepare('SELECT dm_templates_seeded FROM app_settings WHERE id = 1').get();
+if (seeded && !seeded.dm_templates_seeded) {
+  const insertTemplate = db.prepare(
+    'INSERT INTO dm_form_templates (name, title, intro, questions) VALUES (?, ?, ?, ?)',
+  );
+  insertTemplate.run(
+    'Beta access request',
+    'Request beta access',
+    "Tell us a bit about your server before we add you to the beta.",
+    JSON.stringify([
+      "What's your server's name, and can you share an invite link?",
+      'Roughly how many members do you have?',
+      'What made you want to try Quellum?',
+    ]),
+  );
+  insertTemplate.run(
+    'Team application',
+    'Team application',
+    "Thanks for your interest in joining the team! Answer a few quick questions and we'll get back to you.",
+    JSON.stringify([
+      'What role are you applying for?',
+      'What relevant experience do you have?',
+      'How many hours a week can you realistically commit?',
+      'Anything else we should know?',
+    ]),
+  );
+  db.prepare('UPDATE app_settings SET dm_templates_seeded = 1 WHERE id = 1').run();
+}
 
 module.exports = db;

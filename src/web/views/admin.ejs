@@ -69,39 +69,58 @@
 </div>
 
 <div class="card" id="dm-form">
-  <h2>Application form</h2>
+  <h2>Application form templates</h2>
   <p class="hint" style="margin-bottom:14px;">
-    A short form people can fill out from a DM. When it's on, it automatically replaces the plain
-    "message me on Discord" text anyone gets from hitting the closed-beta wall — they get a button instead,
-    it opens a quick form, and you get their answers by DM the moment they submit. You can also attach it
-    to a one-off DM below. Leave it off (or leave the questions empty) and everything stays exactly as it
-    is today.
+    Short forms you can send from a DM — never automatically, only when you send one yourself below. They
+    get a button that opens a modal with your questions; the moment they submit, you get the answers by DM.
+    Two starter templates are here to edit or delete as you like; add as many as you want.
   </p>
-  <form method="post" action="/admin/dm-form">
+
+  <% if (templates.length === 0) { %>
+    <p class="empty">No templates yet — create one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% templates.forEach(t => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= t.name %></div>
+            <div class="list-item-meta"><%= t.questions.length %> question<%= t.questions.length === 1 ? '' : 's' %></div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="editDmFormTemplate(<%= t.id %>)">Edit</button>
+            <form method="post" action="/admin/dm-form-templates/delete" style="display:inline;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="templateId" value="<%= t.id %>">
+              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete &quot;<%= t.name %>&quot;? There is no undo.');">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <h3 id="dmFormEditorTitle" style="margin-top:24px;">New template</h3>
+  <form method="post" action="/admin/dm-form-templates/save" id="dmFormEditor">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="templateId" id="dmFormTemplateId" value="">
 
-    <label class="style-option" style="max-width:420px; margin-bottom:14px;">
-      <input type="checkbox" name="enabled" <%= settings.dmForm.enabled ? 'checked' : '' %>>
-      <div>
-        <div class="style-title">Form enabled</div>
-        <div class="style-desc">Needs a title and at least one question below to actually go out.</div>
-      </div>
-    </label>
+    <label for="dmFormName">Name (just for you)</label>
+    <input type="text" id="dmFormName" name="name" placeholder="e.g. Team application" maxlength="100" required>
 
-    <label for="dmFormTitle">Title</label>
-    <input type="text" id="dmFormTitle" name="title" placeholder="Request beta access" maxlength="200" value="<%= settings.dmForm.title %>">
+    <label for="dmFormTitle">Title (what they see)</label>
+    <input type="text" id="dmFormTitle" name="title" placeholder="Request beta access" maxlength="200" required>
 
     <label for="dmFormIntro">Intro (optional)</label>
-    <textarea id="dmFormIntro" name="intro" placeholder="A couple sentences shown above the button." maxlength="1000"><%= settings.dmForm.intro %></textarea>
+    <textarea id="dmFormIntro" name="intro" placeholder="A couple sentences shown above the button."></textarea>
 
-    <label>Questions (up to 5, shown as short modal fields — keep them under 45 characters)</label>
+    <label>Questions (up to 5)</label>
     <% for (let i = 1; i <= 5; i++) { %>
-      <input type="text" name="question<%= i %>" placeholder="Question <%= i %>" maxlength="45"
-        value="<%= settings.dmForm.questions[i - 1] || '' %>" style="margin-bottom:8px;">
+      <textarea name="question<%= i %>" id="dmFormQ<%= i %>" placeholder="Question <%= i %>" rows="2" style="margin-bottom:8px;"></textarea>
     <% } %>
 
     <div class="btn-row">
-      <button class="btn" type="submit">Save form</button>
+      <button class="btn" type="submit" id="dmFormSaveBtn">Create template</button>
+      <button class="btn btn-ghost" type="button" id="dmFormCancelBtn" style="display:none;" onclick="resetDmFormTemplate()">Cancel edit</button>
     </div>
   </form>
 </div>
@@ -112,35 +131,30 @@
     Sends an embed straight to someone's DMs from the bot. Works for anyone Quellum shares a server with
     (they need DMs from server members turned on) — you'll get an error here if it can't be delivered.
   </p>
-  <form method="post" action="/admin/send-dm">
+  <form method="post" action="/admin/send-dm" id="sendDmForm">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <label for="dmUserId">Discord user ID</label>
     <input type="text" id="dmUserId" name="userId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
 
-    <label for="dmTitle">Title (optional)</label>
-    <input type="text" id="dmTitle" name="title" placeholder="A message from the team">
+    <label for="dmTemplateId">Attach a form instead (optional)</label>
+    <select id="dmTemplateId" name="templateId">
+      <option value="">— No form, just send the message below —</option>
+      <% templates.forEach(t => { %>
+        <option value="<%= t.id %>"><%= t.name %></option>
+      <% }) %>
+    </select>
 
-    <label for="dmDescription">Message</label>
-    <textarea id="dmDescription" name="description" required></textarea>
+    <div id="sendDmPlainFields">
+      <label for="dmTitle">Title (optional)</label>
+      <input type="text" id="dmTitle" name="title" placeholder="A message from the team">
 
-    <label for="dmColor">Color</label>
-    <input type="color" id="dmColor" name="color" value="#5865F2">
+      <label for="dmDescription">Message</label>
+      <textarea id="dmDescription" name="description" required></textarea>
 
-    <label class="style-option" style="max-width:420px; margin-top:14px;">
-      <input type="checkbox" name="attachForm" <%= settings.dmForm.enabled ? '' : 'disabled' %>>
-      <div>
-        <div class="style-title">Attach the application form instead</div>
-        <div class="style-desc">
-          <% if (settings.dmForm.enabled) { %>
-            Sends the form above (title/intro/questions) instead of the message and color set here — this
-            is just picking who it goes to.
-          <% } else { %>
-            Set up and enable the application form above first.
-          <% } %>
-        </div>
-      </div>
-    </label>
+      <label for="dmColor">Color</label>
+      <input type="color" id="dmColor" name="color" value="#5865F2">
+    </div>
 
     <div class="btn-row">
       <button class="btn" type="submit">Send DM</button>
@@ -157,6 +171,47 @@
   <input type="text" id="serverSearch" placeholder="Start typing a server name…" autocomplete="off">
   <div id="serverResults" style="margin-top:10px;"></div>
 </div>
+
+<script>
+(function () {
+  var templates = <%- JSON.stringify(templates).replace(/</g, '\\u003c') %>;
+
+  window.editDmFormTemplate = function (id) {
+    var t = templates.find(function (x) { return x.id === id; });
+    if (!t) return;
+    document.getElementById('dmFormTemplateId').value = t.id;
+    document.getElementById('dmFormName').value = t.name;
+    document.getElementById('dmFormTitle').value = t.title;
+    document.getElementById('dmFormIntro').value = t.intro || '';
+    for (var i = 1; i <= 5; i++) {
+      document.getElementById('dmFormQ' + i).value = t.questions[i - 1] || '';
+    }
+    document.getElementById('dmFormEditorTitle').textContent = 'Editing "' + t.name + '"';
+    document.getElementById('dmFormSaveBtn').textContent = 'Save changes';
+    document.getElementById('dmFormCancelBtn').style.display = '';
+    document.getElementById('dmFormEditor').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  window.resetDmFormTemplate = function () {
+    document.getElementById('dmFormEditor').reset();
+    document.getElementById('dmFormTemplateId').value = '';
+    document.getElementById('dmFormEditorTitle').textContent = 'New template';
+    document.getElementById('dmFormSaveBtn').textContent = 'Create template';
+    document.getElementById('dmFormCancelBtn').style.display = 'none';
+  };
+
+  var templateSelect = document.getElementById('dmTemplateId');
+  var plainFields = document.getElementById('sendDmPlainFields');
+  var description = document.getElementById('dmDescription');
+  if (templateSelect) {
+    templateSelect.addEventListener('change', function () {
+      var usingTemplate = !!templateSelect.value;
+      plainFields.style.display = usingTemplate ? 'none' : '';
+      description.required = !usingTemplate;
+    });
+  }
+})();
+</script>
 
 <script>
 (function () {
