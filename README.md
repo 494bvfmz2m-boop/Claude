@@ -83,8 +83,9 @@ their own Discord account and can only configure their own server.
 
    That permissions value covers everything Quellum actually needs (View Channels,
    Manage Channels, Manage Roles, Send Messages, Embed Links, Attach Files, Read
-   Message History, Manage Messages, Kick Members, Ban Members, and Moderate
-   Members — Discord's name for the timeout permission) and nothing more.
+   Message History, Manage Messages, Kick Members, Ban Members, Moderate
+   Members — Discord's name for the timeout permission — and View Audit Log, used
+   to check who added the bot when closed beta is on) and nothing more.
 
    **Don't grant `Administrator`.** It's not needed for anything Quellum does, and it
    turns "someone gets hold of the bot token or a dashboard session" into "someone
