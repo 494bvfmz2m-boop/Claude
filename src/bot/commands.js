@@ -84,6 +84,16 @@ const commands = [
   new SlashCommandBuilder()
     .setName('introduction')
     .setDescription('Have Quellum introduce itself -- what it does, how to set it up, and its commands'),
+
+  new SlashCommandBuilder()
+    .setName('poll')
+    .setDescription('Create a reaction poll in this channel')
+    .addStringOption((o) => o.setName('question').setDescription('The poll question').setRequired(true))
+    .addStringOption((o) => o.setName('option1').setDescription('Option 1').setRequired(true))
+    .addStringOption((o) => o.setName('option2').setDescription('Option 2').setRequired(true))
+    .addStringOption((o) => o.setName('option3').setDescription('Option 3').setRequired(false))
+    .addStringOption((o) => o.setName('option4').setDescription('Option 4').setRequired(false))
+    .addStringOption((o) => o.setName('option5').setDescription('Option 5').setRequired(false)),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

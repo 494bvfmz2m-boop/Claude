@@ -4,6 +4,7 @@ const moderation = require('./moderation');
 const promotion = require('./promotion');
 const info = require('./info');
 const introduction = require('./introduction');
+const poll = require('./poll');
 
 const chatCommandHandlers = {
   change: startChangeType,
@@ -11,6 +12,7 @@ const chatCommandHandlers = {
   ...promotion,
   ...info,
   ...introduction,
+  ...poll,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;
