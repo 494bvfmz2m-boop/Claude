@@ -78,12 +78,45 @@ their own Discord account and can only configure their own server.
    same link again and re-authorize to pick up the new scopes/permissions —
    you don't need to kick and re-add the bot.
 
-   That permissions value covers everything from before (View Channels, Manage
-   Channels, Manage Roles, Send Messages, Embed Links, Attach Files, Read
-   Message History, Manage Messages) plus **Kick Members**, **Ban Members**,
-   and **Moderate Members** (Discord's name for the timeout permission), for
-   the moderation commands. (`Administrator` also works if you'd rather not
-   think about it, but the above is the minimum it actually needs.)
+   That permissions value covers everything Quellum actually needs (View Channels,
+   Manage Channels, Manage Roles, Send Messages, Embed Links, Attach Files, Read
+   Message History, Manage Messages, Kick Members, Ban Members, and Moderate
+   Members — Discord's name for the timeout permission) and nothing more.
+
+   **Don't grant `Administrator`.** It's not needed for anything Quellum does, and it
+   turns "someone gets hold of the bot token or a dashboard session" into "someone
+   controls the entire server" instead of "someone can do what a mod can do." See
+   **Permissions & security** below.
+
+6. In your server's **Server Settings → Roles**, drag Quellum's own role *above* every
+   staff role you want it to manage (the roles used in ticket support-role pickers and
+   the staff hierarchy). Discord blocks a bot from touching roles/members positioned
+   at or above its own role, regardless of what permissions it holds — so it only
+   needs to sit above the roles it actually manages, not at the very top.
+
+## Permissions & security
+
+- **No `Administrator`, ever.** The specific permissions above are the actual ceiling
+  of what Quellum can do. If the bot token or a dashboard session is ever compromised,
+  that ceiling is the whole blast radius — moderation and channel/role management
+  within servers it's in, nothing account-wide and nothing outside what a human mod
+  could already do by hand.
+- **Dashboard punishments respect the same rank rule slash commands do.** Whether a
+  ban/kick/timeout/warning comes from Discord or the site, it's refused if the person
+  issuing it doesn't outrank the target (server owners and Administrators bypass this,
+  same as always) — a dashboard login with just Manage Server can't reach past that.
+- **The dashboard rate-limits punishment actions** per person (a burst cap, not a
+  hard ceiling) so a leaked session cookie can't be scripted into mass-banning a
+  server before anyone notices.
+- **If `DISCORD_TOKEN` ever leaks** (committed to git, pasted somewhere public, etc.),
+  go to the Developer Portal → your app → **Bot** → **Reset Token** immediately, then
+  update it in Coolify and redeploy. The old token stops working the moment you reset it.
+- **Treat `.env` / Coolify's env vars like passwords.** `DISCORD_TOKEN`,
+  `DISCORD_CLIENT_SECRET`, and `SESSION_SECRET` all grant real access if leaked —
+  don't commit them, don't paste them in chat, don't screenshot them.
+- Session cookies are `httpOnly` (JavaScript on the page can't read them) and, once
+  `COOKIE_SECURE=true` is set behind HTTPS, only ever sent encrypted. Every
+  state-changing dashboard request also requires a matching CSRF token.
 
 ## 2. Configure
 

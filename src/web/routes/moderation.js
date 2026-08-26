@@ -2,7 +2,7 @@ const express = require('express');
 const client = require('../../bot/client');
 const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
-const { logAction, parseDuration, applyWarningThreshold } = require('../../bot/moderation');
+const { logAction, parseDuration, applyWarningThreshold, canActOn } = require('../../bot/moderation');
 const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
@@ -10,6 +10,25 @@ const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
 const router = express.Router({ mergeParams: true });
 
 const THRESHOLD_ACTIONS = new Set(['timeout', 'kick', 'ban']);
+
+// Blunts a stolen/leaked dashboard session (or a bug in a script someone
+// wrote against it) from mass-banning/kicking a server -- not a substitute
+// for keeping DISCORD_TOKEN and session cookies private, just a limit on
+// the blast radius if one leaks anyway.
+const ACTION_RATE_LIMIT = { windowMs: 60_000, max: 20 };
+const actionAttempts = new Map(); // discordUserId -> timestamps[]
+
+function rateLimited(discordUserId) {
+  const now = Date.now();
+  const recent = (actionAttempts.get(discordUserId) || []).filter((t) => now - t < ACTION_RATE_LIMIT.windowMs);
+  if (recent.length >= ACTION_RATE_LIMIT.max) {
+    actionAttempts.set(discordUserId, recent);
+    return true;
+  }
+  recent.push(now);
+  actionAttempts.set(discordUserId, recent);
+  return false;
+}
 
 function hierarchyWithRoleInfo(guild) {
   return StaffRanks.listForGuild(guild.id)
@@ -165,9 +184,20 @@ router.post('/moderation/actions', async (req, res) => {
   const reason = (req.body.reason || '').trim() || null;
   const moderator = moderatorFromSession(req);
 
+  if (rateLimited(moderator.id)) {
+    return redirectWithNotice(res, guild.id, false, "That's a lot of actions in a short time — slow down and try again in a minute.");
+  }
+
   if (!rawTarget) {
     return redirectWithNotice(res, guild.id, false, 'Enter a Discord user ID or username.');
   }
+
+  // Same rank-hierarchy rule the slash commands enforce, applied here too --
+  // otherwise anyone with just Manage Server on the dashboard could punish a
+  // higher-ranked or equally-ranked staff member the slash commands would
+  // have refused. Fails closed: if we can't even find the dashboard user as
+  // a member of this guild, treat them as unauthorized rather than allow it.
+  const actingMember = await guild.members.fetch(moderator.id).catch(() => null);
 
   if (action === 'unban') {
     if (!DISCORD_ID.test(rawTarget)) {
@@ -196,6 +226,13 @@ router.post('/moderation/actions', async (req, res) => {
         targetId = member.id;
         fallbackName = member.user.tag;
       }
+      // Still check hierarchy if they happen to currently be a member --
+      // canActOn allows it unconditionally when the target isn't a member,
+      // same as the /ban slash command.
+      const targetMember = await guild.members.fetch(targetId).catch(() => null);
+      if (!actingMember || !canActOn(guild, actingMember, targetMember)) {
+        return redirectWithNotice(res, guild.id, false, "You can't ban someone with an equal or higher role than you.");
+      }
       const user = await client.users.fetch(targetId).catch(() => null);
       await guild.members.ban(targetId, { reason: reason || undefined });
       await logAction(guild, { action: '🔨 Member banned', target: user || targetId, moderator, reason, source: 'dashboard' });
@@ -205,6 +242,10 @@ router.post('/moderation/actions', async (req, res) => {
     const targetMember = await resolveMember(guild, rawTarget);
     if (!targetMember) {
       return redirectWithNotice(res, guild.id, false, `Couldn't find "${rawTarget}" in this server.`);
+    }
+
+    if (!actingMember || !canActOn(guild, actingMember, targetMember)) {
+      return redirectWithNotice(res, guild.id, false, "You can't act on someone with an equal or higher role than you.");
     }
 
     if (action === 'kick') {
