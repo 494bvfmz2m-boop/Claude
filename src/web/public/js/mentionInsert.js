@@ -21,6 +21,22 @@ function insertRoleMention(targetId, selectId) {
   select.value = '';
 }
 
+// datetime-local's value has no timezone info -- the browser (and so `new
+// Date(...)`) treats it as whatever the *person filling out this form* means
+// by that wall-clock time, in their own local timezone. Converting that to a
+// Unix timestamp and wrapping it in Discord's <t:...> token is exactly how
+// "event at 5pm" ends up correctly converted to each *viewer's* own local
+// time when the message renders in Discord.
+function insertTimestamp(targetId, timeInputId, formatSelectId) {
+  const timeInput = document.getElementById(timeInputId);
+  if (!timeInput || !timeInput.value) return;
+  const unix = Math.floor(new Date(timeInput.value).getTime() / 1000);
+  if (!Number.isFinite(unix)) return;
+  const formatSelect = document.getElementById(formatSelectId);
+  const format = formatSelect ? formatSelect.value : 'F';
+  insertMentionToken(targetId, `<t:${unix}:${format}>`);
+}
+
 async function insertUserMention(targetId, inputId, guildId) {
   const input = document.getElementById(inputId);
   const q = (input?.value || '').trim();

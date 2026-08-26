@@ -23,6 +23,17 @@
         <button type="button" class="btn btn-ghost btn-sm" onclick="insertRoleMention('${targetId}','roleSel_${targetId}')">+ Role</button>
         <input type="text" id="userInput_${targetId}" placeholder="username" style="width:110px;">
         <button type="button" class="btn btn-ghost btn-sm" onclick="insertUserMention('${targetId}','userInput_${targetId}','${guildId}')">+ User</button>
+        <input type="datetime-local" id="timeInput_${targetId}" style="width:180px;">
+        <select id="timeFormat_${targetId}">
+          <option value="F">Aug 26, 2026 5:00 PM</option>
+          <option value="f">Aug 26, 5:00 PM</option>
+          <option value="D">August 26, 2026</option>
+          <option value="d">08/26/2026</option>
+          <option value="t">5:00 PM</option>
+          <option value="T">5:00:00 PM</option>
+          <option value="R">in 3 hours</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="insertTimestamp('${targetId}','timeInput_${targetId}','timeFormat_${targetId}')">+ Time</button>
       </div>
     `;
   }
@@ -144,5 +155,40 @@
   form.addEventListener('input', renderPreview);
   form.addEventListener('change', renderPreview);
   fieldsContainer.addEventListener('input', renderPreview);
+
+  const RULES_TEMPLATE = {
+    title: '📜 Server Rules',
+    description: 'Please read and follow these rules to keep this server friendly and safe for everyone.',
+    color: '#ed4245',
+    footerText: 'Thanks for being part of our community!',
+    fields: [
+      { name: '1️⃣ Be Respectful', value: "Treat everyone with respect. No harassment, hate speech, or personal attacks." },
+      { name: '2️⃣ No Spam', value: 'Avoid excessive messages, emojis, or repeated content.' },
+      { name: '3️⃣ Stay On-Topic', value: "Keep discussions relevant to the channel you're in." },
+      { name: '4️⃣ No NSFW Content', value: 'Keep all content appropriate for all audiences.' },
+      { name: '5️⃣ Follow Discord ToS', value: "Abide by Discord's Terms of Service and Community Guidelines." },
+    ],
+  };
+
+  const loadRulesBtn = document.getElementById('load-rules-template');
+  if (loadRulesBtn) {
+    loadRulesBtn.addEventListener('click', () => {
+      document.getElementById('title').value = RULES_TEMPLATE.title;
+      document.getElementById('description').value = RULES_TEMPLATE.description;
+      document.getElementById('color').value = RULES_TEMPLATE.color;
+      document.getElementById('footerText').value = RULES_TEMPLATE.footerText;
+
+      fieldsContainer.innerHTML = '';
+      RULES_TEMPLATE.fields.forEach((f) => {
+        const row = fieldRowTemplate();
+        row.querySelector('[name="fieldName[]"]').value = f.name;
+        row.querySelector('[name="fieldValue[]"]').value = f.value;
+        fieldsContainer.appendChild(row);
+      });
+
+      renderPreview();
+    });
+  }
+
   renderPreview();
 })();

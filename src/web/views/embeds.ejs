@@ -11,6 +11,11 @@
       <label for="templateName">Template name</label>
       <input type="text" id="templateName" name="templateName" value="<%= loaded?.name || '' %>" placeholder="Announcement">
 
+      <div class="btn-row" style="margin-bottom:4px;">
+        <button type="button" id="load-rules-template" class="btn btn-ghost btn-sm">📋 Load rules template</button>
+      </div>
+      <div class="hint" style="margin-top:0; margin-bottom:16px;">Fills in a starting-point rules embed below — edit it, then save or send like normal. Replaces any fields currently in the builder.</div>
+
       <label for="title">Title</label>
       <input type="text" id="title" name="title" value="<%= loaded?.data?.title || '' %>">
 
