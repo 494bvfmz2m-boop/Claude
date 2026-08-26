@@ -6,6 +6,8 @@ const info = require('./info');
 const introduction = require('./introduction');
 const poll = require('./poll');
 const help = require('./help');
+const config = require('../config');
+const { buildServerListEmbed } = require('./ownerPanel');
 
 const chatCommandHandlers = {
   change: startChangeType,
@@ -56,6 +58,15 @@ function register(client) {
         if (action === 'purge_all_cancel') {
           const [invokerId] = rest;
           return moderation.cancelPurgeAll(interaction, invokerId);
+        }
+
+        if (action === 'owner_server_list') {
+          if (!config.ownerDiscordId || interaction.user.id !== config.ownerDiscordId) {
+            return interaction.reply({ content: "This isn't for you.", ephemeral: true });
+          }
+          await interaction.deferReply({ ephemeral: true });
+          const embed = await buildServerListEmbed(interaction.client);
+          return interaction.editReply({ embeds: [embed] });
         }
 
         if (action === 'ticket_close') {

@@ -3,6 +3,7 @@ const config = require('../config');
 const { AppSettings } = require('../db/repo');
 const { isAuthorized } = require('./betaGate');
 const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
+const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 
 const GREETING_COLOR = '#5865F2';
 const WEBSITE_URL = 'https://quellum.site';
@@ -45,6 +46,15 @@ function buildClosedBetaEmbed() {
 function register(client) {
   client.on('messageCreate', async (message) => {
     if (message.author.bot || message.guildId) return; // only direct messages to the bot
+
+    if (config.ownerDiscordId && message.author.id === config.ownerDiscordId) {
+      await message.channel.send({
+        embeds: [buildOwnerPanelEmbed(client)],
+        components: [buildOwnerPanelRow()],
+      }).catch(() => {});
+      return;
+    }
+
     const locked = AppSettings.get().betaLocked;
     const embed = (locked && !isAuthorized(message.author.id)) ? buildClosedBetaEmbed() : buildGreetingEmbed();
     await message.channel.send({ embeds: [embed] }).catch(() => {});
