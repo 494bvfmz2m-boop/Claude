@@ -2,9 +2,10 @@
 <h1>Settings</h1>
 <p class="subtitle">Server-wide options for this bot.</p>
 
-<form class="card" method="post" action="/dashboard/<%= guild.id %>/settings">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+<form method="post" action="/dashboard/<%= guild.id %>/settings">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
+<div class="card">
   <label for="transcriptChannelId">Ticket log channel</label>
   <select id="transcriptChannelId" name="transcriptChannelId">
     <option value="">— None (ticket activity won't be logged anywhere) —</option>
@@ -41,8 +42,53 @@
     (from any panel) is blocked with a message. Remove the role to restore their access.
   </div>
 
-  <div class="btn-row">
-    <button class="btn" type="submit">Save</button>
+</div>
+
+<div class="card">
+  <h2>👋 Welcome &amp; leave messages</h2>
+  <label for="welcomeChannelId">Welcome channel</label>
+  <select id="welcomeChannelId" name="welcomeChannelId">
+    <option value="">— None (no welcome message is sent) —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.welcome_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <label for="welcomeMessage">Welcome message</label>
+  <textarea id="welcomeMessage" name="welcomeMessage" placeholder="Welcome {user} to **{server}**! We're now at {membercount} members."><%= settings.welcome_message || '' %></textarea>
+  <div class="hint">
+    Placeholders: <code>{user}</code> (mention), <code>{username}</code>, <code>{server}</code>, <code>{membercount}</code>.
+    Leave blank to use the default message above.
   </div>
+
+  <label for="leaveChannelId" style="margin-top:18px;">Leave channel</label>
+  <select id="leaveChannelId" name="leaveChannelId">
+    <option value="">— None (no leave message is sent) —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.leave_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <label for="leaveMessage">Leave message</label>
+  <textarea id="leaveMessage" name="leaveMessage" placeholder="**{username}** has left **{server}**. Now at {membercount} members."><%= settings.leave_message || '' %></textarea>
+  <div class="hint">Same placeholders as above. Can be a different channel than the welcome one.</div>
+</div>
+
+<div class="card">
+  <h2>🎭 Autorole</h2>
+  <label for="autoroleId">Role to give new members</label>
+  <select id="autoroleId" name="autoroleId">
+    <option value="">— None (no role is auto-assigned) —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= settings.autorole_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">
+    Given automatically the moment someone joins. Make sure Quellum's role is dragged above it
+    (Server Settings → Roles) or it won't be able to assign it.
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="btn" type="submit">Save</button>
+</div>
 </form>
 <%- include('partials/footer') %>

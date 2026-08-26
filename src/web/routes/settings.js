@@ -19,6 +19,9 @@ router.post('/settings', async (req, res) => {
   GuildSettings.setTranscriptChannel(guild.id, req.body.transcriptChannelId || null);
   GuildSettings.setModLogChannel(guild.id, req.body.modLogChannelId || null);
   GuildSettings.setTicketBannedRole(guild.id, req.body.ticketBannedRoleId || null);
+  GuildSettings.setWelcome(guild.id, { channelId: req.body.welcomeChannelId, message: req.body.welcomeMessage });
+  GuildSettings.setLeave(guild.id, { channelId: req.body.leaveChannelId, message: req.body.leaveMessage });
+  GuildSettings.setAutorole(guild.id, req.body.autoroleId || null);
   res.redirect(`/dashboard/${guild.id}/settings`);
 });
 

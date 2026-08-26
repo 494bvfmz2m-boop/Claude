@@ -171,5 +171,10 @@ addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT 
 addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'ticket_banned_role_id', 'TEXT');
 addColumnIfMissing('ticket_types', 'generate_transcript', 'INTEGER NOT NULL DEFAULT 1');
+addColumnIfMissing('guild_settings', 'welcome_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'welcome_message', 'TEXT');
+addColumnIfMissing('guild_settings', 'leave_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'leave_message', 'TEXT');
+addColumnIfMissing('guild_settings', 'autorole_id', 'TEXT');
 
 module.exports = db;

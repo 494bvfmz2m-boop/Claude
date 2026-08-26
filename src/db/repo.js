@@ -23,6 +23,8 @@ const GuildSettings = {
         guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
         staff_list_color: '#5865F2', warning_thresholds: [], ticket_banned_role_id: null,
+        welcome_channel_id: null, welcome_message: null, leave_channel_id: null, leave_message: null,
+        autorole_id: null,
       };
     }
     return {
@@ -72,6 +74,25 @@ const GuildSettings = {
   setTicketBannedRole(guildId, roleId) {
     ensureGuildSettingsRow(guildId);
     db.prepare("UPDATE guild_settings SET ticket_banned_role_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(roleId || null, guildId);
+  },
+  setWelcome(guildId, { channelId, message }) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare(`
+      UPDATE guild_settings SET welcome_channel_id = ?, welcome_message = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(channelId || null, message || null, guildId);
+  },
+  setLeave(guildId, { channelId, message }) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare(`
+      UPDATE guild_settings SET leave_channel_id = ?, leave_message = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(channelId || null, message || null, guildId);
+  },
+  setAutorole(guildId, roleId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET autorole_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
       .run(roleId || null, guildId);
   },
 };
