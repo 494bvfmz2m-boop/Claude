@@ -1,0 +1,47 @@
+<%- include('partials/header', { title: 'Issue a punishment', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Issue a punishment</h1>
+<p class="subtitle">Ban, kick, mute, warn, or unban someone right from the dashboard.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="card">
+  <p class="hint" style="margin-bottom:14px;">
+    Runs the same as the matching slash command — bans/kicks/mutes/warns actually happen in Discord,
+    and get logged either way. Which of these you can use is controlled from the
+    <a href="/dashboard/<%= guild.id %>/permissions">Permissions</a> page, not your Discord permissions directly.
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/actions" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div>
+      <label for="actionType" style="margin-top:0;">Action</label>
+      <select id="actionType" name="action" onchange="document.getElementById('durationField').style.display = this.value === 'mute' ? '' : 'none';">
+        <option value="warn">Warn</option>
+        <option value="mute">Mute</option>
+        <option value="unmute">Unmute</option>
+        <option value="kick">Kick</option>
+        <option value="ban">Ban</option>
+        <option value="unban">Unban</option>
+      </select>
+    </div>
+    <div>
+      <label for="targetId" style="margin-top:0;">Discord user ID or username</label>
+      <input type="text" id="targetId" name="targetId" placeholder="username, or their ID" required style="width:200px;">
+    </div>
+    <div id="durationField" style="display:none;">
+      <label for="actionDuration" style="margin-top:0;">Duration</label>
+      <input type="text" id="actionDuration" name="duration" placeholder="e.g. 1h" style="width:100px;">
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <label for="actionReason" style="margin-top:0;">Reason</label>
+      <input type="text" id="actionReason" name="reason" placeholder="Required for warnings">
+    </div>
+    <button class="btn" type="submit">Do it</button>
+  </form>
+  <div class="hint" style="margin-top:10px;">Unban needs their exact Discord user ID — banned users can't be found by username.</div>
+</div>
+<%- include('partials/footer') %>

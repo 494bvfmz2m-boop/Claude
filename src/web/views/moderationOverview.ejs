@@ -1,0 +1,48 @@
+<%- include('partials/header', { title: 'Moderation', guild }) %>
+<h1>Moderation</h1>
+<p class="subtitle">Swear filter, staff list, auto-punishments, and moderation actions.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="nav-card-search">
+  <input type="text" id="modSearch" placeholder="Search moderation…" autocomplete="off">
+</div>
+
+<div class="nav-card-list" id="modList">
+  <% categories.forEach(c => { %>
+    <a class="nav-card" href="/dashboard/<%= guild.id %>/moderation/<%= c.id %>" data-search="<%= c.label.toLowerCase() %> <%= c.desc.toLowerCase() %>">
+      <div class="nav-card-body">
+        <div class="nav-card-title"><%= c.label %></div>
+        <div class="nav-card-desc"><%= c.desc %></div>
+      </div>
+      <div class="nav-card-right">
+        <% if (c.status) { %><span class="nav-card-status"><%= c.status %></span><% } %>
+        <svg class="nav-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </a>
+  <% }) %>
+</div>
+<p class="nav-card-empty" id="modEmpty" style="display:none;">No matches.</p>
+
+<script>
+(function () {
+  var input = document.getElementById('modSearch');
+  var cards = [].slice.call(document.querySelectorAll('#modList .nav-card'));
+  var empty = document.getElementById('modEmpty');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    cards.forEach(function (card) {
+      var match = !q || card.dataset.search.indexOf(q) !== -1;
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    empty.style.display = visible === 0 ? '' : 'none';
+  });
+})();
+</script>
+<%- include('partials/footer') %>

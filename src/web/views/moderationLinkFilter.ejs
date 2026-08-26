@@ -1,0 +1,51 @@
+<%- include('partials/header', { title: 'Link filter', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Link filter</h1>
+<p class="subtitle">Block Discord invite links, all links, or neither.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="card">
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/link-filter">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Quick presets</label>
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="invites">No advertising</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="all">Lockdown</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="off">Open</button>
+    </div>
+
+    <label for="linkFilterMode">Mode</label>
+    <select id="linkFilterMode" name="mode">
+      <option value="off" <%= settings.link_filter_mode === 'off' ? 'selected' : '' %>>Off</option>
+      <option value="invites" <%= settings.link_filter_mode === 'invites' ? 'selected' : '' %>>Block Discord invite links only</option>
+      <option value="all" <%= settings.link_filter_mode === 'all' ? 'selected' : '' %>>Block all links</option>
+    </select>
+    <div class="hint">
+      "Invite links only" catches discord.gg and discord.com/invite links — handy for blocking server
+      advertising without stopping people sharing normal links. Staff with Manage Messages are never
+      filtered, and deletions get logged the same way the swear filter's do.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var linkFilterSelect = document.getElementById('linkFilterMode');
+  document.querySelectorAll('.link-filter-preset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (linkFilterSelect) linkFilterSelect.value = btn.dataset.mode;
+    });
+  });
+})();
+</script>
+<%- include('partials/footer') %>

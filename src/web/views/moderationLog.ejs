@@ -1,0 +1,33 @@
+<%- include('partials/header', { title: 'Moderation log', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Moderation log</h1>
+<p class="subtitle">Every action taken, from Discord or the dashboard.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="card">
+  <% if (actions.length === 0) { %>
+    <p class="empty">Nothing logged yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% actions.forEach(a => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= a.action %></div>
+            <div class="list-item-meta">
+              <%= a.target_tag || a.target_id || 'Unknown' %> · by <%= a.moderator_tag || a.moderator_id %> ·
+              <%= new Date(a.created_at + 'Z').toLocaleString() %>
+              <%= a.source === 'dashboard' ? '· via dashboard' : '' %>
+              <% if (a.reason) { %><br><%= a.reason %><% } %>
+            </div>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

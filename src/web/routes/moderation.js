@@ -54,27 +54,61 @@ function hierarchyWithRoleInfo(guild) {
     });
 }
 
-async function renderPage(req, res, guild) {
-  const settings = GuildSettings.get(guild.id);
-  const options = guildChannelOptions(guild);
-  const hierarchy = hierarchyWithRoleInfo(guild);
-  const hierarchyRoleIds = new Set(hierarchy.map((h) => h.roleId));
-  const availableRoles = options.roles.filter((r) => !hierarchyRoleIds.has(r.id));
-  const actions = ModActions.listForGuild(guild.id, 50);
-  const notice = req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
-  res.render('moderation', { guild, settings, options, hierarchy, availableRoles, actions, notice });
+function notice(req) {
+  return req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
 }
 
+function redirectWithNotice(res, guildId, ok, text, page = 'actions') {
+  const qs = new URLSearchParams({ ok: ok ? '1' : '0', msg: text });
+  res.redirect(`/dashboard/${guildId}/moderation/${page}?${qs.toString()}`);
+}
+
+// ---------- Overview ----------
 router.get('/moderation', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  await renderPage(req, res, guild);
+  const settings = GuildSettings.get(guild.id);
+  const categories = [
+    {
+      id: 'swear-filter', label: 'Swear filter',
+      desc: 'A banned-word list, whole-word matched.',
+      status: settings.swear_filter_enabled ? 'Enabled' : 'Off',
+    },
+    {
+      id: 'link-filter', label: 'Link filter',
+      desc: 'Block invite links, all links, or neither.',
+      status: settings.link_filter_mode === 'off' ? 'Off' : settings.link_filter_mode === 'invites' ? 'Invites only' : 'All links',
+    },
+    {
+      id: 'hierarchy', label: 'Staff list',
+      desc: 'Rank hierarchy for /promote and /demote, plus the auto-updating staff list.',
+      status: `${StaffRanks.listForGuild(guild.id).length} rank(s)`,
+    },
+    {
+      id: 'thresholds', label: 'Auto-punishments',
+      desc: 'Actions that fire automatically at a warning count.',
+      status: `${settings.warning_thresholds.length} set`,
+    },
+    {
+      id: 'actions', label: 'Issue a punishment',
+      desc: 'Ban, kick, mute, warn, or unban someone right from the dashboard.',
+      status: null,
+    },
+    {
+      id: 'log', label: 'Moderation log',
+      desc: 'Every action taken, from Discord or the dashboard.',
+      status: null,
+    },
+  ];
+  res.render('moderationOverview', { guild, categories, notice: notice(req) });
 });
 
-function redirectWithNotice(res, guildId, ok, text, anchor = 'actions') {
-  const qs = new URLSearchParams({ ok: ok ? '1' : '0', msg: text });
-  res.redirect(`/dashboard/${guildId}/moderation?${qs.toString()}#${anchor}`);
-}
+// ---------- Swear filter ----------
+router.get('/moderation/swear-filter', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationSwearFilter', { guild, settings: GuildSettings.get(guild.id), notice: notice(req) });
+});
 
 router.post('/moderation/swear-filter', async (req, res) => {
   const guild = await getGuildOr404(req, res);
@@ -85,7 +119,14 @@ router.post('/moderation/swear-filter', async (req, res) => {
     .filter(Boolean);
   GuildSettings.setSwearFilter(guild.id, { enabled: req.body.enabled === 'on', words });
   cache.invalidateSwearFilter(guild.id);
-  res.redirect(`/dashboard/${guild.id}/moderation`);
+  res.redirect(`/dashboard/${guild.id}/moderation/swear-filter`);
+});
+
+// ---------- Link filter ----------
+router.get('/moderation/link-filter', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationLinkFilter', { guild, settings: GuildSettings.get(guild.id), notice: notice(req) });
 });
 
 router.post('/moderation/link-filter', async (req, res) => {
@@ -93,7 +134,23 @@ router.post('/moderation/link-filter', async (req, res) => {
   if (!guild) return;
   GuildSettings.setLinkFilter(guild.id, req.body.mode);
   cache.invalidateLinkFilter(guild.id);
-  res.redirect(`/dashboard/${guild.id}/moderation`);
+  res.redirect(`/dashboard/${guild.id}/moderation/link-filter`);
+});
+
+// ---------- Staff list / hierarchy ----------
+async function renderHierarchy(req, res, guild) {
+  const settings = GuildSettings.get(guild.id);
+  const options = guildChannelOptions(guild);
+  const hierarchy = hierarchyWithRoleInfo(guild);
+  const hierarchyRoleIds = new Set(hierarchy.map((h) => h.roleId));
+  const availableRoles = options.roles.filter((r) => !hierarchyRoleIds.has(r.id));
+  res.render('moderationHierarchy', { guild, settings, options, hierarchy, availableRoles, notice: notice(req) });
+}
+
+router.get('/moderation/hierarchy', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  await renderHierarchy(req, res, guild);
 });
 
 router.post('/moderation/staff-list-channel', async (req, res) => {
@@ -101,7 +158,7 @@ router.post('/moderation/staff-list-channel', async (req, res) => {
   if (!guild) return;
   GuildSettings.setStaffListChannel(guild.id, req.body.channelId || null);
   GuildSettings.setStaffListColor(guild.id, req.body.color || '#5865F2');
-  res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
 router.post('/moderation/staff-list/post', async (req, res) => {
@@ -129,7 +186,7 @@ router.post('/moderation/hierarchy/add', async (req, res) => {
     StaffRanks.replaceAll(guild.id, current);
     cache.invalidateStaffRanks(guild.id);
   }
-  res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
 router.post('/moderation/hierarchy/remove', async (req, res) => {
@@ -138,7 +195,7 @@ router.post('/moderation/hierarchy/remove', async (req, res) => {
   const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
   StaffRanks.replaceAll(guild.id, current.filter((id) => id !== req.body.roleId));
   cache.invalidateStaffRanks(guild.id);
-  res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
 router.post('/moderation/hierarchy/reorder', async (req, res) => {
@@ -159,7 +216,14 @@ router.post('/moderation/hierarchy/reorder', async (req, res) => {
 
   StaffRanks.replaceAll(guild.id, reordered);
   cache.invalidateStaffRanks(guild.id);
-  res.redirect(`/dashboard/${guild.id}/moderation#hierarchy`);
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
+});
+
+// ---------- Auto-punishments ----------
+router.get('/moderation/thresholds', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationThresholds', { guild, settings: GuildSettings.get(guild.id), notice: notice(req) });
 });
 
 router.post('/moderation/thresholds/add', async (req, res) => {
@@ -177,7 +241,7 @@ router.post('/moderation/thresholds/add', async (req, res) => {
     rest.sort((a, b) => a.count - b.count);
     GuildSettings.setWarningThresholds(guild.id, rest);
   }
-  res.redirect(`/dashboard/${guild.id}/moderation#thresholds`);
+  res.redirect(`/dashboard/${guild.id}/moderation/thresholds`);
 });
 
 router.post('/moderation/thresholds/remove', async (req, res) => {
@@ -186,12 +250,19 @@ router.post('/moderation/thresholds/remove', async (req, res) => {
   const count = parseInt(req.body.count, 10);
   const settings = GuildSettings.get(guild.id);
   GuildSettings.setWarningThresholds(guild.id, settings.warning_thresholds.filter((t) => t.count !== count));
-  res.redirect(`/dashboard/${guild.id}/moderation#thresholds`);
+  res.redirect(`/dashboard/${guild.id}/moderation/thresholds`);
 });
 
+// ---------- Issue a punishment ----------
 function moderatorFromSession(req) {
   return { id: req.session.discordUser.id, tag: req.session.discordUser.username };
 }
+
+router.get('/moderation/actions', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationActions', { guild, notice: notice(req) });
+});
 
 router.post('/moderation/actions', async (req, res) => {
   const guild = await getGuildOr404(req, res);
@@ -316,6 +387,13 @@ router.post('/moderation/actions', async (req, res) => {
   } catch (err) {
     return redirectWithNotice(res, guild.id, false, `Couldn't do that: ${err.message}`);
   }
+});
+
+// ---------- Moderation log ----------
+router.get('/moderation/log', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationLog', { guild, actions: ModActions.listForGuild(guild.id, 50), notice: notice(req) });
 });
 
 module.exports = router;

@@ -1,0 +1,66 @@
+<%- include('partials/header', { title: 'Swear filter', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Swear filter</h1>
+<p class="subtitle">A banned-word list you manage from the dashboard, whole-word matched.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="card">
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="style-option" style="max-width:280px;">
+      <input type="checkbox" name="enabled" <%= settings.swear_filter_enabled ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Enabled</div>
+        <div class="style-desc">Delete messages containing any word below</div>
+      </div>
+    </label>
+
+    <label for="words">Banned words</label>
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+      <select id="swearFilterPreset" style="flex:1;">
+        <option value="">— Load a starter list (optional) —</option>
+        <option value="mild">Mild profanity</option>
+        <option value="strict">Strict (extended list)</option>
+      </select>
+      <button type="button" id="loadSwearPreset" class="btn btn-ghost btn-sm">Load</button>
+    </div>
+    <textarea id="words" name="words" placeholder="one per line, or comma-separated" style="min-height:120px;"><%= settings.swear_words.join('\n') %></textarea>
+    <div class="hint">
+      Case-insensitive, whole-word matching (won't flag a word just for containing one of these as a substring).
+      Staff with the Manage Messages permission are never filtered. Starter lists are just a starting point —
+      edit freely, and add/remove words to fit your server. They don't include slurs; add anything
+      community-specific yourself.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var SWEAR_PRESETS = {
+    mild: ['damn', 'hell', 'crap', 'ass', 'piss', 'bastard'],
+    strict: ['damn', 'hell', 'crap', 'ass', 'piss', 'bastard', 'bitch', 'dick', 'fuck', 'shit', 'cock', 'cunt', 'asshole', 'motherfucker'],
+  };
+  var presetSelect = document.getElementById('swearFilterPreset');
+  var loadBtn = document.getElementById('loadSwearPreset');
+  var wordsField = document.getElementById('words');
+  if (loadBtn && presetSelect && wordsField) {
+    loadBtn.addEventListener('click', function () {
+      var key = presetSelect.value;
+      if (!key || !SWEAR_PRESETS[key]) return;
+      if (wordsField.value.trim() && !confirm('Replace the current word list with this starter list?')) return;
+      wordsField.value = SWEAR_PRESETS[key].join('\n');
+    });
+  }
+})();
+</script>
+<%- include('partials/footer') %>

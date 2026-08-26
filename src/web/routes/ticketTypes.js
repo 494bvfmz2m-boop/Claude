@@ -28,13 +28,13 @@ function buildSetupChecklist(guild, { ticketTypes, panels }) {
       done: !!settings.mod_log_channel_id,
       label: 'Set a moderation log channel',
       desc: 'Bans, kicks, timeouts, warnings, and filter deletions get posted here.',
-      href: `/dashboard/${guild.id}/settings`,
+      href: `/dashboard/${guild.id}/settings/channels`,
     },
     {
       done: StaffRanks.listForGuild(guild.id).length > 0,
       label: 'Set up the staff hierarchy',
       desc: 'Powers /promote, /demote, and the auto-updating staff list.',
-      href: `/dashboard/${guild.id}/moderation#hierarchy`,
+      href: `/dashboard/${guild.id}/moderation/hierarchy`,
     },
   ];
 }
