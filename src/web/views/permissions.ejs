@@ -1,0 +1,91 @@
+<%- include('partials/header', { title: 'Permissions', guild }) %>
+<h1>Permissions</h1>
+<p class="subtitle">
+  Grant specific roles access to dashboard sections and specific moderation commands — without touching
+  their real Discord permissions. Only you (owner / Manage Server) can see or change this page.
+</p>
+
+<% if (roles.length === 0) { %>
+  <div class="card empty">This server has no roles to grant access to yet.</div>
+<% } else { %>
+<form method="post" action="/dashboard/<%= guild.id %>/permissions">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="card">
+    <h2>Dashboard access</h2>
+    <p class="hint" style="margin-bottom:14px;">Which pages a role can open in the dashboard at all.</p>
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">Role</th>
+            <% areas.forEach(a => { %>
+              <th style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px;" title="<%= a.description %>"><%= a.label %></th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% roles.forEach(r => { %>
+            <tr>
+              <td style="padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">
+                <span style="display:inline-flex; align-items:center; gap:8px;">
+                  <span style="width:10px; height:10px; border-radius:50%; background:<%= r.color %>; flex-shrink:0;"></span>
+                  <%= r.name %>
+                </span>
+              </td>
+              <% areas.forEach(a => { %>
+                <td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border);">
+                  <input type="checkbox" name="area_<%= a.key %>[]" value="<%= r.id %>" <%= r.areas.has(a.key) ? 'checked' : '' %>>
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Moderation commands</h2>
+    <p class="hint" style="margin-bottom:14px;">
+      Who can use each specific action — from Discord or the dashboard. A role with no boxes checked here
+      can't use any of these at all, even with real Discord permissions. The owner and anyone with
+      real Administrator always bypass this entirely.
+    </p>
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">Role</th>
+            <% moderationActions.forEach(a => { %>
+              <th style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px;" title="<%= a.description || '' %>"><%= a.label %></th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% roles.forEach(r => { %>
+            <tr>
+              <td style="padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">
+                <span style="display:inline-flex; align-items:center; gap:8px;">
+                  <span style="width:10px; height:10px; border-radius:50%; background:<%= r.color %>; flex-shrink:0;"></span>
+                  <%= r.name %>
+                </span>
+              </td>
+              <% moderationActions.forEach(a => { %>
+                <td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border);">
+                  <input type="checkbox" name="action_<%= a.key %>[]" value="<%= r.id %>" <%= r.actions.has(a.key) ? 'checked' : '' %>>
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Save permissions</button>
+  </div>
+</form>
+<% } %>
+<%- include('partials/footer') %>

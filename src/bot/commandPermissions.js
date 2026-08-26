@@ -8,6 +8,10 @@ const { CommandPermissions } = require('../db/repo');
 // dashboard's punishment form, so Discord's own permission bits are no
 // longer consulted for these actions at all: only the grants below (plus
 // the owner/Administrator bypass) decide who can do what.
+// Promote/demote aren't here -- they already have their own rank-based
+// permission model (only someone higher in the staff hierarchy than the
+// target can act on them, owner/Administrator bypass) which is a better fit
+// for that specific action than a flat role grant, so they're left alone.
 const ACTIONS = [
   { key: 'ban', label: 'Ban' },
   { key: 'unban', label: 'Unban' },
@@ -17,8 +21,6 @@ const ACTIONS = [
   { key: 'warn', label: 'Warn' },
   { key: 'clearwarnings', label: 'Clear warnings' },
   { key: 'purge', label: 'Purge messages' },
-  { key: 'promote', label: 'Promote staff' },
-  { key: 'demote', label: 'Demote staff' },
 ];
 const ACTION_KEYS = new Set(ACTIONS.map((a) => a.key));
 

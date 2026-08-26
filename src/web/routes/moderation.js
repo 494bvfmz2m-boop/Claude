@@ -1,9 +1,9 @@
 const express = require('express');
-const { PermissionFlagsBits } = require('discord.js');
 const client = require('../../bot/client');
 const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
 const { logAction, parseDuration, applyWarningThreshold, canActOn, buildPunishmentEmbed, sendPunishmentDM } = require('../../bot/moderation');
+const { canUseAction } = require('../../bot/commandPermissions');
 const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
@@ -12,24 +12,14 @@ const { requireArea } = require('../middleware/auth');
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('moderation'));
 
-const THRESHOLD_ACTIONS = new Set(['timeout', 'kick', 'ban']);
+const THRESHOLD_ACTIONS = new Set(['mute', 'kick', 'ban']);
 
-// The dashboard is reachable by anyone with Manage Server -- a much broader
-// permission than any one of these. Without this, a "helper" role given
-// Manage Server just to run the ticket system could also ban/kick/timeout
-// people from the dashboard even without Discord's Ban/Kick/Moderate Members
-// permission. This mirrors exactly what each slash command already requires
-// (see commands.js's setDefaultMemberPermissions), so Discord's own role
-// permissions are the single source of truth for who can do what -- not a
-// second, separate permission system to keep in sync.
-const ACTION_PERMISSION = {
-  ban: PermissionFlagsBits.BanMembers,
-  unban: PermissionFlagsBits.BanMembers,
-  kick: PermissionFlagsBits.KickMembers,
-  timeout: PermissionFlagsBits.ModerateMembers,
-  untimeout: PermissionFlagsBits.ModerateMembers,
-  warn: PermissionFlagsBits.ModerateMembers,
-};
+// Actual authorization for each of these lives entirely in the Permissions
+// page now (bot/commandPermissions.js) -- same allow-list the slash commands
+// check, so a role granted "ban" here can ban from either surface, and a
+// role NOT granted it can't, regardless of what real Discord permissions
+// that role happens to have.
+const KNOWN_ACTIONS = new Set(['ban', 'unban', 'kick', 'mute', 'unmute', 'warn']);
 
 // Blunts a stolen/leaked dashboard session (or a bug in a script someone
 // wrote against it) from mass-banning/kicking a server -- not a substitute
@@ -172,10 +162,10 @@ router.post('/moderation/thresholds/add', async (req, res) => {
   const action = req.body.action;
   const duration = (req.body.duration || '').trim();
 
-  if (Number.isInteger(count) && count > 0 && THRESHOLD_ACTIONS.has(action) && (action !== 'timeout' || parseDuration(duration))) {
+  if (Number.isInteger(count) && count > 0 && THRESHOLD_ACTIONS.has(action) && (action !== 'mute' || parseDuration(duration))) {
     const settings = GuildSettings.get(guild.id);
     const rest = settings.warning_thresholds.filter((t) => t.count !== count);
-    rest.push({ count, action, duration: action === 'timeout' ? duration : undefined });
+    rest.push({ count, action, duration: action === 'mute' ? duration : undefined });
     rest.sort((a, b) => a.count - b.count);
     GuildSettings.setWarningThresholds(guild.id, rest);
   }
@@ -219,12 +209,11 @@ router.post('/moderation/actions', async (req, res) => {
   // a member of this guild, treat them as unauthorized rather than allow it.
   const actingMember = await guild.members.fetch(moderator.id).catch(() => null);
 
-  const requiredPermission = ACTION_PERMISSION[action];
-  if (!requiredPermission) {
+  if (!KNOWN_ACTIONS.has(action)) {
     return redirectWithNotice(res, guild.id, false, 'Unknown action.');
   }
-  if (!actingMember || !actingMember.permissions.has(requiredPermission)) {
-    return redirectWithNotice(res, guild.id, false, "You don't have permission in Discord for that action (Manage Server alone isn't enough) -- ask an admin to grant you the matching Discord permission.");
+  if (!actingMember || !canUseAction(guild, actingMember, action)) {
+    return redirectWithNotice(res, guild.id, false, "You don't have permission for that action -- ask an admin to grant it from the Permissions page.");
   }
 
   if (action === 'unban') {
@@ -284,25 +273,25 @@ router.post('/moderation/actions', async (req, res) => {
       return redirectWithNotice(res, guild.id, true, `Kicked ${targetMember.user.tag}.`);
     }
 
-    if (action === 'timeout') {
+    if (action === 'mute') {
       const ms = parseDuration(req.body.duration);
       if (!ms) return redirectWithNotice(res, guild.id, false, 'Duration must look like 10m, 2h, or 1d (max 28d).');
       await targetMember.timeout(ms, reason || undefined);
       await logAction(guild, {
-        action: '🔇 Member timed out', target: targetMember.user, moderator, reason, source: 'dashboard',
+        action: '🔇 Member muted', target: targetMember.user, moderator, reason, source: 'dashboard',
         extra: [{ name: 'Duration', value: req.body.duration, inline: true }],
       });
       await sendPunishmentDM(targetMember.user, buildPunishmentEmbed({
-        action: 'timed out', emoji: '🔇', guildName: guild.name, reason,
+        action: 'muted', emoji: '🔇', guildName: guild.name, reason,
         extra: [{ name: 'Duration', value: req.body.duration, inline: true }],
       }));
-      return redirectWithNotice(res, guild.id, true, `Timed out ${targetMember.user.tag} for ${req.body.duration}.`);
+      return redirectWithNotice(res, guild.id, true, `Muted ${targetMember.user.tag} for ${req.body.duration}.`);
     }
 
-    if (action === 'untimeout') {
+    if (action === 'unmute') {
       await targetMember.timeout(null, reason || undefined);
-      await logAction(guild, { action: '🔊 Timeout removed', target: targetMember.user, moderator, reason, source: 'dashboard' });
-      return redirectWithNotice(res, guild.id, true, `Removed timeout for ${targetMember.user.tag}.`);
+      await logAction(guild, { action: '🔊 Member unmuted', target: targetMember.user, moderator, reason, source: 'dashboard' });
+      return redirectWithNotice(res, guild.id, true, `Unmuted ${targetMember.user.tag}.`);
     }
 
     if (action === 'warn') {

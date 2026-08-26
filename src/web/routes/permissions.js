@@ -1,7 +1,8 @@
 const express = require('express');
-const { DashboardRoleAccess } = require('../../db/repo');
+const { DashboardRoleAccess, CommandPermissions } = require('../../db/repo');
 const { getGuildOr404 } = require('../lib/getGuild');
-const { AREAS, AREA_KEYS } = require('../lib/dashboardAccess');
+const { AREAS } = require('../lib/dashboardAccess');
+const { ACTIONS } = require('../../bot/commandPermissions');
 
 const router = express.Router({ mergeParams: true });
 
@@ -15,42 +16,59 @@ router.use((req, res, next) => {
   return res.status(403).render('error', { message: "Only the server owner or someone with Manage Server can manage dashboard permissions." });
 });
 
-function rolesWithGrants(guild) {
-  const grants = new Map(DashboardRoleAccess.listForGuild(guild.id).map((g) => [g.roleId, new Set(g.areas)]));
+function nonEveryoneRoles(guild) {
   return [...guild.roles.cache.values()]
     .filter((r) => r.id !== guild.id) // skip @everyone -- granting it would hand access to the whole server
-    .sort((a, b) => b.position - a.position)
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      color: r.color !== 0 ? r.hexColor : '#99aab5',
-      areas: grants.get(r.id) || new Set(),
-    }));
+    .sort((a, b) => b.position - a.position);
+}
+
+function rolesWithGrants(guild) {
+  const areaGrants = new Map(DashboardRoleAccess.listForGuild(guild.id).map((g) => [g.roleId, new Set(g.areas)]));
+  const actionGrants = new Map();
+  CommandPermissions.listForGuild(guild.id).forEach(({ roleId, action }) => {
+    if (!actionGrants.has(roleId)) actionGrants.set(roleId, new Set());
+    actionGrants.get(roleId).add(action);
+  });
+
+  return nonEveryoneRoles(guild).map((r) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color !== 0 ? r.hexColor : '#99aab5',
+    areas: areaGrants.get(r.id) || new Set(),
+    actions: actionGrants.get(r.id) || new Set(),
+  }));
 }
 
 router.get('/permissions', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('permissions', { guild, roles: rolesWithGrants(guild), areas: AREAS });
+  res.render('permissions', { guild, roles: rolesWithGrants(guild), areas: AREAS, moderationActions: ACTIONS });
 });
 
 router.post('/permissions', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
+  const roles = nonEveryoneRoles(guild);
 
-  // One checkbox per role/area, named area_<areaKey>[] with the role id as
-  // the value -- matches how the form is laid out (a row per role).
-  const grants = [...guild.roles.cache.values()]
-    .filter((r) => r.id !== guild.id)
-    .map((r) => {
-      const areas = AREAS
-        .map((a) => a.key)
-        .filter((key) => [].concat(req.body[`area_${key}`] || []).includes(r.id));
-      return { roleId: r.id, areas };
-    })
+  // One checkbox per role/area (name="area_<key>[]", value=roleId) and per
+  // role/action (name="action_<key>[]", value=roleId) -- matches the grid
+  // layout, a row per role with a column per area/action.
+  const areaGrants = roles
+    .map((r) => ({
+      roleId: r.id,
+      areas: AREAS.map((a) => a.key).filter((key) => [].concat(req.body[`area_${key}`] || []).includes(r.id)),
+    }))
     .filter((g) => g.areas.length > 0);
 
-  DashboardRoleAccess.replaceAll(guild.id, grants);
+  const actionGrants = roles
+    .map((r) => ({
+      roleId: r.id,
+      actions: ACTIONS.map((a) => a.key).filter((key) => [].concat(req.body[`action_${key}`] || []).includes(r.id)),
+    }))
+    .filter((g) => g.actions.length > 0);
+
+  DashboardRoleAccess.replaceAll(guild.id, areaGrants);
+  CommandPermissions.replaceAll(guild.id, actionGrants);
   res.redirect(`/dashboard/${guild.id}/permissions`);
 });
 

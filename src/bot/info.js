@@ -1,5 +1,7 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getRankForRoleIds } = require('./cache');
+const { getMemberAccess } = require('../web/lib/dashboardAccess');
+const { ACTIONS, canUseAction } = require('./commandPermissions');
 
 const INFO_COLOR = '#5865F2';
 
@@ -23,10 +25,12 @@ async function handleInfo(interaction) {
   const perms = member.permissions;
   const isOwner = guild.ownerId === member.id;
   const isAdmin = perms.has(PermissionFlagsBits.Administrator);
-  const canUseDashboard = isOwner || perms.has(PermissionFlagsBits.ManageGuild);
 
   const rank = getRankForRoleIds(guild.id, [...member.roles.cache.keys()]);
   const rankRole = rank.roleId ? guild.roles.cache.get(rank.roleId) : null;
+
+  const dashAccess = await getMemberAccess(guild, member.id);
+  const grantedActions = ACTIONS.filter((a) => canUseAction(guild, member, a.key));
 
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${target.tag}`)
@@ -47,9 +51,19 @@ async function handleInfo(interaction) {
       },
       {
         name: 'Quellum dashboard',
-        value: canUseDashboard
-          ? '✅ Can log in and manage this server at bot.quellum.site'
-          : "❌ Can't access this server's dashboard (needs Manage Server)",
+        value: dashAccess.level === 'full'
+          ? '✅ Full access — can log in and manage this server at bot.quellum.site'
+          : dashAccess.level === 'limited'
+            ? `✅ Limited access — can log in and use: ${[...dashAccess.areas].join(', ')}`
+            : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",
+      },
+      {
+        name: 'Moderation commands',
+        value: isOwner || isAdmin
+          ? '✅ All of them (owner/Administrator)'
+          : grantedActions.length > 0
+            ? grantedActions.map((a) => `\`/${a.key}\``).join(', ')
+            : "None granted -- ask an admin to grant them from the Permissions page",
       },
       {
         name: 'Staff hierarchy',

@@ -134,7 +134,7 @@
           <div class="list-item-title">
             At <strong><%= t.count %></strong> warning<%= t.count === 1 ? '' : 's' %> →
             <span class="badge" style="margin-left:6px; text-transform:capitalize;"><%= t.action %></span>
-            <% if (t.action === 'timeout' && t.duration) { %><span class="hint" style="margin-left:6px;">for <%= t.duration %></span><% } %>
+            <% if ((t.action === 'mute' || t.action === 'timeout') && t.duration) { %><span class="hint" style="margin-left:6px;">for <%= t.duration %></span><% } %>
           </div>
           <form method="post" action="/dashboard/<%= guild.id %>/moderation/thresholds/remove" onsubmit="return confirm('Remove this auto-punishment?');">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -155,13 +155,13 @@
     <div>
       <label for="tAction" style="margin-top:0;">Action</label>
       <select id="tAction" name="action">
-        <option value="timeout">Timeout</option>
+        <option value="mute">Mute</option>
         <option value="kick">Kick</option>
         <option value="ban">Ban</option>
       </select>
     </div>
     <div>
-      <label for="tDuration" style="margin-top:0;">Duration (timeout only)</label>
+      <label for="tDuration" style="margin-top:0;">Duration (mute only)</label>
       <input type="text" id="tDuration" name="duration" placeholder="e.g. 1h" style="width:120px;">
     </div>
     <button class="btn" type="submit">Add</button>
@@ -171,18 +171,18 @@
 <div class="card" id="actions">
   <h2>⚡ Issue a punishment</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Runs the same as the matching slash command — bans/kicks/timeouts/warns actually happen in Discord,
-    and get logged below either way. You need the matching Discord permission yourself (Ban Members,
-    Kick Members, or Moderate Members) — having dashboard access via Manage Server isn't enough on its own.
+    Runs the same as the matching slash command — bans/kicks/mutes/warns actually happen in Discord,
+    and get logged below either way. Which of these you can use is controlled from the
+    <a href="/dashboard/<%= guild.id %>/permissions">Permissions</a> page, not your Discord permissions directly.
   </p>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/actions" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div>
       <label for="actionType" style="margin-top:0;">Action</label>
-      <select id="actionType" name="action" onchange="document.getElementById('durationField').style.display = this.value === 'timeout' ? '' : 'none';">
+      <select id="actionType" name="action" onchange="document.getElementById('durationField').style.display = this.value === 'mute' ? '' : 'none';">
         <option value="warn">Warn</option>
-        <option value="timeout">Timeout</option>
-        <option value="untimeout">Remove timeout</option>
+        <option value="mute">Mute</option>
+        <option value="unmute">Unmute</option>
         <option value="kick">Kick</option>
         <option value="ban">Ban</option>
         <option value="unban">Unban</option>

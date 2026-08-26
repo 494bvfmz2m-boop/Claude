@@ -17,6 +17,7 @@ const embedRoutes = require('./routes/embeds');
 const moderationRoutes = require('./routes/moderation');
 const mentionRoutes = require('./routes/mentions');
 const reactionRoleRoutes = require('./routes/reactionRoles');
+const permissionRoutes = require('./routes/permissions');
 
 function createApp() {
   const app = express();
@@ -82,9 +83,11 @@ function createApp() {
   guildRouter.use(moderationRoutes);
   guildRouter.use(mentionRoutes);
   guildRouter.use(reactionRoleRoutes);
+  guildRouter.use(permissionRoutes);
 
   // CSRF check on every state-changing POST under the dashboard
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
+    res.locals.dashboardAccess = req.dashboardAccess; // so header.ejs can hide nav links the user can't reach
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);

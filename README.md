@@ -105,9 +105,17 @@ their own Discord account and can only configure their own server.
   within servers it's in, nothing account-wide and nothing outside what a human mod
   could already do by hand.
 - **Dashboard punishments respect the same rank rule slash commands do.** Whether a
-  ban/kick/timeout/warning comes from Discord or the site, it's refused if the person
+  ban/kick/mute/warning comes from Discord or the site, it's refused if the person
   issuing it doesn't outrank the target (server owners and Administrators bypass this,
   same as always) — a dashboard login with just Manage Server can't reach past that.
+- **Who can use each moderation command (and dashboard section) is decided entirely
+  by the Permissions page**, not by handing out real Discord permissions. The owner
+  and real Administrators always have full access; everyone else needs their role
+  explicitly granted each action (e.g. a role can be allowed to `/mute` but not
+  `/ban`, or `/ban` but not `/unban`) and each dashboard area (Tickets, Embeds,
+  Reaction Roles, Moderation, Settings). Only the owner/Manage Server can open the
+  Permissions page itself — it's never delegatable, so a granted role can't hand
+  itself more access.
 - **The dashboard rate-limits punishment actions** per person (a burst cap, not a
   hard ceiling) so a leaked session cookie can't be scripted into mass-banning a
   server before anyone notices.

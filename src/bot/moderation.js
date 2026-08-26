@@ -1,6 +1,11 @@
 const { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Warnings, GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
+const { canUseAction } = require('./commandPermissions');
+
+function denyReply(interaction, command) {
+  return interaction.reply({ content: `You don't have permission to use \`/${command}\`. Ask an admin to grant it from the dashboard's Permissions page.`, ephemeral: true });
+}
 
 const MOD_COLOR = '#ed4245';
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // Discord's own cap
@@ -69,6 +74,8 @@ function parseDuration(input) {
 }
 
 async function handleBan(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'ban')) return denyReply(interaction, 'ban');
+
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
   const deleteDays = interaction.options.getInteger('delete_days') || 0;
@@ -90,6 +97,8 @@ async function handleBan(interaction) {
 }
 
 async function handleUnban(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'unban')) return denyReply(interaction, 'unban');
+
   const userId = interaction.options.getString('user_id').trim();
   const reason = interaction.options.getString('reason');
 
@@ -104,6 +113,8 @@ async function handleUnban(interaction) {
 }
 
 async function handleKick(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'kick')) return denyReply(interaction, 'kick');
+
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
 
@@ -126,7 +137,9 @@ async function handleKick(interaction) {
   await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'kicked', emoji: '👢', guildName: interaction.guild.name, reason }));
 }
 
-async function handleTimeout(interaction) {
+async function handleMute(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'mute')) return denyReply(interaction, 'mute');
+
   const user = interaction.options.getUser('user');
   const durationInput = interaction.options.getString('duration');
   const reason = interaction.options.getString('reason');
@@ -141,24 +154,26 @@ async function handleTimeout(interaction) {
     return interaction.reply({ content: "They're not in this server.", ephemeral: true });
   }
   if (!canActOn(interaction.guild, interaction.member, targetMember)) {
-    return interaction.reply({ content: "You can't time out someone with an equal or higher role than you.", ephemeral: true });
+    return interaction.reply({ content: "You can't mute someone with an equal or higher role than you.", ephemeral: true });
   }
 
   try {
     await targetMember.timeout(ms, reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't time them out: ${err.message}`, ephemeral: true });
+    return interaction.reply({ content: `Couldn't mute them: ${err.message}`, ephemeral: true });
   }
 
-  await interaction.reply({ content: `🔇 Timed out **${user.tag}** for ${durationInput}.${reason ? ` Reason: ${reason}` : ''}` });
-  await logAction(interaction.guild, { action: '🔇 Member timed out', target: user, moderator: interaction.user, reason, extra: [{ name: 'Duration', value: durationInput, inline: true }] });
+  await interaction.reply({ content: `🔇 Muted **${user.tag}** for ${durationInput}.${reason ? ` Reason: ${reason}` : ''}` });
+  await logAction(interaction.guild, { action: '🔇 Member muted', target: user, moderator: interaction.user, reason, extra: [{ name: 'Duration', value: durationInput, inline: true }] });
   await sendPunishmentDM(user, buildPunishmentEmbed({
-    action: 'timed out', emoji: '🔇', guildName: interaction.guild.name, reason,
+    action: 'muted', emoji: '🔇', guildName: interaction.guild.name, reason,
     extra: [{ name: 'Duration', value: durationInput, inline: true }],
   }));
 }
 
-async function handleUntimeout(interaction) {
+async function handleUnmute(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'unmute')) return denyReply(interaction, 'unmute');
+
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
 
@@ -170,11 +185,11 @@ async function handleUntimeout(interaction) {
   try {
     await targetMember.timeout(null, reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't remove their timeout: ${err.message}`, ephemeral: true });
+    return interaction.reply({ content: `Couldn't remove their mute: ${err.message}`, ephemeral: true });
   }
 
-  await interaction.reply({ content: `🔊 Removed timeout for **${user.tag}**.` });
-  await logAction(interaction.guild, { action: '🔊 Timeout removed', target: user, moderator: interaction.user, reason });
+  await interaction.reply({ content: `🔊 Unmuted **${user.tag}**.` });
+  await logAction(interaction.guild, { action: '🔊 Member unmuted', target: user, moderator: interaction.user, reason });
 }
 
 // If the server owner set up "N warnings -> action" thresholds on the
@@ -198,14 +213,14 @@ async function applyWarningThreshold(guild, targetMember, moderator, count) {
       await logAction(guild, { action: '🔨 Auto-ban (warnings)', target: targetMember.user, moderator, reason });
       return `and was automatically banned (${count} warnings)`;
     }
-    if (match.action === 'timeout') {
+    if (match.action === 'mute' || match.action === 'timeout') { // 'timeout' is the legacy stored value, kept for old saved thresholds
       const ms = parseDuration(match.duration) || 3600000;
       await targetMember.timeout(ms, reason);
       await logAction(guild, {
-        action: '🔇 Auto-timeout (warnings)', target: targetMember.user, moderator, reason,
+        action: '🔇 Auto-mute (warnings)', target: targetMember.user, moderator, reason,
         extra: [{ name: 'Duration', value: match.duration || '1h', inline: true }],
       });
-      return `and was automatically timed out (${count} warnings)`;
+      return `and was automatically muted (${count} warnings)`;
     }
   } catch {
     return null; // couldn't apply (missing perms, role hierarchy, member left, etc.) -- the warning itself still stands
@@ -214,6 +229,8 @@ async function applyWarningThreshold(guild, targetMember, moderator, count) {
 }
 
 async function handleWarn(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'warn')) return denyReply(interaction, 'warn');
+
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
 
@@ -253,6 +270,8 @@ async function handleWarnings(interaction) {
 }
 
 async function handleClearWarnings(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'clearwarnings')) return denyReply(interaction, 'clearwarnings');
+
   const user = interaction.options.getUser('user');
   const count = Warnings.clearForUser(interaction.guildId, user.id);
 
@@ -293,6 +312,8 @@ async function purgeMessages(channel, { limit = Infinity, userId } = {}) {
 }
 
 async function handlePurge(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'purge')) return denyReply(interaction, 'purge');
+
   const amount = interaction.options.getInteger('amount');
   const user = interaction.options.getUser('user');
 
@@ -346,8 +367,8 @@ module.exports = {
   ban: handleBan,
   unban: handleUnban,
   kick: handleKick,
-  timeout: handleTimeout,
-  untimeout: handleUntimeout,
+  mute: handleMute,
+  unmute: handleUnmute,
   warn: handleWarn,
   warnings: handleWarnings,
   clearwarnings: handleClearWarnings,
