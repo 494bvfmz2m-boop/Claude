@@ -9,6 +9,7 @@
 </p>
 
 <button type="button" id="replayTourBtn" class="btn btn-ghost btn-sm" style="margin-bottom:20px;">Take the tour</button>
+<button type="button" id="replayIntroBtn" class="btn btn-ghost btn-sm" style="margin-bottom:20px; margin-left:10px;">Watch intro video</button>
 
 <% if (guilds.length === 0) { %>
   <div class="card empty">
@@ -48,6 +49,7 @@
 <script src="/js/tour.js"></script>
 <script>
 (function () {
+  var SEEN_INTRO_VIDEO = 'modsentryIntroVideoSeen';
   var SEEN_SERVER_LIST = 'modsentryTourServerListSeen';
   var SEEN_GUILD_NAV = 'modsentryTourGuildNavSeen';
 
@@ -66,6 +68,55 @@
     }).start();
   }
 
+  function maybeStartTour() {
+    var seen = false;
+    try { seen = !!localStorage.getItem(SEEN_SERVER_LIST); } catch (e) {}
+    if (!seen) setTimeout(startTour, 900);
+  }
+
+  function showIntroVideo(done) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modsentry-intro-overlay';
+
+    var box = document.createElement('div');
+    box.className = 'modsentry-intro-box';
+
+    var head = document.createElement('div');
+    head.className = 'modsentry-intro-head';
+    var title = document.createElement('div');
+    title.className = 'modsentry-intro-title';
+    title.textContent = 'Welcome to ModSentry';
+    var skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'btn btn-ghost btn-sm';
+    skipBtn.textContent = 'Skip intro';
+    head.appendChild(title);
+    head.appendChild(skipBtn);
+
+    var video = document.createElement('video');
+    video.src = '/video/modsentry-intro.mp4';
+    video.controls = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.muted = true; // no audio track on this clip, but muted keeps autoplay reliable regardless
+
+    box.appendChild(head);
+    box.appendChild(video);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var finished = false;
+    function close() {
+      if (finished) return;
+      finished = true;
+      try { localStorage.setItem(SEEN_INTRO_VIDEO, '1'); } catch (e) {}
+      overlay.remove();
+      done();
+    }
+    video.addEventListener('ended', close);
+    skipBtn.addEventListener('click', close);
+  }
+
   var replayBtn = document.getElementById('replayTourBtn');
   if (replayBtn) {
     replayBtn.addEventListener('click', function () {
@@ -74,11 +125,19 @@
     });
   }
 
-  var seen = false;
-  try { seen = !!localStorage.getItem(SEEN_SERVER_LIST); } catch (e) {}
-  if (!seen) {
-    // Give the entrance splash screen (~800ms) time to clear first.
-    setTimeout(startTour, 900);
+  var replayIntroBtn = document.getElementById('replayIntroBtn');
+  if (replayIntroBtn) {
+    replayIntroBtn.addEventListener('click', function () {
+      showIntroVideo(function () {});
+    });
+  }
+
+  var introSeen = false;
+  try { introSeen = !!localStorage.getItem(SEEN_INTRO_VIDEO); } catch (e) {}
+  if (!introSeen) {
+    showIntroVideo(maybeStartTour);
+  } else {
+    maybeStartTour();
   }
 })();
 </script>

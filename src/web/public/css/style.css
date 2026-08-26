@@ -68,6 +68,21 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 
 .brand-mark { display: inline-block; width: 30px; height: 30px; flex-shrink: 0; }
 
+.modsentry-intro-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 16, 32, .92);
+  padding: 24px;
+}
+.modsentry-intro-box {
+  width: 100%; max-width: 860px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+}
+.modsentry-intro-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.modsentry-intro-title { font-weight: 800; font-size: 18px; color: var(--text-bright); }
+.modsentry-intro-box video { width: 100%; display: block; border-radius: 10px; background: #000; }
+
 .modsentry-splash {
   position: fixed;
   inset: 0;
