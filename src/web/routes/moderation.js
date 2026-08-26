@@ -88,6 +88,14 @@ router.post('/moderation/swear-filter', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/moderation`);
 });
 
+router.post('/moderation/link-filter', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  GuildSettings.setLinkFilter(guild.id, req.body.mode);
+  cache.invalidateLinkFilter(guild.id);
+  res.redirect(`/dashboard/${guild.id}/moderation`);
+});
+
 router.post('/moderation/staff-list-channel', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;

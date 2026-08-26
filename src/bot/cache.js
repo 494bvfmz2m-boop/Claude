@@ -4,7 +4,14 @@ const { GuildSettings, StaffRanks } = require('../db/repo');
 // don't hit SQLite on every single message / role change. Invalidated by the
 // dashboard whenever the underlying settings are saved.
 const swearFilterCache = new Map();
+const linkFilterCache = new Map();
 const staffRanksCache = new Map();
+
+// Matches discord.gg/xxx and discord.com(app.com)/invite/xxx specifically,
+// vs. INVITE_URL_REGEX -- kept as two patterns so "invites only" mode
+// doesn't also catch a plain link to, say, a screenshot on Discord's CDN.
+const INVITE_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord(?:app)?\.com\/invite)\/[a-zA-Z0-9-]+/i;
+const ANY_URL_REGEX = /https?:\/\/\S+/i;
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -35,6 +42,30 @@ function testSwearFilter(guildId, content) {
 
 function invalidateSwearFilter(guildId) {
   swearFilterCache.delete(guildId);
+}
+
+function buildLinkFilter(guildId) {
+  return { mode: GuildSettings.get(guildId).link_filter_mode };
+}
+
+function getLinkFilter(guildId) {
+  if (!linkFilterCache.has(guildId)) {
+    linkFilterCache.set(guildId, buildLinkFilter(guildId));
+  }
+  return linkFilterCache.get(guildId);
+}
+
+// Returns the matched link text, or null if nothing should be filtered.
+function testLinkFilter(guildId, content) {
+  const { mode } = getLinkFilter(guildId);
+  if (mode === 'off' || !content) return null;
+  const regex = mode === 'invites' ? INVITE_URL_REGEX : ANY_URL_REGEX;
+  const match = regex.exec(content);
+  return match ? match[0] : null;
+}
+
+function invalidateLinkFilter(guildId) {
+  linkFilterCache.delete(guildId);
 }
 
 function getStaffRanks(guildId) {
@@ -74,5 +105,6 @@ function getMaxRank(guildId) {
 
 module.exports = {
   getSwearFilter, testSwearFilter, invalidateSwearFilter,
+  getLinkFilter, testLinkFilter, invalidateLinkFilter,
   getStaffRanks, invalidateStaffRanks, getRankForRoleIds, getRoleIdForRank, getMaxRank,
 };

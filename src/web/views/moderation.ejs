@@ -34,6 +34,29 @@
   </form>
 </div>
 
+<div class="card">
+  <h2>🔗 Link filter</h2>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/link-filter">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="linkFilterMode">Mode</label>
+    <select id="linkFilterMode" name="mode">
+      <option value="off" <%= settings.link_filter_mode === 'off' ? 'selected' : '' %>>Off</option>
+      <option value="invites" <%= settings.link_filter_mode === 'invites' ? 'selected' : '' %>>Block Discord invite links only</option>
+      <option value="all" <%= settings.link_filter_mode === 'all' ? 'selected' : '' %>>Block all links</option>
+    </select>
+    <div class="hint">
+      "Invite links only" catches discord.gg and discord.com/invite links — handy for blocking server
+      advertising without stopping people sharing normal links. Staff with Manage Messages are never
+      filtered, and deletions get logged the same way the swear filter's do.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
 <div class="card" id="hierarchy">
   <h2>👮 Staff List</h2>
   <p class="hint" style="margin-bottom:14px;">

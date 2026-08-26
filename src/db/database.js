@@ -176,5 +176,6 @@ addColumnIfMissing('guild_settings', 'welcome_message', 'TEXT');
 addColumnIfMissing('guild_settings', 'leave_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'leave_message', 'TEXT');
 addColumnIfMissing('guild_settings', 'autorole_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'link_filter_mode', "TEXT NOT NULL DEFAULT 'off'");
 
 module.exports = db;

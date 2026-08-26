@@ -6,6 +6,7 @@ const client = require('./bot/client');
 const { register: registerInteractions } = require('./bot/interactions');
 const { registerAllGuildCommands, registerCommandsForGuild } = require('./bot/commands');
 const { register: registerSwearFilter } = require('./bot/swearFilter');
+const { register: registerLinkFilter } = require('./bot/linkFilter');
 const { register: registerStaffList, warmUpAndRefreshAll } = require('./bot/staffList');
 const { register: registerReactionRoles } = require('./bot/reactionRoles');
 const { register: registerDmGreeting } = require('./bot/dmGreeting');
@@ -25,6 +26,7 @@ if (!config.discordClientSecret || !config.dashboardUrl) {
 
 registerInteractions(client);
 registerSwearFilter(client);
+registerLinkFilter(client);
 registerStaffList(client);
 registerReactionRoles(client);
 registerDmGreeting(client);

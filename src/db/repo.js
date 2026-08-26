@@ -24,7 +24,7 @@ const GuildSettings = {
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
         staff_list_color: '#5865F2', warning_thresholds: [], ticket_banned_role_id: null,
         welcome_channel_id: null, welcome_message: null, leave_channel_id: null, leave_message: null,
-        autorole_id: null,
+        autorole_id: null, link_filter_mode: 'off',
       };
     }
     return {
@@ -94,6 +94,12 @@ const GuildSettings = {
     ensureGuildSettingsRow(guildId);
     db.prepare("UPDATE guild_settings SET autorole_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
       .run(roleId || null, guildId);
+  },
+  setLinkFilter(guildId, mode) {
+    ensureGuildSettingsRow(guildId);
+    const safeMode = ['off', 'invites', 'all'].includes(mode) ? mode : 'off';
+    db.prepare("UPDATE guild_settings SET link_filter_mode = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(safeMode, guildId);
   },
 };
 
