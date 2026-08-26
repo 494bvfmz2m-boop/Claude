@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Warnings, GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 
@@ -237,20 +237,86 @@ async function handleClearWarnings(interaction) {
   await logAction(interaction.guild, { action: '🧹 Warnings cleared', target: user, moderator: interaction.user, reason: `${count} warning(s) cleared` });
 }
 
+const PURGE_BATCH_CAP = 50; // safety cap on "delete everything" -- up to ~5000 messages per run
+
+// Shared by the bounded (/purge 10) and unbounded (/purge, confirmed) paths.
+// Loops in batches of 100 (Discord's own bulkDelete cap), stopping once the
+// requested amount is hit, the channel runs out of messages, or bulkDelete
+// stops removing anything (it silently skips messages older than 14 days,
+// which is how we detect we've hit that wall and should give up cleanly).
+async function purgeMessages(channel, { limit = Infinity, userId } = {}) {
+  let totalDeleted = 0;
+  let batches = 0;
+
+  while (totalDeleted < limit && batches < PURGE_BATCH_CAP) {
+    const fetchSize = Math.min(100, limit - totalDeleted);
+    const messages = await channel.messages.fetch({ limit: fetchSize });
+    if (messages.size === 0) break;
+
+    const toDelete = userId ? messages.filter((m) => m.author.id === userId) : messages;
+    batches++;
+
+    if (toDelete.size === 0) {
+      if (messages.size < fetchSize) break; // ran out of channel history
+      continue;
+    }
+
+    const deleted = await channel.bulkDelete(toDelete, true).catch(() => new Map());
+    totalDeleted += deleted.size;
+    if (deleted.size === 0) break; // nothing left that's under 14 days old
+  }
+
+  return totalDeleted;
+}
+
 async function handlePurge(interaction) {
   const amount = interaction.options.getInteger('amount');
   const user = interaction.options.getUser('user');
 
-  await interaction.deferReply({ ephemeral: true });
+  if (amount === null) {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`purge_all_confirm:${interaction.user.id}:${user ? user.id : '0'}`).setLabel('Delete everything').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`purge_all_cancel:${interaction.user.id}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
+    );
+    return interaction.reply({
+      content: `⚠️ This deletes **every message** in this channel that Discord allows bulk-deleting (under 14 days old)${user ? ` from **${user.tag}**` : ''} — this can't be undone. Continue?`,
+      components: [row],
+      ephemeral: true,
+    });
+  }
 
+  await interaction.deferReply({ ephemeral: true });
   try {
-    const messages = await interaction.channel.messages.fetch({ limit: amount });
-    const toDelete = user ? messages.filter((m) => m.author.id === user.id) : messages;
-    const deleted = await interaction.channel.bulkDelete(toDelete, true);
-    await interaction.editReply({ content: `🧹 Deleted ${deleted.size} message${deleted.size === 1 ? '' : 's'}.` });
+    const deleted = await purgeMessages(interaction.channel, { limit: amount, userId: user?.id });
+    await interaction.editReply({ content: `🧹 Deleted ${deleted} message${deleted === 1 ? '' : 's'}.` });
+    await logAction(interaction.guild, {
+      action: '🧹 Channel purged', target: user || null, moderator: interaction.user,
+      reason: `${deleted} message(s) deleted in #${interaction.channel.name}`,
+    });
   } catch (err) {
     await interaction.editReply({ content: `Couldn't delete messages (Discord only allows bulk-deleting messages under 14 days old): ${err.message}` });
   }
+}
+
+async function confirmPurgeAll(interaction, invokerId, targetUserId) {
+  if (interaction.user.id !== invokerId) {
+    return interaction.reply({ content: "Only the person who ran /purge can confirm this.", ephemeral: true });
+  }
+  await interaction.update({ content: '🧹 Deleting everything… this may take a moment for a large channel.', components: [] });
+
+  const deleted = await purgeMessages(interaction.channel, { limit: Infinity, userId: targetUserId || undefined });
+  await interaction.editReply({ content: `🧹 Deleted ${deleted} message${deleted === 1 ? '' : 's'}. Anything older than 14 days couldn't be bulk-deleted and was left alone.` });
+  await logAction(interaction.guild, {
+    action: '🧹 Channel purged (all)', target: targetUserId || null, moderator: interaction.user,
+    reason: `${deleted} message(s) deleted in #${interaction.channel.name}`,
+  });
+}
+
+async function cancelPurgeAll(interaction, invokerId) {
+  if (interaction.user.id !== invokerId) {
+    return interaction.reply({ content: "Only the person who ran /purge can cancel this.", ephemeral: true });
+  }
+  await interaction.update({ content: 'Cancelled — nothing was deleted.', components: [] });
 }
 
 module.exports = {
@@ -267,4 +333,7 @@ module.exports = {
   logAction,
   parseDuration,
   applyWarningThreshold,
+  confirmPurgeAll,
+  cancelPurgeAll,
+  purgeMessages,
 };

@@ -31,9 +31,12 @@ their own Discord account and can only configure their own server.
   it, and pings the new team — all in the same channel, so nothing in the
   conversation is lost.
 - **Moderation** — `/ban`, `/unban`, `/kick`, `/timeout`, `/untimeout`, `/warn`,
-  `/warnings`, `/clearwarnings`, `/purge`, all also available as a form right on the
-  **Moderation** tab of the dashboard — same real Discord actions either way, so staff
-  without Discord open can still act. Every action (plus swear filter deletions and
+  `/warnings`, `/clearwarnings`, `/purge`. Ban/unban/kick/timeout/untimeout/warn are
+  also available as a form right on the **Moderation** tab of the dashboard — same
+  real Discord actions either way, so staff without Discord open can still act.
+  `/purge 10` deletes the last 10 messages; `/purge` with no number deletes everything
+  in the channel Discord allows bulk-deleting (under 14 days old), after a confirm
+  button so it can't happen by accident. Every action (plus swear filter deletions and
   promotions/demotions) can log to a moderation channel you pick on the dashboard, and
   is recorded either way in a searchable-by-eye log on that same page. Timeouts use
   Discord's own native timeout feature, not a custom mute role. Set up **auto-punishments**

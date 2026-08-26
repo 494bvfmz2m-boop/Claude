@@ -13,6 +13,9 @@ delete chatCommandHandlers.canActOn;
 delete chatCommandHandlers.logAction;
 delete chatCommandHandlers.parseDuration;
 delete chatCommandHandlers.applyWarningThreshold;
+delete chatCommandHandlers.confirmPurgeAll;
+delete chatCommandHandlers.cancelPurgeAll;
+delete chatCommandHandlers.purgeMessages;
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {
@@ -33,6 +36,16 @@ function register(client) {
         if (action === 'ticket_claim') {
           const [ticketDbId] = rest;
           return claimTicket(interaction, Number(ticketDbId));
+        }
+
+        if (action === 'purge_all_confirm') {
+          const [invokerId, targetUserId] = rest;
+          return moderation.confirmPurgeAll(interaction, invokerId, targetUserId === '0' ? null : targetUserId);
+        }
+
+        if (action === 'purge_all_cancel') {
+          const [invokerId] = rest;
+          return moderation.cancelPurgeAll(interaction, invokerId);
         }
 
         if (action === 'ticket_close') {

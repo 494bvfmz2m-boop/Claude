@@ -63,9 +63,9 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('purge')
-    .setDescription('Bulk-delete recent messages in this channel')
+    .setDescription('Bulk-delete messages in this channel')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addIntegerOption((o) => o.setName('amount').setDescription('How many messages (1-100)').setRequired(true).setMinValue(1).setMaxValue(100))
+    .addIntegerOption((o) => o.setName('amount').setDescription('How many messages (1-100) -- leave blank to delete everything, with a confirmation first').setRequired(false).setMinValue(1).setMaxValue(100))
     .addUserOption((o) => o.setName('user').setDescription('Only delete messages from this user').setRequired(false)),
 
   new SlashCommandBuilder()
