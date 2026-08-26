@@ -17,7 +17,11 @@
     <% guilds.forEach(g => { %>
       <a class="guild-card" href="/dashboard/<%= g.id %>/tickets">
         <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
-        <div><%= g.name %></div>
+        <div class="guild-card-name"><%= g.name %></div>
+        <div class="guild-card-meta">
+          <% if (g.memberCount !== null) { %><span><%= g.memberCount.toLocaleString() %> members</span><% } %>
+          <% if (g.openTickets > 0) { %><span class="guild-card-tickets"><%= g.openTickets %> open ticket<%= g.openTickets === 1 ? '' : 's' %></span><% } %>
+        </div>
       </a>
     <% }) %>
   </div>

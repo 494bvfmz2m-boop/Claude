@@ -282,7 +282,12 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 }
 .guild-card:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-3px); box-shadow: var(--shadow-glow); }
 .guild-card img { width: 56px; height: 56px; border-radius: 50%; margin-bottom: 12px; background: var(--bg-input); box-shadow: 0 0 0 3px var(--bg-elevated-2); }
-.guild-card div { font-weight: 700; font-size: 14px; }
+.guild-card-name { font-weight: 700; font-size: 14px; }
+.guild-card-meta {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted);
+}
+.guild-card-tickets { color: var(--accent); }
 
 .login-wrap { max-width: 360px; margin: 100px auto; }
 .login-wrap .card { padding: 32px; }

@@ -2,6 +2,7 @@ const express = require('express');
 const client = require('../../bot/client');
 const { buildGenericInviteUrl } = require('../lib/discordOAuth');
 const { getMemberAccess } = require('../lib/dashboardAccess');
+const { Tickets } = require('../../db/repo');
 
 const router = express.Router();
 
@@ -23,7 +24,16 @@ router.get('/', async (req, res) => {
     .filter((g, i) => grantedChecks[i].level === 'limited')
     .map((g) => ({ id: g.id, name: g.name, iconURL: g.iconURL({ size: 64 }) }));
 
-  const guilds = [...owned, ...granted].sort((a, b) => a.name.localeCompare(b.name));
+  const guilds = [...owned, ...granted]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((g) => {
+      const live = client.guilds.cache.get(g.id);
+      return {
+        ...g,
+        memberCount: live ? live.memberCount : null,
+        openTickets: Tickets.countOpenForGuild(g.id),
+      };
+    });
 
   res.render('dashboard', { guilds, inviteUrl: buildGenericInviteUrl(), botReady: client.isReady() });
 });

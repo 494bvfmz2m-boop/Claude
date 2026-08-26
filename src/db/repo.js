@@ -252,6 +252,9 @@ const Tickets = {
   listForGuild(guildId, limit = 50) {
     return db.prepare('SELECT * FROM tickets WHERE guild_id = ? ORDER BY id DESC LIMIT ?').all(guildId, limit);
   },
+  countOpenForGuild(guildId) {
+    return db.prepare("SELECT COUNT(*) AS n FROM tickets WHERE guild_id = ? AND status != 'closed'").get(guildId).n;
+  },
   clearClosedForGuild(guildId) {
     return db.prepare("DELETE FROM tickets WHERE guild_id = ? AND status = 'closed'").run(guildId).changes;
   },
