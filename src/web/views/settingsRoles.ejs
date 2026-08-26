@@ -1,0 +1,37 @@
+<%- include('partials/header', { title: 'Roles', guild }) %>
+<a href="/dashboard/<%= guild.id %>/settings" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Settings</a>
+<h1>Roles</h1>
+<p class="subtitle">The ticket-banned role and the role new members get automatically.</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/roles">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="ticketBannedRoleId">Ticket-banned role</label>
+  <select id="ticketBannedRoleId" name="ticketBannedRoleId">
+    <option value="">— None (no one is blocked from opening tickets) —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= settings.ticket_banned_role_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">
+    Give this role to anyone who's abusing the ticket system — while they have it, opening a ticket
+    (from any panel) is blocked with a message. Remove the role to restore their access.
+  </div>
+
+  <label for="autoroleId">Role to give new members</label>
+  <select id="autoroleId" name="autoroleId">
+    <option value="">— None (no role is auto-assigned) —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= settings.autorole_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">
+    Given automatically the moment someone joins. Make sure Quellum's role is dragged above it
+    (Server Settings → Roles) or it won't be able to assign it.
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Save</button>
+  </div>
+</form>
+<%- include('partials/footer') %>

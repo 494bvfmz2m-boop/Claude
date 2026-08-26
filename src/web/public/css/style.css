@@ -292,6 +292,26 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 }
 .subnav a:hover { color: var(--text-bright); border-color: var(--border-bright); background: var(--bg-elevated-2); text-decoration: none; }
 
+/* ---------- Nav-card list (overview page -> small card -> full page) ---------- */
+.nav-card-search { margin-bottom: 16px; }
+.nav-card-list { display: flex; flex-direction: column; gap: 10px; }
+.nav-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px; text-decoration: none; color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.nav-card:hover { border-color: var(--accent); transform: translateX(2px); text-decoration: none; }
+.nav-card-body { min-width: 0; }
+.nav-card-title { font-weight: 700; color: var(--text-bright); font-size: 15.5px; margin-bottom: 4px; }
+.nav-card-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.nav-card-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.nav-card-status { font-size: 12px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.nav-card-status.all-set { color: var(--success); }
+.nav-card-arrow { color: var(--text-muted); flex-shrink: 0; }
+.nav-card-empty { color: var(--text-muted); font-size: 14px; padding: 20px 4px; }
+
 .guild-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .guild-card {
   background: var(--bg-elevated);

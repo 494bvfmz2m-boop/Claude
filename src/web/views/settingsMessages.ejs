@@ -1,0 +1,24 @@
+<%- include('partials/header', { title: 'Messages', guild }) %>
+<a href="/dashboard/<%= guild.id %>/settings" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Settings</a>
+<h1>Messages</h1>
+<p class="subtitle">What gets said when someone joins or leaves. Channels are set separately, under Settings → Channels.</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/messages">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="welcomeMessage">Welcome message</label>
+  <textarea id="welcomeMessage" name="welcomeMessage" placeholder="Welcome {user} to **{server}**! We're now at {membercount} members."><%= settings.welcome_message || '' %></textarea>
+  <div class="hint">
+    Placeholders: <code>{user}</code> (mention), <code>{username}</code>, <code>{server}</code>, <code>{membercount}</code>.
+    Leave blank to use the default message above.
+  </div>
+
+  <label for="leaveMessage">Leave message</label>
+  <textarea id="leaveMessage" name="leaveMessage" placeholder="**{username}** has left **{server}**. Now at {membercount} members."><%= settings.leave_message || '' %></textarea>
+  <div class="hint">Same placeholders as above.</div>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Save</button>
+  </div>
+</form>
+<%- include('partials/footer') %>

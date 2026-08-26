@@ -76,19 +76,25 @@ const GuildSettings = {
     db.prepare("UPDATE guild_settings SET ticket_banned_role_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
       .run(roleId || null, guildId);
   },
-  setWelcome(guildId, { channelId, message }) {
+  setWelcomeChannel(guildId, channelId) {
     ensureGuildSettingsRow(guildId);
-    db.prepare(`
-      UPDATE guild_settings SET welcome_channel_id = ?, welcome_message = ?, updated_at = datetime('now')
-      WHERE guild_id = ?
-    `).run(channelId || null, message || null, guildId);
+    db.prepare("UPDATE guild_settings SET welcome_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(channelId || null, guildId);
   },
-  setLeave(guildId, { channelId, message }) {
+  setWelcomeMessage(guildId, message) {
     ensureGuildSettingsRow(guildId);
-    db.prepare(`
-      UPDATE guild_settings SET leave_channel_id = ?, leave_message = ?, updated_at = datetime('now')
-      WHERE guild_id = ?
-    `).run(channelId || null, message || null, guildId);
+    db.prepare("UPDATE guild_settings SET welcome_message = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(message || null, guildId);
+  },
+  setLeaveChannel(guildId, channelId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET leave_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(channelId || null, guildId);
+  },
+  setLeaveMessage(guildId, message) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET leave_message = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(message || null, guildId);
   },
   setAutorole(guildId, roleId) {
     ensureGuildSettingsRow(guildId);

@@ -1,0 +1,42 @@
+<%- include('partials/header', { title: 'Settings', guild }) %>
+<h1>Settings</h1>
+<p class="subtitle">Server-wide options for this bot, grouped by type.</p>
+
+<div class="nav-card-search">
+  <input type="text" id="settingsSearch" placeholder="Search settings…" autocomplete="off">
+</div>
+
+<div class="nav-card-list" id="settingsList">
+  <% categories.forEach(c => { %>
+    <a class="nav-card" href="/dashboard/<%= guild.id %>/settings/<%= c.id %>" data-search="<%= c.label.toLowerCase() %> <%= c.desc.toLowerCase() %>">
+      <div class="nav-card-body">
+        <div class="nav-card-title"><%= c.label %></div>
+        <div class="nav-card-desc"><%= c.desc %></div>
+      </div>
+      <div class="nav-card-right">
+        <span class="nav-card-status <%= c.set === c.total ? 'all-set' : '' %>"><%= c.set %>/<%= c.total %> set</span>
+        <svg class="nav-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </a>
+  <% }) %>
+</div>
+<p class="nav-card-empty" id="settingsEmpty" style="display:none;">No settings match your search.</p>
+
+<script>
+(function () {
+  var input = document.getElementById('settingsSearch');
+  var cards = [].slice.call(document.querySelectorAll('#settingsList .nav-card'));
+  var empty = document.getElementById('settingsEmpty');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    cards.forEach(function (card) {
+      var match = !q || card.dataset.search.indexOf(q) !== -1;
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    empty.style.display = visible === 0 ? '' : 'none';
+  });
+})();
+</script>
+<%- include('partials/footer') %>
