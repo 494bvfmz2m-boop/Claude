@@ -3,12 +3,14 @@ const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType }
 const moderation = require('./moderation');
 const promotion = require('./promotion');
 const info = require('./info');
+const introduction = require('./introduction');
 
 const chatCommandHandlers = {
   change: startChangeType,
   ...moderation,
   ...promotion,
   ...info,
+  ...introduction,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;

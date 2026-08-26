@@ -82,6 +82,10 @@ const commands = [
     .setName('info')
     .setDescription('See what access you (or someone else) have -- permissions, dashboard access, staff rank')
     .addUserOption((o) => o.setName('user').setDescription('Check someone else instead of yourself').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('introduction')
+    .setDescription('Have Quellum introduce itself -- what it does, how to set it up, and its commands'),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {
