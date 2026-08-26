@@ -12,7 +12,7 @@
 </head>
 <body>
 <div id="modsentry-splash" class="modsentry-splash" aria-hidden="true">
-  <img src="/img/modsentry-logo-impact.svg" alt="" width="120" height="120">
+  <img src="/img/modsentry-logo-impact.gif" alt="" width="120" height="120">
 </div>
 <script>
 (function () {
@@ -23,35 +23,18 @@
   // it disappear after the very first page and look broken.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   window.addEventListener('load', function () {
+    // The impact GIF is a 2.72s one-shot animation that loops by default --
+    // wait for it to finish its first (only intended) play before fading.
     setTimeout(function () {
       el.classList.add('modsentry-splash--out');
       setTimeout(function () { el.remove(); }, 300);
-    }, 500);
+    }, 2820);
   });
 })();
 </script>
 <header class="topbar">
   <a class="brand" href="/">
-    <span class="brand-spin3d" aria-hidden="true">
-      <span class="brand-spin3d__rig">
-        <span class="brand-spin3d__face brand-spin3d__face--front">
-          <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
-            <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#eef6ff" stroke="#1d1f20" stroke-width="9"/>
-            <path d="M64 66 L100 40 L136 66" stroke="#a8e6ff" stroke-width="14" stroke-linecap="square"/>
-            <path d="M64 100 L100 74 L136 100" stroke="#145a8c" stroke-width="14" stroke-linecap="square"/>
-            <path d="M64 134 L100 108 L136 134" stroke="#001020" stroke-width="14" stroke-linecap="square"/>
-          </svg>
-        </span>
-        <span class="brand-spin3d__face brand-spin3d__face--back">
-          <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none">
-            <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" fill="#145a8c" stroke="#1d1f20" stroke-width="9"/>
-            <path d="M64 66 L100 40 L136 66" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
-            <path d="M64 100 L100 74 L136 100" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
-            <path d="M64 134 L100 108 L136 134" stroke="#eef6ff" stroke-width="14" stroke-linecap="square"/>
-          </svg>
-        </span>
-      </span>
-    </span>
+    <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="30" height="30">
     <span class="brand-word">ModSentry</span>
   </a>
   <% if (typeof guild !== 'undefined' && guild) {

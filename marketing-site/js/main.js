@@ -13,12 +13,42 @@
       splash.remove();
     } else {
       window.addEventListener('load', function () {
+        // The impact GIF is a 2.72s one-shot animation that loops by default --
+        // wait for it to finish its first (only intended) play before fading.
         setTimeout(function () {
           splash.classList.add('modsentry-splash--out');
           setTimeout(function () { splash.remove(); }, 400);
-        }, 700);
+        }, 2820);
       });
     }
+  }
+
+  // ---- Impact flourishes: small badges that replay the impact GIF on a
+  // loose, staggered timer, then sit idle on the static logo between plays
+  // instead of looping continuously ----
+  if (!reduceMotion) {
+    document.querySelectorAll('.impact-flourish').forEach(function (el, i) {
+      var idle = el.getAttribute('data-idle');
+      var impact = el.getAttribute('data-impact');
+      if (!idle || !impact) return;
+      var playing = false;
+      var play = function () {
+        if (playing) return;
+        playing = true;
+        el.src = impact;
+        setTimeout(function () {
+          el.src = idle;
+          playing = false;
+        }, 2820);
+      };
+      var scheduleNext = function () {
+        var gap = 9000 + Math.random() * 8000; // 9-17s breather between plays
+        setTimeout(function () { play(); scheduleNext(); }, gap);
+      };
+      // Stagger each badge's first play so they don't all fire together, then
+      // let scheduleNext take over for the randomized breaks after that.
+      setTimeout(function () { play(); scheduleNext(); }, 1500 + i * 2200);
+    });
   }
 
   // ---- Reveal-on-scroll, staggered within each group ----
