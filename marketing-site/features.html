@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Features — Quellum</title>
-<meta name="description" content="Everything Quellum does: support tickets, a full moderation suite, auto-punishments, a swear filter, staff hierarchy, reaction roles, an embed builder, and a real per-role permissions manager.">
+<meta name="description" content="Everything Quellum does: support tickets, a full moderation suite, channel lockdown, content filters, auto-punishments, welcome/leave messages, staff hierarchy, reaction roles, an embed builder, guided setup, and a real per-role permissions manager.">
 <meta property="og:title" content="Features — Quellum">
-<meta property="og:description" content="Everything Quellum does, in detail: tickets, moderation, staff tools, reaction roles, embeds, and a real permissions manager.">
+<meta property="og:description" content="Everything Quellum does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, embeds, and a real permissions manager.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://quellum.site/features">
 <meta property="og:image" content="https://quellum.site/img/og-image.png">
@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Features — Quellum">
-<meta name="twitter:description" content="Everything Quellum does, in detail: tickets, moderation, staff tools, reaction roles, embeds, and a real permissions manager.">
+<meta name="twitter:description" content="Everything Quellum does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, embeds, and a real permissions manager.">
 <meta name="twitter:image" content="https://quellum.site/img/og-image.png">
 <link rel="icon" type="image/svg+xml" href="img/quellum-favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,7 +90,7 @@
     <div class="wrap">
 
       <div class="feature-row reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🎫</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M14 6v2M14 11v2M14 16v2"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Support</span>
           <h2>Tickets that actually stay organized</h2>
@@ -108,7 +108,7 @@
       </div>
 
       <div class="feature-row is-reverse reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🛡️</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Moderation</span>
           <h2>A full suite, on Discord or the web</h2>
@@ -116,7 +116,7 @@
           <ul class="feature-row-list">
             <li>Who can use each one is controlled entirely by the <a href="#permissions" style="color:var(--accent); font-weight:700;">Permissions manager</a> — not by handing out real Discord permissions</li>
             <li>Target by username or Discord user ID, not just raw IDs</li>
-            <li><code>/purge 10</code> deletes the last 10 messages; <code>/purge</code> with no number clears the whole channel, behind a confirm step</li>
+            <li><code>/purge 10</code> deletes the last 10 messages; <code>/purge</code> with no number clears the whole channel, behind a confirm step — and posts a "purge completed" embed anyone in the channel can see</li>
             <li>Rank rules apply everywhere — you can't punish someone who outranks or matches you, on either side</li>
             <li>The punished member gets a DM explaining what happened and why; every action — from Discord or the site — lands in one searchable moderation log</li>
           </ul>
@@ -124,7 +124,38 @@
       </div>
 
       <div class="feature-row reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🚨</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Incident response</span>
+          <h2>Lock a channel down in one command</h2>
+          <p><code>/lockdown</code> stops everyone but staff from posting the instant something's going wrong — no clicking through channel permissions by hand.</p>
+          <ul class="feature-row-list">
+            <li>Posts an embed everyone in the channel can see, explaining it's locked</li>
+            <li><code>/unlockdown</code> lifts it the same way — clearing the block rather than forcing permissions back open, so the channel returns to whatever it inherited before</li>
+            <li>Who can use either command is controlled from the Permissions manager, same as every other mod action — locking and unlocking are separate grants</li>
+            <li>Every lock and unlock is logged like any other moderation action</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 8v6l-4-2v-4L4 5Z"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Chat</span>
+          <h2>Filters you actually control</h2>
+          <p>A banned-word list and a link/invite filter, both managed from the dashboard — no code, no pull requests.</p>
+          <ul class="feature-row-list">
+            <li>Swear filter: whole-word, case-insensitive matching — won't flag a word for containing one as a substring</li>
+            <li>Link filter: block just Discord invite links (stop server advertising) or block all links entirely</li>
+            <li>Both come with starter templates you can load and edit instead of writing a list from scratch</li>
+            <li>Deletes the message, posts a self-deleting notice, and logs it — staff with Manage Messages are never filtered</li>
+            <li>Both lists are cached in memory, not re-read from the database on every message — busy servers don't add real load</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Automation</span>
           <h2>Auto-punishments that enforce themselves</h2>
@@ -138,22 +169,22 @@
       </div>
 
       <div class="feature-row is-reverse reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🧼</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M18 8v6M21 11h-6"/></svg></span></div>
         <div class="feature-row-body">
-          <span class="eyebrow">Chat</span>
-          <h2>A swear filter you actually control</h2>
-          <p>Manage the whole banned-word list from the dashboard — no code, no pull requests.</p>
+          <span class="eyebrow">Onboarding</span>
+          <h2>A proper welcome, without lifting a finger</h2>
+          <p>Set a channel and a message once — Quellum handles every join and leave from there.</p>
           <ul class="feature-row-list">
-            <li>Whole-word matching, case-insensitive — won't flag a word for containing one as a substring</li>
-            <li>Deletes the message, posts a self-deleting notice, and logs it</li>
-            <li>Staff with Manage Messages are never filtered</li>
-            <li>The word list is cached in memory, not re-read from the database on every message — busy servers don't add real load</li>
+            <li><code>{user}</code>, <code>{username}</code>, <code>{server}</code>, and <code>{membercount}</code> placeholders fill in automatically</li>
+            <li>Optionally hands new members a role the instant they join, no bot commands needed</li>
+            <li>Leave messages can post to a different channel than welcomes</li>
+            <li>Uses the same member-list access already granted for the staff list — nothing new to authorize</li>
           </ul>
         </div>
       </div>
 
       <div class="feature-row reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">👮</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6M12 20V9M20 20V4"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Staff structure</span>
           <h2>A real chain of command</h2>
@@ -168,7 +199,7 @@
       </div>
 
       <div class="feature-row is-reverse reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">📋</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="1.3"/><path d="M9.5 6H20"/><circle cx="5" cy="12" r="1.3"/><path d="M9.5 12H20"/><circle cx="5" cy="18" r="1.3"/><path d="M9.5 18H20"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Visibility</span>
           <h2>A staff list that keeps itself current</h2>
@@ -183,7 +214,7 @@
       </div>
 
       <div class="feature-row reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🎨</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M8.5 9.5V20"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Content</span>
           <h2>An embed builder with a real preview</h2>
@@ -191,7 +222,7 @@
           <ul class="feature-row-list">
             <li>Role and user mention pickers drop a real, working mention into the description or a field — no manual ID typing</li>
             <li>Pick a date and time and it inserts Discord's own dynamic timestamp — "event at 5pm" shows correctly converted to every viewer's own timezone, automatically</li>
-            <li>One-click rules template to start from instead of a blank embed</li>
+            <li>Starter templates to build from instead of a blank embed</li>
             <li>Save it as a reusable template, or fire it at a channel immediately</li>
             <li>The same builder — mentions, timestamps, and all — powers ticket welcome embeds and panel embeds too</li>
           </ul>
@@ -199,7 +230,7 @@
       </div>
 
       <div class="feature-row is-reverse reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🎭</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 10.3h.01M15.5 10.3h.01"/><path d="M8 15c1 1.2 2.4 2 4 2s3-.8 4-2"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Engagement</span>
           <h2>Reaction roles, built and posted from the dashboard</h2>
@@ -213,7 +244,7 @@
       </div>
 
       <div class="feature-row reveal" id="permissions">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🔐</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16.5 6.5l3 3M13.5 9.5l2 2"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Permissions</span>
           <h2>A real permissions manager, not just Manage Server</h2>
@@ -225,16 +256,32 @@
             <li>You only ever see and manage servers you're the owner of, have Manage Server on, or have been granted access to — never anyone else's</li>
             <li>Currently in closed, invite-controlled beta — see the front page for availability</li>
           </ul>
-          <p class="step-note">⚠️ Quellum's role needs to sit above the roles you want it to manage in Server Settings → Roles — otherwise ticket access, staff ranks, mutes, and reaction roles won't work for those roles.</p>
+          <p class="step-note"><strong>Note:</strong> Quellum's role needs to sit above the roles you want it to manage in Server Settings → Roles — otherwise ticket access, staff ranks, mutes, and reaction roles won't work for those roles.</p>
         </div>
       </div>
 
       <div class="feature-row is-reverse reveal">
-        <div class="feature-row-panel"><span class="feature-row-glyph">🧰</span></div>
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5l1.4 1.4 2.6-2.6"/><path d="M10 6h10.5"/><path d="M3.5 13.5l1.4 1.4 2.6-2.6"/><path d="M10 13h10.5"/><rect x="3" y="18" width="4" height="4" rx=".6"/><path d="M10 20h10.5"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Getting started</span>
+          <h2>Never wonder what's left to configure</h2>
+          <p>A checklist on the Tickets page tracks the basics, and disappears once everything's done.</p>
+          <ul class="feature-row-list">
+            <li>Tracks a ticket type, a deployed panel, a mod log channel, and a staff hierarchy</li>
+            <li>Nothing here is enforced — it's a pointer, not a gate</li>
+            <li>Starter templates fill in ticket types (Support, Bug Report, Billing, Appeal), swear-filter word lists, and link-filter presets</li>
+            <li>Every template just loads into the form for editing — nothing saves until you hit Save</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5Z"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Extras</span>
           <h2>The small stuff that adds up</h2>
           <ul class="feature-row-list">
+            <li><code>/help</code> — a quick reference of just the commands you can actually use, grouped by what they do</li>
             <li><code>/poll</code> — a reaction poll with up to 5 options, posted and auto-reacted in one command</li>
             <li><code>/info</code> — see exactly what access you (or anyone else) actually has, no guessing</li>
             <li><code>/introduction</code> — Quellum introduces itself in-channel: what it does, how to set it up, and who added it</li>

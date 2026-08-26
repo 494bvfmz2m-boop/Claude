@@ -112,7 +112,7 @@
   <section id="beta" style="padding-top:0;">
     <div class="wrap reveal">
       <div class="beta-strip" data-beta-total="15" data-beta-taken="2">
-        <span class="lock">🔒</span>
+        <span class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
         <div>
           <strong>Closed beta</strong> — only <strong id="beta-total-num">15</strong> spots total.
         </div>
@@ -160,57 +160,75 @@
 
       <div class="features-grid" data-reveal-group>
         <div class="feature-card reveal">
-          <div class="feature-icon">🎫</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M14 6v2M14 11v2M14 16v2"/></svg></div>
           <h3>Support tickets</h3>
           <p>Ticket types, panels, private channels, claim/close, and full HTML transcripts.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🛡️</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/></svg></div>
           <h3>Full moderation suite</h3>
           <p>Ban, kick, mute, warn, purge — as slash commands or right from the dashboard.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🚨</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3>Channel lockdown</h3>
+          <p><code>/lockdown</code> stops everyone but staff from posting, with an embed anyone can see. <code>/unlockdown</code> lifts it.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 8v6l-4-2v-4L4 5Z"/></svg></div>
+          <h3>Content filters</h3>
+          <p>A banned-word list and a link/invite filter, both whole-word matched and dashboard-managed, with starter templates.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></div>
           <h3>Auto-punishments</h3>
           <p>"N warnings → mute/kick/ban" enforces itself, from either side.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🧼</div>
-          <h3>Swear filter</h3>
-          <p>A banned-word list you manage from the dashboard, whole-word matched.</p>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0"/><path d="M18 8v6M21 11h-6"/></svg></div>
+          <h3>Welcome, leave &amp; autorole</h3>
+          <p>A message (and a role) the moment someone joins, and a note in a channel of your choice when they leave.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">👮</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-6M12 20V9M20 20V4"/></svg></div>
           <h3>Staff hierarchy</h3>
           <p><code>/promote</code> and <code>/demote</code> with real rank rules, editable on the dashboard.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🎨</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M8.5 9.5V20"/></svg></div>
           <h3>Embed builder</h3>
-          <p>Live preview, mentions, a one-click rules template, and an event-time picker that auto-converts per viewer.</p>
+          <p>Live preview, mentions, starter templates, and an event-time picker that auto-converts per viewer.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🔐</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16.5 6.5l3 3M13.5 9.5l2 2"/></svg></div>
           <h3>Permissions manager</h3>
           <p>Grant a role <code>/mute</code> without <code>/ban</code>, or dashboard access without real Discord permissions — your call, per role.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🎭</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 10.3h.01M15.5 10.3h.01"/><path d="M8 15c1 1.2 2.4 2 4 2s3-.8 4-2"/></svg></div>
           <h3>Reaction roles</h3>
           <p>React to a message, get a role — unicode or custom emoji, built and posted from the dashboard.</p>
         </div>
 
         <div class="feature-card reveal">
-          <div class="feature-icon">🧰</div>
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5l1.4 1.4 2.6-2.6"/><path d="M10 6h10.5"/><path d="M3.5 13.5l1.4 1.4 2.6-2.6"/><path d="M10 13h10.5"/><rect x="3" y="18" width="4" height="4" rx=".6"/><path d="M10 20h10.5"/></svg></div>
+          <h3>Guided setup</h3>
+          <p>A checklist points at what's left to configure, and starter templates fill in ticket types and filters for you.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5Z"/></svg></div>
           <h3>Plus the extras</h3>
-          <p><code>/poll</code>, <code>/info</code>, <code>/introduction</code>, and a DM the moment Quellum joins — no setup required.</p>
+          <p><code>/poll</code>, <code>/info</code>, <code>/help</code>, <code>/introduction</code>, and a DM the moment Quellum joins — no setup required.</p>
         </div>
       </div>
 
@@ -239,7 +257,7 @@
           <div class="step-num">2</div>
           <h3>Invite Quellum</h3>
           <p>One click adds it to any server where you're the owner or have Manage Server.</p>
-          <p class="step-note">⚠️ Drag Quellum's role above the roles you want it to manage in Server Settings → Roles, or ticket access, staff ranks, mutes, and reaction roles won't work.</p>
+          <p class="step-note"><strong>Note:</strong> Drag Quellum's role above the roles you want it to manage in Server Settings → Roles, or ticket access, staff ranks, mutes, and reaction roles won't work.</p>
         </div>
         <div class="step reveal">
           <div class="step-num">3</div>
