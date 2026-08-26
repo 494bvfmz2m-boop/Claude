@@ -65,6 +65,15 @@
   <label for="welcomeColor">Welcome embed color</label>
   <input type="color" id="welcomeColor" name="welcomeColor" value="<%= ticketType?.welcome_color || '#5865F2' %>">
 
+  <label class="role-chip" style="--role-color: #5865F2; margin-top:20px; width:fit-content;">
+    <input type="checkbox" name="generateTranscript" <%= (ticketType ? ticketType.generate_transcript : true) ? 'checked' : '' %>>
+    Generate a transcript when tickets of this type close
+  </label>
+  <div class="hint">
+    Turn this off for anything that might contain sensitive info (billing, appeals, etc.) — the ticket still
+    gets logged in the ticket log channel, just without an attached transcript file.
+  </div>
+
   <div class="btn-row">
     <button class="btn" type="submit"><%= ticketType ? 'Save changes' : 'Create ticket type' %></button>
     <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/tickets">Cancel</a>

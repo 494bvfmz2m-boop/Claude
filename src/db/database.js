@@ -170,5 +170,6 @@ addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#5865F2'");
 addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'ticket_banned_role_id', 'TEXT');
+addColumnIfMissing('ticket_types', 'generate_transcript', 'INTEGER NOT NULL DEFAULT 1');
 
 module.exports = db;

@@ -116,18 +116,18 @@ const ModActions = {
 const TicketTypes = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM ticket_types WHERE guild_id = ? ORDER BY id').all(guildId)
-      .map(t => ({ ...t, support_role_ids: parseJSON(t.support_role_ids, []) }));
+      .map(t => ({ ...t, support_role_ids: parseJSON(t.support_role_ids, []), generate_transcript: !!t.generate_transcript }));
   },
   get(id) {
     const t = db.prepare('SELECT * FROM ticket_types WHERE id = ?').get(id);
     if (!t) return null;
-    return { ...t, support_role_ids: parseJSON(t.support_role_ids, []) };
+    return { ...t, support_role_ids: parseJSON(t.support_role_ids, []), generate_transcript: !!t.generate_transcript };
   },
   create(guildId, data) {
     const info = db.prepare(`
       INSERT INTO ticket_types
-        (guild_id, name, emoji, category_channel_id, support_role_ids, name_pattern, max_open_per_user, welcome_title, welcome_description, welcome_color)
-      VALUES (@guildId, @name, @emoji, @categoryChannelId, @supportRoleIds, @namePattern, @maxOpenPerUser, @welcomeTitle, @welcomeDescription, @welcomeColor)
+        (guild_id, name, emoji, category_channel_id, support_role_ids, name_pattern, max_open_per_user, welcome_title, welcome_description, welcome_color, generate_transcript)
+      VALUES (@guildId, @name, @emoji, @categoryChannelId, @supportRoleIds, @namePattern, @maxOpenPerUser, @welcomeTitle, @welcomeDescription, @welcomeColor, @generateTranscript)
     `).run({
       guildId,
       name: data.name,
@@ -139,6 +139,7 @@ const TicketTypes = {
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
       welcomeColor: data.welcomeColor || '#5865F2',
+      generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
     return info.lastInsertRowid;
   },
@@ -148,7 +149,8 @@ const TicketTypes = {
         name = @name, emoji = @emoji, category_channel_id = @categoryChannelId,
         support_role_ids = @supportRoleIds, name_pattern = @namePattern,
         max_open_per_user = @maxOpenPerUser, welcome_title = @welcomeTitle,
-        welcome_description = @welcomeDescription, welcome_color = @welcomeColor
+        welcome_description = @welcomeDescription, welcome_color = @welcomeColor,
+        generate_transcript = @generateTranscript
       WHERE id = @id
     `).run({
       id,
@@ -161,6 +163,7 @@ const TicketTypes = {
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
       welcomeColor: data.welcomeColor || '#5865F2',
+      generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
   },
   delete(id) {

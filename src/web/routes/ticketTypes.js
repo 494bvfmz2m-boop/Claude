@@ -42,6 +42,7 @@ router.post('/ticket-types', async (req, res) => {
     welcomeTitle: req.body.welcomeTitle?.trim(),
     welcomeDescription: req.body.welcomeDescription?.trim(),
     welcomeColor: req.body.welcomeColor || '#5865F2',
+    generateTranscript: req.body.generateTranscript === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);
 });
@@ -71,6 +72,7 @@ router.post('/ticket-types/:id', async (req, res) => {
     welcomeTitle: req.body.welcomeTitle?.trim(),
     welcomeDescription: req.body.welcomeDescription?.trim(),
     welcomeColor: req.body.welcomeColor || '#5865F2',
+    generateTranscript: req.body.generateTranscript === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);
 });

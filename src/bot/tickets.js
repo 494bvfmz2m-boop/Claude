@@ -144,12 +144,16 @@ async function closeTicket(interaction, ticketDbId, reason) {
   await interaction.deferReply();
 
   const channel = interaction.channel;
+  const ticketType = ticket.ticket_type_id ? TicketTypes.get(ticket.ticket_type_id) : null;
+  const wantsTranscript = !ticketType || ticketType.generate_transcript;
 
   let transcriptFile = null;
-  try {
-    transcriptFile = await buildTranscript(channel);
-  } catch (err) {
-    // still close the ticket even if the transcript fails to build
+  if (wantsTranscript) {
+    try {
+      transcriptFile = await buildTranscript(channel);
+    } catch (err) {
+      // still close the ticket even if the transcript fails to build
+    }
   }
 
   const logChannel = await getLogChannel(interaction.guild);
@@ -167,6 +171,7 @@ async function closeTicket(interaction, ticketDbId, reason) {
         )
         .setColor('#ed4245')
         .setTimestamp();
+      if (!wantsTranscript) embed.setFooter({ text: 'Transcripts are turned off for this ticket type' });
       await logChannel.send({ embeds: [embed], files: transcriptFile ? [transcriptFile] : [] });
     } catch (err) {
       // log channel might be misconfigured; don't block closing the ticket
