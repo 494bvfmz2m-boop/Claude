@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const config = require('../config');
 const client = require('../bot/client');
+const { BetaAllowlist } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
@@ -51,6 +52,17 @@ function createApp() {
     res.locals.isOwner = Boolean(req.session?.isOwner);
     res.locals.inviteUrl = buildGenericInviteUrl();
     next();
+  });
+
+  // Public, unauthenticated, read-only -- just an aggregate count so
+  // quellum.site (a separate static site) can show live beta availability
+  // instead of a number someone has to update by hand.
+  app.get('/api/beta-status', (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cache-Control', 'no-store');
+    const taken = BetaAllowlist.list().length;
+    const total = config.betaTotalSlots;
+    res.json({ taken, total, remaining: Math.max(0, total - taken) });
   });
 
   app.use('/', authRoutes);

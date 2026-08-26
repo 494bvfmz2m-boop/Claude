@@ -25,6 +25,9 @@ module.exports = {
   // and manage who's allowed to log in. Leave unset to disable that entirely.
   ownerDiscordId: required('OWNER_DISCORD_ID', null),
   betaContactHandle: required('BETA_CONTACT_HANDLE', 'spontanedonder'),
+  // Total closed-beta slots, shown on the marketing site via /api/beta-status.
+  // Not enforced anywhere -- just the denominator for "X of Y spots taken".
+  betaTotalSlots: parseInt(required('BETA_TOTAL_SLOTS', '15'), 10) || 15,
   sessionSecret: required('SESSION_SECRET', 'insecure-dev-secret'),
   port: Number.isNaN(parsedPort) ? 3000 : parsedPort,
   cookieSecure: required('COOKIE_SECURE', 'false') === 'true',
