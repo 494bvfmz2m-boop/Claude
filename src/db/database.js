@@ -112,8 +112,22 @@ CREATE TABLE IF NOT EXISTS mod_actions (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS reaction_role_panels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT,
+  message_id TEXT,
+  title TEXT NOT NULL DEFAULT 'Reaction Roles',
+  description TEXT NOT NULL DEFAULT 'React to get a role!',
+  color TEXT DEFAULT '#5865F2',
+  mappings TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_mod_actions_guild ON mod_actions(guild_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_reaction_role_panels_guild ON reaction_role_panels(guild_id);
+CREATE INDEX IF NOT EXISTS idx_reaction_role_panels_message ON reaction_role_panels(message_id);
 CREATE INDEX IF NOT EXISTS idx_panels_guild ON panels(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
@@ -139,5 +153,6 @@ addColumnIfMissing('guild_settings', 'staff_list_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#5865F2'");
 addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
+addColumnIfMissing('guild_settings', 'ticket_banned_role_id', 'TEXT');
 
 module.exports = db;

@@ -62,6 +62,7 @@
       <a href="/">🔁 Servers</a>
       <a href="/dashboard/<%= guild.id %>/tickets">Tickets</a>
       <a href="/dashboard/<%= guild.id %>/embeds">Embeds</a>
+      <a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a>
       <a href="/dashboard/<%= guild.id %>/moderation">Moderation</a>
       <a href="/dashboard/<%= guild.id %>/settings">Settings</a>
     </nav>
@@ -70,11 +71,12 @@
     <span class="dot"></span>
     <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
   </span>
+  <a class="btn btn-ghost" style="margin-left:auto;" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">💬 Discord</a>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
     <% if (isOwner) { %>
-      <a class="btn btn-ghost" style="margin-left:auto;" href="/admin">🔒 Admin</a>
+      <a class="btn btn-ghost" href="/admin">🔒 Admin</a>
     <% } %>
-    <a class="btn btn-ghost" style="<%= isOwner ? '' : 'margin-left:auto;' %>" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
+    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
     <span class="user-chip" style="border-right:none;">
       <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
       <%= discordUser.username %>
@@ -84,4 +86,10 @@
     </form>
   <% } %>
 </header>
+<% if (typeof guild !== 'undefined' && guild) { %>
+  <div class="role-warning">
+    ⚠️ Drag Quellum's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
+    access, staff ranks, timeouts, and reaction roles won't work for those roles.
+  </div>
+<% } %>
 <main class="container">

@@ -3,7 +3,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const client = require('../../bot/client');
 const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
-const { logAction, parseDuration, applyWarningThreshold, canActOn } = require('../../bot/moderation');
+const { logAction, parseDuration, applyWarningThreshold, canActOn, buildPunishmentEmbed, sendPunishmentDM } = require('../../bot/moderation');
 const { renderStaffList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
@@ -262,6 +262,7 @@ router.post('/moderation/actions', async (req, res) => {
       const user = await client.users.fetch(targetId).catch(() => null);
       await guild.members.ban(targetId, { reason: reason || undefined });
       await logAction(guild, { action: '🔨 Member banned', target: user || targetId, moderator, reason, source: 'dashboard' });
+      if (user) await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'banned', emoji: '🔨', guildName: guild.name, reason }));
       return redirectWithNotice(res, guild.id, true, `Banned ${user ? user.tag : fallbackName}.`);
     }
 
@@ -277,6 +278,7 @@ router.post('/moderation/actions', async (req, res) => {
     if (action === 'kick') {
       await targetMember.kick(reason || undefined);
       await logAction(guild, { action: '👢 Member kicked', target: targetMember.user, moderator, reason, source: 'dashboard' });
+      await sendPunishmentDM(targetMember.user, buildPunishmentEmbed({ action: 'kicked', emoji: '👢', guildName: guild.name, reason }));
       return redirectWithNotice(res, guild.id, true, `Kicked ${targetMember.user.tag}.`);
     }
 
@@ -288,6 +290,10 @@ router.post('/moderation/actions', async (req, res) => {
         action: '🔇 Member timed out', target: targetMember.user, moderator, reason, source: 'dashboard',
         extra: [{ name: 'Duration', value: req.body.duration, inline: true }],
       });
+      await sendPunishmentDM(targetMember.user, buildPunishmentEmbed({
+        action: 'timed out', emoji: '🔇', guildName: guild.name, reason,
+        extra: [{ name: 'Duration', value: req.body.duration, inline: true }],
+      }));
       return redirectWithNotice(res, guild.id, true, `Timed out ${targetMember.user.tag} for ${req.body.duration}.`);
     }
 
@@ -303,7 +309,7 @@ router.post('/moderation/actions', async (req, res) => {
       const count = Warnings.listForUser(guild.id, targetMember.id).length;
       await logAction(guild, { action: '⚠️ Member warned', target: targetMember.user, moderator, reason, source: 'dashboard' });
       const autoNote = await applyWarningThreshold(guild, targetMember, moderator, count);
-      await targetMember.user.send({ content: `You were warned in **${guild.name}**: ${reason}` }).catch(() => {});
+      await sendPunishmentDM(targetMember.user, buildPunishmentEmbed({ action: 'warned', emoji: '⚠️', guildName: guild.name, reason }));
       return redirectWithNotice(res, guild.id, true, `Warned ${targetMember.user.tag} (${count} total)${autoNote ? ` — ${autoNote}` : ''}.`);
     }
 

@@ -7,6 +7,8 @@ const { register: registerInteractions } = require('./bot/interactions');
 const { registerAllGuildCommands, registerCommandsForGuild } = require('./bot/commands');
 const { register: registerSwearFilter } = require('./bot/swearFilter');
 const { register: registerStaffList, warmUpAndRefreshAll } = require('./bot/staffList');
+const { register: registerReactionRoles } = require('./bot/reactionRoles');
+const { register: registerDmGreeting } = require('./bot/dmGreeting');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -22,6 +24,8 @@ if (!config.discordClientSecret || !config.dashboardUrl) {
 registerInteractions(client);
 registerSwearFilter(client);
 registerStaffList(client);
+registerReactionRoles(client);
+registerDmGreeting(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);

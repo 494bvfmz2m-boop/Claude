@@ -1,0 +1,95 @@
+<%- include('partials/header', { title: panel ? 'Edit reaction role panel' : 'New reaction role panel', guild }) %>
+<h1><%= panel ? 'Edit reaction role panel' : 'New reaction role panel' %></h1>
+<p class="subtitle">Build the message, map emoji to roles, then post it to a channel.</p>
+
+<form class="card" method="post" action="<%= panel ? `/dashboard/${guild.id}/reaction-roles/${panel.id}` : `/dashboard/${guild.id}/reaction-roles` %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="title">Title</label>
+  <input type="text" id="title" name="title" value="<%= panel?.title || 'Reaction Roles' %>" required>
+
+  <label for="description">Description</label>
+  <textarea id="description" name="description"><%= panel?.description || 'React to get a role!' %></textarea>
+
+  <label for="color">Color</label>
+  <input type="color" id="color" name="color" value="<%= panel?.color || '#5865F2' %>">
+
+  <label style="margin-top:20px;">Emoji → role</label>
+  <div id="mapping-rows">
+    <% (panel?.mappings?.length ? panel.mappings : []).forEach(m => { %>
+      <div class="field-row" style="grid-template-columns: 140px 1fr auto;">
+        <div><label style="margin:0 0 4px;">Emoji</label><input type="text" name="emoji[]" value="<%= m.emoji %>" placeholder="🎮" required></div>
+        <div>
+          <label style="margin:0 0 4px;">Role</label>
+          <select name="roleId[]" required>
+            <% options.roles.forEach(r => { %>
+              <option value="<%= r.id %>" <%= m.roleId === r.id ? 'selected' : '' %>><%= r.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">✕</button></div>
+      </div>
+    <% }) %>
+  </div>
+  <button type="button" id="add-row" class="btn btn-ghost btn-sm">+ Add mapping</button>
+  <div class="hint" style="margin-top:8px;">
+    Unicode emoji (🎮) or a custom server emoji pasted as <code>&lt;:name:id&gt;</code> (type <code>\:name:</code> in
+    Discord and copy what it turns into). Reacting adds the role; removing the reaction removes it.
+  </div>
+
+  <div class="btn-row" style="margin-top:20px;">
+    <button class="btn" type="submit"><%= panel ? 'Save changes' : 'Create panel' %></button>
+    <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/reaction-roles">Cancel</a>
+  </div>
+</form>
+
+<% if (panel) { %>
+<div class="card">
+  <h2>Post to a channel</h2>
+  <p class="hint" style="margin-bottom:12px;">
+    <% if (panel.channel_id) { %>
+      Currently posted in #<%= (guild.channels.cache.get(panel.channel_id) || {}).name || 'unknown-channel' %>. Posting again
+      to the same channel updates that message and re-syncs the reactions; a different channel posts a new one.
+    <% } else { %>
+      Not posted yet. Save your changes above first, then pick a channel and post it.
+    <% } %>
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/reaction-roles/<%= panel.id %>/deploy">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="channelId">Channel</label>
+    <select id="channelId" name="channelId" required>
+      <option value="">— Select a channel —</option>
+      <% options.textChannels.forEach(c => { %>
+        <option value="<%= c.id %>" <%= panel.channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+      <% }) %>
+    </select>
+    <div class="btn-row">
+      <button class="btn" type="submit"><%= panel.channel_id ? 'Update posted panel' : 'Post panel' %></button>
+    </div>
+  </form>
+</div>
+<% } %>
+
+<script>
+(function () {
+  const container = document.getElementById('mapping-rows');
+  const roleOptionsHtml = `<%- options.roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('') %>`;
+
+  document.getElementById('add-row').addEventListener('click', () => {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.style.gridTemplateColumns = '140px 1fr auto';
+    row.innerHTML =
+      '<div><label style="margin:0 0 4px;">Emoji</label><input type="text" name="emoji[]" placeholder="🎮" required></div>' +
+      '<div><label style="margin:0 0 4px;">Role</label><select name="roleId[]" required>' + roleOptionsHtml + '</select></div>' +
+      '<div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">✕</button></div>';
+    container.appendChild(row);
+  });
+
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-row')) e.target.closest('.field-row').remove();
+  });
+})();
+</script>
+
+<%- include('partials/footer') %>

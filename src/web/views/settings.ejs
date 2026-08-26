@@ -29,6 +29,18 @@
     deletions all get posted here.
   </div>
 
+  <label for="ticketBannedRoleId">Ticket-banned role</label>
+  <select id="ticketBannedRoleId" name="ticketBannedRoleId">
+    <option value="">— None (no one is blocked from opening tickets) —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= settings.ticket_banned_role_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">
+    Give this role to anyone who's abusing the ticket system — while they have it, opening a ticket
+    (from any panel) is blocked with a message. Remove the role to restore their access.
+  </div>
+
   <div class="btn-row">
     <button class="btn" type="submit">Save</button>
   </div>

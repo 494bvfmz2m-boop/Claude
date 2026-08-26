@@ -2,11 +2,13 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = req
 const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType } = require('./tickets');
 const moderation = require('./moderation');
 const promotion = require('./promotion');
+const info = require('./info');
 
 const chatCommandHandlers = {
   change: startChangeType,
   ...moderation,
   ...promotion,
+  ...info,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;
@@ -16,6 +18,8 @@ delete chatCommandHandlers.applyWarningThreshold;
 delete chatCommandHandlers.confirmPurgeAll;
 delete chatCommandHandlers.cancelPurgeAll;
 delete chatCommandHandlers.purgeMessages;
+delete chatCommandHandlers.buildPunishmentEmbed;
+delete chatCommandHandlers.sendPunishmentDM;
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {

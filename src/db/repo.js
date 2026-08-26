@@ -22,7 +22,7 @@ const GuildSettings = {
       return {
         guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
-        staff_list_color: '#5865F2', warning_thresholds: [],
+        staff_list_color: '#5865F2', warning_thresholds: [], ticket_banned_role_id: null,
       };
     }
     return {
@@ -68,6 +68,11 @@ const GuildSettings = {
     ensureGuildSettingsRow(guildId);
     db.prepare('UPDATE guild_settings SET warning_thresholds = ? WHERE guild_id = ?')
       .run(JSON.stringify(thresholds || []), guildId);
+  },
+  setTicketBannedRole(guildId, roleId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET ticket_banned_role_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(roleId || null, guildId);
   },
 };
 
@@ -249,6 +254,54 @@ const Tickets = {
   },
 };
 
+const ReactionRolePanels = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM reaction_role_panels WHERE guild_id = ? ORDER BY id').all(guildId)
+      .map((p) => ({ ...p, mappings: parseJSON(p.mappings, []) }));
+  },
+  get(id) {
+    const p = db.prepare('SELECT * FROM reaction_role_panels WHERE id = ?').get(id);
+    if (!p) return null;
+    return { ...p, mappings: parseJSON(p.mappings, []) };
+  },
+  getByMessage(messageId) {
+    const p = db.prepare('SELECT * FROM reaction_role_panels WHERE message_id = ?').get(messageId);
+    if (!p) return null;
+    return { ...p, mappings: parseJSON(p.mappings, []) };
+  },
+  create(guildId, data) {
+    const info = db.prepare(`
+      INSERT INTO reaction_role_panels (guild_id, title, description, color, mappings)
+      VALUES (@guildId, @title, @description, @color, @mappings)
+    `).run({
+      guildId,
+      title: data.title || 'Reaction Roles',
+      description: data.description || 'React to get a role!',
+      color: data.color || '#5865F2',
+      mappings: JSON.stringify(data.mappings || []),
+    });
+    return info.lastInsertRowid;
+  },
+  update(id, data) {
+    db.prepare(`
+      UPDATE reaction_role_panels SET title = @title, description = @description, color = @color, mappings = @mappings
+      WHERE id = @id
+    `).run({
+      id,
+      title: data.title || 'Reaction Roles',
+      description: data.description || 'React to get a role!',
+      color: data.color || '#5865F2',
+      mappings: JSON.stringify(data.mappings || []),
+    });
+  },
+  setDeployed(id, channelId, messageId) {
+    db.prepare('UPDATE reaction_role_panels SET channel_id = ?, message_id = ? WHERE id = ?').run(channelId, messageId, id);
+  },
+  delete(id) {
+    db.prepare('DELETE FROM reaction_role_panels WHERE id = ?').run(id);
+  },
+};
+
 const EmbedTemplates = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM embed_templates WHERE guild_id = ? ORDER BY id DESC').all(guildId)
@@ -302,4 +355,4 @@ const StaffRanks = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels };

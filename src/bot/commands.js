@@ -77,6 +77,11 @@ const commands = [
     .setName('demote')
     .setDescription('Demote a staff member to the next rank down')
     .addUserOption((o) => o.setName('user').setDescription('Who to demote').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('See what access you (or someone else) have -- permissions, dashboard access, staff rank')
+    .addUserOption((o) => o.setName('user').setDescription('Check someone else instead of yourself').setRequired(false)),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

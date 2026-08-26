@@ -16,6 +16,7 @@ router.post('/settings', async (req, res) => {
   if (!guild) return;
   GuildSettings.setTranscriptChannel(guild.id, req.body.transcriptChannelId || null);
   GuildSettings.setModLogChannel(guild.id, req.body.modLogChannelId || null);
+  GuildSettings.setTicketBannedRole(guild.id, req.body.ticketBannedRoleId || null);
   res.redirect(`/dashboard/${guild.id}/settings`);
 });
 

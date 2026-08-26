@@ -1,0 +1,35 @@
+<%- include('partials/header', { title: 'Reaction Roles', guild }) %>
+<h1>🎭 Reaction Roles</h1>
+<p class="subtitle">Post a message users react to for a role — reacting again removes it.</p>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2>Panels</h2>
+    <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/reaction-roles/new">+ New panel</a>
+  </div>
+  <% if (panels.length === 0) { %>
+    <p class="empty">No reaction role panels yet. Create one, add emoji → role mappings, then post it to a channel.</p>
+  <% } else { %>
+    <ul class="list">
+      <% panels.forEach(p => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= p.title %></div>
+            <div class="list-item-meta">
+              <%= p.mappings.length %> mapping(s) ·
+              <% if (p.channel_id) { %>posted in #<%= (guild.channels.cache.get(p.channel_id) || {}).name || 'unknown-channel' %><% } else { %>not posted yet<% } %>
+            </div>
+          </div>
+          <div class="actions">
+            <a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/reaction-roles/<%= p.id %>/edit">Edit / Post</a>
+            <form method="post" action="/dashboard/<%= guild.id %>/reaction-roles/<%= p.id %>/delete" onsubmit="return confirm('Delete this panel? This does not remove the posted Discord message.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

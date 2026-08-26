@@ -30,6 +30,23 @@ async function logAction(guild, { action, target, moderator, reason, extra, sour
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }
 
+// DM the target letting them know what happened -- swallows any error, since
+// a closed-DMs user or a user who's since blocked the bot shouldn't stop the
+// punishment itself from going through.
+function buildPunishmentEmbed({ action, emoji, guildName, reason, extra }) {
+  const embed = new EmbedBuilder()
+    .setTitle(`${emoji} You were ${action} in ${guildName}`)
+    .setColor(MOD_COLOR)
+    .addFields({ name: 'Reason', value: reason || 'No reason provided' })
+    .setTimestamp();
+  if (extra) embed.addFields(extra);
+  return embed;
+}
+
+async function sendPunishmentDM(user, embed) {
+  await user.send({ embeds: [embed] }).catch(() => {});
+}
+
 // Baseline "can this staff member act on this target at all" check, on top
 // of whatever Discord permission the slash command itself already requires.
 // Mirrors how basically every moderation bot behaves: you can't touch someone
@@ -69,6 +86,7 @@ async function handleBan(interaction) {
 
   await interaction.reply({ content: `🔨 Banned **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '🔨 Member banned', target: user, moderator: interaction.user, reason });
+  await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'banned', emoji: '🔨', guildName: interaction.guild.name, reason }));
 }
 
 async function handleUnban(interaction) {
@@ -105,6 +123,7 @@ async function handleKick(interaction) {
 
   await interaction.reply({ content: `👢 Kicked **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '👢 Member kicked', target: user, moderator: interaction.user, reason });
+  await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'kicked', emoji: '👢', guildName: interaction.guild.name, reason }));
 }
 
 async function handleTimeout(interaction) {
@@ -133,6 +152,10 @@ async function handleTimeout(interaction) {
 
   await interaction.reply({ content: `🔇 Timed out **${user.tag}** for ${durationInput}.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '🔇 Member timed out', target: user, moderator: interaction.user, reason, extra: [{ name: 'Duration', value: durationInput, inline: true }] });
+  await sendPunishmentDM(user, buildPunishmentEmbed({
+    action: 'timed out', emoji: '🔇', guildName: interaction.guild.name, reason,
+    extra: [{ name: 'Duration', value: durationInput, inline: true }],
+  }));
 }
 
 async function handleUntimeout(interaction) {
@@ -208,7 +231,7 @@ async function handleWarn(interaction) {
   const autoNote = await applyWarningThreshold(interaction.guild, targetMember, interaction.user, count);
   if (autoNote) await interaction.followUp({ content: `⚠️ **${user.tag}** ${autoNote}.` }).catch(() => {});
 
-  await user.send({ content: `You were warned in **${interaction.guild.name}**: ${reason}` }).catch(() => {});
+  await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'warned', emoji: '⚠️', guildName: interaction.guild.name, reason }));
 }
 
 async function handleWarnings(interaction) {
@@ -336,4 +359,6 @@ module.exports = {
   confirmPurgeAll,
   cancelPurgeAll,
   purgeMessages,
+  buildPunishmentEmbed,
+  sendPunishmentDM,
 };

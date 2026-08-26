@@ -33,6 +33,11 @@ async function openTicket(interaction, ticketTypeId) {
     return interaction.reply({ content: 'This ticket type no longer exists. Ask an admin to check the dashboard.', ephemeral: true });
   }
 
+  const settings = GuildSettings.get(interaction.guildId);
+  if (settings.ticket_banned_role_id && interaction.member?.roles?.cache?.has(settings.ticket_banned_role_id)) {
+    return interaction.reply({ content: "You've been banned from opening tickets in this server.", ephemeral: true });
+  }
+
   const openCount = Tickets.countOpenForUser(interaction.guildId, ticketTypeId, interaction.user.id);
   if (openCount >= ticketType.max_open_per_user) {
     return interaction.reply({ content: `You already have ${openCount} open ticket(s) of this type. Close it before opening another.`, ephemeral: true });
