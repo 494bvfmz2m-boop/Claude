@@ -33,10 +33,10 @@ async function handleIntroduction(interaction) {
         .slice(0, 1024)
     : "Commands haven't finished registering yet -- try again in a minute.";
 
-  const dashboardUrl = config.dashboardUrl || 'https://bot.quellum.site';
+  const dashboardUrl = config.dashboardUrl || 'https://bot.modsentry.site';
 
   const embed = new EmbedBuilder()
-    .setTitle("👋 Hi, I'm Quellum!")
+    .setTitle("👋 Hi, I'm ModSentry!")
     .setColor(INTRO_COLOR)
     .setThumbnail(guild.client.user.displayAvatarURL())
     .setDescription(
@@ -46,8 +46,8 @@ async function handleIntroduction(interaction) {
     .addFields(
       {
         name: '⚙️ Get set up',
-        value: `1. Open **[bot.quellum.site](${dashboardUrl})** and log in with Discord\n` +
-          '2. Drag my **Quellum** role above every role you want me to manage (Server Settings → Roles) -- ' +
+        value: `1. Open **[bot.modsentry.site](${dashboardUrl})** and log in with Discord\n` +
+          '2. Drag my **ModSentry** role above every role you want me to manage (Server Settings → Roles) -- ' +
           "otherwise ticket access, staff ranks, timeouts, and reaction roles won't work for those roles\n" +
           '3. Set up ticket types, panels, moderation, and staff ranks from the dashboard',
       },
@@ -55,7 +55,7 @@ async function handleIntroduction(interaction) {
       { name: '➕ Added by', value: addedBy || 'Unknown', inline: true },
       { name: 'ℹ️ Check your access', value: 'Run `/info` to see your own permissions and dashboard access.', inline: true },
     )
-    .setFooter({ text: 'Quellum — a product of Xyphros Studios' });
+    .setFooter({ text: 'ModSentry — a product of Xyphros Studios' });
 
   await interaction.editReply({ embeds: [embed] });
 }

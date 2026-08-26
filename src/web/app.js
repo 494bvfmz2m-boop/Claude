@@ -56,7 +56,7 @@ function createApp() {
   });
 
   // Public, unauthenticated, read-only -- just an aggregate count so
-  // quellum.site (a separate static site) can show live beta availability
+  // modsentry.site (a separate static site) can show live beta availability
   // instead of a number someone has to update by hand.
   app.get('/api/beta-status', (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');

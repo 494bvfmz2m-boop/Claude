@@ -50,9 +50,9 @@ async function handleInfo(interaction) {
         ].join('\n'),
       },
       {
-        name: 'Quellum dashboard',
+        name: 'ModSentry dashboard',
         value: dashAccess.level === 'full'
-          ? '✅ Full access — can log in and manage this server at bot.quellum.site'
+          ? '✅ Full access — can log in and manage this server at bot.modsentry.site'
           : dashAccess.level === 'limited'
             ? `✅ Limited access — can log in and use: ${[...dashAccess.areas].join(', ')}`
             : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",

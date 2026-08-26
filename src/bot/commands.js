@@ -97,7 +97,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('introduction')
-    .setDescription('Have Quellum introduce itself -- what it does, how to set it up, and its commands'),
+    .setDescription('Have ModSentry introduce itself -- what it does, how to set it up, and its commands'),
 
   new SlashCommandBuilder()
     .setName('poll')

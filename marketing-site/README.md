@@ -1,8 +1,8 @@
-# Quellum marketing site
+# ModSentry marketing site
 
-This is **quellum.site** — the public marketing page. It's a separate static
+This is **modsentry.site** — the public marketing page. It's a separate static
 site from the bot/dashboard (which lives in `../src` and deploys as
-`bot.quellum.site`). No shared build, no shared deploy — this folder is
+`bot.modsentry.site`). No shared build, no shared deploy — this folder is
 plain HTML/CSS/JS with no build step at all, and isn't touched by the
 bot's `Dockerfile` (which only copies `../src`).
 
@@ -24,7 +24,7 @@ clean URLs to work — without it, the pages still work, just at their
 
 ## Live data
 
-`js/main.js` fetches `https://bot.quellum.site/api/beta-status` on load to
+`js/main.js` fetches `https://bot.modsentry.site/api/beta-status` on load to
 show a live "N of 15 spots taken" count, sourced from the bot's beta
 allowlist (`BetaAllowlist` in `../src/db/repo.js`). That's the only runtime
 connection between the two — everything else on this site is static content

@@ -61,7 +61,7 @@ async function handleReaction(reaction, user, adding) {
     if (adding) await member.roles.add(mapping.roleId);
     else await member.roles.remove(mapping.roleId);
   } catch {
-    // Missing permissions or the role sits above Quellum's own -- nothing
+    // Missing permissions or the role sits above ModSentry's own -- nothing
     // sensible to report back through a reaction click, so just drop it.
   }
 }

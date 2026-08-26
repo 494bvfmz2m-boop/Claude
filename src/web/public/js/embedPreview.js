@@ -9,11 +9,11 @@
   let nextFieldIndex = fieldsContainer.querySelectorAll('.field-row').length;
 
   function roleOptionsHtml() {
-    return (window.QUELLUM_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    return (window.MODSENTRY_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
   }
 
   function mentionToolsHtml(targetId) {
-    const guildId = window.QUELLUM_GUILD_ID || '';
+    const guildId = window.MODSENTRY_GUILD_ID || '';
     return `
       <div class="mention-tools">
         <select id="roleSel_${targetId}">

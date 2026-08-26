@@ -26,7 +26,7 @@ async function sendWithForm(client, { recipientId, recipientTag, template, defau
   const embed = new EmbedBuilder()
     .setColor(FORM_COLOR)
     .setTitle(template.title)
-    .setFooter({ text: 'Your answers go straight to the Quellum owner -- nothing is posted publicly.' });
+    .setFooter({ text: 'Your answers go straight to the ModSentry owner -- nothing is posted publicly.' });
   if (template.intro) embed.setDescription(template.intro);
   template.questions.forEach((question, i) => {
     embed.addFields({ name: `${i + 1}.`, value: question });

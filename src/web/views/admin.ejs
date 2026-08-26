@@ -179,10 +179,10 @@
 </div>
 
 <div class="card" id="send-dm">
-  <h2>Send a DM as Quellum</h2>
+  <h2>Send a DM as ModSentry</h2>
   <p class="hint" style="margin-bottom:14px;">
     Sends an embed straight to one or more people's DMs from the bot — pick any mix of saved contacts and
-    pasted IDs, up to <%= 50 %> at once. Works for anyone Quellum shares a server with (they need DMs from
+    pasted IDs, up to <%= 50 %> at once. Works for anyone ModSentry shares a server with (they need DMs from
     server members turned on); if a recipient can't be reached the rest still go out and you'll get told who failed.
   </p>
   <form method="post" action="/admin/send-dm" id="sendDmForm">
@@ -251,9 +251,9 @@
 </div>
 
 <div class="card" id="remove-server">
-  <h2>Remove Quellum from a server</h2>
+  <h2>Remove ModSentry from a server</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Search by server name, then leave it. There's no undo here — whoever wants Quellum back has to re-invite it.
+    Search by server name, then leave it. There's no undo here — whoever wants ModSentry back has to re-invite it.
   </p>
   <label for="serverSearch">Search servers</label>
   <input type="text" id="serverSearch" placeholder="Start typing a server name…" autocomplete="off">
@@ -349,7 +349,7 @@
     form.method = 'post';
     form.action = '/admin/leave-guild';
     form.onsubmit = function () {
-      return confirm('Remove Quellum from "' + g.name + '"? There\'s no undo here.');
+      return confirm('Remove ModSentry from "' + g.name + '"? There\'s no undo here.');
     };
     var csrf = document.createElement('input');
     csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;

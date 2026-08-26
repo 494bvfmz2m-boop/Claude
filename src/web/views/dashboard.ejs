@@ -4,7 +4,7 @@
   <% if (!botReady) { %>
     The bot is still connecting to Discord. Refresh in a few seconds.
   <% } else { %>
-    Servers Quellum is in that you manage.
+    Servers ModSentry is in that you manage.
   <% } %>
 </p>
 
@@ -12,7 +12,7 @@
 
 <% if (guilds.length === 0) { %>
   <div class="card empty">
-    Quellum isn't in any of your servers yet — hit <strong>Invite to Server</strong> above to add it.
+    ModSentry isn't in any of your servers yet — hit <strong>Invite to Server</strong> above to add it.
   </div>
 <% } else { %>
   <div class="guild-grid">
@@ -35,8 +35,8 @@
         e.preventDefault();
         var href = card.getAttribute('href');
         var splash = document.createElement('div');
-        splash.className = 'quellum-splash';
-        splash.innerHTML = '<img src="/img/quellum-logo-impact.svg" alt="" width="130" height="130">';
+        splash.className = 'modsentry-splash';
+        splash.innerHTML = '<img src="/img/modsentry-logo-impact.svg" alt="" width="130" height="130">';
         document.body.appendChild(splash);
         setTimeout(function () { window.location.href = href; }, 1000);
       });
@@ -48,18 +48,18 @@
 <script src="/js/tour.js"></script>
 <script>
 (function () {
-  var SEEN_SERVER_LIST = 'quellumTourServerListSeen';
-  var SEEN_GUILD_NAV = 'quellumTourGuildNavSeen';
+  var SEEN_SERVER_LIST = 'modsentryTourServerListSeen';
+  var SEEN_GUILD_NAV = 'modsentryTourGuildNavSeen';
 
   var STEPS = [
-    { title: 'Welcome to Quellum', body: "A 30-second look around the dashboard. Skip any time -- Take the tour on this page brings it back later." },
+    { title: 'Welcome to ModSentry', body: "A 30-second look around the dashboard. Skip any time -- Take the tour on this page brings it back later." },
     { selector: '.guild-grid', title: 'Your servers', body: 'Every server you manage shows up here. Click one to open its dashboard -- tickets, moderation, settings, all of it.' },
-    { selector: '#tourInviteBtn', title: 'Add Quellum somewhere new', body: 'Invite the bot to another server you manage, any time.' },
+    { selector: '#tourInviteBtn', title: 'Add ModSentry somewhere new', body: 'Invite the bot to another server you manage, any time.' },
     { selector: '#tourAdminBtn', title: 'Owner tools', body: "Closed beta settings, DMs, and server management for the whole install -- only you see this." },
   ];
 
   function startTour() {
-    new QuellumTour(STEPS, {
+    new ModSentryTour(STEPS, {
       onEnd: function () {
         try { localStorage.setItem(SEEN_SERVER_LIST, '1'); } catch (e) {}
       },

@@ -9,7 +9,7 @@ const MANAGE_GUILD = 0x20n;
 // actually added the bot -- see bot/betaGate.js and bot/introduction.js) and
 // Create Instant Invite (lets the owner's DM server list hand back a working
 // invite link for each server -- see bot/ownerPanel.js). Used to build
-// "invite Quellum here" links for servers an OAuth user manages but hasn't
+// "invite ModSentry here" links for servers an OAuth user manages but hasn't
 // added the bot to yet.
 const BOT_INVITE_PERMISSIONS = '1099780189335';
 

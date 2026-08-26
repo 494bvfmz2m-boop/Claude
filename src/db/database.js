@@ -233,7 +233,7 @@ if (seeded && !seeded.dm_templates_seeded) {
     JSON.stringify([
       "What's your server's name, and can you share an invite link?",
       'Roughly how many members do you have?',
-      'What made you want to try Quellum?',
+      'What made you want to try ModSentry?',
     ]),
   );
   insertTemplate.run(

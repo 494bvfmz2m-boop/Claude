@@ -40,12 +40,12 @@ async function handleHelp(interaction) {
 
   const utility = [
     '`/info [user]` — See permissions, dashboard access, and staff rank',
-    "`/introduction` — Quellum's full welcome message, plus every registered command",
+    "`/introduction` — ModSentry's full welcome message, plus every registered command",
     '`/poll <question> <option1> <option2> ...` — Post a reaction poll',
   ];
 
   const embed = new EmbedBuilder()
-    .setTitle('📖 Quellum commands')
+    .setTitle('📖 ModSentry commands')
     .setColor(HELP_COLOR)
     .setDescription('Only shown below: what you can actually run right now. Run `/introduction` for the complete list.')
     .addFields(

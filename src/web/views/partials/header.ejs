@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? title + ' · Quellum' : 'Quellum' %></title>
-  <link rel="icon" type="image/svg+xml" href="/img/quellum-favicon.svg">
+  <title><%= typeof title !== 'undefined' ? title + ' · ModSentry' : 'ModSentry' %></title>
+  <link rel="icon" type="image/svg+xml" href="/img/modsentry-favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div id="quellum-splash" class="quellum-splash" aria-hidden="true">
-  <img src="/img/quellum-logo-impact.svg" alt="" width="120" height="120">
+<div id="modsentry-splash" class="modsentry-splash" aria-hidden="true">
+  <img src="/img/modsentry-logo-impact.svg" alt="" width="120" height="120">
 </div>
 <script>
 (function () {
-  var el = document.getElementById('quellum-splash');
+  var el = document.getElementById('modsentry-splash');
   if (!el) return;
   // Plays on every full page load (every dashboard nav click is one) --
   // deliberately not gated to "once per session" anymore, since that made
@@ -24,7 +24,7 @@
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   window.addEventListener('load', function () {
     setTimeout(function () {
-      el.classList.add('quellum-splash--out');
+      el.classList.add('modsentry-splash--out');
       setTimeout(function () { el.remove(); }, 300);
     }, 500);
   });
@@ -52,7 +52,7 @@
         </span>
       </span>
     </span>
-    <span class="brand-word">Quellum</span>
+    <span class="brand-word">ModSentry</span>
   </a>
   <% if (typeof guild !== 'undefined' && guild) {
     var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
@@ -94,13 +94,13 @@
 </header>
 <% if (typeof guild !== 'undefined' && guild) { %>
   <div class="role-warning">
-    <strong>Note:</strong> Drag Quellum's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
+    <strong>Note:</strong> Drag ModSentry's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
   </div>
   <script src="/js/tour.js"></script>
   <script>
   (function () {
-    var SEEN_GUILD_NAV = 'quellumTourGuildNavSeen';
+    var SEEN_GUILD_NAV = 'modsentryTourGuildNavSeen';
     var seen = false;
     try { seen = !!localStorage.getItem(SEEN_GUILD_NAV); } catch (e) {}
     if (seen) return;
@@ -114,7 +114,7 @@
     ];
 
     setTimeout(function () {
-      new QuellumTour(STEPS, {
+      new ModSentryTour(STEPS, {
         onEnd: function () {
           try { localStorage.setItem(SEEN_GUILD_NAV, '1'); } catch (e) {}
         },

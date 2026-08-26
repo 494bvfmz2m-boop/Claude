@@ -184,7 +184,7 @@ router.post('/leave-guild', requireOwner, async (req, res) => {
   const guildId = (req.body.guildId || '').trim();
   const guild = client.guilds.cache.get(guildId);
   if (!guild) {
-    return redirectWithNotice(res, false, "Quellum isn't in that server (anymore).", 'remove-server');
+    return redirectWithNotice(res, false, "ModSentry isn't in that server (anymore).", 'remove-server');
   }
   const name = guild.name;
   try {

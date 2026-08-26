@@ -138,5 +138,5 @@
     if (this.opts.onEnd) this.opts.onEnd(completed);
   };
 
-  window.QuellumTour = Tour;
+  window.ModSentryTour = Tour;
 })();

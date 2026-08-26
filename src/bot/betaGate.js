@@ -107,7 +107,7 @@ function register(client) {
       return;
     }
 
-    const message = `Quellum is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
+    const message = `ModSentry is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
     await executor.send({ content: message }).catch(() => {});
     // Notify before leaving -- guild.memberCount/iconURL should stay readable
     // on the same object either way, but there's no reason to rely on that.

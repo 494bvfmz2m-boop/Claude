@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://quellum.site/sitemap.xml
+Sitemap: https://modsentry.site/sitemap.xml

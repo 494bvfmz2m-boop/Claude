@@ -2,19 +2,19 @@
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- Splash: play once per browser session ----
-  var splash = document.getElementById('quellum-splash');
+  var splash = document.getElementById('modsentry-splash');
   if (splash) {
     var skip = false;
     try {
-      skip = Boolean(sessionStorage.getItem('quellumSplashShown')) || reduceMotion;
-      if (!skip) sessionStorage.setItem('quellumSplashShown', '1');
+      skip = Boolean(sessionStorage.getItem('modsentrySplashShown')) || reduceMotion;
+      if (!skip) sessionStorage.setItem('modsentrySplashShown', '1');
     } catch (e) {}
     if (skip) {
       splash.remove();
     } else {
       window.addEventListener('load', function () {
         setTimeout(function () {
-          splash.classList.add('quellum-splash--out');
+          splash.classList.add('modsentry-splash--out');
           setTimeout(function () { splash.remove(); }, 400);
         }, 700);
       });
@@ -117,7 +117,7 @@
       animateCount();
     }
 
-    fetch('https://bot.quellum.site/api/beta-status', { cache: 'no-store' })
+    fetch('https://bot.modsentry.site/api/beta-status', { cache: 'no-store' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         if (!data || typeof data.taken !== 'number' || typeof data.total !== 'number') return;

@@ -7,7 +7,7 @@ const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 const { handleOwnerKeyword } = require('./ownerKeywords');
 
 const GREETING_COLOR = '#5865F2';
-const WEBSITE_URL = 'https://quellum.site';
+const WEBSITE_URL = 'https://modsentry.site';
 const DISCORD_INVITE = 'https://discord.gg/5bNyCzsyJ2';
 
 function buildGreetingEmbed() {
@@ -16,11 +16,11 @@ function buildGreetingEmbed() {
     .setColor(GREETING_COLOR)
     .setDescription(
       "I only do anything once I'm in a server — I can't help over DMs. Add me with the button below, then " +
-        `manage everything from the dashboard at [bot.quellum.site](${config.dashboardUrl || 'https://bot.quellum.site'}).`,
+        `manage everything from the dashboard at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`,
     )
     .addFields(
       { name: '🔗 Invite me', value: `[Add to a server](${buildGenericInviteUrl()})`, inline: true },
-      { name: '🌐 Website', value: `[quellum.site](${WEBSITE_URL})`, inline: true },
+      { name: '🌐 Website', value: `[modsentry.site](${WEBSITE_URL})`, inline: true },
       { name: '💬 Support server', value: `[Join Discord](${DISCORD_INVITE})`, inline: true },
       {
         name: 'What I do',
@@ -36,12 +36,12 @@ function buildGreetingEmbed() {
 // the link in front of someone it's just going to reject anyway.
 function buildClosedBetaEmbed() {
   return new EmbedBuilder()
-    .setTitle('🔒 Quellum is in closed beta')
+    .setTitle('🔒 ModSentry is in closed beta')
     .setColor(GREETING_COLOR)
     .setDescription(
       `I'm not accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`,
     )
-    .addFields({ name: '🌐 Website', value: `[quellum.site](${WEBSITE_URL})` });
+    .addFields({ name: '🌐 Website', value: `[modsentry.site](${WEBSITE_URL})` });
 }
 
 function register(client) {

@@ -10,7 +10,7 @@ const OWNER_COLOR = '#5865F2';
 const FORMS_LIST_LIMIT = 15;
 
 const KEYWORD_HELP = [
-  { word: 'servers', desc: 'Every server Quellum is in, with an invite link' },
+  { word: 'servers', desc: 'Every server ModSentry is in, with an invite link' },
   { word: 'info', desc: 'Server/member counts, ping, uptime, and beta status' },
   { word: 'forms', desc: 'Recent forms sent — "forms <id>" for one in full' },
   { word: 'templates', desc: 'Saved DM form templates' },
@@ -37,7 +37,7 @@ function buildInfoEmbed(client) {
   const totalMembers = guilds.reduce((sum, g) => sum + (g.memberCount || 0), 0);
 
   return new EmbedBuilder()
-    .setTitle('ℹ️ Quellum — info')
+    .setTitle('ℹ️ ModSentry — info')
     .setColor(OWNER_COLOR)
     .addFields(
       { name: 'Servers', value: String(guilds.length), inline: true },
