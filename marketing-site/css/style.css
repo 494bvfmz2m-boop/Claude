@@ -248,6 +248,40 @@ a { color: inherit; text-decoration: none; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-glow { animation: none; } }
 
+/* Below ~1000px the hero stays the centered single-column stack (it's what
+   makes the mobile version work well). Above it, a stretched copy of that
+   same stack just reads as empty space either side -- so widen into a real
+   two-column layout instead: copy on the left, the shield on the right,
+   using named grid areas so DOM order (logo first, for a sane mobile flow)
+   doesn't have to match visual order. */
+@media (min-width: 1000px) {
+  .hero { text-align: left; padding: 120px 0 110px; }
+  .hero .wrap {
+    display: grid;
+    grid-template-columns: 1.05fr .95fr;
+    grid-template-areas:
+      "badge   logo"
+      "heading logo"
+      "lead    logo"
+      "ctas    logo"
+      "note    logo";
+    align-items: center;
+    column-gap: 56px;
+  }
+  .hero-logo-wrap { grid-area: logo; margin: 0 auto; width: 220px; height: 220px; }
+  .hero-logo { width: 220px; height: 220px; }
+  .hero-badge { grid-area: badge; justify-self: start; }
+  .hero h1 { grid-area: heading; }
+  .hero p.lead { grid-area: lead; margin: 0 0 36px; max-width: 92%; }
+  .hero-ctas { grid-area: ctas; justify-content: flex-start; justify-self: start; }
+  .hero-note { grid-area: note; }
+  .hero-glow { left: 68%; }
+}
+@media (min-width: 1240px) {
+  .hero-logo-wrap { width: 260px; height: 260px; }
+  .hero-logo { width: 260px; height: 260px; }
+}
+
 /* ---------- Beta strip ---------- */
 .beta-strip {
   display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
