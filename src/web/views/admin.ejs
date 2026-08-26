@@ -1,12 +1,12 @@
 <%- include('partials/header', { title: 'Admin' }) %>
-<h1>🔒 Closed beta</h1>
+<h1>Closed beta</h1>
 <p class="subtitle">Owner-only. Controls who can log into this dashboard at all.</p>
 
 <%- include('partials/subnav', { sections: [
-  { id: 'beta-toggle', icon: '🔒', label: 'Closed beta' },
-  { id: 'allowlist', icon: '👥', label: 'Allowed users' },
-  { id: 'send-dm', icon: '✉️', label: 'Send a DM' },
-  { id: 'remove-server', icon: '🚪', label: 'Remove from a server' },
+  { id: 'beta-toggle', label: 'Closed beta' },
+  { id: 'allowlist', label: 'Allowed users' },
+  { id: 'send-dm', label: 'Send a DM' },
+  { id: 'remove-server', label: 'Remove from a server' },
 ] }) %>
 
 <% if (notice) { %>
@@ -32,7 +32,7 @@
 </div>
 
 <div class="card" id="allowlist">
-  <h2>👥 Allowed Discord users</h2>
+  <h2>Allowed Discord users</h2>
   <p class="hint" style="margin-bottom:14px;">
     Find a Discord user ID via Discord → User Settings → Advanced → enable Developer Mode,
     then right-click someone → Copy User ID.
@@ -68,7 +68,7 @@
 </div>
 
 <div class="card" id="send-dm">
-  <h2>✉️ Send a DM as Quellum</h2>
+  <h2>Send a DM as Quellum</h2>
   <p class="hint" style="margin-bottom:14px;">
     Sends an embed straight to someone's DMs from the bot. Works for anyone Quellum shares a server with
     (they need DMs from server members turned on) — you'll get an error here if it can't be delivered.
@@ -95,7 +95,7 @@
 </div>
 
 <div class="card" id="remove-server">
-  <h2>🚪 Remove Quellum from a server</h2>
+  <h2>Remove Quellum from a server</h2>
   <p class="hint" style="margin-bottom:14px;">
     Search by server name, then leave it. There's no undo here — whoever wants Quellum back has to re-invite it.
   </p>

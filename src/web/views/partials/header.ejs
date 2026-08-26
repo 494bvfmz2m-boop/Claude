@@ -64,7 +64,7 @@
         <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
         <span class="guild-name"><%= guild.name %></span>
       </span>
-      <a href="/">🔁 Servers</a>
+      <a href="/">Servers</a>
       <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets">Tickets</a><% } %>
       <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
       <% if (canSee('reaction_roles')) { %><a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>
@@ -77,10 +77,10 @@
     <span class="dot"></span>
     <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
   </span>
-  <a class="btn btn-ghost" style="margin-left:auto;" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">💬 Discord</a>
+  <a class="btn btn-ghost" style="margin-left:auto;" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
     <% if (isOwner) { %>
-      <a class="btn btn-ghost" href="/admin">🔒 Admin</a>
+      <a class="btn btn-ghost" href="/admin">Admin</a>
     <% } %>
     <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener">+ Invite to Server</a>
     <span class="user-chip" style="border-right:none;">
@@ -94,7 +94,7 @@
 </header>
 <% if (typeof guild !== 'undefined' && guild) { %>
   <div class="role-warning">
-    ⚠️ Drag Quellum's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
+    <strong>Note:</strong> Drag Quellum's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
   </div>
 <% } %>

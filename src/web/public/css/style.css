@@ -164,7 +164,19 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 }
 
 h1 { color: var(--text-bright); font-size: 26px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 4px; }
-h2 { color: var(--text-bright); font-size: 17px; font-weight: 700; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+h2 { color: var(--text-bright); font-size: 17px; font-weight: 700; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+.card > h2::before, .card > div > h2::before {
+  content: ""; width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0;
+  background: var(--gradient);
+}
+
+.check-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+  border: 1.5px solid var(--border-bright);
+}
+.check-dot.done { background: var(--success); border-color: var(--success); }
+.check-dot.done::after { content: "\2713"; font-size: 11px; font-weight: 800; line-height: 1; color: #0b0f0d; }
 .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 14.5px; }
 .subhead { font-size: 14px; font-weight: 700; color: var(--text-bright); margin: 0 0 12px; }
 .card-divider { border: none; border-top: 1px solid var(--border); margin: 26px 0 20px; }
@@ -477,14 +489,15 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 }
 
 /* ---------- Mobile ---------- */
-@media (max-width: 780px) {
-  .container { padding: 20px 14px 60px; }
-  h1 { font-size: 21px; }
-  .login-wrap { margin: 48px auto; padding: 0 16px; }
-
-  /* Topbar: brand/status/actions can wrap freely; the nav becomes its own
-     full-width horizontally-scrollable strip rather than wrapping link by
-     link, which reads like a tab bar instead of a jumble. */
+/* Topbar: brand/status/actions can wrap freely; the nav becomes its own
+   full-width horizontally-scrollable strip rather than wrapping link by
+   link, which reads like a tab bar instead of a jumble. Its natural
+   (unwrapped) width -- brand + up to 7 nav links + guild chip + status +
+   three buttons + user chip + logout -- doesn't actually fit until past
+   ~1550px, so this triggers well above the general "mobile" breakpoint
+   below; without it, anything from a maximized 1366-1440px laptop window
+   down silently overflowed the page horizontally. */
+@media (max-width: 1580px) {
   .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 14px; }
   .topnav {
     order: 3;
@@ -501,6 +514,12 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   .guild-chip, .user-chip { margin-right: 6px; padding-right: 10px; font-size: 13px; }
   .bot-status { font-size: 11.5px; padding: 5px 9px; gap: 5px; }
   .topbar .btn { padding: 7px 11px; font-size: 12.5px; }
+}
+
+@media (max-width: 780px) {
+  .container { padding: 20px 14px 60px; }
+  h1 { font-size: 21px; }
+  .login-wrap { margin: 48px auto; padding: 0 16px; }
 
   /* Any inline flex row (form fields, list headers with a button, etc.)
      wraps instead of squeezing -- covers every "display:flex" inline style

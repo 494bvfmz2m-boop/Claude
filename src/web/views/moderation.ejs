@@ -1,14 +1,14 @@
 <%- include('partials/header', { title: 'Moderation', guild }) %>
-<h1>🛡️ Moderation</h1>
+<h1>Moderation</h1>
 <p class="subtitle">Swear filter, staff list, auto-punishments, and moderation actions.</p>
 
 <%- include('partials/subnav', { sections: [
-  { id: 'swear-filter', icon: '🧼', label: 'Swear filter' },
-  { id: 'link-filter', icon: '🔗', label: 'Link filter' },
-  { id: 'hierarchy', icon: '👮', label: 'Staff list' },
-  { id: 'thresholds', icon: '🚨', label: 'Auto-punishments' },
-  { id: 'actions', icon: '⚡', label: 'Issue a punishment' },
-  { id: 'mod-log', icon: '🗒️', label: 'Log' },
+  { id: 'swear-filter', label: 'Swear filter' },
+  { id: 'link-filter', label: 'Link filter' },
+  { id: 'hierarchy', label: 'Staff list' },
+  { id: 'thresholds', label: 'Auto-punishments' },
+  { id: 'actions', label: 'Issue a punishment' },
+  { id: 'mod-log', label: 'Log' },
 ] }) %>
 
 <% if (notice) { %>
@@ -18,7 +18,7 @@
 <% } %>
 
 <div class="card" id="swear-filter">
-  <h2>🧼 Swear filter</h2>
+  <h2>Swear filter</h2>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
@@ -34,8 +34,8 @@
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
       <select id="swearFilterPreset" style="flex:1;">
         <option value="">— Load a starter list (optional) —</option>
-        <option value="mild">🟡 Mild profanity</option>
-        <option value="strict">🔴 Strict (extended list)</option>
+        <option value="mild">Mild profanity</option>
+        <option value="strict">Strict (extended list)</option>
       </select>
       <button type="button" id="loadSwearPreset" class="btn btn-ghost btn-sm">Load</button>
     </div>
@@ -54,15 +54,15 @@
 </div>
 
 <div class="card" id="link-filter">
-  <h2>🔗 Link filter</h2>
+  <h2>Link filter</h2>
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/link-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <label>Quick presets</label>
     <div class="btn-row" style="margin-bottom:14px;">
-      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="invites">🚫 No advertising</button>
-      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="all">🔒 Lockdown</button>
-      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="off">✅ Open</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="invites">No advertising</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="all">Lockdown</button>
+      <button type="button" class="btn btn-ghost btn-sm link-filter-preset" data-mode="off">Open</button>
     </div>
 
     <label for="linkFilterMode">Mode</label>
@@ -84,7 +84,7 @@
 </div>
 
 <div class="card" id="hierarchy">
-  <h2>👮 Staff List</h2>
+  <h2>Staff List</h2>
   <p class="hint" style="margin-bottom:14px;">
     Ranks power <code>/promote</code> and <code>/demote</code>, and drive the auto-updating list posted
     to Discord below. Highest rank at the top. You can only promote/demote someone to a rank strictly
@@ -163,12 +163,12 @@
 
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list/post" style="margin-top:14px;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <button class="btn btn-ghost" type="submit">📮 Post / refresh now</button>
+    <button class="btn btn-ghost" type="submit">Post / refresh now</button>
   </form>
 </div>
 
 <div class="card" id="thresholds">
-  <h2>🚨 Auto-punishments</h2>
+  <h2>Auto-punishments</h2>
   <p class="hint" style="margin-bottom:14px;">
     When a member's warning count hits one of these exactly, the action fires automatically —
     on top of the warning itself, however it was given (slash command or the site).
@@ -218,7 +218,7 @@
 </div>
 
 <div class="card" id="actions">
-  <h2>⚡ Issue a punishment</h2>
+  <h2>Issue a punishment</h2>
   <p class="hint" style="margin-bottom:14px;">
     Runs the same as the matching slash command — bans/kicks/mutes/warns actually happen in Discord,
     and get logged below either way. Which of these you can use is controlled from the
@@ -255,7 +255,7 @@
 </div>
 
 <div class="card" id="mod-log">
-  <h2>🗒️ Moderation log</h2>
+  <h2>Moderation log</h2>
   <% if (actions.length === 0) { %>
     <p class="empty">Nothing logged yet.</p>
   <% } else { %>
@@ -267,7 +267,7 @@
             <div class="list-item-meta">
               <%= a.target_tag || a.target_id || 'Unknown' %> · by <%= a.moderator_tag || a.moderator_id %> ·
               <%= new Date(a.created_at + 'Z').toLocaleString() %>
-              <%= a.source === 'dashboard' ? '· 🌐 Site' : '' %>
+              <%= a.source === 'dashboard' ? '· via dashboard' : '' %>
               <% if (a.reason) { %><br><%= a.reason %><% } %>
             </div>
           </div>

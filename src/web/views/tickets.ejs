@@ -5,23 +5,26 @@
 <%
   var checklistIncomplete = setupChecklist.some(function (item) { return !item.done; });
   var subnavSections = [];
-  if (checklistIncomplete) subnavSections.push({ id: 'checklist', icon: '✅', label: 'Setup checklist' });
-  subnavSections.push({ id: 'ticket-types', icon: '🎫', label: 'Ticket types' });
-  subnavSections.push({ id: 'panels', icon: '📋', label: 'Panels' });
-  subnavSections.push({ id: 'recent-tickets', icon: '🗂️', label: 'Recent tickets' });
+  if (checklistIncomplete) subnavSections.push({ id: 'checklist', label: 'Setup checklist' });
+  subnavSections.push({ id: 'ticket-types', label: 'Ticket types' });
+  subnavSections.push({ id: 'panels', label: 'Panels' });
+  subnavSections.push({ id: 'recent-tickets', label: 'Recent tickets' });
 %>
 <%- include('partials/subnav', { sections: subnavSections }) %>
 
 <% if (checklistIncomplete) { %>
   <div class="card" id="checklist">
-    <h2>✅ Setup checklist</h2>
+    <h2>Setup checklist</h2>
     <p class="hint" style="margin-bottom:14px;">Nothing here is required — just what's worth doing before people start using this server.</p>
     <ul class="list">
       <% setupChecklist.forEach(item => { %>
         <li class="list-item">
-          <div>
-            <div class="list-item-title"><%= item.done ? '✅' : '⬜' %> <%= item.label %></div>
-            <div class="list-item-meta"><%= item.desc %></div>
+          <div style="display:flex; align-items:flex-start; gap:10px;">
+            <span class="check-dot <%= item.done ? 'done' : '' %>" aria-hidden="true"></span>
+            <div>
+              <div class="list-item-title"><%= item.label %></div>
+              <div class="list-item-meta"><%= item.desc %></div>
+            </div>
           </div>
           <% if (!item.done) { %>
             <div class="actions">
@@ -36,7 +39,7 @@
 
 <div class="card" id="ticket-types">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h2>🎫 Ticket types</h2>
+    <h2>Ticket types</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/ticket-types/new">+ New ticket type</a>
   </div>
   <% if (ticketTypes.length === 0) { %>
@@ -64,7 +67,7 @@
 
 <div class="card" id="panels">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h2>📋 Panels</h2>
+    <h2>Panels</h2>
     <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/panels/new">+ New panel</a>
   </div>
   <p class="hint" style="margin-bottom:12px;">A panel is the message with the button/dropdown users click to open a ticket.</p>
@@ -96,7 +99,7 @@
 
 <div class="card" id="recent-tickets">
   <div style="display:flex; justify-content:space-between; align-items:center;">
-    <h2>🗂️ Recent tickets</h2>
+    <h2>Recent tickets</h2>
     <% if (recentTickets.some(t => t.status === 'closed')) { %>
       <form method="post" action="/dashboard/<%= guild.id %>/tickets/clear-history" onsubmit="return confirm('Clear all closed tickets from this history? Open/claimed tickets are kept. This only removes the list here, not the transcripts already posted to your transcript channel.');">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

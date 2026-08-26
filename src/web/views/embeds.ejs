@@ -12,7 +12,7 @@
       <input type="text" id="templateName" name="templateName" value="<%= loaded?.name || '' %>" placeholder="Announcement">
 
       <div class="btn-row" style="margin-bottom:4px;">
-        <button type="button" id="load-rules-template" class="btn btn-ghost btn-sm">📋 Load rules template</button>
+        <button type="button" id="load-rules-template" class="btn btn-ghost btn-sm">Load rules template</button>
       </div>
       <div class="hint" style="margin-top:0; margin-bottom:16px;">Fills in a starting-point rules embed below — edit it, then save or send like normal. Replaces any fields currently in the builder.</div>
 
@@ -70,7 +70,7 @@
     </div>
 
     <div class="card">
-      <h2>🧩 Fields</h2>
+      <h2>Fields</h2>
       <div id="fields-container">
         <% (loaded?.data?.fields?.length ? loaded.data.fields : []).forEach((f, i) => { %>
           <div class="field-row">
@@ -83,7 +83,7 @@
             <div><label style="margin:0 0 4px;">Inline</label>
               <select name="fieldInline[]"><option value="false" <%= !f.inline ? 'selected' : '' %>>No</option><option value="true" <%= f.inline ? 'selected' : '' %>>Yes</option></select>
             </div>
-            <div><button type="button" class="btn btn-ghost btn-sm remove-field" style="margin-top:20px;">✕</button></div>
+            <div><button type="button" class="btn btn-ghost btn-sm remove-field" style="margin-top:20px;">&times;</button></div>
           </div>
         <% }) %>
       </div>
@@ -97,12 +97,12 @@
 
   <div class="sticky">
     <div class="card">
-      <h2>👁️ Live preview</h2>
+      <h2>Live preview</h2>
       <div id="preview" class="discord-embed-preview"></div>
     </div>
 
     <div class="card">
-      <h2>🚀 Send now</h2>
+      <h2>Send now</h2>
       <form method="post" action="/dashboard/<%= guild.id %>/embeds/send" id="send-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label for="channelId">Channel</label>
@@ -123,7 +123,7 @@
 </div>
 
 <div class="card">
-  <h2>💾 Saved templates</h2>
+  <h2>Saved templates</h2>
   <% if (templates.length === 0) { %>
     <p class="empty">No templates saved yet.</p>
   <% } else { %>

@@ -27,7 +27,7 @@
             <% }) %>
           </select>
         </div>
-        <div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">✕</button></div>
+        <div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">&times;</button></div>
       </div>
     <% }) %>
   </div>
@@ -82,7 +82,7 @@
     row.innerHTML =
       '<div><label style="margin:0 0 4px;">Emoji</label><input type="text" name="emoji[]" placeholder="🎮" required></div>' +
       '<div><label style="margin:0 0 4px;">Role</label><select name="roleId[]" required>' + roleOptionsHtml + '</select></div>' +
-      '<div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">✕</button></div>';
+      '<div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">&times;</button></div>';
     container.appendChild(row);
   });
 
