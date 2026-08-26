@@ -6,6 +6,7 @@ const info = require('./info');
 const introduction = require('./introduction');
 const poll = require('./poll');
 const help = require('./help');
+const lockdown = require('./lockdown');
 const config = require('../config');
 const { buildServerListEmbed } = require('./ownerPanel');
 
@@ -17,6 +18,7 @@ const chatCommandHandlers = {
   ...introduction,
   ...poll,
   ...help,
+  ...lockdown,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;

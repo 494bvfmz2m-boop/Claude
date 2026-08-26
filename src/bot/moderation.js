@@ -48,6 +48,19 @@ function buildPunishmentEmbed({ action, emoji, guildName, reason, extra }) {
   return embed;
 }
 
+// Posted to the channel itself (not ephemeral) after a purge finishes, so
+// anyone still there can see it happened -- the ephemeral reply/editReply
+// only the moderator running the command ever sees.
+async function announcePurgeComplete(channel, deletedCount, moderator) {
+  const embed = new EmbedBuilder()
+    .setTitle('🧹 Purge completed')
+    .setColor('#23a55a')
+    .setDescription(`${deletedCount} message${deletedCount === 1 ? '' : 's'} deleted.`)
+    .setFooter({ text: `By ${moderator.tag}` })
+    .setTimestamp();
+  await channel.send({ embeds: [embed] }).catch(() => {});
+}
+
 async function sendPunishmentDM(user, embed) {
   await user.send({ embeds: [embed] }).catch(() => {});
 }
@@ -333,6 +346,7 @@ async function handlePurge(interaction) {
   try {
     const deleted = await purgeMessages(interaction.channel, { limit: amount, userId: user?.id });
     await interaction.editReply({ content: `🧹 Deleted ${deleted} message${deleted === 1 ? '' : 's'}.` });
+    await announcePurgeComplete(interaction.channel, deleted, interaction.user);
     await logAction(interaction.guild, {
       action: '🧹 Channel purged', target: user || null, moderator: interaction.user,
       reason: `${deleted} message(s) deleted in #${interaction.channel.name}`,
@@ -350,6 +364,7 @@ async function confirmPurgeAll(interaction, invokerId, targetUserId) {
 
   const deleted = await purgeMessages(interaction.channel, { limit: Infinity, userId: targetUserId || undefined });
   await interaction.editReply({ content: `🧹 Deleted ${deleted} message${deleted === 1 ? '' : 's'}. Anything older than 14 days couldn't be bulk-deleted and was left alone.` });
+  await announcePurgeComplete(interaction.channel, deleted, interaction.user);
   await logAction(interaction.guild, {
     action: '🧹 Channel purged (all)', target: targetUserId || null, moderator: interaction.user,
     reason: `${deleted} message(s) deleted in #${interaction.channel.name}`,

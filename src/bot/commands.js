@@ -67,6 +67,16 @@ const commands = [
     .addUserOption((o) => o.setName('user').setDescription('Only delete messages from this user').setRequired(false)),
 
   new SlashCommandBuilder()
+    .setName('lockdown')
+    .setDescription('Lock this channel so only staff can send messages')
+    .addStringOption((o) => o.setName('reason').setDescription('Reason').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('unlockdown')
+    .setDescription('Unlock this channel')
+    .addStringOption((o) => o.setName('reason').setDescription('Reason').setRequired(false)),
+
+  new SlashCommandBuilder()
     .setName('promote')
     .setDescription('Promote a staff member to the next rank up')
     .addUserOption((o) => o.setName('user').setDescription('Who to promote').setRequired(true)),

@@ -21,6 +21,8 @@ const ACTIONS = [
   { key: 'warn', label: 'Warn' },
   { key: 'clearwarnings', label: 'Clear warnings' },
   { key: 'purge', label: 'Purge messages' },
+  { key: 'lockdown', label: 'Lock channels' },
+  { key: 'unlockdown', label: 'Unlock channels' },
 ];
 const ACTION_KEYS = new Set(ACTIONS.map((a) => a.key));
 
