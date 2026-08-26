@@ -6,8 +6,8 @@ const { postPanel, buildReactionRoleMessage, parseEmojiInput } = require('../../
 const router = express.Router({ mergeParams: true });
 
 function parseMappingsFromBody(body) {
-  const emojis = [].concat(body['emoji[]'] || []);
-  const roleIds = [].concat(body['roleId[]'] || []);
+  const emojis = [].concat(body.emoji || []);
+  const roleIds = [].concat(body.roleId || []);
   const mappings = [];
   emojis.forEach((raw, i) => {
     const roleId = roleIds[i];
