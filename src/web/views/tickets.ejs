@@ -2,6 +2,28 @@
 <h1>Tickets</h1>
 <p class="subtitle">Set up ticket categories, post panels, and see what's open.</p>
 
+<% if (setupChecklist.some(item => !item.done)) { %>
+  <div class="card">
+    <h2>✅ Setup checklist</h2>
+    <p class="hint" style="margin-bottom:14px;">Nothing here is required — just what's worth doing before people start using this server.</p>
+    <ul class="list">
+      <% setupChecklist.forEach(item => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= item.done ? '✅' : '⬜' %> <%= item.label %></div>
+            <div class="list-item-meta"><%= item.desc %></div>
+          </div>
+          <% if (!item.done) { %>
+            <div class="actions">
+              <a class="btn btn-sm btn-ghost" href="<%= item.href %>">Go</a>
+            </div>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
+
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <h2>🎫 Ticket types</h2>

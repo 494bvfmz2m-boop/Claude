@@ -1,10 +1,43 @@
 const express = require('express');
-const { TicketTypes, Panels, Tickets } = require('../../db/repo');
+const { TicketTypes, Panels, Tickets, GuildSettings, StaffRanks } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('tickets'));
+
+// Purely informational -- nothing here blocks anything, it just points a new
+// server owner at what they haven't touched yet instead of leaving them to
+// discover it by trial and error. Hidden entirely once everything's done.
+function buildSetupChecklist(guild, { ticketTypes, panels }) {
+  const settings = GuildSettings.get(guild.id);
+  return [
+    {
+      done: ticketTypes.length > 0,
+      label: 'Create a ticket type',
+      desc: 'Defines what categories of tickets people can open.',
+      href: `/dashboard/${guild.id}/ticket-types/new`,
+    },
+    {
+      done: panels.some((p) => p.message_id),
+      label: 'Post a ticket panel',
+      desc: "The button or dropdown people click to open a ticket -- needs a ticket type first.",
+      href: `/dashboard/${guild.id}/panels/new`,
+    },
+    {
+      done: !!settings.mod_log_channel_id,
+      label: 'Set a moderation log channel',
+      desc: 'Bans, kicks, timeouts, warnings, and filter deletions get posted here.',
+      href: `/dashboard/${guild.id}/settings`,
+    },
+    {
+      done: StaffRanks.listForGuild(guild.id).length > 0,
+      label: 'Set up the staff hierarchy',
+      desc: 'Powers /promote, /demote, and the auto-updating staff list.',
+      href: `/dashboard/${guild.id}/moderation#hierarchy`,
+    },
+  ];
+}
 
 router.get('/tickets', async (req, res) => {
   const guild = await getGuildOr404(req, res);
@@ -12,7 +45,8 @@ router.get('/tickets', async (req, res) => {
   const ticketTypes = TicketTypes.listForGuild(guild.id);
   const panels = Panels.listForGuild(guild.id);
   const recentTickets = Tickets.listForGuild(guild.id, 25);
-  res.render('tickets', { guild, ticketTypes, panels, recentTickets });
+  const setupChecklist = buildSetupChecklist(guild, { ticketTypes, panels });
+  res.render('tickets', { guild, ticketTypes, panels, recentTickets, setupChecklist });
 });
 
 router.post('/tickets/clear-history', async (req, res) => {
