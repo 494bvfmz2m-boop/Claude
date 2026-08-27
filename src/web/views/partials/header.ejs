@@ -51,6 +51,10 @@
       <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
       <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
       <% if (canSee('reaction_roles')) { %><a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>
+      <% if (canSee('giveaways')) { %><a href="/dashboard/<%= guild.id %>/giveaways">Giveaways</a><% } %>
+      <% if (canSee('events')) { %><a href="/dashboard/<%= guild.id %>/events">Events</a><% } %>
+      <% if (canSee('tags')) { %><a href="/dashboard/<%= guild.id %>/tags">Tags</a><% } %>
+      <% if (canSee('announcements')) { %><a href="/dashboard/<%= guild.id %>/announcements">Announcements</a><% } %>
       <% if (canSee('moderation')) { %><a href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
       <% if (canSee('settings')) { %><a href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
       <% if (isFullAccess) { %><a href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>

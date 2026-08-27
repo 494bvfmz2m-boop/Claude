@@ -1,0 +1,39 @@
+<%- include('partials/header', { title: 'Giveaways', guild }) %>
+<h1>Giveaways</h1>
+<p class="subtitle">Start one with <code>/giveaway start</code> in Discord -- reroll winners with <code>/giveaway reroll</code>. This page is for visibility, ending early, and cleanup.</p>
+
+<div class="card">
+  <h2>All giveaways (<%= giveaways.length %>)</h2>
+  <% if (giveaways.length === 0) { %>
+    <p class="empty">No giveaways yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% giveaways.forEach(g => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title">🎉 <%= g.prize %></div>
+            <div class="list-item-meta">
+              <%= g.entries.length %> entr<%= g.entries.length === 1 ? 'y' : 'ies' %> ·
+              <%= g.winner_count %> winner<%= g.winner_count === 1 ? '' : 's' %> ·
+              <% if (g.ended) { %>ended<% } else { %>ends <%= new Date(g.ends_at).toLocaleString() %><% } %>
+              in #<%= (guild.channels.cache.get(g.channel_id) || {}).name || 'unknown-channel' %>
+            </div>
+          </div>
+          <div class="actions">
+            <% if (!g.ended) { %>
+              <form method="post" action="/dashboard/<%= guild.id %>/giveaways/<%= g.id %>/end" onsubmit="return confirm('End this giveaway now and pick winners?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-ghost" type="submit">End now</button>
+              </form>
+            <% } %>
+            <form method="post" action="/dashboard/<%= guild.id %>/giveaways/<%= g.id %>/delete" onsubmit="return confirm('Delete this giveaway record? This does not touch the posted Discord message.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

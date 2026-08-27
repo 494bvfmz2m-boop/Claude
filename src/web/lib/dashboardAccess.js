@@ -12,7 +12,11 @@ const AREAS = [
   { key: 'embeds', label: 'Embeds', description: 'The custom embed builder' },
   { key: 'reaction_roles', label: 'Reaction Roles', description: 'Reaction role panels' },
   { key: 'moderation', label: 'Moderation', description: "Punishments, staff hierarchy, swear filter -- actual punishment actions still require the acting user's real Discord permission for that action" },
-  { key: 'settings', label: 'Settings', description: 'Log channels and the ticket-banned role' },
+  { key: 'settings', label: 'Settings', description: 'Log channels, verification, stats channels, and the ticket-banned role' },
+  { key: 'giveaways', label: 'Giveaways', description: 'View, end, and delete giveaways (start/reroll are slash commands)' },
+  { key: 'events', label: 'Events', description: 'View and delete posted events' },
+  { key: 'tags', label: 'Tags', description: 'Canned response tags' },
+  { key: 'announcements', label: 'Announcements', description: 'Scheduled and recurring announcements' },
 ];
 const AREA_KEYS = new Set(AREAS.map((a) => a.key));
 

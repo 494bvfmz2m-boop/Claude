@@ -1,0 +1,44 @@
+<%- include('partials/header', { title: 'Tags', guild }) %>
+<h1>Tags</h1>
+<p class="subtitle">Canned responses staff can post with <code>/tag get &lt;name&gt;</code>. Creating/deleting from Discord needs Manage Messages -- from here, anyone with access to this page can.</p>
+
+<div class="card">
+  <h2>New tag</h2>
+  <form method="post" action="/dashboard/<%= guild.id %>/tags">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" placeholder="rules" required pattern="[a-zA-Z0-9_-]+" maxlength="32">
+    <label for="content">Content</label>
+    <textarea id="content" name="content" placeholder="Read the rules in #rules before posting." required></textarea>
+    <div class="btn-row">
+      <button class="btn" type="submit">Create tag</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Existing tags (<%= tags.length %>)</h2>
+  <% if (tags.length === 0) { %>
+    <p class="empty">No tags yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% tags.forEach(t => { %>
+        <li class="list-item" style="align-items:flex-start;">
+          <form method="post" action="/dashboard/<%= guild.id %>/tags/<%= t.id %>" style="flex:1;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label style="margin:0 0 4px;"><code><%= t.name %></code></label>
+            <textarea name="content" rows="2"><%= t.content %></textarea>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn btn-sm" type="submit">Save</button>
+            </div>
+          </form>
+          <form method="post" action="/dashboard/<%= guild.id %>/tags/<%= t.id %>/delete" onsubmit="return confirm('Delete this tag?');" style="margin-left:12px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

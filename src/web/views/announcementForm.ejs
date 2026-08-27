@@ -1,0 +1,35 @@
+<%- include('partials/header', { title: 'New announcement', guild }) %>
+<h1>New scheduled announcement</h1>
+<p class="subtitle">Times are in the bot server's own timezone, not necessarily yours -- double check against the current time shown in the footer of any embed the bot posts.</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/announcements">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="channelId">Channel</label>
+  <select id="channelId" name="channelId" required>
+    <option value="">— Select a channel —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>"><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label for="message">Message</label>
+  <textarea id="message" name="message" placeholder="Don't forget about the event tonight at 8pm!" required></textarea>
+  <%- include('partials/mentionTools', { targetId: 'message', roles: options.roles, guildId: guild.id }) %>
+
+  <label for="sendAt">Send at</label>
+  <input type="datetime-local" id="sendAt" name="sendAt" required>
+
+  <label for="recurrence">Repeat</label>
+  <select id="recurrence" name="recurrence">
+    <option value="none">Just once</option>
+    <option value="daily">Every day, same time</option>
+    <option value="weekly">Every week, same day and time</option>
+  </select>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Schedule it</button>
+    <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/announcements">Cancel</a>
+  </div>
+</form>
+<%- include('partials/footer') %>

@@ -18,6 +18,10 @@ const moderationRoutes = require('./routes/moderation');
 const mentionRoutes = require('./routes/mentions');
 const reactionRoleRoutes = require('./routes/reactionRoles');
 const permissionRoutes = require('./routes/permissions');
+const tagRoutes = require('./routes/tags');
+const announcementRoutes = require('./routes/announcements');
+const giveawayRoutes = require('./routes/giveaways');
+const eventRoutes = require('./routes/events');
 
 function createApp() {
   const app = express();
@@ -84,6 +88,10 @@ function createApp() {
   guildRouter.use(mentionRoutes);
   guildRouter.use(reactionRoleRoutes);
   guildRouter.use(permissionRoutes);
+  guildRouter.use(tagRoutes);
+  guildRouter.use(announcementRoutes);
+  guildRouter.use(giveawayRoutes);
+  guildRouter.use(eventRoutes);
 
   // CSRF check on every state-changing POST under the dashboard
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {

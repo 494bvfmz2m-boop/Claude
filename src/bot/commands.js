@@ -109,6 +109,52 @@ const commands = [
     .addStringOption((o) => o.setName('option4').setDescription('Option 4').setRequired(false))
     .addStringOption((o) => o.setName('option5').setDescription('Option 5').setRequired(false))
     .addStringOption((o) => o.setName('duration').setDescription('Auto-close after, e.g. 10m, 2h, 1d (max 30d)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('giveaway')
+    .setDescription('Run a giveaway in this channel')
+    .addSubcommand((sc) => sc
+      .setName('start')
+      .setDescription('Start a giveaway')
+      .addStringOption((o) => o.setName('prize').setDescription("What's being given away").setRequired(true))
+      .addStringOption((o) => o.setName('duration').setDescription('Runs for, e.g. 10m, 2h, 1d (max 30d)').setRequired(true))
+      .addIntegerOption((o) => o.setName('winners').setDescription('How many winners (default 1)').setRequired(false).setMinValue(1).setMaxValue(20))
+      .addRoleOption((o) => o.setName('required_role').setDescription('Only members with this role can enter').setRequired(false)))
+    .addSubcommand((sc) => sc
+      .setName('end')
+      .setDescription('End a giveaway early and pick winners')
+      .addStringOption((o) => o.setName('message_id').setDescription("The giveaway message's ID").setRequired(true)))
+    .addSubcommand((sc) => sc
+      .setName('reroll')
+      .setDescription('Pick new winner(s) for an ended giveaway')
+      .addStringOption((o) => o.setName('message_id').setDescription("The giveaway message's ID").setRequired(true))),
+
+  new SlashCommandBuilder()
+    .setName('event')
+    .setDescription('Post an event people can RSVP to')
+    .addStringOption((o) => o.setName('title').setDescription('Event title').setRequired(true))
+    .addStringOption((o) => o.setName('time').setDescription('When it happens, e.g. "2026-09-01 18:00" or just "Friday 8pm"').setRequired(false))
+    .addStringOption((o) => o.setName('description').setDescription('More details').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('tag')
+    .setDescription('Canned responses staff can post by name')
+    .addSubcommand((sc) => sc
+      .setName('get')
+      .setDescription('Post a tag')
+      .addStringOption((o) => o.setName('name').setDescription('Tag name').setRequired(true).setAutocomplete(true)))
+    .addSubcommand((sc) => sc
+      .setName('create')
+      .setDescription('Create a tag (Manage Messages required)')
+      .addStringOption((o) => o.setName('name').setDescription('Tag name').setRequired(true))
+      .addStringOption((o) => o.setName('content').setDescription('What it posts').setRequired(true)))
+    .addSubcommand((sc) => sc
+      .setName('delete')
+      .setDescription('Delete a tag (Manage Messages required)')
+      .addStringOption((o) => o.setName('name').setDescription('Tag name').setRequired(true).setAutocomplete(true)))
+    .addSubcommand((sc) => sc
+      .setName('list')
+      .setDescription('List all tags')),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

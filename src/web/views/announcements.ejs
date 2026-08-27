@@ -1,0 +1,38 @@
+<%- include('partials/header', { title: 'Announcements', guild }) %>
+<h1>Scheduled announcements</h1>
+<p class="subtitle">Post a message at a future time, once or on a repeating schedule.</p>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2>Upcoming</h2>
+    <a class="btn btn-sm" href="/dashboard/<%= guild.id %>/announcements/new">+ New announcement</a>
+  </div>
+  <% if (announcements.length === 0) { %>
+    <p class="empty">No scheduled announcements yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% announcements.forEach(a => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title">#<%= (guild.channels.cache.get(a.channel_id) || {}).name || 'unknown-channel' %></div>
+            <div class="list-item-meta">
+              <%= a.message.length > 80 ? a.message.slice(0, 80) + '…' : a.message %><br>
+              <% if (a.active) { %>
+                Next: <%= new Date(a.next_run).toLocaleString() %><%= a.recurrence !== 'none' ? ` · repeats ${a.recurrence}` : ' · one-time' %>
+              <% } else { %>
+                Sent · one-time
+              <% } %>
+            </div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/dashboard/<%= guild.id %>/announcements/<%= a.id %>/delete" onsubmit="return confirm('Delete this scheduled announcement?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

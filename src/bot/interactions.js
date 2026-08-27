@@ -7,9 +7,16 @@ const introduction = require('./introduction');
 const poll = require('./poll');
 const help = require('./help');
 const lockdown = require('./lockdown');
+const giveaway = require('./giveaway');
+const event = require('./event');
+const tags = require('./tags');
 const config = require('../config');
 const { buildServerListEmbed } = require('./ownerPanel');
 const dmForm = require('./dmForm');
+const { handleVerifyClick } = require('./verification');
+const { handleGiveawayEnter } = require('./giveaway');
+const { handleEventResponse } = require('./event');
+const { handleTagAutocomplete } = require('./tags');
 
 const chatCommandHandlers = {
   change: startChangeType,
@@ -20,6 +27,9 @@ const chatCommandHandlers = {
   ...poll,
   ...help,
   ...lockdown,
+  ...giveaway,
+  ...event,
+  ...tags,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;
@@ -38,6 +48,11 @@ function register(client) {
       if (interaction.isChatInputCommand()) {
         const handler = chatCommandHandlers[interaction.commandName];
         if (handler) return handler(interaction);
+      }
+
+      if (interaction.isAutocomplete()) {
+        if (interaction.commandName === 'tag') return handleTagAutocomplete(interaction);
+        return interaction.respond([]).catch(() => {});
       }
 
       if (interaction.isButton()) {
@@ -75,6 +90,20 @@ function register(client) {
         if (action === 'dmform_open') {
           const [sendId] = rest;
           return dmForm.handleOpenButton(interaction, Number(sendId));
+        }
+
+        if (action === 'verify_click') {
+          return handleVerifyClick(interaction);
+        }
+
+        if (action === 'giveaway_enter') {
+          const [giveawayId] = rest;
+          return handleGiveawayEnter(interaction, Number(giveawayId));
+        }
+
+        if (action === 'event_rsvp') {
+          const [eventId, response] = rest;
+          return handleEventResponse(interaction, Number(eventId), response);
         }
 
         if (action === 'ticket_close') {

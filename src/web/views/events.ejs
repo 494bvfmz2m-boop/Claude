@@ -1,0 +1,31 @@
+<%- include('partials/header', { title: 'Events', guild }) %>
+<h1>Events</h1>
+<p class="subtitle">Post one with <code>/event</code> in Discord. This page is for visibility and cleanup.</p>
+
+<div class="card">
+  <h2>All events (<%= events.length %>)</h2>
+  <% if (events.length === 0) { %>
+    <p class="empty">No events posted yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% events.forEach(e => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title">📅 <%= e.title %></div>
+            <div class="list-item-meta">
+              <%= e.going.length %> going · <%= e.maybe.length %> maybe · <%= e.not_going.length %> not going ·
+              in #<%= (guild.channels.cache.get(e.channel_id) || {}).name || 'unknown-channel' %>
+            </div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/dashboard/<%= guild.id %>/events/<%= e.id %>/delete" onsubmit="return confirm('Delete this event record? This does not touch the posted Discord message.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>
