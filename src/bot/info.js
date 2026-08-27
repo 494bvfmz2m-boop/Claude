@@ -9,6 +9,34 @@ function permLine(label, has) {
   return `${has ? '✅' : '❌'} ${label}`;
 }
 
+// The full command list, independent of ACTIONS/commandPermissions.js --
+// this covers every slash command that exists, including the ones (help,
+// poll, tag get, etc.) nothing in that system gates at all.
+function buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys }) {
+  const staffOverride = isOwner || isAdmin;
+  const hasManageMessages = perms.has(PermissionFlagsBits.ManageMessages);
+  const inHierarchy = staffOverride || rank.rank > 0;
+
+  const entries = [
+    { name: 'help', available: true },
+    { name: 'info', available: true },
+    { name: 'introduction', available: true },
+    { name: 'poll', available: true },
+    { name: 'giveaway', available: true },
+    { name: 'event', available: true },
+    { name: 'tag get / list', available: true },
+    { name: 'tag create / delete', available: hasManageMessages },
+    { name: 'change (in a ticket)', available: true },
+    { name: 'warnings', available: staffOverride || perms.has(PermissionFlagsBits.ModerateMembers) },
+    { name: 'promote', available: inHierarchy },
+    { name: 'demote', available: inHierarchy },
+  ];
+  for (const action of ACTIONS) {
+    entries.push({ name: action.key, available: staffOverride || grantedActionKeys.has(action.key) });
+  }
+  return entries;
+}
+
 // "Tells the user what access they have" -- mirrors exactly the checks the
 // dashboard and slash commands actually enforce, so there's one obvious
 // place to answer "why can't I do X" without digging through Discord's
@@ -30,7 +58,8 @@ async function handleInfo(interaction) {
   const rankRole = rank.roleId ? guild.roles.cache.get(rank.roleId) : null;
 
   const dashAccess = await getMemberAccess(guild, member.id);
-  const grantedActions = ACTIONS.filter((a) => canUseAction(guild, member, a.key));
+  const grantedActionKeys = new Set(ACTIONS.filter((a) => canUseAction(guild, member, a.key)).map((a) => a.key));
+  const commandList = buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys });
 
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${target.tag}`)
@@ -58,18 +87,14 @@ async function handleInfo(interaction) {
             : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",
       },
       {
-        name: 'Moderation commands',
-        value: isOwner || isAdmin
-          ? '✅ All of them (owner/Administrator)'
-          : grantedActions.length > 0
-            ? grantedActions.map((a) => `\`/${a.key}\``).join(', ')
-            : "None granted -- ask an admin to grant them from the Permissions page",
-      },
-      {
         name: 'Staff hierarchy',
         value: rank.rank > 0
           ? `Rank ${rank.rank} — ${rankRole ? rankRole.name : 'unknown role'}`
           : 'Not part of the staff hierarchy',
+      },
+      {
+        name: 'Commands',
+        value: commandList.map((c) => permLine(`/${c.name}`, c.available)).join('\n'),
       },
     );
 

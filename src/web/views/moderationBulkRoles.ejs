@@ -1,0 +1,88 @@
+<%- include('partials/header', { title: 'Bulk roles', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Bulk roles</h1>
+<p class="subtitle">Add or remove one role across many members at once.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<form class="card" method="get" action="/dashboard/<%= guild.id %>/moderation/bulk-roles" style="margin-bottom:16px;">
+  <label for="search">Search members</label>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="search" name="search" value="<%= search %>" placeholder="Username or nickname">
+    <button class="btn btn-sm" type="submit">Search</button>
+    <% if (search) { %><a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/moderation/bulk-roles">Clear</a><% } %>
+  </div>
+</form>
+
+<form method="post" action="/dashboard/<%= guild.id %>/moderation/bulk-roles/apply">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="page" value="<%= page %>">
+  <input type="hidden" name="search" value="<%= search %>">
+
+  <div class="card" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+    <div style="flex:1; min-width:200px;">
+      <label for="roleId">Role</label>
+      <select id="roleId" name="roleId" required>
+        <option value="">— Select a role —</option>
+        <% roles.forEach(r => { %>
+          <option value="<%= r.id %>"><%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="btn-row" style="margin:0;">
+      <button class="btn btn-sm" type="submit" name="mode" value="add">Add to selected</button>
+      <button class="btn btn-sm btn-ghost" type="submit" name="mode" value="remove">Remove from selected</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span class="hint"><%= total %> member(s)<%= search ? ` matching "${search}"` : '' %></span>
+      <label style="margin:0; font-weight:600; font-size:14px;">
+        <input type="checkbox" id="selectAll"> Select all on this page
+      </label>
+    </div>
+    <% if (members.length === 0) { %>
+      <p class="empty">No members found.</p>
+    <% } else { %>
+      <ul class="list">
+        <% members.forEach(m => { %>
+          <li class="list-item">
+            <label style="display:flex; align-items:center; gap:10px; margin:0; cursor:pointer;">
+              <input type="checkbox" name="memberId" value="<%= m.id %>" class="member-check">
+              <img src="<%= m.user.displayAvatarURL({ size: 32 }) %>" alt="" style="width:28px; height:28px; border-radius:50%;">
+              <span><%= m.user.username %><%= m.nickname ? ` (${m.nickname})` : '' %></span>
+            </label>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</form>
+
+<% if (totalPages > 1) { %>
+  <div class="btn-row">
+    <% if (page > 1) { %>
+      <a class="btn btn-ghost btn-sm" href="?page=<%= page - 1 %>&search=<%= encodeURIComponent(search) %>">&larr; Prev</a>
+    <% } %>
+    <span class="hint">Page <%= page %> of <%= totalPages %></span>
+    <% if (page < totalPages) { %>
+      <a class="btn btn-ghost btn-sm" href="?page=<%= page + 1 %>&search=<%= encodeURIComponent(search) %>">Next &rarr;</a>
+    <% } %>
+  </div>
+<% } %>
+
+<script>
+(function () {
+  var selectAll = document.getElementById('selectAll');
+  var boxes = [].slice.call(document.querySelectorAll('.member-check'));
+  selectAll.addEventListener('change', function () {
+    boxes.forEach(function (b) { b.checked = selectAll.checked; });
+  });
+})();
+</script>
+<%- include('partials/footer') %>

@@ -1,7 +1,7 @@
 <%- include('partials/header', { title: 'Moderation log', guild }) %>
 <a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
 <h1>Moderation log</h1>
-<p class="subtitle">Every action taken, from Discord or the dashboard.</p>
+<p class="subtitle">Every action taken, from Discord or the dashboard -- who did what, and when.</p>
 
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
@@ -9,9 +9,34 @@
   </div>
 <% } %>
 
+<form class="card" method="get" action="/dashboard/<%= guild.id %>/moderation/log" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+  <div style="flex:1; min-width:180px;">
+    <label for="moderatorId">Moderator</label>
+    <select id="moderatorId" name="moderatorId">
+      <option value="">All moderators</option>
+      <% moderators.forEach(m => { %>
+        <option value="<%= m.moderator_id %>" <%= moderatorId === m.moderator_id ? 'selected' : '' %>><%= m.moderator_tag || m.moderator_id %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div style="flex:1; min-width:180px;">
+    <label for="action">Action</label>
+    <select id="action" name="action">
+      <option value="">All actions</option>
+      <% actionTypes.forEach(a => { %>
+        <option value="<%= a %>" <%= action === a ? 'selected' : '' %>><%= a %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="btn-row" style="margin:0;">
+    <button class="btn btn-sm" type="submit">Filter</button>
+    <% if (moderatorId || action) { %><a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/moderation/log">Clear</a><% } %>
+  </div>
+</form>
+
 <div class="card">
   <% if (actions.length === 0) { %>
-    <p class="empty">Nothing logged yet.</p>
+    <p class="empty">Nothing logged<%= moderatorId || action ? ' matching that filter' : ' yet' %>.</p>
   <% } else { %>
     <ul class="list">
       <% actions.forEach(a => { %>
@@ -30,4 +55,15 @@
     </ul>
   <% } %>
 </div>
+
+<% if (page > 1 || hasNext) { %>
+  <div class="btn-row">
+    <% if (page > 1) { %>
+      <a class="btn btn-ghost btn-sm" href="?page=<%= page - 1 %>&moderatorId=<%= moderatorId %>&action=<%= action %>">&larr; Newer</a>
+    <% } %>
+    <% if (hasNext) { %>
+      <a class="btn btn-ghost btn-sm" href="?page=<%= page + 1 %>&moderatorId=<%= moderatorId %>&action=<%= action %>">Older &rarr;</a>
+    <% } %>
+  </div>
+<% } %>
 <%- include('partials/footer') %>

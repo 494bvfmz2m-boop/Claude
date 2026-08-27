@@ -99,6 +99,11 @@ router.get('/moderation', async (req, res) => {
       desc: 'Every action taken, from Discord or the dashboard.',
       status: null,
     },
+    {
+      id: 'bulk-roles', label: 'Bulk roles',
+      desc: 'Add or remove a role across many members at once.',
+      status: null,
+    },
   ];
   res.render('moderationOverview', { guild, categories, notice: notice(req) });
 });
@@ -390,10 +395,83 @@ router.post('/moderation/actions', async (req, res) => {
 });
 
 // ---------- Moderation log ----------
+const LOG_PAGE_SIZE = 25;
+
 router.get('/moderation/log', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('moderationLog', { guild, actions: ModActions.listForGuild(guild.id, 50), notice: notice(req) });
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const moderatorId = req.query.moderatorId || '';
+  const action = req.query.action || '';
+
+  const rows = ModActions.listFiltered(guild.id, { moderatorId, action, limit: LOG_PAGE_SIZE, offset: (page - 1) * LOG_PAGE_SIZE });
+  const hasNext = rows.length > LOG_PAGE_SIZE;
+  const actions = rows.slice(0, LOG_PAGE_SIZE);
+
+  res.render('moderationLog', {
+    guild, actions, notice: notice(req), page, hasNext,
+    moderatorId, action,
+    moderators: ModActions.distinctModerators(guild.id),
+    actionTypes: ModActions.distinctActions(guild.id),
+  });
+});
+
+// ---------- Bulk roles ----------
+const BULK_PAGE_SIZE = 50;
+
+router.get('/moderation/bulk-roles', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+
+  await guild.members.fetch().catch(() => {});
+  const search = (req.query.search || '').trim().toLowerCase();
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+
+  let members = [...guild.members.cache.values()].filter((m) => !m.user.bot);
+  if (search) {
+    members = members.filter((m) => m.user.username.toLowerCase().includes(search) || (m.nickname || '').toLowerCase().includes(search));
+  }
+  members.sort((a, b) => a.user.username.localeCompare(b.user.username));
+
+  const total = members.length;
+  const totalPages = Math.max(1, Math.ceil(total / BULK_PAGE_SIZE));
+  const pageMembers = members.slice((page - 1) * BULK_PAGE_SIZE, page * BULK_PAGE_SIZE);
+
+  res.render('moderationBulkRoles', {
+    guild, notice: notice(req), search, page, totalPages, total,
+    members: pageMembers, roles: guildChannelOptions(guild).roles,
+  });
+});
+
+router.post('/moderation/bulk-roles/apply', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+
+  const roleId = req.body.roleId;
+  const mode = req.body.mode === 'remove' ? 'remove' : 'add';
+  const memberIds = [].concat(req.body.memberId || []);
+  const backTo = `/dashboard/${guild.id}/moderation/bulk-roles?page=${encodeURIComponent(req.body.page || '1')}&search=${encodeURIComponent(req.body.search || '')}`;
+
+  if (!roleId || memberIds.length === 0) {
+    return res.redirect(`${backTo}&msg=${encodeURIComponent('Pick a role and at least one member.')}&ok=0`);
+  }
+
+  let changed = 0;
+  for (const id of memberIds) {
+    const member = await guild.members.fetch(id).catch(() => null);
+    if (!member) continue;
+    try {
+      if (mode === 'add') await member.roles.add(roleId);
+      else await member.roles.remove(roleId);
+      changed++;
+    } catch {
+      // Missing permissions or the role sits above ModSentry's own -- skip
+      // and keep going rather than aborting the whole batch over one member.
+    }
+  }
+
+  res.redirect(`${backTo}&msg=${encodeURIComponent(`${mode === 'add' ? 'Added' : 'Removed'} the role for ${changed} of ${memberIds.length} member(s).`)}&ok=1`);
 });
 
 module.exports = router;
