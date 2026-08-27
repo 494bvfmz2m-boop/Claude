@@ -17,6 +17,7 @@ const { handleVerifyClick } = require('./verification');
 const { handleGiveawayEnter } = require('./giveaway');
 const { handleEventResponse } = require('./event');
 const { handleTagAutocomplete } = require('./tags');
+const { handleBetaRequestButton } = require('./betaRequests');
 
 const chatCommandHandlers = {
   change: startChangeType,
@@ -104,6 +105,10 @@ function register(client) {
         if (action === 'event_rsvp') {
           const [eventId, response] = rest;
           return handleEventResponse(interaction, Number(eventId), response);
+        }
+
+        if (action === 'beta_approve' || action === 'beta_reject') {
+          return handleBetaRequestButton(interaction);
         }
 
         if (action === 'ticket_close') {

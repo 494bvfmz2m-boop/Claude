@@ -4,6 +4,31 @@
   <p class="subtitle">Log in to manage tickets, moderation, embeds and settings.</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>
 
+  <% if (typeof pendingBetaUser !== 'undefined' && pendingBetaUser) { %>
+    <div class="card" style="padding:24px; margin-bottom:16px; border-color:var(--accent);">
+      <h2 style="margin-top:0;">Closed beta</h2>
+      <% if (alreadyRequested) { %>
+        <p class="hint" style="margin-top:0;">
+          Your request is in, <strong><%= pendingBetaUser.username %></strong> — you'll get a DM from ModSentry
+          the moment it's reviewed. No need to ask again.
+        </p>
+      <% } else { %>
+        <p class="hint" style="margin-top:0;">
+          <strong><%= pendingBetaUser.username %></strong> isn't on the beta list yet. Send a quick request and
+          you'll get a DM from ModSentry once it's approved or declined.
+        </p>
+        <form method="post" action="/request-access">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="requestMessage" style="margin-top:14px;">A line about why (optional)</label>
+          <textarea id="requestMessage" name="message" maxlength="500" placeholder="e.g. I run a 2k-member server and want to try ticket support"></textarea>
+          <div class="btn-row">
+            <button class="btn" type="submit">Request access</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+  <% } %>
+
   <div class="card" style="padding:24px;">
     <a class="btn" href="/auth/discord" style="width:100%; justify-content:center;">Log in with Discord</a>
     <p class="hint" style="text-align:center; margin-top:12px;">

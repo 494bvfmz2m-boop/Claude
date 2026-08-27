@@ -41,7 +41,8 @@ function buildClosedBetaEmbed() {
     .setTitle('🔒 ModSentry is in closed beta')
     .setColor(GREETING_COLOR)
     .setDescription(
-      `I'm not accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`,
+      `I'm not accepting new servers right now. Head to [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}) ` +
+        'and click **Log in with Discord** — you\'ll get a **Request access** button there, and a DM from me the moment it\'s reviewed.',
     )
     .addFields({ name: '🌐 Website', value: `[modsentry.site](${WEBSITE_URL})` });
 }

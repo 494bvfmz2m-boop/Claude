@@ -235,6 +235,17 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS beta_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  discord_user_id TEXT NOT NULL,
+  discord_tag TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  decided_by TEXT,
+  decided_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS dashboard_admins (
   discord_user_id TEXT PRIMARY KEY,
   note TEXT,
@@ -299,6 +310,8 @@ CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id
 CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 CREATE INDEX IF NOT EXISTS idx_hierarchies_guild ON hierarchies(guild_id);
+CREATE INDEX IF NOT EXISTS idx_beta_requests_status ON beta_requests(status, id DESC);
+CREATE INDEX IF NOT EXISTS idx_beta_requests_user ON beta_requests(discord_user_id);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_emoji_book_emoji_id ON emoji_book(emoji_id);

@@ -140,6 +140,27 @@ const AppSettings = {
   },
 };
 
+const BetaRequests = {
+  create(discordUserId, discordTag, message) {
+    const info = db.prepare('INSERT INTO beta_requests (discord_user_id, discord_tag, message) VALUES (?, ?, ?)')
+      .run(discordUserId, discordTag || null, message || null);
+    return info.lastInsertRowid;
+  },
+  get(id) {
+    return db.prepare('SELECT * FROM beta_requests WHERE id = ?').get(id) || null;
+  },
+  hasPending(discordUserId) {
+    return !!db.prepare("SELECT 1 FROM beta_requests WHERE discord_user_id = ? AND status = 'pending'").get(discordUserId);
+  },
+  listPending() {
+    return db.prepare("SELECT * FROM beta_requests WHERE status = 'pending' ORDER BY id DESC").all();
+  },
+  decide(id, status, decidedBy) {
+    db.prepare("UPDATE beta_requests SET status = ?, decided_by = ?, decided_at = datetime('now') WHERE id = ?")
+      .run(status, decidedBy, id);
+  },
+};
+
 const DashboardAdmins = {
   list() {
     return db.prepare('SELECT discord_user_id, note, added_by, added_at FROM dashboard_admins ORDER BY added_at DESC').all();
@@ -884,4 +905,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };
