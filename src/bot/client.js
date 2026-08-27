@@ -8,6 +8,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers, // needed for the staff list + promote/demote to see current roles reliably
     GatewayIntentBits.GuildMessageReactions, // needed for reaction roles
     GatewayIntentBits.DirectMessages, // needed for the DM greeting -- not privileged, no portal toggle required
+    GatewayIntentBits.GuildPresences, // needed for the online-count stats channel
   ],
   partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
 });

@@ -22,9 +22,10 @@ function buildReactionRoleMessage(panel, guild) {
     return `${m.display || m.emoji} — ${role ? `<@&${role.id}>` : 'Unknown role'}`;
   });
 
+  const note = panel.exclusive ? '\n\n*Pick one -- choosing another removes your current pick.*' : '';
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
-    .setDescription(`${panel.description}\n\n${lines.join('\n')}`)
+    .setDescription(`${panel.description}\n\n${lines.join('\n')}${note}`)
     .setColor(panel.color || '#a8e6ff');
 
   return { embeds: [embed] };
@@ -63,6 +64,19 @@ async function handleReaction(reaction, user, adding) {
   } catch {
     // Missing permissions or the role sits above ModSentry's own -- nothing
     // sensible to report back through a reaction click, so just drop it.
+  }
+
+  // Exclusive panels are single-pick: adding one role in the group clears
+  // any others from that same panel (and their reactions, so the message
+  // stays an accurate picture of who has what).
+  if (adding && panel.exclusive) {
+    const otherMappings = panel.mappings.filter((m) => m.matchKey !== key);
+    for (const other of otherMappings) {
+      if (!member.roles.cache.has(other.roleId)) continue;
+      await member.roles.remove(other.roleId).catch(() => {});
+      const otherReaction = message.reactions.cache.get(other.matchKey);
+      await otherReaction?.users.remove(user.id).catch(() => {});
+    }
   }
 }
 

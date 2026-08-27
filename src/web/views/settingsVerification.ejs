@@ -1,0 +1,56 @@
+<%- include('partials/header', { title: 'Verification', guild }) %>
+<a href="/dashboard/<%= guild.id %>/settings" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Settings</a>
+<h1>Verification</h1>
+<p class="subtitle">Post a button new members click to get a role -- gate the rest of the server behind it with normal Discord channel permissions.</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/verification">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label class="role-chip" style="width:fit-content;">
+    <input type="checkbox" name="enabled" <%= settings.verification_enabled ? 'checked' : '' %>>
+    Verification enabled
+  </label>
+  <div class="hint">When off, the Verify button on an already-posted panel won't grant the role.</div>
+
+  <label for="channelId">Verification channel</label>
+  <select id="channelId" name="channelId">
+    <option value="">— Select a channel —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.verification_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label for="roleId">Role to grant</label>
+  <select id="roleId" name="roleId">
+    <option value="">— Select a role —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>" <%= settings.verification_role_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Make sure ModSentry's own role sits above this one in Server Settings → Roles.</div>
+
+  <label for="message">Panel message</label>
+  <textarea id="message" name="message" placeholder="Click the button below to verify and get access to the rest of the server."><%= settings.verification_message || '' %></textarea>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Save</button>
+  </div>
+</form>
+
+<div class="card">
+  <h2>Post the panel</h2>
+  <p class="hint" style="margin-bottom:12px;">
+    <% if (settings.verification_message_id) { %>
+      Already posted. Posting again updates that same message in place.
+    <% } else { %>
+      Not posted yet. Save your settings above first, then post it.
+    <% } %>
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/settings/verification/deploy">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn" type="submit" <%= settings.verification_channel_id ? '' : 'disabled' %>>
+      <%= settings.verification_message_id ? 'Update posted panel' : 'Post panel' %>
+    </button>
+  </form>
+</div>
+<%- include('partials/footer') %>

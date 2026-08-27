@@ -1,0 +1,43 @@
+<%- include('partials/header', { title: 'Server stats channels', guild }) %>
+<a href="/dashboard/<%= guild.id %>/settings" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Settings</a>
+<h1>Server stats channels</h1>
+<p class="subtitle">
+  Pick existing voice channels (make new ones first, locked so nobody can join) and ModSentry renames them to show a live
+  count. Discord rate-limits channel renames, so these update roughly every 10 minutes, not instantly.
+</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/stats">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="membersChannelId">Member count channel</label>
+  <select id="membersChannelId" name="membersChannelId">
+    <option value="">— None —</option>
+    <% options.voiceChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.stats_members_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Renamed to e.g. "Members: 1,234".</div>
+
+  <label for="onlineChannelId">Online count channel</label>
+  <select id="onlineChannelId" name="onlineChannelId">
+    <option value="">— None —</option>
+    <% options.voiceChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.stats_online_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Renamed to e.g. "Online: 87". Needs the Presence Intent enabled in the Discord Developer Portal to be accurate.</div>
+
+  <label for="boostsChannelId">Boost count channel</label>
+  <select id="boostsChannelId" name="boostsChannelId">
+    <option value="">— None —</option>
+    <% options.voiceChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.stats_boosts_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Renamed to e.g. "Boosts: 5".</div>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Save</button>
+  </div>
+</form>
+<%- include('partials/footer') %>

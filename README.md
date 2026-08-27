@@ -65,9 +65,10 @@ their own Discord account and can only configure their own server.
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**.
 2. Go to **Bot** → **Reset Token** → copy it. This is your `DISCORD_TOKEN`.
 3. On the same **Bot** page, scroll to **Privileged Gateway Intents** and enable
-   **Message Content Intent** (needed for transcripts and the swear filter) **and
-   Server Members Intent** (needed for the staff list and `/promote`/`/demote`
-   to see everyone's current roles reliably).
+   **Message Content Intent** (needed for transcripts and the swear filter),
+   **Server Members Intent** (needed for the staff list and `/promote`/`/demote`
+   to see everyone's current roles reliably), **and Presence Intent** (needed
+   for the online-count stats channel — everything else works fine without it).
 4. Go to **OAuth2** → **General** and copy the **Client ID**. This is your `DISCORD_CLIENT_ID`.
 5. Invite the bot to your server. Build the URL like this (or use the OAuth2 URL
    Generator in the portal: scopes `bot` **and** `applications.commands`, permissions below):

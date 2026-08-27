@@ -41,6 +41,7 @@ router.post('/reaction-roles', async (req, res) => {
     description: req.body.description?.trim() || 'React to get a role!',
     color: req.body.color || '#a8e6ff',
     mappings: parseMappingsFromBody(req.body),
+    exclusive: req.body.exclusive === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/reaction-roles`);
 });
@@ -64,6 +65,7 @@ router.post('/reaction-roles/:id', async (req, res) => {
     description: req.body.description?.trim() || 'React to get a role!',
     color: req.body.color || '#a8e6ff',
     mappings: parseMappingsFromBody(req.body),
+    exclusive: req.body.exclusive === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/reaction-roles`);
 });

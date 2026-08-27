@@ -30,6 +30,15 @@
     deletions all get posted here.
   </div>
 
+  <label for="messageLogChannelId">Message log channel</label>
+  <select id="messageLogChannelId" name="messageLogChannelId">
+    <option value="">— None (deleted/edited messages won't be logged anywhere) —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>" <%= settings.message_log_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+  <div class="hint">Every deleted or edited message gets posted here, with the before/after content.</div>
+
   <label for="welcomeChannelId">Welcome channel</label>
   <select id="welcomeChannelId" name="welcomeChannelId">
     <option value="">— None (no welcome message is sent) —</option>

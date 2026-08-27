@@ -1,0 +1,84 @@
+const { EmbedBuilder, Events } = require('discord.js');
+const { GuildSettings } = require('../db/repo');
+
+const DELETE_COLOR = '#ed4245';
+const EDIT_COLOR = '#a8e6ff';
+const MAX_FIELD_LEN = 1000;
+
+function truncate(text) {
+  if (!text) return '*(no text content)*';
+  return text.length > MAX_FIELD_LEN ? `${text.slice(0, MAX_FIELD_LEN)}…` : text;
+}
+
+async function getLogChannel(guild) {
+  if (!guild) return null;
+  const settings = GuildSettings.get(guild.id);
+  if (!settings.message_log_channel_id) return null;
+  const channel = await guild.channels.fetch(settings.message_log_channel_id).catch(() => null);
+  return channel?.isTextBased() ? channel : null;
+}
+
+function register(client) {
+  // Only ever has content to show for messages that were in the cache before
+  // they were deleted (discord.js's default cache, or ones the bot already
+  // saw) -- a message deleted while genuinely uncached carries no content at
+  // all, so those are silently skipped rather than logged as blank.
+  client.on(Events.MessageDelete, async (message) => {
+    try {
+      if (!message.guild || message.author?.bot) return;
+      if (message.partial) return;
+
+      const channel = await getLogChannel(message.guild);
+      if (!channel) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(DELETE_COLOR)
+        .setAuthor({ name: message.author?.tag || 'Unknown user', iconURL: message.author?.displayAvatarURL?.() })
+        .setTitle('🗑️ Message deleted')
+        .setDescription(truncate(message.content))
+        .addFields({ name: 'Channel', value: `<#${message.channelId}>`, inline: true })
+        .setFooter({ text: `User ID: ${message.author?.id || 'unknown'}` })
+        .setTimestamp();
+
+      if (message.attachments.size > 0) {
+        embed.addFields({ name: 'Attachments', value: [...message.attachments.values()].map((a) => a.name).join(', ') });
+      }
+
+      await channel.send({ embeds: [embed] }).catch(() => {});
+    } catch (err) {
+      console.error('Message log (delete) failed:', err.message);
+    }
+  });
+
+  client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+    try {
+      if (!newMessage.guild || newMessage.author?.bot) return;
+      if (oldMessage.partial || newMessage.partial) return;
+      // Link unfurls and other embed-only updates fire this event too, with
+      // identical content -- not an edit worth logging.
+      if (oldMessage.content === newMessage.content) return;
+
+      const channel = await getLogChannel(newMessage.guild);
+      if (!channel) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(EDIT_COLOR)
+        .setAuthor({ name: newMessage.author?.tag || 'Unknown user', iconURL: newMessage.author?.displayAvatarURL?.() })
+        .setTitle('✏️ Message edited')
+        .addFields(
+          { name: 'Before', value: truncate(oldMessage.content) },
+          { name: 'After', value: truncate(newMessage.content) },
+          { name: 'Channel', value: `<#${newMessage.channelId}>`, inline: true },
+          { name: 'Jump to message', value: `[Click here](${newMessage.url})`, inline: true },
+        )
+        .setFooter({ text: `User ID: ${newMessage.author?.id || 'unknown'}` })
+        .setTimestamp();
+
+      await channel.send({ embeds: [embed] }).catch(() => {});
+    } catch (err) {
+      console.error('Message log (edit) failed:', err.message);
+    }
+  });
+}
+
+module.exports = { register };

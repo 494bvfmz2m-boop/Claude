@@ -13,6 +13,10 @@ const { register: registerDmGreeting } = require('./bot/dmGreeting');
 const { register: registerBetaGate } = require('./bot/betaGate');
 const { register: registerWelcome } = require('./bot/welcome');
 const { register: registerPollScheduler } = require('./bot/pollScheduler');
+const { register: registerMessageLog } = require('./bot/messageLog');
+const { register: registerGiveawayScheduler } = require('./bot/giveawayScheduler');
+const { register: registerAnnouncementScheduler } = require('./bot/announcementScheduler');
+const { register: registerStatsChannels } = require('./bot/statsChannels');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -34,6 +38,10 @@ registerDmGreeting(client);
 registerBetaGate(client);
 registerWelcome(client);
 registerPollScheduler(client);
+registerMessageLog(client);
+registerGiveawayScheduler(client);
+registerAnnouncementScheduler(client);
+registerStatsChannels(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);

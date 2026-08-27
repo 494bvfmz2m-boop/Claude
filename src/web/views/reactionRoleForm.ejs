@@ -14,6 +14,11 @@
   <label for="color">Color</label>
   <input type="color" id="color" name="color" value="<%= panel?.color || '#a8e6ff' %>">
 
+  <label class="role-chip" style="margin-top:20px; width:fit-content;">
+    <input type="checkbox" name="exclusive" <%= panel?.exclusive ? 'checked' : '' %>>
+    Exclusive (pick one) -- choosing a role removes any other role from this panel
+  </label>
+
   <label style="margin-top:20px;">Emoji → role</label>
   <div id="mapping-rows">
     <% (panel?.mappings?.length ? panel.mappings : []).forEach(m => { %>

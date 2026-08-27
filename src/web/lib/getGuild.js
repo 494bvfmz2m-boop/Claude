@@ -22,6 +22,11 @@ function guildChannelOptions(guild) {
       icon: c.type === ChannelType.GuildAnnouncement ? '📢' : '#',
     }));
 
+  const voiceChannels = [...guild.channels.cache.values()]
+    .filter((c) => c.type === ChannelType.GuildVoice)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => ({ id: c.id, name: c.name, icon: '🔊' }));
+
   const categories = [...guild.channels.cache.values()]
     .filter((c) => c.type === ChannelType.GuildCategory)
     .sort((a, b) => a.position - b.position)
@@ -38,7 +43,7 @@ function guildChannelOptions(guild) {
       unicodeEmoji: r.unicodeEmoji || null,
     }));
 
-  return { textChannels, categories, roles };
+  return { textChannels, voiceChannels, categories, roles };
 }
 
 module.exports = { getGuildOr404, guildChannelOptions };

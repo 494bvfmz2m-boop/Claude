@@ -16,7 +16,7 @@
           <div>
             <div class="list-item-title"><%= p.title %></div>
             <div class="list-item-meta">
-              <%= p.mappings.length %> mapping(s) ·
+              <%= p.mappings.length %> mapping(s)<%= p.exclusive ? ' · exclusive' : '' %> ·
               <% if (p.channel_id) { %>posted in #<%= (guild.channels.cache.get(p.channel_id) || {}).name || 'unknown-channel' %><% } else { %>not posted yet<% } %>
             </div>
           </div>
