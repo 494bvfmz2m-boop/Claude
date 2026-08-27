@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Features — ModSentry</title>
-<meta name="description" content="Everything ModSentry does: support tickets, a full moderation suite, channel lockdown, content filters, auto-punishments, welcome/leave messages, staff hierarchy, reaction roles, an embed builder, guided setup, and a real per-role permissions manager.">
+<meta name="description" content="Everything ModSentry does: support tickets, a full moderation suite, channel lockdown, content filters, auto-punishments, welcome/leave messages, staff hierarchy, reaction roles, verification, giveaways, events, tags, scheduled announcements, an embed builder, guided setup, and a real per-role permissions manager.">
 <meta property="og:title" content="Features — ModSentry">
-<meta property="og:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, embeds, and a real permissions manager.">
+<meta property="og:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, and a real permissions manager.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://modsentry.site/features">
 <meta property="og:image" content="https://modsentry.site/img/og-image.png">
@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Features — ModSentry">
-<meta name="twitter:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, embeds, and a real permissions manager.">
+<meta name="twitter:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, and a real permissions manager.">
 <meta name="twitter:image" content="https://modsentry.site/img/og-image.png">
 <link rel="icon" type="image/svg+xml" href="img/modsentry-favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,7 +98,8 @@
             <li>Target by username or Discord user ID, not just raw IDs</li>
             <li><code>/purge 10</code> deletes the last 10 messages; <code>/purge</code> with no number clears the whole channel, behind a confirm step — and posts a "purge completed" embed anyone in the channel can see</li>
             <li>Rank rules apply everywhere — you can't punish someone who outranks or matches you, on either side</li>
-            <li>The punished member gets a DM explaining what happened and why; every action — from Discord or the site — lands in one searchable moderation log</li>
+            <li>The punished member gets a DM explaining what happened and why; every action — from Discord or the site — lands in one moderation log, filterable by moderator or action type</li>
+            <li>Add or remove a role across a whole page of selected members at once from the dashboard, instead of clicking through them one by one</li>
           </ul>
         </div>
       </div>
@@ -220,11 +221,56 @@
             <li>React to get the role, remove the reaction to lose it — handled automatically</li>
             <li>Edit and re-post an existing panel and it updates the live message and re-syncs the reactions to match</li>
             <li>As many emoji → role mappings per panel as you need</li>
+            <li>Mark a panel exclusive to make it single-pick — choosing a new role in the group automatically drops whichever one you had</li>
           </ul>
         </div>
       </div>
 
-      <div class="feature-row reveal" id="permissions">
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="4" rx="1"/><rect x="5" y="12" width="14" height="8" rx="1"/><path d="M12 8v12"/><path d="M12 8C10.5 5 8 4.5 7 6s.5 3 5 2Z"/><path d="M12 8c1.5-3 4-3.5 5-2s-.5 3-5 2Z"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Community</span>
+          <h2>Giveaways and events, built in</h2>
+          <p>Neither one needs a code channel or a spreadsheet — both live as a single message with buttons, tracked and closed out automatically.</p>
+          <ul class="feature-row-list">
+            <li><code>/giveaway&nbsp;start</code> takes a prize, a duration, a winner count, and an optional required role — anyone can enter with one click, no reactions to fumble</li>
+            <li>Reroll or end a giveaway early from Discord; a dashboard page lists every one for visibility and cleanup</li>
+            <li><code>/event</code> posts a title, time, and description with Going / Maybe / Not going buttons and a live attendee count on the message itself</li>
+            <li>Both auto-close and pick winners (or just tally RSVPs) even if the bot restarts in between</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Access control</span>
+          <h2>A verification gate before anyone sees the rest of the server</h2>
+          <p>One button, one role, no captcha or bot-guessing games — pair it with Discord's own channel permissions to keep everything else hidden until someone clicks through.</p>
+          <ul class="feature-row-list">
+            <li>Post a Verify button to any channel, with your own message text</li>
+            <li>Clicking it grants the role you picked — instantly, no waiting on staff</li>
+            <li>Enable, disable, or re-post the panel any time from Settings; re-posting edits the same message in place</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5H4l3-3.5A8.38 8.38 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Communication</span>
+          <h2>Tags and scheduled announcements</h2>
+          <p>Say the same thing without retyping it, and say it at the right time without being awake for it.</p>
+          <ul class="feature-row-list">
+            <li><code>/tag&nbsp;get&nbsp;&lt;name&gt;</code> posts a canned response instantly — autocomplete finds it as you type</li>
+            <li>Create and delete tags from Discord (Manage Messages) or the dashboard — either way, everyone sees the same list</li>
+            <li>Schedule an announcement once, or set it to repeat daily or weekly, straight from the dashboard — no need to be online when it fires</li>
+            <li>Every deleted or edited message gets logged with the before/after content, in a channel you pick</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row is-reverse reveal" id="permissions">
         <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16.5 6.5l3 3M13.5 9.5l2 2"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Permissions</span>
@@ -241,7 +287,7 @@
         </div>
       </div>
 
-      <div class="feature-row is-reverse reveal">
+      <div class="feature-row reveal">
         <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5l1.4 1.4 2.6-2.6"/><path d="M10 6h10.5"/><path d="M3.5 13.5l1.4 1.4 2.6-2.6"/><path d="M10 13h10.5"/><rect x="3" y="18" width="4" height="4" rx=".6"/><path d="M10 20h10.5"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Getting started</span>
@@ -256,16 +302,17 @@
         </div>
       </div>
 
-      <div class="feature-row reveal">
+      <div class="feature-row is-reverse reveal">
         <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5Z"/></svg></span></div>
         <div class="feature-row-body">
           <span class="eyebrow">Extras</span>
           <h2>The small stuff that adds up</h2>
           <ul class="feature-row-list">
             <li><code>/help</code> — a quick reference of just the commands you can actually use, grouped by what they do</li>
-            <li><code>/poll</code> — a reaction poll with up to 5 options, posted and auto-reacted in one command</li>
-            <li><code>/info</code> — see exactly what access you (or anyone else) actually has, no guessing</li>
+            <li><code>/poll</code> — a reaction poll with up to 5 options, optionally auto-closing after a set time</li>
+            <li><code>/info</code> — see exactly what access you (or anyone else) has, plus a check/cross next to every single command</li>
             <li><code>/introduction</code> — ModSentry introduces itself in-channel: what it does, how to set it up, and who added it</li>
+            <li>Server stats voice channels show a live member, online, or boost count, renamed automatically every few minutes</li>
             <li>DMs anyone who messages it directly with the invite link, the dashboard, and a quick rundown</li>
           </ul>
         </div>
