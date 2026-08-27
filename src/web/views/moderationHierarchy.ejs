@@ -1,7 +1,11 @@
-<%- include('partials/header', { title: 'Staff list', guild }) %>
+<%- include('partials/header', { title: 'Hierarchies', guild }) %>
 <a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
-<h1>Staff list</h1>
-<p class="subtitle">Rank hierarchy for /promote and /demote, plus the auto-updating staff list.</p>
+<h1>Hierarchies</h1>
+<p class="subtitle">
+  Named rank ladders -- create as many as you want (staff, donators, whatever). Exactly one is
+  <strong>primary</strong> and drives <code>/promote</code>/<code>/demote</code>; every hierarchy, primary or not,
+  can post its own auto-updating list.
+</p>
 
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
@@ -9,86 +13,222 @@
   </div>
 <% } %>
 
-<div class="card">
-  <p class="hint" style="margin-bottom:14px;">
-    Ranks power <code>/promote</code> and <code>/demote</code>, and drive the auto-updating list posted
-    to Discord below. Highest rank at the top. You can only promote/demote someone to a rank strictly
-    below your own (server owners and Administrators bypass this).
-  </p>
+<% if (hierarchies.length === 0) { %>
+  <div class="card">
+    <p class="empty">No hierarchies yet -- create one below to get started.</p>
+  </div>
+<% } %>
 
-  <% if (hierarchy.length === 0) { %>
-    <p class="empty">No hierarchy set up yet — add a role below to get started.</p>
-  <% } else { %>
-    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/reorder">
+<% hierarchies.forEach(h => { %>
+  <div class="card" id="hierarchy-<%= h.id %>">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:4px;">
+      <h2 style="margin:0; display:flex; align-items:center; gap:10px;">
+        <%= h.name %>
+        <% if (h.is_primary) { %><span class="badge badge-open" title="Drives /promote and /demote">Primary</span><% } %>
+      </h2>
+      <div class="actions">
+        <% if (!h.is_primary) { %>
+          <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/set-primary" style="display:inline;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-sm btn-ghost" type="submit" title="Makes this the hierarchy /promote and /demote use">Make primary</button>
+          </form>
+        <% } %>
+        <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete &quot;<%= h.name %>&quot;? This removes its rank list and stops its posted message from updating. There is no undo.');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/rename" style="display:flex; gap:10px; align-items:end; max-width:420px; margin-bottom:16px;">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <ul class="list">
-        <% hierarchy.forEach((h) => { %>
-          <li class="list-item">
+      <div style="flex:1;">
+        <label style="margin-top:0;">Name</label>
+        <input type="text" name="name" value="<%= h.name %>" maxlength="100" required>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="submit">Save name</button>
+    </form>
+
+    <p class="hint" style="margin-bottom:14px;">
+      <% if (h.is_primary) { %>
+        This is the primary hierarchy -- <code>/promote</code> and <code>/demote</code> act on it, and you can
+        only promote/demote someone to a rank strictly below your own (server owners and Administrators bypass this).
+      <% } else { %>
+        Display-only -- not used by <code>/promote</code>/<code>/demote</code>. Hit "Make primary" above to switch.
+      <% } %>
+    </p>
+
+    <% if (h.ranks.length === 0) { %>
+      <p class="empty">No ranks yet — add roles below to get started.</p>
+    <% } else { %>
+      <p class="hint" style="margin-bottom:8px;">Drag to reorder — top is the highest rank.</p>
+      <ul class="list rank-draglist" data-hierarchy-id="<%= h.id %>">
+        <% [...h.ranks].sort((a, b) => b.rank - a.rank).forEach((r) => { %>
+          <li class="list-item" draggable="true" data-role-id="<%= r.roleId %>">
             <div class="list-item-title">
-              <span class="role-dot" style="background:<%= h.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
-              <%= h.name %>
+              <span class="drag-handle" aria-hidden="true">⠿</span>
+              <span class="role-dot" style="background:<%= r.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
+              <%= r.name %>
             </div>
             <div class="actions">
-              <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted);">
-                Rank
-                <input type="number" name="rank_<%= h.roleId %>" value="<%= h.rank %>" min="1" style="width:70px;">
-              </label>
-              <button class="btn btn-sm btn-danger" type="submit" formnovalidate formaction="/dashboard/<%= guild.id %>/moderation/hierarchy/remove" name="roleId" value="<%= h.roleId %>" onclick="return confirm('Remove this rank from the hierarchy?');">Remove</button>
+              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/remove" onsubmit="return confirm('Remove this rank?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="roleId" value="<%= r.roleId %>">
+                <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+              </form>
             </div>
           </li>
         <% }) %>
       </ul>
-      <div class="hint" style="margin-bottom:10px;">Higher number = higher rank. Edit any rank and hit Save — order updates however you've numbered them.</div>
       <div class="btn-row">
-        <button class="btn" type="submit">Save order</button>
+        <button class="btn" type="button" onclick="saveRankOrder(<%= h.id %>)">Save order</button>
       </div>
-    </form>
-  <% } %>
+    <% } %>
 
-  <% if (availableRoles.length > 0) { %>
-    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
+    <% if (h.availableRoles.length > 0) { %>
+      <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/add" style="margin-top:16px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label style="margin-top:0;">Add ranks (pick any number — they're appended as new highest ranks, in the order checked)</label>
+        <div style="display:flex; gap:10px; margin-bottom:6px;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setRoleChecks(<%= h.id %>, true)">Select all</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setRoleChecks(<%= h.id %>, false)">Select none</button>
+        </div>
+        <div class="contact-picker" id="rolePicker-<%= h.id %>">
+          <% h.availableRoles.forEach(r => { %>
+            <label class="contact-row">
+              <input type="checkbox" name="roleId" value="<%= r.id %>">
+              <span class="contact-name"><%= r.name %></span>
+            </label>
+          <% }) %>
+        </div>
+        <div class="btn-row">
+          <button class="btn" type="submit">Add selected</button>
+        </div>
+      </form>
+    <% } %>
+
+    <hr class="card-divider">
+
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/only-show-highest">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div style="flex:1;">
-        <label for="roleId" style="margin-top:0;">Add a rank (becomes the new highest)</label>
-        <select id="roleId" name="roleId">
-          <% availableRoles.forEach(r => { %>
-            <option value="<%= r.id %>"><%= r.name %></option>
+      <label class="style-option" style="max-width:480px;">
+        <input type="checkbox" name="enabled" onchange="this.form.requestSubmit()" <%= h.only_show_highest ? 'checked' : '' %>>
+        <div>
+          <div class="style-title">Only show highest</div>
+          <div class="style-desc">
+            Someone holding more than one ranked role here is listed once, under their highest rank only --
+            instead of appearing in every rank section they qualify for.
+          </div>
+        </div>
+      </label>
+    </form>
+
+    <div class="subhead" style="margin-top:18px;">Auto-updating posted list</div>
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/list-settings" style="display:flex; gap:16px; align-items:end; flex-wrap:wrap;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div style="flex:1; min-width:220px;">
+        <label style="margin-top:0;">Channel</label>
+        <select name="channelId">
+          <option value="">— None (no auto-updating list) —</option>
+          <% options.textChannels.forEach(c => { %>
+            <option value="<%= c.id %>" <%= h.channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
           <% }) %>
         </select>
       </div>
-      <button class="btn" type="submit">Add</button>
+      <div>
+        <label style="margin-top:0;">Embed color</label>
+        <input type="color" name="color" value="<%= h.color %>">
+      </div>
+      <button class="btn" type="submit">Save</button>
     </form>
-  <% } %>
-
-  <hr class="card-divider">
-
-  <div class="subhead">Auto-updating list message</div>
-  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list-channel" style="display:flex; gap:16px; align-items:end; flex-wrap:wrap;">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <div style="flex:1; min-width:220px;">
-      <label for="channelId" style="margin-top:0;">Channel</label>
-      <select id="channelId" name="channelId">
-        <option value="">— None (no auto-updating list) —</option>
-        <% options.textChannels.forEach(c => { %>
-          <option value="<%= c.id %>" <%= settings.staff_list_channel_id === c.id ? 'selected' : '' %>><%= c.icon %><%= c.name %></option>
-        <% }) %>
-      </select>
+    <div class="hint" style="margin-top:10px;">
+      Posts (and keeps updated) one message listing everyone in each rank, one role per row, with everyone
+      actually @mentioned. Updates automatically a few seconds after anyone's tracked role changes -- or hit
+      the button below to post/refresh it right now.
     </div>
-    <div>
-      <label for="staffColor" style="margin-top:0;">Embed color</label>
-      <input type="color" id="staffColor" name="color" value="<%= settings.staff_list_color %>">
-    </div>
-    <button class="btn" type="submit">Save</button>
-  </form>
-  <div class="hint" style="margin-top:10px;">
-    Posts (and keeps updated) one message here listing everyone in each hierarchy rank, one role per row,
-    with everyone in it actually @mentioned. Updates automatically a few seconds after anyone's staff role
-    changes — or hit the button below to post/refresh it right now.
+
+    <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/post" style="margin-top:14px;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn btn-ghost" type="submit">Post / refresh now</button>
+    </form>
   </div>
+<% }) %>
 
-  <form method="post" action="/dashboard/<%= guild.id %>/moderation/staff-list/post" style="margin-top:14px;">
+<div class="card" id="create-hierarchy">
+  <h2>Create a hierarchy</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    e.g. a second one just for "Donators" -- separate from staff, with its own ranks and its own posted list.
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/create" style="display:flex; gap:10px; align-items:end;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <button class="btn btn-ghost" type="submit">Post / refresh now</button>
+    <div style="flex:1;">
+      <label style="margin-top:0;">Name</label>
+      <input type="text" name="name" placeholder="e.g. Donators" maxlength="100" required>
+    </div>
+    <button class="btn" type="submit">Create</button>
   </form>
 </div>
+
+<script>
+(function () {
+  var guildId = <%- JSON.stringify(guild.id) %>;
+  var csrfToken = <%- JSON.stringify(csrfToken).replace(/</g, '\\u003c') %>;
+
+  window.setRoleChecks = function (hierarchyId, checked) {
+    var picker = document.getElementById('rolePicker-' + hierarchyId);
+    if (!picker) return;
+    picker.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = checked; });
+  };
+
+  // Submits the drag list's current top-to-bottom DOM order as a plain form
+  // POST (not fetch) -- consistent with how every other action on this page
+  // works, and means no JS at all is needed for anything except reordering.
+  window.saveRankOrder = function (hierarchyId) {
+    var list = document.querySelector('.rank-draglist[data-hierarchy-id="' + hierarchyId + '"]');
+    if (!list) return;
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/dashboard/' + guildId + '/moderation/hierarchy/' + hierarchyId + '/reorder';
+    var csrf = document.createElement('input');
+    csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;
+    form.appendChild(csrf);
+    list.querySelectorAll('li').forEach(function (li) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'roleOrder'; inp.value = li.dataset.roleId;
+      form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  };
+
+  function closestAfterElement(list, y) {
+    var items = Array.prototype.slice.call(list.querySelectorAll('li:not(.dragging)'));
+    return items.reduce(function (closest, child) {
+      var box = child.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+      return closest;
+    }, { offset: -Infinity, element: null }).element;
+  }
+
+  document.querySelectorAll('.rank-draglist').forEach(function (list) {
+    list.addEventListener('dragstart', function (e) {
+      if (e.target.tagName !== 'LI') return;
+      e.target.classList.add('dragging');
+    });
+    list.addEventListener('dragend', function (e) {
+      if (e.target.tagName === 'LI') e.target.classList.remove('dragging');
+    });
+    list.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      var dragging = list.querySelector('li.dragging');
+      if (!dragging) return;
+      var after = closestAfterElement(list, e.clientY);
+      if (after == null) list.appendChild(dragging);
+      else list.insertBefore(dragging, after);
+    });
+  });
+})();
+</script>
+
 <%- include('partials/footer') %>

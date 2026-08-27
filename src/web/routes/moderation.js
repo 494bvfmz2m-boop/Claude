@@ -1,10 +1,10 @@
 const express = require('express');
 const client = require('../../bot/client');
-const { GuildSettings, StaffRanks, Warnings, ModActions } = require('../../db/repo');
+const { GuildSettings, StaffRanks, Hierarchies, Warnings, ModActions } = require('../../db/repo');
 const cache = require('../../bot/cache');
 const { logAction, parseDuration, applyWarningThreshold, canActOn, buildPunishmentEmbed, sendPunishmentDM } = require('../../bot/moderation');
 const { canUseAction } = require('../../bot/commandPermissions');
-const { renderStaffList } = require('../../bot/staffList');
+const { renderHierarchyList } = require('../../bot/staffList');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { resolveMember, DISCORD_ID } = require('../lib/resolveMember');
 const { requireArea } = require('../middleware/auth');
@@ -40,8 +40,8 @@ function rateLimited(discordUserId) {
   return false;
 }
 
-function hierarchyWithRoleInfo(guild) {
-  return StaffRanks.listForGuild(guild.id)
+function ranksWithRoleInfo(guild, hierarchyId) {
+  return StaffRanks.listForHierarchy(hierarchyId)
     .sort((a, b) => b.rank - a.rank) // highest first for display
     .map((r) => {
       const role = guild.roles.cache.get(r.role_id);
@@ -52,6 +52,19 @@ function hierarchyWithRoleInfo(guild) {
         color: role && role.color !== 0 ? role.hexColor : '#99aab5',
       };
     });
+}
+
+// Every /moderation/hierarchy/:id/* route below is guild-scoped only by
+// virtue of this check -- the ID itself carries no guild info, so without
+// it a dashboard user could rename, delete, or repost another guild's
+// hierarchy just by guessing/incrementing the ID.
+function ownHierarchyOr404(res, guild, id) {
+  const hierarchy = Hierarchies.get(Number(id));
+  if (!hierarchy || hierarchy.guild_id !== guild.id) {
+    res.status(404).render('error', { message: "That hierarchy doesn't exist." });
+    return null;
+  }
+  return hierarchy;
 }
 
 function notice(req) {
@@ -80,9 +93,9 @@ router.get('/moderation', async (req, res) => {
       status: settings.link_filter_mode === 'off' ? 'Off' : settings.link_filter_mode === 'invites' ? 'Invites only' : 'All links',
     },
     {
-      id: 'hierarchy', label: 'Staff list',
-      desc: 'Rank hierarchy for /promote and /demote, plus the auto-updating staff list.',
-      status: `${StaffRanks.listForGuild(guild.id).length} rank(s)`,
+      id: 'hierarchy', label: 'Hierarchies',
+      desc: 'Named rank ladders (staff, donators, whatever you want) with auto-updating posted lists.',
+      status: `${Hierarchies.listForGuild(guild.id).length} hierarchy(s)`,
     },
     {
       id: 'thresholds', label: 'Auto-punishments',
@@ -142,14 +155,15 @@ router.post('/moderation/link-filter', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/moderation/link-filter`);
 });
 
-// ---------- Staff list / hierarchy ----------
+// ---------- Hierarchies (rank ladders + their auto-updating posted lists) ----------
 async function renderHierarchy(req, res, guild) {
-  const settings = GuildSettings.get(guild.id);
   const options = guildChannelOptions(guild);
-  const hierarchy = hierarchyWithRoleInfo(guild);
-  const hierarchyRoleIds = new Set(hierarchy.map((h) => h.roleId));
-  const availableRoles = options.roles.filter((r) => !hierarchyRoleIds.has(r.id));
-  res.render('moderationHierarchy', { guild, settings, options, hierarchy, availableRoles, notice: notice(req) });
+  const hierarchies = Hierarchies.listForGuild(guild.id).map((h) => {
+    const ranks = ranksWithRoleInfo(guild, h.id);
+    const rankRoleIds = new Set(ranks.map((r) => r.roleId));
+    return { ...h, ranks, availableRoles: options.roles.filter((r) => !rankRoleIds.has(r.id)) };
+  });
+  res.render('moderationHierarchy', { guild, options, hierarchies, notice: notice(req) });
 }
 
 router.get('/moderation/hierarchy', async (req, res) => {
@@ -158,69 +172,132 @@ router.get('/moderation/hierarchy', async (req, res) => {
   await renderHierarchy(req, res, guild);
 });
 
-router.post('/moderation/staff-list-channel', async (req, res) => {
+router.post('/moderation/hierarchy/create', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  GuildSettings.setStaffListChannel(guild.id, req.body.channelId || null);
-  GuildSettings.setStaffListColor(guild.id, req.body.color || '#a8e6ff');
+  const name = (req.body.name || '').trim().slice(0, 100);
+  if (!name) {
+    return redirectWithNotice(res, guild.id, false, 'Give the hierarchy a name.', 'hierarchy');
+  }
+  Hierarchies.create(guild.id, name);
+  return redirectWithNotice(res, guild.id, true, `"${name}" created.`, 'hierarchy');
+});
+
+router.post('/moderation/hierarchy/:id/rename', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  const name = (req.body.name || '').trim().slice(0, 100);
+  if (!name) {
+    return redirectWithNotice(res, guild.id, false, 'Give the hierarchy a name.', 'hierarchy');
+  }
+  Hierarchies.rename(hierarchy.id, name);
+  return redirectWithNotice(res, guild.id, true, 'Renamed.', 'hierarchy');
+});
+
+router.post('/moderation/hierarchy/:id/delete', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  Hierarchies.remove(hierarchy.id);
+  cache.invalidateStaffRanks(hierarchy.id);
+  return redirectWithNotice(res, guild.id, true, `"${hierarchy.name}" deleted.`, 'hierarchy');
+});
+
+router.post('/moderation/hierarchy/:id/set-primary', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  Hierarchies.setPrimary(guild.id, hierarchy.id);
+  return redirectWithNotice(res, guild.id, true, `"${hierarchy.name}" is now the /promote and /demote hierarchy.`, 'hierarchy');
+});
+
+router.post('/moderation/hierarchy/:id/only-show-highest', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  Hierarchies.setOnlyShowHighest(hierarchy.id, req.body.enabled === 'on');
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
-router.post('/moderation/staff-list/post', async (req, res) => {
+router.post('/moderation/hierarchy/:id/list-settings', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  const settings = GuildSettings.get(guild.id);
-  if (!settings.staff_list_channel_id) {
-    return redirectWithNotice(res, guild.id, false, 'Pick a channel for the staff list first.', 'hierarchy');
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  Hierarchies.setListChannel(hierarchy.id, req.body.channelId || null);
+  Hierarchies.setColor(hierarchy.id, req.body.color || '#a8e6ff');
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
+});
+
+router.post('/moderation/hierarchy/:id/post', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  if (!hierarchy.channel_id) {
+    return redirectWithNotice(res, guild.id, false, 'Pick a channel for this list first.', 'hierarchy');
   }
   try {
     await guild.members.fetch();
-    await renderStaffList(guild);
-    return redirectWithNotice(res, guild.id, true, 'Staff list posted/updated.', 'hierarchy');
+    await renderHierarchyList(guild, hierarchy);
+    return redirectWithNotice(res, guild.id, true, `"${hierarchy.name}" posted/updated.`, 'hierarchy');
   } catch (err) {
-    return redirectWithNotice(res, guild.id, false, `Couldn't post the staff list: ${err.message}`, 'hierarchy');
+    return redirectWithNotice(res, guild.id, false, `Couldn't post it: ${err.message}`, 'hierarchy');
   }
 });
 
-router.post('/moderation/hierarchy/add', async (req, res) => {
+router.post('/moderation/hierarchy/:id/add', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
-  if (req.body.roleId && !current.includes(req.body.roleId)) {
-    current.push(req.body.roleId); // new roles become the highest rank by default
-    StaffRanks.replaceAll(guild.id, current);
-    cache.invalidateStaffRanks(guild.id);
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  const current = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
+  // roleId comes in as a single string from one checkbox or an array from
+  // several -- either way, whatever's picked gets appended as new highest
+  // ranks in the order the roles were checked.
+  const toAdd = [].concat(req.body.roleId || []).filter((id) => id && !current.includes(id));
+  if (toAdd.length > 0) {
+    StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, [...current, ...toAdd]);
+    cache.invalidateStaffRanks(hierarchy.id);
   }
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
-router.post('/moderation/hierarchy/remove', async (req, res) => {
+router.post('/moderation/hierarchy/:id/remove', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
-  StaffRanks.replaceAll(guild.id, current.filter((id) => id !== req.body.roleId));
-  cache.invalidateStaffRanks(guild.id);
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  const current = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
+  StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, current.filter((id) => id !== req.body.roleId));
+  cache.invalidateStaffRanks(hierarchy.id);
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
-router.post('/moderation/hierarchy/reorder', async (req, res) => {
+router.post('/moderation/hierarchy/:id/reorder', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  const current = StaffRanks.listForGuild(guild.id).sort((a, b) => a.rank - b.rank);
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
 
-  // Sort by whatever rank number each row was given (ties keep their original
-  // relative order), then renumber cleanly 1..N -- so typos/duplicates/gaps
-  // in what was typed can't corrupt the stored ranks.
-  const reordered = current
-    .map((r, i) => {
-      const typed = parseInt(req.body[`rank_${r.role_id}`], 10);
-      return { roleId: r.role_id, sortKey: Number.isInteger(typed) ? typed : r.rank, i };
-    })
-    .sort((a, b) => a.sortKey - b.sortKey || a.i - b.i)
-    .map((r) => r.roleId);
+  // roleOrder is the drag-and-drop list's final DOM order, lowest-to-highest
+  // isn't implied -- the view submits it highest-rank-first (top of the
+  // list = top rank), so it gets reversed here before renumbering 1..N.
+  // Anything that didn't come through (JS disabled, stale form) keeps its
+  // current relative order, tacked on at the bottom, rather than vanishing.
+  const existing = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
+  const existingSet = new Set(existing);
+  const submitted = [...new Set([].concat(req.body.roleOrder || []))].filter((id) => existingSet.has(id));
+  const missing = existing.filter((id) => !submitted.includes(id));
+  const reordered = [...submitted.slice().reverse(), ...missing];
 
-  StaffRanks.replaceAll(guild.id, reordered);
-  cache.invalidateStaffRanks(guild.id);
+  StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, reordered);
+  cache.invalidateStaffRanks(hierarchy.id);
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 

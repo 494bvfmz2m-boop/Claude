@@ -30,11 +30,24 @@ CREATE TABLE IF NOT EXISTS warnings (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS hierarchies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT 'Staff',
+  color TEXT NOT NULL DEFAULT '#a8e6ff',
+  only_show_highest INTEGER NOT NULL DEFAULT 0,
+  is_primary INTEGER NOT NULL DEFAULT 0,
+  channel_id TEXT,
+  message_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS staff_ranks (
   guild_id TEXT NOT NULL,
+  hierarchy_id INTEGER NOT NULL,
   role_id TEXT NOT NULL,
   rank INTEGER NOT NULL,
-  PRIMARY KEY (guild_id, role_id)
+  PRIMARY KEY (hierarchy_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS ticket_types (
@@ -285,6 +298,7 @@ CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(channel_id);
 CREATE INDEX IF NOT EXISTS idx_embed_templates_guild ON embed_templates(guild_id);
 CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
+CREATE INDEX IF NOT EXISTS idx_hierarchies_guild ON hierarchies(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_emoji_book_emoji_id ON emoji_book(emoji_id);
@@ -342,6 +356,60 @@ addColumnIfMissing('guild_settings', 'stats_boosts_channel_id', 'TEXT');
 addColumnIfMissing('reaction_role_panels', 'exclusive', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('app_settings', 'maintenance_enabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('app_settings', 'maintenance_message', 'TEXT');
+
+// staff_ranks pre-dates the multi-hierarchy feature -- rebuild it onto the
+// new schema (adds hierarchy_id, and a role can now belong to more than one
+// hierarchy so the old (guild_id, role_id) uniqueness no longer holds) and
+// backfill every existing guild's ranks into a new "Staff" hierarchy so
+// /promote, /demote, and the posted staff list keep working exactly as
+// before. SQLite can't ALTER a primary key, hence the rename-and-copy.
+const staffRanksCols = db.prepare('PRAGMA table_info(staff_ranks)').all().map((c) => c.name);
+if (!staffRanksCols.includes('hierarchy_id')) {
+  const migrate = db.transaction(() => {
+    db.exec('ALTER TABLE staff_ranks RENAME TO staff_ranks_old');
+    db.exec(`
+      CREATE TABLE staff_ranks (
+        guild_id TEXT NOT NULL,
+        hierarchy_id INTEGER NOT NULL,
+        role_id TEXT NOT NULL,
+        rank INTEGER NOT NULL,
+        PRIMARY KEY (hierarchy_id, role_id)
+      );
+    `);
+
+    const oldGuilds = db.prepare('SELECT DISTINCT guild_id FROM staff_ranks_old').all().map((r) => r.guild_id);
+    // A guild with an auto-updating list configured but no ranks yet still
+    // deserves its "Staff" hierarchy carried forward, channel and all.
+    const settingsGuilds = db.prepare('SELECT guild_id FROM guild_settings WHERE staff_list_channel_id IS NOT NULL').all().map((r) => r.guild_id);
+    const guildIds = [...new Set([...oldGuilds, ...settingsGuilds])];
+
+    const insertHierarchy = db.prepare(`
+      INSERT INTO hierarchies (guild_id, name, color, is_primary, channel_id, message_id)
+      VALUES (?, 'Staff', ?, 1, ?, ?)
+    `);
+    const insertRank = db.prepare('INSERT INTO staff_ranks (guild_id, hierarchy_id, role_id, rank) VALUES (?, ?, ?, ?)');
+    const getOldRanks = db.prepare('SELECT role_id, rank FROM staff_ranks_old WHERE guild_id = ?');
+    const getSettings = db.prepare('SELECT staff_list_channel_id, staff_list_message_id, staff_list_color FROM guild_settings WHERE guild_id = ?');
+
+    for (const guildId of guildIds) {
+      const settings = getSettings.get(guildId) || {};
+      const info = insertHierarchy.run(
+        guildId,
+        settings.staff_list_color || '#a8e6ff',
+        settings.staff_list_channel_id || null,
+        settings.staff_list_message_id || null,
+      );
+      const hierarchyId = info.lastInsertRowid;
+      for (const r of getOldRanks.all(guildId)) {
+        insertRank.run(guildId, hierarchyId, r.role_id, r.rank);
+      }
+    }
+
+    db.exec('DROP TABLE staff_ranks_old');
+  });
+  migrate();
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_staff_ranks_hierarchy ON staff_ranks(hierarchy_id, rank)');
 
 // One-time seed of a couple of starter form templates -- only ever runs
 // once (gated on the flag, not on the table being empty) so deleting them

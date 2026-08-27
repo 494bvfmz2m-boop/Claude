@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getRankForRoleIds } = require('./cache');
+const { Hierarchies } = require('../db/repo');
 const { getMemberAccess } = require('../web/lib/dashboardAccess');
 const { ACTIONS, canUseAction } = require('./commandPermissions');
 
@@ -54,7 +55,8 @@ async function handleInfo(interaction) {
   const isOwner = guild.ownerId === member.id;
   const isAdmin = perms.has(PermissionFlagsBits.Administrator);
 
-  const rank = getRankForRoleIds(guild.id, [...member.roles.cache.keys()]);
+  const primaryHierarchy = Hierarchies.getPrimary(guild.id);
+  const rank = primaryHierarchy ? getRankForRoleIds(primaryHierarchy.id, [...member.roles.cache.keys()]) : { rank: 0, roleId: null };
   const rankRole = rank.roleId ? guild.roles.cache.get(rank.roleId) : null;
 
   const dashAccess = await getMemberAccess(guild, member.id);
@@ -87,10 +89,10 @@ async function handleInfo(interaction) {
             : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",
       },
       {
-        name: 'Staff hierarchy',
+        name: primaryHierarchy ? primaryHierarchy.name : 'Staff hierarchy',
         value: rank.rank > 0
           ? `Rank ${rank.rank} — ${rankRole ? rankRole.name : 'unknown role'}`
-          : 'Not part of the staff hierarchy',
+          : `Not part of the ${primaryHierarchy ? primaryHierarchy.name.toLowerCase() : 'staff'} hierarchy`,
       },
       {
         name: 'Commands',

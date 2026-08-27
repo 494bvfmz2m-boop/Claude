@@ -1,5 +1,5 @@
 const express = require('express');
-const { TicketTypes, Panels, Tickets, GuildSettings, StaffRanks } = require('../../db/repo');
+const { TicketTypes, Panels, Tickets, GuildSettings, Hierarchies } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
 
@@ -31,8 +31,8 @@ function buildSetupChecklist(guild, { ticketTypes, panels }) {
       href: `/dashboard/${guild.id}/settings/channels`,
     },
     {
-      done: StaffRanks.listForGuild(guild.id).length > 0,
-      label: 'Set up the staff hierarchy',
+      done: Hierarchies.listForGuild(guild.id).length > 0,
+      label: 'Set up a staff hierarchy',
       desc: 'Powers /promote, /demote, and the auto-updating staff list.',
       href: `/dashboard/${guild.id}/moderation/hierarchy`,
     },

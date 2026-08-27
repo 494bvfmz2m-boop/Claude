@@ -68,21 +68,24 @@ function invalidateLinkFilter(guildId) {
   linkFilterCache.delete(guildId);
 }
 
-function getStaffRanks(guildId) {
-  if (!staffRanksCache.has(guildId)) {
-    staffRanksCache.set(guildId, StaffRanks.listForGuild(guildId));
+// Keyed by hierarchy ID, not guild ID -- a guild can run more than one
+// named hierarchy now (see db/repo.js's Hierarchies), each with its own
+// independent rank ladder.
+function getStaffRanks(hierarchyId) {
+  if (!staffRanksCache.has(hierarchyId)) {
+    staffRanksCache.set(hierarchyId, StaffRanks.listForHierarchy(hierarchyId));
   }
-  return staffRanksCache.get(guildId);
+  return staffRanksCache.get(hierarchyId);
 }
 
-function invalidateStaffRanks(guildId) {
-  staffRanksCache.delete(guildId);
+function invalidateStaffRanks(hierarchyId) {
+  staffRanksCache.delete(hierarchyId);
 }
 
-// Highest rank among a member's roles. Rank 0 means "not staff" (holds none
-// of the hierarchy roles).
-function getRankForRoleIds(guildId, roleIds) {
-  const ranks = getStaffRanks(guildId);
+// Highest rank among a member's roles, within one hierarchy. Rank 0 means
+// "not in this hierarchy" (holds none of its ranked roles).
+function getRankForRoleIds(hierarchyId, roleIds) {
+  const ranks = getStaffRanks(hierarchyId);
   const roleIdSet = new Set(roleIds);
   let best = { rank: 0, roleId: null };
   for (const r of ranks) {
@@ -93,13 +96,13 @@ function getRankForRoleIds(guildId, roleIds) {
   return best;
 }
 
-function getRoleIdForRank(guildId, rank) {
-  const ranks = getStaffRanks(guildId);
+function getRoleIdForRank(hierarchyId, rank) {
+  const ranks = getStaffRanks(hierarchyId);
   return ranks.find((r) => r.rank === rank)?.role_id || null;
 }
 
-function getMaxRank(guildId) {
-  const ranks = getStaffRanks(guildId);
+function getMaxRank(hierarchyId) {
+  const ranks = getStaffRanks(hierarchyId);
   return ranks.reduce((max, r) => Math.max(max, r.rank), 0);
 }
 

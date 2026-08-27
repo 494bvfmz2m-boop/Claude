@@ -1,6 +1,7 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { canUseAction } = require('./commandPermissions');
 const { getRankForRoleIds } = require('./cache');
+const { Hierarchies } = require('../db/repo');
 
 const HELP_COLOR = '#a8e6ff';
 
@@ -30,7 +31,8 @@ async function handleHelp(interaction) {
   // Not permission-gated on purpose -- anyone can check a warning history.
   moderation.push("`/warnings <user>` — See someone's warning history");
 
-  const rank = getRankForRoleIds(guild.id, [...member.roles.cache.keys()]);
+  const primaryHierarchy = Hierarchies.getPrimary(guild.id);
+  const rank = primaryHierarchy ? getRankForRoleIds(primaryHierarchy.id, [...member.roles.cache.keys()]) : { rank: 0, roleId: null };
   const staff = (isOwnerOrAdmin || rank.rank > 0)
     ? [
         '`/promote <user>` — Move someone up the staff hierarchy',

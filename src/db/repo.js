@@ -55,21 +55,6 @@ const GuildSettings = {
       WHERE guild_id = ?
     `).run(enabled ? 1 : 0, JSON.stringify(words || []), guildId);
   },
-  setStaffListChannel(guildId, channelId) {
-    ensureGuildSettingsRow(guildId);
-    db.prepare(`
-      UPDATE guild_settings SET staff_list_channel_id = ?, staff_list_message_id = NULL, updated_at = datetime('now')
-      WHERE guild_id = ?
-    `).run(channelId || null, guildId);
-  },
-  setStaffListMessage(guildId, messageId) {
-    ensureGuildSettingsRow(guildId);
-    db.prepare('UPDATE guild_settings SET staff_list_message_id = ? WHERE guild_id = ?').run(messageId || null, guildId);
-  },
-  setStaffListColor(guildId, color) {
-    ensureGuildSettingsRow(guildId);
-    db.prepare('UPDATE guild_settings SET staff_list_color = ? WHERE guild_id = ?').run(color || '#a8e6ff', guildId);
-  },
   setWarningThresholds(guildId, thresholds) {
     ensureGuildSettingsRow(guildId);
     db.prepare('UPDATE guild_settings SET warning_thresholds = ? WHERE guild_id = ?')
@@ -654,17 +639,87 @@ const Warnings = {
 };
 
 const StaffRanks = {
-  // Ordered lowest (rank 1) to highest.
-  listForGuild(guildId) {
-    return db.prepare('SELECT role_id, rank FROM staff_ranks WHERE guild_id = ? ORDER BY rank ASC').all(guildId);
+  // Ordered lowest (rank 1) to highest, within one hierarchy.
+  listForHierarchy(hierarchyId) {
+    return db.prepare('SELECT role_id, rank FROM staff_ranks WHERE hierarchy_id = ? ORDER BY rank ASC').all(hierarchyId);
   },
-  replaceAll(guildId, roleIdsInOrder) {
+  replaceAllForHierarchy(hierarchyId, guildId, roleIdsInOrder) {
     const tx = db.transaction((ids) => {
-      db.prepare('DELETE FROM staff_ranks WHERE guild_id = ?').run(guildId);
-      const insert = db.prepare('INSERT INTO staff_ranks (guild_id, role_id, rank) VALUES (?, ?, ?)');
-      ids.forEach((roleId, i) => insert.run(guildId, roleId, i + 1));
+      db.prepare('DELETE FROM staff_ranks WHERE hierarchy_id = ?').run(hierarchyId);
+      const insert = db.prepare('INSERT INTO staff_ranks (guild_id, hierarchy_id, role_id, rank) VALUES (?, ?, ?, ?)');
+      ids.forEach((roleId, i) => insert.run(guildId, hierarchyId, roleId, i + 1));
     });
     tx(roleIdsInOrder);
+  },
+};
+
+// A guild can run more than one named, ranked-role list ("hierarchy") --
+// e.g. a "Staff" ladder plus a separate "Donators" tier board. Exactly one
+// hierarchy per guild is ever the primary (is_primary = 1): that's the one
+// /promote, /demote, and every rank-based permission check operate on.
+// Renaming a hierarchy is purely cosmetic and never touches is_primary, so
+// it's always safe. Every other hierarchy is display-only -- it just posts
+// its own auto-updating embed.
+const Hierarchies = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM hierarchies WHERE guild_id = ? ORDER BY is_primary DESC, id ASC').all(guildId)
+      .map((h) => ({ ...h, only_show_highest: !!h.only_show_highest, is_primary: !!h.is_primary }));
+  },
+  get(id) {
+    const row = db.prepare('SELECT * FROM hierarchies WHERE id = ?').get(id);
+    if (!row) return null;
+    return { ...row, only_show_highest: !!row.only_show_highest, is_primary: !!row.is_primary };
+  },
+  getPrimary(guildId) {
+    const row = db.prepare('SELECT * FROM hierarchies WHERE guild_id = ? AND is_primary = 1').get(guildId);
+    if (!row) return null;
+    return { ...row, only_show_highest: !!row.only_show_highest, is_primary: !!row.is_primary };
+  },
+  // The first hierarchy a guild creates automatically becomes primary --
+  // every guild that has any hierarchy at all has exactly one primary one.
+  create(guildId, name) {
+    const hasAny = db.prepare('SELECT 1 FROM hierarchies WHERE guild_id = ?').get(guildId);
+    const info = db.prepare('INSERT INTO hierarchies (guild_id, name, is_primary) VALUES (?, ?, ?)')
+      .run(guildId, name, hasAny ? 0 : 1);
+    return info.lastInsertRowid;
+  },
+  rename(id, name) {
+    db.prepare('UPDATE hierarchies SET name = ? WHERE id = ?').run(name, id);
+  },
+  setOnlyShowHighest(id, enabled) {
+    db.prepare('UPDATE hierarchies SET only_show_highest = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+  },
+  setPrimary(guildId, id) {
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE hierarchies SET is_primary = 0 WHERE guild_id = ?').run(guildId);
+      db.prepare('UPDATE hierarchies SET is_primary = 1 WHERE id = ? AND guild_id = ?').run(id, guildId);
+    });
+    tx();
+  },
+  setListChannel(id, channelId) {
+    db.prepare('UPDATE hierarchies SET channel_id = ?, message_id = NULL WHERE id = ?').run(channelId || null, id);
+  },
+  setListMessage(id, messageId) {
+    db.prepare('UPDATE hierarchies SET message_id = ? WHERE id = ?').run(messageId || null, id);
+  },
+  setColor(id, color) {
+    db.prepare('UPDATE hierarchies SET color = ? WHERE id = ?').run(color || '#a8e6ff', id);
+  },
+  // If the hierarchy being removed was the primary one and another
+  // hierarchy still exists for this guild, that one is promoted to primary
+  // so /promote and /demote don't just silently stop working.
+  remove(id) {
+    const tx = db.transaction(() => {
+      const row = db.prepare('SELECT guild_id, is_primary FROM hierarchies WHERE id = ?').get(id);
+      if (!row) return;
+      db.prepare('DELETE FROM staff_ranks WHERE hierarchy_id = ?').run(id);
+      db.prepare('DELETE FROM hierarchies WHERE id = ?').run(id);
+      if (row.is_primary) {
+        const next = db.prepare('SELECT id FROM hierarchies WHERE guild_id = ? ORDER BY id ASC LIMIT 1').get(row.guild_id);
+        if (next) db.prepare('UPDATE hierarchies SET is_primary = 1 WHERE id = ?').run(next.id);
+      }
+    });
+    tx();
   },
 };
 
@@ -829,4 +884,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };

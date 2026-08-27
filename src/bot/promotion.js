@@ -1,6 +1,6 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getRankForRoleIds, getRoleIdForRank, getMaxRank } = require('./cache');
-const { GuildSettings } = require('../db/repo');
+const { GuildSettings, Hierarchies } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
 
@@ -48,14 +48,19 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: "They're not in this server.", ephemeral: true });
   }
 
-  const maxRank = getMaxRank(guild.id);
+  const hierarchy = Hierarchies.getPrimary(guild.id);
+  if (!hierarchy) {
+    return interaction.reply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.', ephemeral: true });
+  }
+
+  const maxRank = getMaxRank(hierarchy.id);
   if (maxRank === 0) {
     return interaction.reply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.', ephemeral: true });
   }
 
   const override = isOverride(guild, interaction.member);
-  const invokerRank = getRankForRoleIds(guild.id, [...interaction.member.roles.cache.keys()]);
-  const targetRank = getRankForRoleIds(guild.id, [...targetMember.roles.cache.keys()]);
+  const invokerRank = getRankForRoleIds(hierarchy.id, [...interaction.member.roles.cache.keys()]);
+  const targetRank = getRankForRoleIds(hierarchy.id, [...targetMember.roles.cache.keys()]);
 
   if (!override && invokerRank.rank === 0) {
     return interaction.reply({ content: "You're not part of the staff hierarchy, so you can't promote or demote anyone.", ephemeral: true });
@@ -77,7 +82,7 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: "You can't promote someone to a rank equal to or higher than your own.", ephemeral: true });
   }
 
-  const newRoleId = newRank > 0 ? getRoleIdForRank(guild.id, newRank) : null;
+  const newRoleId = newRank > 0 ? getRoleIdForRank(hierarchy.id, newRank) : null;
 
   try {
     await applyRankChange(guild, targetMember, targetRank.roleId, newRoleId);
