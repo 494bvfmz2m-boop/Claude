@@ -3,7 +3,7 @@
 // worth checking often. Anything that isn't one of these keywords falls
 // through to the normal panel (handled by the caller).
 const { EmbedBuilder } = require('discord.js');
-const { AppSettings, BetaAllowlist, DmFormTemplates, DmFormSends, Contacts } = require('../db/repo');
+const { AppSettings, BetaAllowlist, DmFormTemplates, DmFormSends, Contacts, EmojiBook } = require('../db/repo');
 const { buildServerListEmbed } = require('./ownerPanel');
 
 const OWNER_COLOR = '#a8e6ff';
@@ -15,6 +15,7 @@ const KEYWORD_HELP = [
   { word: 'forms', desc: 'Recent forms sent — "forms <id>" for one in full' },
   { word: 'templates', desc: 'Saved DM form templates' },
   { word: 'contacts', desc: 'Your saved contact book' },
+  { word: 'emojis', desc: 'Your saved custom emoji book' },
   { word: 'beta', desc: 'Closed beta status and the allowed-users list' },
   { word: 'help', desc: 'This list' },
 ];
@@ -105,6 +106,20 @@ async function buildContactsEmbed(client) {
       return `Unknown user · \`${c.discord_user_id}\`${c.note ? ` · ${c.note}` : ''}`;
     }
   }));
+  embed.setDescription(lines.join('\n').slice(0, 4096));
+  return embed;
+}
+
+function buildEmojiBookEmbed() {
+  const emoji = EmojiBook.list();
+  const embed = new EmbedBuilder().setTitle(`🗂️ Emoji book (${emoji.length})`).setColor(OWNER_COLOR);
+
+  if (emoji.length === 0) {
+    embed.setDescription('No emoji saved yet — add one from /admin\'s "Emoji book" section.');
+    return embed;
+  }
+  const markup = (e) => `<${e.animated ? 'a' : ''}:${e.name}:${e.emoji_id}>`;
+  const lines = emoji.map((e) => `${markup(e)} \`${markup(e)}\`${e.note ? ` · ${e.note}` : ''}`);
   embed.setDescription(lines.join('\n').slice(0, 4096));
   return embed;
 }
@@ -202,6 +217,11 @@ async function handleOwnerKeyword(message) {
     return true;
   }
 
+  if (text === 'emojis' || text === 'emoji') {
+    await message.channel.send({ embeds: [buildEmojiBookEmbed()] });
+    return true;
+  }
+
   if (text === 'help') {
     await message.channel.send({ embeds: [buildHelpEmbed()] });
     return true;
@@ -218,5 +238,6 @@ module.exports = {
   buildBetaEmbed,
   buildTemplatesEmbed,
   buildContactsEmbed,
+  buildEmojiBookEmbed,
   buildHelpEmbed,
 };

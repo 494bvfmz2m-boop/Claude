@@ -222,6 +222,15 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS emoji_book (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  emoji_id TEXT NOT NULL,
+  animated INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  added_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS polls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id TEXT NOT NULL,
@@ -248,6 +257,7 @@ CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_emoji_book_emoji_id ON emoji_book(emoji_id);
 CREATE INDEX IF NOT EXISTS idx_tags_guild ON tags(guild_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_guild_name ON tags(guild_id, name);
 CREATE INDEX IF NOT EXISTS idx_giveaways_guild ON giveaways(guild_id);

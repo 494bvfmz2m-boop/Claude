@@ -1,9 +1,14 @@
 const express = require('express');
 const { EmbedBuilder } = require('discord.js');
-const { AppSettings, BetaAllowlist, DmFormTemplates, Contacts } = require('../../db/repo');
+const { AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
 const dmForm = require('../../bot/dmForm');
+
+// Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
+// parseEmojiInput, but this needs the name and ID as separate fields (for
+// display and for rebuilding the markup later) rather than a react/match key pair.
+const CUSTOM_EMOJI = /^<(a)?:(\w+):(\d+)>$/;
 
 const QUESTION_MAX_LEN = 300;
 const MAX_RECIPIENTS = 50;
@@ -40,11 +45,17 @@ router.get('/', requireOwner, async (req, res) => {
     }
   }));
 
+  const emojiBook = EmojiBook.list().map((e) => ({
+    ...e,
+    markup: `<${e.animated ? 'a' : ''}:${e.name}:${e.emoji_id}>`,
+  }));
+
   res.render('admin', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
     templates: DmFormTemplates.list(),
     contacts,
+    emojiBook,
     guilds,
     notice,
   });
@@ -149,6 +160,27 @@ router.post('/contacts/add', requireOwner, async (req, res) => {
 router.post('/contacts/remove', requireOwner, (req, res) => {
   Contacts.remove(req.body.discordUserId);
   return redirectWithNotice(res, true, 'Removed.', 'contacts');
+});
+
+router.post('/emoji-book/add', requireOwner, (req, res) => {
+  const raw = (req.body.markup || '').trim();
+  const note = (req.body.note || '').trim().slice(0, 200);
+  const match = CUSTOM_EMOJI.exec(raw);
+
+  if (!match) {
+    return redirectWithNotice(res, false, 'Paste a custom emoji — type \\:name: in Discord and copy the result, e.g. <:name:1234567890>.', 'emoji-book');
+  }
+  const [, animatedFlag, name, emojiId] = match;
+  if (EmojiBook.has(emojiId)) {
+    return redirectWithNotice(res, false, `"${name}" is already saved.`, 'emoji-book');
+  }
+  EmojiBook.add(name, emojiId, !!animatedFlag, note);
+  return redirectWithNotice(res, true, `Saved "${name}" to the emoji book.`, 'emoji-book');
+});
+
+router.post('/emoji-book/remove', requireOwner, (req, res) => {
+  EmojiBook.remove(Number(req.body.id));
+  return redirectWithNotice(res, true, 'Removed.', 'emoji-book');
 });
 
 router.post('/dm-form-templates/save', requireOwner, (req, res) => {

@@ -6,6 +6,7 @@
   { id: 'beta-toggle', label: 'Closed beta' },
   { id: 'allowlist', label: 'Allowed users' },
   { id: 'contacts', label: 'Contacts' },
+  { id: 'emoji-book', label: 'Emoji book' },
   { id: 'dm-form', label: 'Application form' },
   { id: 'send-dm', label: 'Send a DM' },
   { id: 'remove-server', label: 'Remove from a server' },
@@ -118,6 +119,56 @@
       <input type="text" id="contactNote" name="note" placeholder="e.g. Beta tester" maxlength="200">
     </div>
     <button class="btn" type="submit">Add contact</button>
+  </form>
+</div>
+
+<div class="card" id="emoji-book">
+  <h2>Emoji book</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Save custom Discord emoji here once, so their markup is always one click away instead of re-typing
+    <code>\:name:</code> in a server every time you need it. In Discord, type <code>\:name:</code> for the
+    emoji you want and copy what it turns into — paste that below.
+  </p>
+
+  <% if (emojiBook.length === 0) { %>
+    <p class="empty">No emoji saved yet — add one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% emojiBook.forEach(e => { %>
+        <li class="list-item">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <img src="https://cdn.discordapp.com/emojis/<%= e.emoji_id %>.<%= e.animated ? 'gif' : 'png' %>" alt="" class="contact-avatar" style="border-radius:8px; object-fit:contain; background:rgba(255,255,255,.04);">
+            <div style="min-width:0;">
+              <div class="list-item-title">:<%= e.name %>:</div>
+              <div class="list-item-meta">
+                <code class="emoji-markup"><%= e.markup %></code><% if (e.note) { %> · <%= e.note %><% } %>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="copyEmojiMarkup(this, <%= JSON.stringify(e.markup) %>)">Copy</button>
+            <form method="post" action="/admin/emoji-book/remove" onsubmit="return confirm('Remove this emoji from the book?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="id" value="<%= e.id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/emoji-book/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:220px;">
+      <label for="emojiMarkup" style="margin-top:0;">Emoji markup</label>
+      <input type="text" id="emojiMarkup" name="markup" placeholder="<:name:1234567890>" required>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <label for="emojiNote" style="margin-top:0;">Note (optional)</label>
+      <input type="text" id="emojiNote" name="note" placeholder="e.g. hype reaction" maxlength="200">
+    </div>
+    <button class="btn" type="submit">Add emoji</button>
   </form>
 </div>
 
@@ -298,6 +349,14 @@
       description.required = !usingTemplate;
     });
   }
+
+  window.copyEmojiMarkup = function (btn, markup) {
+    navigator.clipboard.writeText(markup).then(function () {
+      var original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = original; }, 1500);
+    }).catch(function () {});
+  };
 
   var selectAllBtn = document.getElementById('contactsSelectAll');
   var selectNoneBtn = document.getElementById('contactsSelectNone');

@@ -228,6 +228,22 @@ const Contacts = {
   },
 };
 
+const EmojiBook = {
+  list() {
+    return db.prepare('SELECT id, name, emoji_id, animated, note, added_at FROM emoji_book ORDER BY added_at DESC').all();
+  },
+  has(emojiId) {
+    return !!db.prepare('SELECT 1 FROM emoji_book WHERE emoji_id = ?').get(emojiId);
+  },
+  add(name, emojiId, animated, note) {
+    db.prepare('INSERT OR IGNORE INTO emoji_book (name, emoji_id, animated, note) VALUES (?, ?, ?, ?)')
+      .run(name, emojiId, animated ? 1 : 0, note || null);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM emoji_book WHERE id = ?').run(id);
+  },
+};
+
 const BetaAllowlist = {
   list() {
     return db.prepare('SELECT discord_user_id, added_at FROM beta_allowlist ORDER BY added_at').all();
@@ -723,4 +739,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook };
