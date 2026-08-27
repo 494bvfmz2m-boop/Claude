@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { GuildSettings } = require('../db/repo');
+const { GuildSettings, GlobalBlocklist } = require('../db/repo');
 
 const WELCOME_COLOR = '#23a55a';
 const LEAVE_COLOR = '#a8e6ff';
@@ -17,6 +17,13 @@ function applyPlaceholders(template, { id, username, guild }) {
 
 function register(client) {
   client.on('guildMemberAdd', async (member) => {
+    // Bot-wide blocklist (managed from /admin) -- checked before anything
+    // else so a blocked user never gets an autorole or a welcome message.
+    if (GlobalBlocklist.has(member.id)) {
+      await member.kick('Blocked bot-wide (ModSentry global blocklist)').catch(() => {});
+      return;
+    }
+
     const settings = GuildSettings.get(member.guild.id);
 
     if (settings.autorole_id) {

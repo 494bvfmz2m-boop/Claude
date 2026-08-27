@@ -222,6 +222,36 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS dashboard_admins (
+  discord_user_id TEXT PRIMARY KEY,
+  note TEXT,
+  added_by TEXT,
+  added_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_id TEXT NOT NULL,
+  actor_tag TEXT,
+  action TEXT NOT NULL,
+  detail TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS server_notes (
+  guild_id TEXT PRIMARY KEY,
+  note TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS global_blocklist (
+  discord_user_id TEXT PRIMARY KEY,
+  reason TEXT,
+  added_by TEXT,
+  added_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS emoji_book (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -258,6 +288,8 @@ CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_emoji_book_emoji_id ON emoji_book(emoji_id);
+CREATE INDEX IF NOT EXISTS idx_warnings_user ON warnings(user_id);
+CREATE INDEX IF NOT EXISTS idx_mod_actions_target ON mod_actions(target_id);
 CREATE INDEX IF NOT EXISTS idx_tags_guild ON tags(guild_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_guild_name ON tags(guild_id, name);
 CREATE INDEX IF NOT EXISTS idx_giveaways_guild ON giveaways(guild_id);
@@ -308,6 +340,8 @@ addColumnIfMissing('guild_settings', 'stats_members_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'stats_online_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'stats_boosts_channel_id', 'TEXT');
 addColumnIfMissing('reaction_role_panels', 'exclusive', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('app_settings', 'maintenance_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('app_settings', 'maintenance_message', 'TEXT');
 
 // One-time seed of a couple of starter form templates -- only ever runs
 // once (gated on the flag, not on the table being empty) so deleting them

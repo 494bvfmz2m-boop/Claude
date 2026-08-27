@@ -7,7 +7,7 @@ const {
   ButtonStyle,
   StringSelectMenuBuilder,
 } = require('discord.js');
-const { TicketTypes, Tickets, GuildSettings } = require('../db/repo');
+const { TicketTypes, Tickets, GuildSettings, GlobalBlocklist } = require('../db/repo');
 const { buildTranscript } = require('./transcript');
 const { emojiUrl } = require('./emoji');
 
@@ -32,6 +32,10 @@ async function openTicket(interaction, ticketTypeId) {
   const ticketType = TicketTypes.get(ticketTypeId);
   if (!ticketType) {
     return interaction.reply({ content: 'This ticket type no longer exists. Ask an admin to check the dashboard.', ephemeral: true });
+  }
+
+  if (GlobalBlocklist.has(interaction.user.id)) {
+    return interaction.reply({ content: "You're not able to use ModSentry.", ephemeral: true });
   }
 
   const settings = GuildSettings.get(interaction.guildId);

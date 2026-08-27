@@ -1,14 +1,23 @@
 <%- include('partials/header', { title: 'Admin' }) %>
-<h1>Closed beta</h1>
-<p class="subtitle">Owner-only. Controls who can log into this dashboard at all.</p>
+<h1>Admin</h1>
+<p class="subtitle">Owner and admin controls — who can log in, who else can manage this, and bot-wide tools.</p>
 
 <%- include('partials/subnav', { sections: [
+  { id: 'overview', label: 'Overview' },
   { id: 'beta-toggle', label: 'Closed beta' },
+  { id: 'admins', label: 'Admins' },
   { id: 'allowlist', label: 'Allowed users' },
+  { id: 'blocklist', label: 'Blocklist' },
   { id: 'contacts', label: 'Contacts' },
   { id: 'emoji-book', label: 'Emoji book' },
+  { id: 'server-notes', label: 'Server notes' },
+  { id: 'user-lookup', label: 'User lookup' },
   { id: 'dm-form', label: 'Application form' },
   { id: 'send-dm', label: 'Send a DM' },
+  { id: 'broadcast', label: 'Broadcast to owners' },
+  { id: 'maintenance', label: 'Maintenance banner' },
+  { id: 'audit-log', label: 'Audit log' },
+  { id: 'backup', label: 'Backup' },
   { id: 'remove-server', label: 'Remove from a server' },
 ] }) %>
 
@@ -16,6 +25,76 @@
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
     <%= notice.text %>
   </div>
+<% } %>
+
+<div class="card" id="overview">
+  <h2>Overview</h2>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:14px; margin-top:10px;">
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.servers %></div><div class="list-item-meta">Servers</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.members.toLocaleString() %></div><div class="list-item-meta">Members reached</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.ticketsOpen %> / <%= overview.ticketsTotal %></div><div class="list-item-meta">Tickets open / ever</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.modActionsTotal %></div><div class="list-item-meta">Mod actions logged</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.warningsTotal %></div><div class="list-item-meta">Warnings issued</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.giveawaysActive %></div><div class="list-item-meta">Active giveaways</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.pollsActive %></div><div class="list-item-meta">Open polls</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.admins %></div><div class="list-item-meta">Admins (incl. you)</div></div>
+    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.uptime %></div><div class="list-item-meta">Uptime</div></div>
+  </div>
+</div>
+
+<% if (isOwner) { %>
+<div class="card" id="admins">
+  <h2>Admins</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Owner-only. Everyone below gets full <code>/admin</code> access, same as you — except managing this
+    list and downloading a database backup, which stay owner-only. They can still log into the dashboard
+    while closed beta is on.
+  </p>
+
+  <% if (admins.length === 0) { %>
+    <p class="empty">No other admins yet — add one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% admins.forEach(a => { %>
+        <li class="list-item">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <% if (a.resolved) { %>
+              <img src="<%= a.avatarURL %>" alt="" class="contact-avatar">
+            <% } else { %>
+              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);">?</span>
+            <% } %>
+            <div style="min-width:0;">
+              <div class="list-item-title"><%= a.resolved ? a.tag : 'Unknown user' %></div>
+              <div class="list-item-meta">
+                <span class="contact-id" style="display:inline;"><%= a.id %></span><% if (a.note) { %> · <%= a.note %><% } %>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/admin/admins/remove" onsubmit="return confirm('Remove this admin? They lose /admin access next time their session refreshes.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="discordUserId" value="<%= a.id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/admins/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:200px;">
+      <label for="adminUserId" style="margin-top:0;">Discord user ID</label>
+      <input type="text" id="adminUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <label for="adminNote" style="margin-top:0;">Note (optional)</label>
+      <input type="text" id="adminNote" name="note" placeholder="e.g. co-owner" maxlength="200">
+    </div>
+    <button class="btn" type="submit">Add admin</button>
+  </form>
+</div>
 <% } %>
 
 <div class="card" id="beta-toggle">
@@ -67,6 +146,48 @@
       <input type="text" id="discordUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
     </div>
     <button class="btn" type="submit">Add</button>
+  </form>
+</div>
+
+<div class="card" id="blocklist">
+  <h2>Global blocklist</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Blocks a Discord user bot-wide, across every server ModSentry is in — they're refused when opening a
+    ticket, and auto-kicked the moment they join any server ModSentry manages. Separate from a single
+    server's own ban list.
+  </p>
+
+  <% if (blocklist.length === 0) { %>
+    <p class="empty">No one's blocked right now.</p>
+  <% } else { %>
+    <ul class="list">
+      <% blocklist.forEach(b => { %>
+        <li class="list-item">
+          <div class="list-item-title"><%= b.discord_user_id %></div>
+          <div class="list-item-meta"><% if (b.reason) { %><%= b.reason %><% } %></div>
+          <div class="actions">
+            <form method="post" action="/admin/blocklist/remove" onsubmit="return confirm('Unblock this user?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="discordUserId" value="<%= b.discord_user_id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Unblock</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/blocklist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:200px;">
+      <label for="blockUserId" style="margin-top:0;">Discord user ID</label>
+      <input type="text" id="blockUserId" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <label for="blockReason" style="margin-top:0;">Reason (optional)</label>
+      <input type="text" id="blockReason" name="reason" placeholder="e.g. raided a server" maxlength="200">
+    </div>
+    <button class="btn btn-danger" type="submit">Block</button>
   </form>
 </div>
 
@@ -170,6 +291,131 @@
     </div>
     <button class="btn" type="submit">Add emoji</button>
   </form>
+</div>
+
+<div class="card" id="server-notes">
+  <h2>Server notes</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    A private note about a server, only visible here — never shown to that server. Useful for flagging
+    one to watch closely, or just remembering why it's on the list.
+  </p>
+
+  <% if (serverNotesList.length === 0) { %>
+    <p class="empty">No notes yet — add one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% serverNotesList.forEach(n => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= n.guildName %></div>
+            <div class="list-item-meta"><%= n.note %></div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/admin/server-notes/save" onsubmit="return confirm('Clear the note for &quot;<%= n.guildName %>&quot;?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="guildId" value="<%= n.guild_id %>">
+              <input type="hidden" name="note" value="">
+              <button class="btn btn-sm btn-danger" type="submit">Clear</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/admin/server-notes/save" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:200px;">
+      <label for="noteGuildId" style="margin-top:0;">Server</label>
+      <select id="noteGuildId" name="guildId" required>
+        <% guilds.forEach(g => { %><option value="<%= g.id %>"><%= g.name %></option><% }) %>
+      </select>
+    </div>
+    <div style="flex:2; min-width:220px;">
+      <label for="noteText" style="margin-top:0;">Note</label>
+      <input type="text" id="noteText" name="note" placeholder="e.g. watch this one closely" maxlength="500" required>
+    </div>
+    <button class="btn" type="submit">Save note</button>
+  </form>
+</div>
+
+<div class="card" id="user-lookup">
+  <h2>Global user lookup</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Paste a Discord user ID to see every server they're in, their warnings and mod actions across all of
+    them, and whether they're a contact, allowlisted, blocklisted, or an admin.
+  </p>
+
+  <form method="get" action="/admin" id="userLookupForm" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <div style="flex:1; min-width:220px;">
+      <label for="lookupId" style="margin-top:0;">Discord user ID</label>
+      <input type="text" id="lookupId" name="lookupId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" value="<%= lookup ? lookup.id : '' %>" required>
+    </div>
+    <button class="btn" type="submit">Look up</button>
+  </form>
+
+  <% if (lookup) { %>
+    <div style="margin-top:20px;">
+      <% if (lookup.error) { %>
+        <p class="empty"><%= lookup.error %></p>
+      <% } else { %>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+          <% if (lookup.user) { %>
+            <img src="<%= lookup.user.avatarURL %>" alt="" class="contact-avatar">
+            <div class="list-item-title"><%= lookup.user.tag %></div>
+          <% } else { %>
+            <div class="list-item-title">Unknown user (couldn't fetch from Discord)</div>
+          <% } %>
+        </div>
+        <p class="list-item-meta" style="margin-bottom:14px;">
+          <%= lookup.isContact ? '📇 Contact' : '' %>
+          <%= lookup.isAllowlisted ? ' · ✅ Allowlisted' : '' %>
+          <%= lookup.isBlocklisted ? ' · 🚫 Blocklisted' : '' %>
+          <%= lookup.isAdmin ? ' · 🛡️ Admin' : '' %>
+          <%= (!lookup.isContact && !lookup.isAllowlisted && !lookup.isBlocklisted && !lookup.isAdmin) ? 'No flags on this user.' : '' %>
+        </p>
+
+        <h3>In <%= lookup.inGuilds.length %> server<%= lookup.inGuilds.length === 1 ? '' : 's' %></h3>
+        <% if (lookup.inGuilds.length === 0) { %>
+          <p class="empty">Not currently in any server ModSentry manages.</p>
+        <% } else { %>
+          <p class="list-item-meta" style="margin-bottom:14px;"><%= lookup.inGuilds.map(g => g.name).join(', ') %></p>
+        <% } %>
+
+        <h3>Warnings (<%= lookup.warnings.length %>)</h3>
+        <% if (lookup.warnings.length === 0) { %>
+          <p class="empty">None on record.</p>
+        <% } else { %>
+          <ul class="list">
+            <% lookup.warnings.forEach(w => { %>
+              <li class="list-item">
+                <div>
+                  <div class="list-item-title"><%= w.guildName %></div>
+                  <div class="list-item-meta"><%= w.reason || '(no reason given)' %> · <%= w.created_at %></div>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+
+        <h3 style="margin-top:20px;">Mod actions (<%= lookup.modActions.length %>)</h3>
+        <% if (lookup.modActions.length === 0) { %>
+          <p class="empty">None on record.</p>
+        <% } else { %>
+          <ul class="list">
+            <% lookup.modActions.forEach(m => { %>
+              <li class="list-item">
+                <div>
+                  <div class="list-item-title"><%= m.action %> — <%= m.guildName %></div>
+                  <div class="list-item-meta">by <%= m.moderator_tag || m.moderator_id %><% if (m.reason) { %> · <%= m.reason %><% } %> · <%= m.created_at %></div>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      <% } %>
+    </div>
+  <% } %>
 </div>
 
 <div class="card" id="dm-form">
@@ -300,6 +546,89 @@
     </div>
   </form>
 </div>
+
+<div class="card" id="broadcast">
+  <h2>Broadcast to server owners</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Sends one embed to whoever owns every server ModSentry is in, all at once — for things like a planned
+    downtime notice or a new-feature heads up. Skips any owner who can't be reached and tells you who.
+  </p>
+  <form method="post" action="/admin/broadcast-owners" onsubmit="return confirm('Send this to every server owner ModSentry has (' + <%= guilds.length %> + ' server<%= guilds.length === 1 ? "" : "s" %>)? There is no undo.');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="broadcastTitle">Title (optional)</label>
+    <input type="text" id="broadcastTitle" name="title" placeholder="A message from ModSentry">
+
+    <label for="broadcastDescription">Message</label>
+    <textarea id="broadcastDescription" name="description" required></textarea>
+
+    <label for="broadcastColor">Color</label>
+    <input type="color" id="broadcastColor" name="color" value="#a8e6ff">
+
+    <div class="btn-row">
+      <button class="btn btn-danger" type="submit">Broadcast to all <%= guilds.length %> owner<%= guilds.length === 1 ? '' : 's' %></button>
+    </div>
+  </form>
+</div>
+
+<div class="card" id="maintenance">
+  <h2>Maintenance banner</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    A banner shown across every page of the dashboard (including the login page) while it's on — good for
+    a heads-up before planned downtime or a risky change.
+  </p>
+  <form method="post" action="/admin/maintenance">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="style-option" style="max-width:420px;">
+      <input type="checkbox" name="enabled" <%= settings.maintenanceEnabled ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Maintenance banner enabled</div>
+        <div class="style-desc">Toggle on/off any time — the message below is remembered either way.</div>
+      </div>
+    </label>
+
+    <label for="maintenanceMessage" style="margin-top:14px;">Banner message (optional)</label>
+    <input type="text" id="maintenanceMessage" name="message" placeholder="e.g. Scheduled maintenance tonight 10pm–11pm UTC" maxlength="300" value="<%= settings.maintenanceMessage || '' %>">
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" id="audit-log">
+  <h2>Admin action audit log</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Every add, remove, send, and leave any admin does in <code>/admin</code> — most recent first.
+  </p>
+  <% if (auditLog.length === 0) { %>
+    <p class="empty">Nothing logged yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% auditLog.forEach(l => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= l.action %></div>
+            <div class="list-item-meta">
+              <%= l.actor_tag || l.actor_id %><% if (l.detail) { %> · <%= l.detail %><% } %> · <%= l.created_at %>
+            </div>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<% if (isOwner) { %>
+<div class="card" id="backup">
+  <h2>Database backup</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Owner-only. Downloads a full, consistent snapshot of ModSentry's database right now — everything on
+    this page plus every server's settings, tickets, tags, and logs. Good to grab before a risky change.
+  </p>
+  <a class="btn" href="/admin/backup">Download backup</a>
+</div>
+<% } %>
 
 <div class="card" id="remove-server">
   <h2>Remove ModSentry from a server</h2>
@@ -448,6 +777,14 @@
   }
 
   input.addEventListener('input', function () { render(input.value); });
+})();
+</script>
+
+<script>
+(function () {
+  if (location.search.indexOf('lookupId') === -1) return;
+  var el = document.getElementById('user-lookup');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 })();
 </script>
 

@@ -1,8 +1,18 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const express = require('express');
 const { EmbedBuilder } = require('discord.js');
-const { AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook } = require('../../db/repo');
+const config = require('../../config');
+const db = require('../../db/database');
+const {
+  AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook,
+  DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
+  Warnings, ModActions,
+} = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
+const { formatUptime } = require('../../bot/ownerKeywords');
 const dmForm = require('../../bot/dmForm');
 
 // Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
@@ -15,9 +25,22 @@ const MAX_RECIPIENTS = 50;
 
 const router = express.Router();
 
+// The true owner (OWNER_DISCORD_ID) -- can do everything below, plus manage
+// who else counts as an admin and pull a raw database backup. Kept separate
+// from requireAdmin so an added admin can't add more admins or lock the real
+// owner out.
 function requireOwner(req, res, next) {
   if (!req.session || !req.session.isOwner) {
     return res.status(403).render('error', { message: 'Owner access only.' });
+  }
+  next();
+}
+
+// The owner, or anyone added to the admins list -- covers every other /admin
+// tool (allowlist, contacts, sending DMs, the blocklist, etc).
+function requireAdmin(req, res, next) {
+  if (!req.session || !(req.session.isOwner || req.session.isAdmin)) {
+    return res.status(403).render('error', { message: 'Admin access only.' });
   }
   next();
 }
@@ -27,10 +50,18 @@ function redirectWithNotice(res, ok, text, anchor = 'send-dm') {
   res.redirect(`/admin?${qs.toString()}#${anchor}`);
 }
 
-router.get('/', requireOwner, async (req, res) => {
+// Every mutating route below calls this once it succeeds -- the point of an
+// audit log is knowing who did what once more than one person has access.
+function logAudit(req, action, detail) {
+  const actor = req.session.discordUser;
+  AdminAuditLog.log(actor?.id || 'unknown', actor?.username || null, action, detail || null);
+}
+
+router.get('/', requireAdmin, async (req, res) => {
   const notice = req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
+  const serverNotes = ServerNotes.getAll();
   const guilds = [...client.guilds.cache.values()]
-    .map((g) => ({ id: g.id, name: g.name, memberCount: g.memberCount, iconURL: g.iconURL({ size: 32 }) }))
+    .map((g) => ({ id: g.id, name: g.name, memberCount: g.memberCount, iconURL: g.iconURL({ size: 32 }), note: serverNotes[g.id] || null }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   // Discord's API serves any valid user by ID regardless of shared servers,
@@ -50,34 +81,129 @@ router.get('/', requireOwner, async (req, res) => {
     markup: `<${e.animated ? 'a' : ''}:${e.name}:${e.emoji_id}>`,
   }));
 
+  const admins = await Promise.all(DashboardAdmins.list().map(async (a) => {
+    try {
+      const user = await client.users.fetch(a.discord_user_id);
+      return { id: a.discord_user_id, note: a.note, addedBy: a.added_by, tag: user.tag, avatarURL: user.displayAvatarURL({ size: 64 }), resolved: true };
+    } catch {
+      return { id: a.discord_user_id, note: a.note, addedBy: a.added_by, tag: null, avatarURL: null, resolved: false };
+    }
+  }));
+
+  const blocklist = GlobalBlocklist.list();
+
+  const overview = {
+    ...Stats.overview(),
+    servers: guilds.length,
+    members: guilds.reduce((sum, g) => sum + (g.memberCount || 0), 0),
+    admins: admins.length + 1, // + the owner, who isn't in the admins table
+    uptime: client.isReady() ? formatUptime(client.uptime) : 'Bot offline',
+  };
+
+  const auditLog = AdminAuditLog.list(100);
+  const notesList = ServerNotes.list().map((n) => ({ ...n, guildName: client.guilds.cache.get(n.guild_id)?.name || n.guild_id }));
+
+  let lookup = null;
+  if (req.query.lookupId) {
+    const id = req.query.lookupId.trim();
+    if (!DISCORD_ID.test(id)) {
+      lookup = { id, error: 'That doesn\'t look like a valid Discord user ID.' };
+    } else {
+      const user = await client.users.fetch(id).catch(() => null);
+      const inGuilds = (await Promise.all(guilds.map(async (g) => {
+        const guildObj = client.guilds.cache.get(g.id);
+        const member = await guildObj.members.fetch(id).catch(() => null);
+        return member ? { id: g.id, name: g.name } : null;
+      }))).filter(Boolean);
+      const guildName = (gid) => client.guilds.cache.get(gid)?.name || gid;
+      lookup = {
+        id,
+        user: user ? { tag: user.tag, avatarURL: user.displayAvatarURL({ size: 64 }) } : null,
+        inGuilds,
+        warnings: Warnings.listForUserAllGuilds(id).map((w) => ({ ...w, guildName: guildName(w.guild_id) })),
+        modActions: ModActions.listForTargetAllGuilds(id, 50).map((m) => ({ ...m, guildName: guildName(m.guild_id) })),
+        isContact: Contacts.has(id),
+        isAllowlisted: BetaAllowlist.has(id),
+        isBlocklisted: GlobalBlocklist.has(id),
+        isAdmin: DashboardAdmins.has(id) || id === config.ownerDiscordId,
+      };
+    }
+  }
+
   res.render('admin', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
     templates: DmFormTemplates.list(),
     contacts,
     emojiBook,
+    admins,
+    blocklist,
+    overview,
+    auditLog,
+    serverNotesList: notesList,
+    lookup,
     guilds,
     notice,
+    ownerDiscordId: config.ownerDiscordId,
   });
 });
 
-router.post('/beta-lock', requireOwner, (req, res) => {
+router.post('/beta-lock', requireAdmin, (req, res) => {
   AppSettings.setBetaLocked(req.body.enabled === 'on');
+  logAudit(req, req.body.enabled === 'on' ? 'Enabled closed beta' : 'Disabled closed beta', null);
   res.redirect('/admin');
 });
 
-router.post('/allowlist/add', requireOwner, (req, res) => {
+router.post('/maintenance', requireAdmin, (req, res) => {
+  const enabled = req.body.enabled === 'on';
+  const message = (req.body.message || '').trim().slice(0, 300);
+  AppSettings.setMaintenance(enabled, message);
+  logAudit(req, enabled ? 'Enabled maintenance banner' : 'Disabled maintenance banner', message || null);
+  return redirectWithNotice(res, true, enabled ? 'Maintenance banner is on.' : 'Maintenance banner is off.', 'maintenance');
+});
+
+router.post('/allowlist/add', requireAdmin, (req, res) => {
   const id = (req.body.discordUserId || '').trim();
-  if (/^\d{5,25}$/.test(id)) BetaAllowlist.add(id);
+  if (DISCORD_ID.test(id)) {
+    BetaAllowlist.add(id);
+    logAudit(req, 'Added to beta allowlist', id);
+  }
   res.redirect('/admin');
 });
 
-router.post('/allowlist/remove', requireOwner, (req, res) => {
+router.post('/allowlist/remove', requireAdmin, (req, res) => {
   BetaAllowlist.remove(req.body.discordUserId);
+  logAudit(req, 'Removed from beta allowlist', req.body.discordUserId);
   res.redirect('/admin');
 });
 
-router.post('/send-dm', requireOwner, async (req, res) => {
+router.post('/admins/add', requireOwner, async (req, res) => {
+  const id = (req.body.discordUserId || '').trim();
+  const note = (req.body.note || '').trim().slice(0, 200);
+
+  if (!DISCORD_ID.test(id)) {
+    return redirectWithNotice(res, false, 'Enter a valid Discord user ID.', 'admins');
+  }
+  if (config.ownerDiscordId && id === config.ownerDiscordId) {
+    return redirectWithNotice(res, false, 'That\'s already you — the owner always has full access.', 'admins');
+  }
+  try {
+    const user = await client.users.fetch(id);
+    DashboardAdmins.add(id, note, req.session.discordUser.id);
+    logAudit(req, 'Added an admin', `${user.tag} (${id})`);
+    return redirectWithNotice(res, true, `Added ${user.tag} as an admin — they'll get full /admin access next time they log in.`, 'admins');
+  } catch (err) {
+    return redirectWithNotice(res, false, `Couldn't find that user: ${err.message}`, 'admins');
+  }
+});
+
+router.post('/admins/remove', requireOwner, (req, res) => {
+  DashboardAdmins.remove(req.body.discordUserId);
+  logAudit(req, 'Removed an admin', req.body.discordUserId);
+  return redirectWithNotice(res, true, 'Removed. They\'ll lose /admin access next time their session refreshes.', 'admins');
+});
+
+router.post('/send-dm', requireAdmin, async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
   const color = req.body.color || '#a8e6ff';
@@ -138,10 +264,42 @@ router.post('/send-dm', requireOwner, async (req, res) => {
   if (failed.length > 0) {
     text += ` Failed: ${failed.map((r) => `${r.id} (${r.error})`).join('; ')}`;
   }
+  logAudit(req, 'Sent a DM', `${succeeded.length}/${recipientIds.length} succeeded`);
   return redirectWithNotice(res, failed.length === 0, text);
 });
 
-router.post('/contacts/add', requireOwner, async (req, res) => {
+router.post('/broadcast-owners', requireAdmin, async (req, res) => {
+  const title = (req.body.title || '').trim();
+  const description = (req.body.description || '').trim();
+  const color = req.body.color || '#a8e6ff';
+
+  if (!description) {
+    return redirectWithNotice(res, false, 'A message is required.', 'broadcast');
+  }
+
+  const guilds = [...client.guilds.cache.values()];
+  const results = await Promise.all(guilds.map(async (g) => {
+    try {
+      const owner = await g.fetchOwner();
+      const embed = new EmbedBuilder().setColor(color).setDescription(description).setTimestamp();
+      if (title) embed.setTitle(title);
+      await owner.send({ embeds: [embed] });
+      return { guild: g.name, ok: true };
+    } catch (err) {
+      return { guild: g.name, ok: false, error: err.message };
+    }
+  }));
+
+  const succeeded = results.filter((r) => r.ok).length;
+  const failed = results.filter((r) => !r.ok);
+  logAudit(req, 'Broadcast to server owners', `${succeeded}/${guilds.length} succeeded`);
+
+  let text = `Sent to ${succeeded} of ${guilds.length} server owners.`;
+  if (failed.length > 0) text += ` Couldn't reach: ${failed.map((r) => r.guild).join(', ')}`;
+  return redirectWithNotice(res, failed.length === 0, text, 'broadcast');
+});
+
+router.post('/contacts/add', requireAdmin, async (req, res) => {
   const id = (req.body.discordUserId || '').trim();
   const note = (req.body.note || '').trim().slice(0, 200);
 
@@ -151,18 +309,20 @@ router.post('/contacts/add', requireOwner, async (req, res) => {
   try {
     const user = await client.users.fetch(id);
     Contacts.add(id, note);
+    logAudit(req, 'Added a contact', `${user.tag} (${id})`);
     return redirectWithNotice(res, true, `Added ${user.tag} to contacts.`, 'contacts');
   } catch (err) {
     return redirectWithNotice(res, false, `Couldn't find that user: ${err.message}`, 'contacts');
   }
 });
 
-router.post('/contacts/remove', requireOwner, (req, res) => {
+router.post('/contacts/remove', requireAdmin, (req, res) => {
   Contacts.remove(req.body.discordUserId);
+  logAudit(req, 'Removed a contact', req.body.discordUserId);
   return redirectWithNotice(res, true, 'Removed.', 'contacts');
 });
 
-router.post('/emoji-book/add', requireOwner, (req, res) => {
+router.post('/emoji-book/add', requireAdmin, (req, res) => {
   const raw = (req.body.markup || '').trim();
   const note = (req.body.note || '').trim().slice(0, 200);
   const match = CUSTOM_EMOJI.exec(raw);
@@ -175,15 +335,48 @@ router.post('/emoji-book/add', requireOwner, (req, res) => {
     return redirectWithNotice(res, false, `"${name}" is already saved.`, 'emoji-book');
   }
   EmojiBook.add(name, emojiId, !!animatedFlag, note);
+  logAudit(req, 'Added a saved emoji', `${name} (${emojiId})`);
   return redirectWithNotice(res, true, `Saved "${name}" to the emoji book.`, 'emoji-book');
 });
 
-router.post('/emoji-book/remove', requireOwner, (req, res) => {
+router.post('/emoji-book/remove', requireAdmin, (req, res) => {
   EmojiBook.remove(Number(req.body.id));
+  logAudit(req, 'Removed a saved emoji', String(req.body.id));
   return redirectWithNotice(res, true, 'Removed.', 'emoji-book');
 });
 
-router.post('/dm-form-templates/save', requireOwner, (req, res) => {
+router.post('/blocklist/add', requireAdmin, (req, res) => {
+  const id = (req.body.discordUserId || '').trim();
+  const reason = (req.body.reason || '').trim().slice(0, 200);
+
+  if (!DISCORD_ID.test(id)) {
+    return redirectWithNotice(res, false, 'Enter a valid Discord user ID.', 'blocklist');
+  }
+  GlobalBlocklist.add(id, reason, req.session.discordUser.id);
+  logAudit(req, 'Blocklisted a user', `${id}${reason ? ` — ${reason}` : ''}`);
+  return redirectWithNotice(res, true, 'Blocked bot-wide — refused tickets and auto-kicked from any server they join.', 'blocklist');
+});
+
+router.post('/blocklist/remove', requireAdmin, (req, res) => {
+  GlobalBlocklist.remove(req.body.discordUserId);
+  logAudit(req, 'Unblocklisted a user', req.body.discordUserId);
+  return redirectWithNotice(res, true, 'Removed.', 'blocklist');
+});
+
+router.post('/server-notes/save', requireAdmin, (req, res) => {
+  const guildId = (req.body.guildId || '').trim();
+  const note = (req.body.note || '').trim().slice(0, 500);
+  const guild = client.guilds.cache.get(guildId);
+
+  if (!guild) {
+    return redirectWithNotice(res, false, "ModSentry isn't in that server (anymore).", 'server-notes');
+  }
+  ServerNotes.set(guildId, note, req.session.discordUser.id);
+  logAudit(req, note ? 'Set a server note' : 'Cleared a server note', guild.name);
+  return redirectWithNotice(res, true, note ? `Note saved for ${guild.name}.` : `Note cleared for ${guild.name}.`, 'server-notes');
+});
+
+router.post('/dm-form-templates/save', requireAdmin, (req, res) => {
   const id = req.body.templateId ? Number(req.body.templateId) : null;
   const name = (req.body.name || '').trim().slice(0, 100);
   const title = (req.body.title || '').trim().slice(0, 200);
@@ -199,20 +392,41 @@ router.post('/dm-form-templates/save', requireOwner, (req, res) => {
 
   if (id && DmFormTemplates.get(id)) {
     DmFormTemplates.update(id, { name, title, intro, questions });
+    logAudit(req, 'Updated a form template', name);
     return redirectWithNotice(res, true, `"${name}" updated.`, 'dm-form');
   }
   DmFormTemplates.create({ name, title, intro, questions });
+  logAudit(req, 'Created a form template', name);
   return redirectWithNotice(res, true, `"${name}" created.`, 'dm-form');
 });
 
-router.post('/dm-form-templates/delete', requireOwner, (req, res) => {
+router.post('/dm-form-templates/delete', requireAdmin, (req, res) => {
   const id = Number(req.body.templateId);
   const template = DmFormTemplates.get(id);
-  if (template) DmFormTemplates.remove(id);
+  if (template) {
+    DmFormTemplates.remove(id);
+    logAudit(req, 'Deleted a form template', template.name);
+  }
   return redirectWithNotice(res, true, template ? `"${template.name}" deleted.` : 'Already gone.', 'dm-form');
 });
 
-router.post('/leave-guild', requireOwner, async (req, res) => {
+router.get('/backup', requireOwner, async (req, res) => {
+  const tmpPath = path.join(os.tmpdir(), `modsentry-backup-${Date.now()}.sqlite`);
+  try {
+    // An online backup via better-sqlite3's own API, not a raw file copy --
+    // safe to run while the bot is writing to the WAL-mode database.
+    await db.backup(tmpPath);
+    logAudit(req, 'Downloaded a database backup', null);
+    res.download(tmpPath, `modsentry-backup-${new Date().toISOString().slice(0, 10)}.sqlite`, () => {
+      fs.unlink(tmpPath, () => {});
+    });
+  } catch (err) {
+    fs.unlink(tmpPath, () => {});
+    return redirectWithNotice(res, false, `Backup failed: ${err.message}`, 'backup');
+  }
+});
+
+router.post('/leave-guild', requireAdmin, async (req, res) => {
   const guildId = (req.body.guildId || '').trim();
   const guild = client.guilds.cache.get(guildId);
   if (!guild) {
@@ -221,6 +435,7 @@ router.post('/leave-guild', requireOwner, async (req, res) => {
   const name = guild.name;
   try {
     await guild.leave();
+    logAudit(req, 'Left a server', name);
     return redirectWithNotice(res, true, `Left ${name}.`, 'remove-server');
   } catch (err) {
     return redirectWithNotice(res, false, `Couldn't leave ${name}: ${err.message}`, 'remove-server');

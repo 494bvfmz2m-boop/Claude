@@ -140,11 +140,95 @@ const GuildSettings = {
 
 const AppSettings = {
   get() {
-    const row = db.prepare('SELECT beta_locked FROM app_settings WHERE id = 1').get();
-    return { betaLocked: !!(row && row.beta_locked) };
+    const row = db.prepare('SELECT beta_locked, maintenance_enabled, maintenance_message FROM app_settings WHERE id = 1').get();
+    return {
+      betaLocked: !!(row && row.beta_locked),
+      maintenanceEnabled: !!(row && row.maintenance_enabled),
+      maintenanceMessage: row ? row.maintenance_message : null,
+    };
   },
   setBetaLocked(enabled) {
     db.prepare('UPDATE app_settings SET beta_locked = ? WHERE id = 1').run(enabled ? 1 : 0);
+  },
+  setMaintenance(enabled, message) {
+    db.prepare('UPDATE app_settings SET maintenance_enabled = ?, maintenance_message = ? WHERE id = 1').run(enabled ? 1 : 0, message || null);
+  },
+};
+
+const DashboardAdmins = {
+  list() {
+    return db.prepare('SELECT discord_user_id, note, added_by, added_at FROM dashboard_admins ORDER BY added_at DESC').all();
+  },
+  has(discordUserId) {
+    return !!db.prepare('SELECT 1 FROM dashboard_admins WHERE discord_user_id = ?').get(discordUserId);
+  },
+  add(discordUserId, note, addedBy) {
+    db.prepare('INSERT OR IGNORE INTO dashboard_admins (discord_user_id, note, added_by) VALUES (?, ?, ?)')
+      .run(discordUserId, note || null, addedBy || null);
+  },
+  remove(discordUserId) {
+    db.prepare('DELETE FROM dashboard_admins WHERE discord_user_id = ?').run(discordUserId);
+  },
+};
+
+const AdminAuditLog = {
+  log(actorId, actorTag, action, detail) {
+    db.prepare('INSERT INTO admin_audit_log (actor_id, actor_tag, action, detail) VALUES (?, ?, ?, ?)')
+      .run(actorId, actorTag || null, action, detail || null);
+  },
+  list(limit = 100) {
+    return db.prepare('SELECT * FROM admin_audit_log ORDER BY id DESC LIMIT ?').all(limit);
+  },
+};
+
+const ServerNotes = {
+  getAll() {
+    const rows = db.prepare('SELECT guild_id, note FROM server_notes').all();
+    return Object.fromEntries(rows.map((r) => [r.guild_id, r.note]));
+  },
+  list() {
+    return db.prepare('SELECT * FROM server_notes ORDER BY updated_at DESC').all();
+  },
+  // Saving an empty note deletes the row instead of storing blank text --
+  // one route handles both "set" and "clear" this way.
+  set(guildId, note, updatedBy) {
+    if (!note) {
+      db.prepare('DELETE FROM server_notes WHERE guild_id = ?').run(guildId);
+      return;
+    }
+    db.prepare(`
+      INSERT INTO server_notes (guild_id, note, updated_by) VALUES (?, ?, ?)
+      ON CONFLICT(guild_id) DO UPDATE SET note = excluded.note, updated_by = excluded.updated_by, updated_at = datetime('now')
+    `).run(guildId, note, updatedBy || null);
+  },
+};
+
+const GlobalBlocklist = {
+  list() {
+    return db.prepare('SELECT discord_user_id, reason, added_by, added_at FROM global_blocklist ORDER BY added_at DESC').all();
+  },
+  has(discordUserId) {
+    return !!db.prepare('SELECT 1 FROM global_blocklist WHERE discord_user_id = ?').get(discordUserId);
+  },
+  add(discordUserId, reason, addedBy) {
+    db.prepare('INSERT OR IGNORE INTO global_blocklist (discord_user_id, reason, added_by) VALUES (?, ?, ?)')
+      .run(discordUserId, reason || null, addedBy || null);
+  },
+  remove(discordUserId) {
+    db.prepare('DELETE FROM global_blocklist WHERE discord_user_id = ?').run(discordUserId);
+  },
+};
+
+const Stats = {
+  overview() {
+    return {
+      ticketsTotal: db.prepare('SELECT COUNT(*) AS n FROM tickets').get().n,
+      ticketsOpen: db.prepare("SELECT COUNT(*) AS n FROM tickets WHERE status = 'open'").get().n,
+      modActionsTotal: db.prepare('SELECT COUNT(*) AS n FROM mod_actions').get().n,
+      warningsTotal: db.prepare('SELECT COUNT(*) AS n FROM warnings').get().n,
+      giveawaysActive: db.prepare('SELECT COUNT(*) AS n FROM giveaways WHERE ended = 0').get().n,
+      pollsActive: db.prepare('SELECT COUNT(*) AS n FROM polls WHERE closed = 0').get().n,
+    };
   },
 };
 
@@ -284,6 +368,9 @@ const ModActions = {
   },
   distinctActions(guildId) {
     return db.prepare('SELECT DISTINCT action FROM mod_actions WHERE guild_id = ? ORDER BY action').all(guildId).map((r) => r.action);
+  },
+  listForTargetAllGuilds(targetId, limit = 50) {
+    return db.prepare('SELECT * FROM mod_actions WHERE target_id = ? ORDER BY id DESC LIMIT ?').all(targetId, limit);
   },
 };
 
@@ -557,6 +644,9 @@ const Warnings = {
   listForUser(guildId, userId) {
     return db.prepare('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY id DESC').all(guildId, userId);
   },
+  listForUserAllGuilds(userId) {
+    return db.prepare('SELECT * FROM warnings WHERE user_id = ? ORDER BY id DESC').all(userId);
+  },
   clearForUser(guildId, userId) {
     const info = db.prepare('DELETE FROM warnings WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
     return info.changes;
@@ -739,4 +829,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };

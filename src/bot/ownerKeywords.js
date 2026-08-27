@@ -240,4 +240,5 @@ module.exports = {
   buildContactsEmbed,
   buildEmojiBookEmbed,
   buildHelpEmbed,
+  formatUptime,
 };

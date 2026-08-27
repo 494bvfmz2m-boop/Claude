@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const config = require('../../config');
 const { buildAuthorizeUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds } = require('../lib/discordOAuth');
-const { AppSettings, BetaAllowlist } = require('../../db/repo');
+const { AppSettings, BetaAllowlist, DashboardAdmins } = require('../../db/repo');
 
 const router = express.Router();
 
@@ -37,13 +37,15 @@ router.get('/auth/discord/callback', async (req, res) => {
     ]);
 
     const isOwner = Boolean(config.ownerDiscordId) && user.id === config.ownerDiscordId;
-    if (!isOwner && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
+    const isAdmin = isOwner || DashboardAdmins.has(user.id);
+    if (!isAdmin && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
       return res.render('login', { error: `You weren't invited to the beta. Ask ${config.betaContactHandle} on Discord to add you to the beta list.` });
     }
 
     req.session.authenticated = true;
     req.session.discordUser = { id: user.id, username: user.username, avatar: user.avatar };
     req.session.isOwner = isOwner;
+    req.session.isAdmin = isAdmin;
     req.session.manageableGuilds = manageableGuilds;
     res.redirect('/');
   } catch (err) {

@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const config = require('../config');
 const client = require('../bot/client');
-const { BetaAllowlist } = require('../db/repo');
+const { BetaAllowlist, AppSettings } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
@@ -55,7 +55,10 @@ function createApp() {
     };
     res.locals.discordUser = req.session?.discordUser || null;
     res.locals.isOwner = Boolean(req.session?.isOwner);
+    res.locals.isAdmin = Boolean(req.session?.isAdmin);
     res.locals.inviteUrl = buildGenericInviteUrl();
+    const appSettings = AppSettings.get();
+    res.locals.maintenance = { enabled: appSettings.maintenanceEnabled, message: appSettings.maintenanceMessage };
     next();
   });
 

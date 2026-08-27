@@ -67,7 +67,7 @@
   <a class="btn btn-ghost" style="margin-left:auto;" href="https://paypal.me/daanederveen0" target="_blank" rel="noopener">Donate</a>
   <a class="btn btn-ghost" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
-    <% if (isOwner) { %>
+    <% if (isOwner || isAdmin) { %>
       <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
     <% } %>
     <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">+ Invite to Server</a>
@@ -110,5 +110,10 @@
     }, 900);
   })();
   </script>
+<% } %>
+<% if (typeof maintenance !== 'undefined' && maintenance && maintenance.enabled) { %>
+  <div class="maintenance-banner">
+    <strong>Maintenance:</strong> <%= maintenance.message || 'ModSentry is undergoing scheduled maintenance — some things may be flaky right now.' %>
+  </div>
 <% } %>
 <main class="container">
