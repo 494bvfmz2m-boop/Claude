@@ -64,7 +64,8 @@
     <span class="dot"></span>
     <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
   </span>
-  <a class="btn btn-ghost" style="margin-left:auto;" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
+  <a class="btn btn-ghost" style="margin-left:auto;" href="https://paypal.me/daanederveen0" target="_blank" rel="noopener">Donate</a>
+  <a class="btn btn-ghost" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
     <% if (isOwner) { %>
       <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
