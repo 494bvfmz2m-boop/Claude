@@ -108,6 +108,11 @@ router.get('/moderation', async (req, res) => {
       status: null,
     },
     {
+      id: 'test-dms', label: 'Test punishment DMs',
+      desc: 'See exactly how a ban/kick/mute/warn DM looks, sent to your own DMs.',
+      status: null,
+    },
+    {
       id: 'log', label: 'Moderation log',
       desc: 'Every action taken, from Discord or the dashboard.',
       status: null,
@@ -299,6 +304,43 @@ router.post('/moderation/hierarchy/:id/reorder', async (req, res) => {
   StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, reordered);
   cache.invalidateStaffRanks(hierarchy.id);
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
+});
+
+// ---------- Test punishment DMs ----------
+router.get('/moderation/test-dms', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  res.render('moderationTestDms', { guild, notice: notice(req) });
+});
+
+router.post('/moderation/test-dms/send', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+
+  const TEST_REASON = 'This is a test — sent from the dashboard, nothing actually happened.';
+  const disclaimer = { name: '⚠️ This is a test', value: "Nothing actually happened — just previewing what a real one looks like." };
+  const embeds = [
+    buildPunishmentEmbed({ action: 'banned', emoji: '🔨', guildName: guild.name, reason: TEST_REASON, extra: [disclaimer] }),
+    buildPunishmentEmbed({ action: 'kicked', emoji: '👢', guildName: guild.name, reason: TEST_REASON, extra: [disclaimer] }),
+    buildPunishmentEmbed({
+      action: 'muted', emoji: '🔇', guildName: guild.name, reason: TEST_REASON,
+      extra: [{ name: 'Duration', value: '10m', inline: true }, disclaimer],
+    }),
+    buildPunishmentEmbed({ action: 'warned', emoji: '⚠️', guildName: guild.name, reason: TEST_REASON, extra: [disclaimer] }),
+  ];
+
+  // Sent directly rather than through sendPunishmentDM, which swallows
+  // errors by design (a closed-DMs user shouldn't block a real punishment)
+  // -- here the whole point is telling the person whether it actually worked.
+  try {
+    const user = await client.users.fetch(req.session.discordUser.id);
+    for (const embed of embeds) {
+      await user.send({ embeds: [embed] });
+    }
+    return redirectWithNotice(res, guild.id, true, `Sent 4 test DMs to ${user.tag} — check your DMs.`, 'test-dms');
+  } catch (err) {
+    return redirectWithNotice(res, guild.id, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with ModSentry.`, 'test-dms');
+  }
 });
 
 // ---------- Auto-punishments ----------

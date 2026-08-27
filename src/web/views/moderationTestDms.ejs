@@ -1,0 +1,24 @@
+<%- include('partials/header', { title: 'Test DMs', guild }) %>
+<a href="/dashboard/<%= guild.id %>/moderation" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Moderation</a>
+<h1>Test punishment DMs</h1>
+<p class="subtitle">See exactly how each punishment DM looks -- before you ever use them for real.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<div class="card">
+  <p class="hint" style="margin-bottom:14px;">
+    Sends 4 sample embeds straight to your own Discord DMs -- one each for ban, kick, mute, and warn -- using
+    "<%= guild.name %>" as the server name, each clearly marked as a test. Nothing in this server, or to any
+    real member, actually happens. You need to share a server with ModSentry and have DMs from server members
+    turned on.
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/test-dms/send">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn" type="submit">Send test DMs to me</button>
+  </form>
+</div>
+<%- include('partials/footer') %>
