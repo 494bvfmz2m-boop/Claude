@@ -9,6 +9,7 @@ const {
 } = require('discord.js');
 const { TicketTypes, Tickets, GuildSettings } = require('../db/repo');
 const { buildTranscript } = require('./transcript');
+const { emojiUrl } = require('./emoji');
 
 function sanitizeForChannelName(str) {
   return String(str).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 80);
@@ -93,6 +94,7 @@ async function openTicket(interaction, ticketTypeId) {
     .setTitle(ticketType.welcome_title || `${ticketType.name} ticket`)
     .setDescription(ticketType.welcome_description || `Thanks for reaching out, <@${interaction.user.id}>. Support will be with you shortly.`)
     .setColor(ticketType.welcome_color || '#a8e6ff')
+    .setThumbnail(emojiUrl('modsentry-ticket.png'))
     .setTimestamp();
 
   const mentionRoles = ticketType.support_role_ids.map((r) => `<@&${r}>`).join(' ');
@@ -161,6 +163,7 @@ async function closeTicket(interaction, ticketDbId, reason) {
     try {
       const embed = new EmbedBuilder()
         .setTitle(`🔒 Ticket closed: ${channel.name}`)
+        .setThumbnail(emojiUrl('modsentry-gavel.png'))
         .addFields(
           { name: 'Opened by', value: `<@${ticket.opener_id}>`, inline: true },
           { name: 'Closed by', value: `<@${interaction.user.id}>`, inline: true },

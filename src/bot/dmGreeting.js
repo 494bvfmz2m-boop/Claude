@@ -5,6 +5,7 @@ const { isAuthorized } = require('./betaGate');
 const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
 const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 const { handleOwnerKeyword } = require('./ownerKeywords');
+const { emojiUrl } = require('./emoji');
 
 const GREETING_COLOR = '#a8e6ff';
 const WEBSITE_URL = 'https://modsentry.site';
@@ -14,6 +15,7 @@ function buildGreetingEmbed() {
   return new EmbedBuilder()
     .setTitle('👋 Invite me to your server for me to work!')
     .setColor(GREETING_COLOR)
+    .setThumbnail(emojiUrl('modsentry-online.gif'))
     .setDescription(
       "I only do anything once I'm in a server — I can't help over DMs. Add me with the button below, then " +
         `manage everything from the dashboard at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`,

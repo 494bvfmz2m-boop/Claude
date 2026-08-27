@@ -2,6 +2,12 @@ const { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, Butt
 const { Warnings, GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { canUseAction } = require('./commandPermissions');
+const { emojiUrl } = require('./emoji');
+
+const PUNISHMENT_THUMBNAILS = {
+  banned: emojiUrl('modsentry-ban.gif'),
+  warned: emojiUrl('modsentry-warn.gif'),
+};
 
 function denyReply(interaction, command) {
   return interaction.reply({ content: `You don't have permission to use \`/${command}\`. Ask an admin to grant it from the dashboard's Permissions page.`, ephemeral: true });
@@ -45,6 +51,7 @@ function buildPunishmentEmbed({ action, emoji, guildName, reason, extra }) {
     .addFields({ name: 'Reason', value: reason || 'No reason provided' })
     .setTimestamp();
   if (extra) embed.addFields(extra);
+  if (PUNISHMENT_THUMBNAILS[action]) embed.setThumbnail(PUNISHMENT_THUMBNAILS[action]);
   return embed;
 }
 

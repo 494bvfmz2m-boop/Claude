@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { testSwearFilter } = require('./cache');
 const { GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
+const { emojiUrl } = require('./emoji');
 
 async function logDeletion(guild, message, matchedWord) {
   recordModAction(guild.id, {
@@ -18,6 +19,7 @@ async function logDeletion(guild, message, matchedWord) {
   const embed = new EmbedBuilder()
     .setTitle('🧼 Swear filter triggered')
     .setColor('#ed4245')
+    .setThumbnail(emojiUrl('modsentry-filter.png'))
     .addFields(
       { name: 'User', value: `<@${message.author.id}>`, inline: true },
       { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },

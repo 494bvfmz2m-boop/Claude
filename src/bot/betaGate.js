@@ -1,6 +1,7 @@
 const { AuditLogEvent, EmbedBuilder } = require('discord.js');
 const config = require('../config');
 const { AppSettings, BetaAllowlist } = require('../db/repo');
+const { emojiUrl } = require('./emoji');
 
 const JOIN_COLOR = '#5865F2';
 const LEFT_COLOR = '#a8e6ff';
@@ -36,17 +37,19 @@ async function notifyOwner(client, guild, { executor, status }) {
   if (!config.ownerDiscordId) return;
 
   const STATUS_COPY = {
-    joined: { title: '➕ Joined a new server', color: JOIN_COLOR, note: null },
-    authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null },
+    joined: { title: '➕ Joined a new server', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('modsentry-radar.gif') },
+    authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('modsentry-radar.gif') },
     unverified: {
       title: '⚠️ Joined a new server (unverified)',
       color: '#d97706',
       note: "Couldn't identify who added me -- missing View Audit Log, the entry hasn't shown up yet, or it aged out. Closed beta is on, so I stayed rather than guess and kick someone legitimate. Worth a manual look.",
+      footerIcon: emojiUrl('modsentry-warning.png'),
     },
     kicked: {
       title: '❌ Left a server (closed beta)',
       color: LEFT_COLOR,
       note: 'Whoever added me is not on the beta allowlist, so I left and told them how to request access.',
+      footerIcon: emojiUrl('modsentry-cross.png'),
     },
   };
   const copy = STATUS_COPY[status];
@@ -65,6 +68,7 @@ async function notifyOwner(client, guild, { executor, status }) {
       )
       .setTimestamp();
     if (copy.note) embed.setDescription(copy.note);
+    if (copy.footerIcon) embed.setFooter({ text: status === 'unverified' ? 'Needs a manual look' : status === 'kicked' ? 'Access declined' : 'Watching this server', iconURL: copy.footerIcon });
     await owner.send({ embeds: [embed] }).catch(() => {});
   } catch {
     // can't reach the owner -- nothing more to do

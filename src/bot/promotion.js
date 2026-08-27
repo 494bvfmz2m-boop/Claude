@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getRankForRoleIds, getRoleIdForRank, getMaxRank } = require('./cache');
 const { GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
+const { emojiUrl } = require('./emoji');
 
 const PROMO_COLOR = '#a8e6ff';
 
@@ -9,7 +10,7 @@ function isOverride(guild, member) {
   return guild.ownerId === member.id || member.permissions.has(PermissionFlagsBits.Administrator);
 }
 
-async function logAction(guild, title, target, moderator, detail) {
+async function logAction(guild, title, target, moderator, detail, thumbnail) {
   recordModAction(guild.id, { action: title, target, moderator, reason: detail });
 
   const settings = GuildSettings.get(guild.id);
@@ -25,6 +26,7 @@ async function logAction(guild, title, target, moderator, detail) {
       { name: 'Rank change', value: detail, inline: false },
     )
     .setTimestamp();
+  if (thumbnail) embed.setThumbnail(thumbnail);
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }
 
@@ -88,7 +90,7 @@ async function changeRank(interaction, direction) {
   const newRankLabel = newRoleId ? `<@&${newRoleId}>` : 'no staff role (fully demoted)';
 
   await interaction.reply({ content: `${emoji} ${verb} **${user.tag}** to ${newRankLabel}.` });
-  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRank}`);
+  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRank}`, direction > 0 ? emojiUrl('modsentry-levelup.gif') : null);
 }
 
 module.exports = {
