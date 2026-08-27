@@ -171,6 +171,57 @@ CREATE TABLE IF NOT EXISTS contacts (
   added_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_by TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS giveaways (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  prize TEXT NOT NULL,
+  winner_count INTEGER NOT NULL DEFAULT 1,
+  required_role_id TEXT,
+  hosted_by TEXT,
+  entries TEXT NOT NULL DEFAULT '[]',
+  ends_at TEXT NOT NULL,
+  ended INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  event_time TEXT,
+  hosted_by TEXT,
+  going TEXT NOT NULL DEFAULT '[]',
+  maybe TEXT NOT NULL DEFAULT '[]',
+  not_going TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS scheduled_announcements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message TEXT NOT NULL,
+  recurrence TEXT NOT NULL DEFAULT 'none',
+  next_run TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_by TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS polls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id TEXT NOT NULL,
@@ -197,6 +248,13 @@ CREATE INDEX IF NOT EXISTS idx_warnings_guild_user ON warnings(guild_id, user_id
 CREATE INDEX IF NOT EXISTS idx_staff_ranks_guild ON staff_ranks(guild_id, rank);
 CREATE INDEX IF NOT EXISTS idx_dm_form_sends_recipient ON dm_form_sends(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_polls_open ON polls(closed, ends_at);
+CREATE INDEX IF NOT EXISTS idx_tags_guild ON tags(guild_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_guild_name ON tags(guild_id, name);
+CREATE INDEX IF NOT EXISTS idx_giveaways_guild ON giveaways(guild_id);
+CREATE INDEX IF NOT EXISTS idx_giveaways_open ON giveaways(ended, ends_at);
+CREATE INDEX IF NOT EXISTS idx_events_guild ON events(guild_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_guild ON scheduled_announcements(guild_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_due ON scheduled_announcements(active, next_run);
 `);
 
 // Lightweight migrations for columns added after the initial release —
@@ -230,6 +288,16 @@ addColumnIfMissing('app_settings', 'dm_form_intro', 'TEXT');
 addColumnIfMissing('app_settings', 'dm_form_questions', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('dm_form_sends', 'template_name', 'TEXT');
 addColumnIfMissing('app_settings', 'dm_templates_seeded', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('guild_settings', 'message_log_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'verification_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('guild_settings', 'verification_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'verification_role_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'verification_message', 'TEXT');
+addColumnIfMissing('guild_settings', 'verification_message_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'stats_members_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'stats_online_channel_id', 'TEXT');
+addColumnIfMissing('guild_settings', 'stats_boosts_channel_id', 'TEXT');
+addColumnIfMissing('reaction_role_panels', 'exclusive', 'INTEGER NOT NULL DEFAULT 0');
 
 // One-time seed of a couple of starter form templates -- only ever runs
 // once (gated on the flag, not on the table being empty) so deleting them

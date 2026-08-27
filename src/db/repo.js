@@ -24,7 +24,10 @@ const GuildSettings = {
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
         staff_list_color: '#a8e6ff', warning_thresholds: [], ticket_banned_role_id: null,
         welcome_channel_id: null, welcome_message: null, leave_channel_id: null, leave_message: null,
-        autorole_id: null, link_filter_mode: 'off',
+        autorole_id: null, link_filter_mode: 'off', message_log_channel_id: null,
+        verification_enabled: false, verification_channel_id: null, verification_role_id: null,
+        verification_message: null, verification_message_id: null,
+        stats_members_channel_id: null, stats_online_channel_id: null, stats_boosts_channel_id: null,
       };
     }
     return {
@@ -32,6 +35,7 @@ const GuildSettings = {
       swear_filter_enabled: !!row.swear_filter_enabled,
       swear_words: parseJSON(row.swear_words, []),
       warning_thresholds: parseJSON(row.warning_thresholds, []),
+      verification_enabled: !!row.verification_enabled,
     };
   },
   setTranscriptChannel(guildId, channelId) {
@@ -106,6 +110,31 @@ const GuildSettings = {
     const safeMode = ['off', 'invites', 'all'].includes(mode) ? mode : 'off';
     db.prepare("UPDATE guild_settings SET link_filter_mode = ?, updated_at = datetime('now') WHERE guild_id = ?")
       .run(safeMode, guildId);
+  },
+  setMessageLogChannel(guildId, channelId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare("UPDATE guild_settings SET message_log_channel_id = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(channelId || null, guildId);
+  },
+  setVerification(guildId, { enabled, channelId, roleId, message }) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare(`
+      UPDATE guild_settings SET verification_enabled = ?, verification_channel_id = ?, verification_role_id = ?,
+        verification_message = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(enabled ? 1 : 0, channelId || null, roleId || null, message || null, guildId);
+  },
+  setVerificationMessage(guildId, messageId) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare('UPDATE guild_settings SET verification_message_id = ? WHERE guild_id = ?').run(messageId || null, guildId);
+  },
+  setStatsChannels(guildId, { membersChannelId, onlineChannelId, boostsChannelId }) {
+    ensureGuildSettingsRow(guildId);
+    db.prepare(`
+      UPDATE guild_settings SET stats_members_channel_id = ?, stats_online_channel_id = ?, stats_boosts_channel_id = ?,
+        updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(membersChannelId || null, onlineChannelId || null, boostsChannelId || null, guildId);
   },
 };
 
@@ -223,6 +252,22 @@ const ModActions = {
   },
   listForGuild(guildId, limit = 50) {
     return db.prepare('SELECT * FROM mod_actions WHERE guild_id = ? ORDER BY id DESC LIMIT ?').all(guildId, limit);
+  },
+  // Page size + 1 extra row so the route can tell whether a "next page" link
+  // is worth showing, without a separate COUNT(*) query.
+  listFiltered(guildId, { moderatorId, action, limit = 25, offset = 0 } = {}) {
+    const clauses = ['guild_id = ?'];
+    const params = [guildId];
+    if (moderatorId) { clauses.push('moderator_id = ?'); params.push(moderatorId); }
+    if (action) { clauses.push('action = ?'); params.push(action); }
+    params.push(limit + 1, offset);
+    return db.prepare(`SELECT * FROM mod_actions WHERE ${clauses.join(' AND ')} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...params);
+  },
+  distinctModerators(guildId) {
+    return db.prepare('SELECT DISTINCT moderator_id, moderator_tag FROM mod_actions WHERE guild_id = ? ORDER BY moderator_tag').all(guildId);
+  },
+  distinctActions(guildId) {
+    return db.prepare('SELECT DISTINCT action FROM mod_actions WHERE guild_id = ? ORDER BY action').all(guildId).map((r) => r.action);
   },
 };
 
@@ -376,34 +421,36 @@ const Tickets = {
 const ReactionRolePanels = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM reaction_role_panels WHERE guild_id = ? ORDER BY id').all(guildId)
-      .map((p) => ({ ...p, mappings: parseJSON(p.mappings, []) }));
+      .map((p) => ({ ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive }));
   },
   get(id) {
     const p = db.prepare('SELECT * FROM reaction_role_panels WHERE id = ?').get(id);
     if (!p) return null;
-    return { ...p, mappings: parseJSON(p.mappings, []) };
+    return { ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive };
   },
   getByMessage(messageId) {
     const p = db.prepare('SELECT * FROM reaction_role_panels WHERE message_id = ?').get(messageId);
     if (!p) return null;
-    return { ...p, mappings: parseJSON(p.mappings, []) };
+    return { ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive };
   },
   create(guildId, data) {
     const info = db.prepare(`
-      INSERT INTO reaction_role_panels (guild_id, title, description, color, mappings)
-      VALUES (@guildId, @title, @description, @color, @mappings)
+      INSERT INTO reaction_role_panels (guild_id, title, description, color, mappings, exclusive)
+      VALUES (@guildId, @title, @description, @color, @mappings, @exclusive)
     `).run({
       guildId,
       title: data.title || 'Reaction Roles',
       description: data.description || 'React to get a role!',
       color: data.color || '#a8e6ff',
       mappings: JSON.stringify(data.mappings || []),
+      exclusive: data.exclusive ? 1 : 0,
     });
     return info.lastInsertRowid;
   },
   update(id, data) {
     db.prepare(`
-      UPDATE reaction_role_panels SET title = @title, description = @description, color = @color, mappings = @mappings
+      UPDATE reaction_role_panels SET title = @title, description = @description, color = @color, mappings = @mappings,
+        exclusive = @exclusive
       WHERE id = @id
     `).run({
       id,
@@ -411,6 +458,7 @@ const ReactionRolePanels = {
       description: data.description || 'React to get a role!',
       color: data.color || '#a8e6ff',
       mappings: JSON.stringify(data.mappings || []),
+      exclusive: data.exclusive ? 1 : 0,
     });
   },
   setDeployed(id, channelId, messageId) {
@@ -541,4 +589,138 @@ const Polls = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls };
+const Tags = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM tags WHERE guild_id = ? ORDER BY name COLLATE NOCASE').all(guildId);
+  },
+  get(guildId, name) {
+    return db.prepare('SELECT * FROM tags WHERE guild_id = ? AND name = ? COLLATE NOCASE').get(guildId, name);
+  },
+  create(guildId, name, content, createdBy) {
+    const info = db.prepare('INSERT INTO tags (guild_id, name, content, created_by) VALUES (?, ?, ?, ?)')
+      .run(guildId, name, content, createdBy || null);
+    return info.lastInsertRowid;
+  },
+  update(id, content) {
+    db.prepare('UPDATE tags SET content = ? WHERE id = ?').run(content, id);
+  },
+  delete(id) {
+    db.prepare('DELETE FROM tags WHERE id = ?').run(id);
+  },
+};
+
+const Giveaways = {
+  create(data) {
+    const info = db.prepare(`
+      INSERT INTO giveaways (guild_id, channel_id, message_id, prize, winner_count, required_role_id, hosted_by, ends_at)
+      VALUES (@guildId, @channelId, @messageId, @prize, @winnerCount, @requiredRoleId, @hostedBy, @endsAt)
+    `).run({
+      guildId: data.guildId,
+      channelId: data.channelId,
+      messageId: data.messageId,
+      prize: data.prize,
+      winnerCount: data.winnerCount || 1,
+      requiredRoleId: data.requiredRoleId || null,
+      hostedBy: data.hostedBy || null,
+      endsAt: data.endsAt,
+    });
+    return info.lastInsertRowid;
+  },
+  get(id) {
+    const g = db.prepare('SELECT * FROM giveaways WHERE id = ?').get(id);
+    if (!g) return null;
+    return { ...g, entries: parseJSON(g.entries, []) };
+  },
+  getByMessage(messageId) {
+    const g = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
+    if (!g) return null;
+    return { ...g, entries: parseJSON(g.entries, []) };
+  },
+  listDue(nowIso) {
+    return db.prepare('SELECT * FROM giveaways WHERE ended = 0 AND ends_at <= ?').all(nowIso)
+      .map((g) => ({ ...g, entries: parseJSON(g.entries, []) }));
+  },
+  setEntries(id, entries) {
+    db.prepare('UPDATE giveaways SET entries = ? WHERE id = ?').run(JSON.stringify(entries), id);
+  },
+  markEnded(id) {
+    db.prepare('UPDATE giveaways SET ended = 1 WHERE id = ?').run(id);
+  },
+  // Pulls the end time to right now instead of ending it directly here, so
+  // the scheduler's next sweep closes it through the one normal path (picks
+  // winners, edits the message, announces) rather than duplicating that.
+  endNow(id) {
+    db.prepare('UPDATE giveaways SET ends_at = ? WHERE id = ? AND ended = 0').run(new Date().toISOString(), id);
+  },
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM giveaways WHERE guild_id = ? ORDER BY id DESC').all(guildId)
+      .map((g) => ({ ...g, entries: parseJSON(g.entries, []) }));
+  },
+  delete(id) {
+    db.prepare('DELETE FROM giveaways WHERE id = ?').run(id);
+  },
+};
+
+const Events = {
+  create(data) {
+    const info = db.prepare(`
+      INSERT INTO events (guild_id, channel_id, message_id, title, description, event_time, hosted_by)
+      VALUES (@guildId, @channelId, @messageId, @title, @description, @eventTime, @hostedBy)
+    `).run({
+      guildId: data.guildId,
+      channelId: data.channelId,
+      messageId: data.messageId,
+      title: data.title,
+      description: data.description || null,
+      eventTime: data.eventTime || null,
+      hostedBy: data.hostedBy || null,
+    });
+    return info.lastInsertRowid;
+  },
+  getByMessage(messageId) {
+    const e = db.prepare('SELECT * FROM events WHERE message_id = ?').get(messageId);
+    if (!e) return null;
+    return { ...e, going: parseJSON(e.going, []), maybe: parseJSON(e.maybe, []), not_going: parseJSON(e.not_going, []) };
+  },
+  setResponse(id, going, maybe, notGoing) {
+    db.prepare('UPDATE events SET going = ?, maybe = ?, not_going = ? WHERE id = ?')
+      .run(JSON.stringify(going), JSON.stringify(maybe), JSON.stringify(notGoing), id);
+  },
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM events WHERE guild_id = ? ORDER BY id DESC').all(guildId)
+      .map((e) => ({ ...e, going: parseJSON(e.going, []), maybe: parseJSON(e.maybe, []), not_going: parseJSON(e.not_going, []) }));
+  },
+  delete(id) {
+    db.prepare('DELETE FROM events WHERE id = ?').run(id);
+  },
+};
+
+const ScheduledAnnouncements = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM scheduled_announcements WHERE guild_id = ? ORDER BY next_run').all(guildId);
+  },
+  get(id) {
+    return db.prepare('SELECT * FROM scheduled_announcements WHERE id = ?').get(id);
+  },
+  create(guildId, data) {
+    const info = db.prepare(`
+      INSERT INTO scheduled_announcements (guild_id, channel_id, message, recurrence, next_run, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(guildId, data.channelId, data.message, data.recurrence || 'none', data.nextRun, data.createdBy || null);
+    return info.lastInsertRowid;
+  },
+  listDue(nowIso) {
+    return db.prepare('SELECT * FROM scheduled_announcements WHERE active = 1 AND next_run <= ?').all(nowIso);
+  },
+  reschedule(id, nextRun) {
+    db.prepare('UPDATE scheduled_announcements SET next_run = ? WHERE id = ?').run(nextRun, id);
+  },
+  deactivate(id) {
+    db.prepare('UPDATE scheduled_announcements SET active = 0 WHERE id = ?').run(id);
+  },
+  delete(id) {
+    db.prepare('DELETE FROM scheduled_announcements WHERE id = ?').run(id);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, AppSettings, BetaAllowlist, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements };
