@@ -37,16 +37,57 @@
     <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="30" height="30">
     <span class="brand-word">ModSentry</span>
   </a>
-  <% if (typeof guild !== 'undefined' && guild) {
-    var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
-    var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
-    var isFullAccess = !access || access.level === 'full';
-  %>
-    <nav class="topnav">
-      <span class="guild-chip" id="tourGuildChip">
-        <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
-        <span class="guild-name"><%= guild.name %></span>
-      </span>
+  <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
+    <span class="dot"></span>
+    <span class="bot-status-label"><%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %></span>
+  </span>
+  <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
+    <% if (isOwner || isAdmin) { %>
+      <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
+    <% } %>
+    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">Invite</a>
+    <div class="account-menu" id="accountMenu">
+      <button type="button" class="account-trigger" id="accountTrigger" aria-haspopup="true" aria-expanded="false">
+        <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
+        <span class="account-name"><%= discordUser.username %></span>
+        <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="account-dropdown" id="accountDropdown" role="menu">
+        <a href="https://paypal.me/daanederveen0" target="_blank" rel="noopener" role="menuitem">💛 Donate</a>
+        <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
+        <form action="/logout" method="post">
+          <button type="submit" role="menuitem">Log out</button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+</header>
+<script>
+(function () {
+  var menu = document.getElementById('accountMenu');
+  var trigger = document.getElementById('accountTrigger');
+  if (!menu || !trigger) return;
+  function close() { menu.classList.remove('open'); trigger.setAttribute('aria-expanded', 'false'); }
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var open = menu.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function (e) { if (!menu.contains(e.target)) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+})();
+</script>
+<% if (typeof guild !== 'undefined' && guild) {
+  var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
+  var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
+  var isFullAccess = !access || access.level === 'full';
+%>
+  <nav class="guildnav">
+    <span class="guild-chip" id="tourGuildChip">
+      <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+      <span class="guild-name"><%= guild.name %></span>
+    </span>
+    <div class="guildnav-links">
       <a href="/">Servers</a>
       <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
       <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
@@ -58,29 +99,8 @@
       <% if (canSee('moderation')) { %><a href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
       <% if (canSee('settings')) { %><a href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
       <% if (isFullAccess) { %><a href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>
-    </nav>
-  <% } %>
-  <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
-    <span class="dot"></span>
-    <%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %>
-  </span>
-  <a class="btn btn-ghost" style="margin-left:auto;" href="https://paypal.me/daanederveen0" target="_blank" rel="noopener">Donate</a>
-  <a class="btn btn-ghost" href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener">Discord</a>
-  <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
-    <% if (isOwner || isAdmin) { %>
-      <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
-    <% } %>
-    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">+ Invite to Server</a>
-    <span class="user-chip" style="border-right:none;">
-      <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
-      <%= discordUser.username %>
-    </span>
-    <form action="/logout" method="post" class="logout-form" style="margin-left:0;">
-      <button class="btn btn-ghost" type="submit">Log out</button>
-    </form>
-  <% } %>
-</header>
-<% if (typeof guild !== 'undefined' && guild) { %>
+    </div>
+  </nav>
   <div class="role-warning">
     <strong>Note:</strong> Drag ModSentry's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
