@@ -10,15 +10,17 @@ const MANAGE_GUILD = 0x20n;
 // Create Instant Invite (lets the owner's DM server list hand back a working
 // invite link for each server, and /invite -- see bot/ownerPanel.js and
 // bot/qol.js), Manage Nicknames (needed for /afk and /nick -- see bot/afk.js
-// and bot/moderation.js), and Manage Expressions (needed for /steal to add
-// emoji -- see bot/qol.js). Used to build "invite ModSentry here" links for
+// and bot/moderation.js), Manage Expressions (needed for /steal to add
+// emoji -- see bot/qol.js), and Manage Server (needed to suppress Discord's
+// own "X joined the server" system message -- see bot/welcome.js and
+// web/routes/settings.js). Used to build "invite ModSentry here" links for
 // servers an OAuth user manages but hasn't added the bot to yet.
 //
-// Existing servers that invited the bot before Manage Nicknames or Manage
-// Expressions were added here need to re-invite/reauthorize it for /afk,
-// /nick, and /steal to work; until then they just fail with a clear error
-// instead of doing nothing.
-const BOT_INVITE_PERMISSIONS = '1100988148887';
+// Existing servers that invited the bot before Manage Nicknames, Manage
+// Expressions, or Manage Server were added here need to re-invite/reauthorize
+// it for /afk, /nick, /steal, or the join-message toggle to work; until then
+// they just fail with a clear error instead of doing nothing.
+const BOT_INVITE_PERMISSIONS = '1100988148919';
 
 function buildBotInviteUrl(guildId) {
   const params = new URLSearchParams({

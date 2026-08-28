@@ -1,4 +1,5 @@
 const express = require('express');
+const { PermissionFlagsBits, GuildSystemChannelFlags, SystemChannelFlagsBitField } = require('discord.js');
 const { GuildSettings } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
@@ -7,6 +8,10 @@ const { updateGuildStats } = require('../../bot/statsChannels');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('settings'));
+
+function notice(req) {
+  return req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
+}
 
 // One category per settings "type" rather than per feature -- channels,
 // roles, and message text were previously mixed together on one page
@@ -94,7 +99,13 @@ router.post('/settings/roles', async (req, res) => {
 router.get('/settings/messages', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('settingsMessages', { guild, settings: GuildSettings.get(guild.id) });
+  res.render('settingsMessages', {
+    guild,
+    settings: GuildSettings.get(guild.id),
+    canManageSystemMessages: !!guild.members.me?.permissions.has(PermissionFlagsBits.ManageGuild),
+    discordJoinMessageSuppressed: guild.systemChannelFlags?.has(GuildSystemChannelFlags.SuppressJoinNotifications) ?? false,
+    notice: notice(req),
+  });
 });
 
 router.post('/settings/messages', async (req, res) => {
@@ -102,6 +113,29 @@ router.post('/settings/messages', async (req, res) => {
   if (!guild) return;
   GuildSettings.setWelcomeMessage(guild.id, req.body.welcomeMessage || null);
   GuildSettings.setLeaveMessage(guild.id, req.body.leaveMessage || null);
+
+  // Discord's own built-in "X joined the server" system message -- lives on
+  // the guild itself (system_channel_flags), not in our DB, so it's read
+  // fresh from the live guild object rather than cached anywhere. Requires
+  // Manage Server; servers that added the bot before that permission was
+  // requested need to re-invite it before this checkbox can take effect.
+  if (guild.members.me?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    const wantSuppressed = req.body.suppressDiscordJoinMessage === 'on';
+    const current = guild.systemChannelFlags ?? new SystemChannelFlagsBitField();
+    const isSuppressed = current.has(GuildSystemChannelFlags.SuppressJoinNotifications);
+    if (wantSuppressed !== isSuppressed) {
+      const next = wantSuppressed
+        ? current.add(GuildSystemChannelFlags.SuppressJoinNotifications)
+        : current.remove(GuildSystemChannelFlags.SuppressJoinNotifications);
+      try {
+        await guild.setSystemChannelFlags(next);
+      } catch (err) {
+        const qs = new URLSearchParams({ ok: '0', msg: `Saved the message text, but couldn't change Discord's join message: ${err.message}` });
+        return res.redirect(`/dashboard/${guild.id}/settings/messages?${qs.toString()}`);
+      }
+    }
+  }
+
   res.redirect(`/dashboard/${guild.id}/settings/messages`);
 });
 

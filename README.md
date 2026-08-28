@@ -74,7 +74,7 @@ their own Discord account and can only configure their own server.
    Generator in the portal: scopes `bot` **and** `applications.commands`, permissions below):
 
    ```
-   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot+applications.commands&permissions=1100988148887
+   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot+applications.commands&permissions=1100988148919
    ```
 
    The `applications.commands` scope is required for slash commands to show up.

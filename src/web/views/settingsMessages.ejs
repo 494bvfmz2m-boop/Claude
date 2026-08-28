@@ -3,6 +3,12 @@
 <h1>Messages</h1>
 <p class="subtitle">What gets said when someone joins or leaves. Channels are set separately, under Settings → Channels.</p>
 
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
 <form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/messages">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
@@ -16,6 +22,22 @@
   <label for="leaveMessage">Leave message</label>
   <textarea id="leaveMessage" name="leaveMessage" placeholder="**{username}** has left **{server}**. Now at {membercount} members."><%= settings.leave_message || '' %></textarea>
   <div class="hint">Same placeholders as above.</div>
+
+  <label style="display:flex; align-items:center; gap:8px; margin-top:20px;">
+    <input type="checkbox" name="suppressDiscordJoinMessage" <%= discordJoinMessageSuppressed ? 'checked' : '' %> <%= canManageSystemMessages ? '' : 'disabled' %> style="width:auto;">
+    <span>Hide Discord's own "member joined" message</span>
+  </label>
+  <div class="hint">
+    <% if (canManageSystemMessages) { %>
+      Discord posts its own plain join notice to your server's system channel (Server Settings → Overview)
+      independently of the welcome message above. Check this to hide it, so only ModSentry's welcome
+      message shows. This doesn't affect anything else Discord posts there (boosts, etc.). Discord has no
+      equivalent message for leaves, so there's nothing to hide there.
+    <% } else { %>
+      Requires the Manage Server permission, which this bot doesn't have on this server yet — click
+      Invite in the sidebar and re-authorize it to pick up the new permission, then this checkbox will work.
+    <% } %>
+  </div>
 
   <div class="btn-row">
     <button class="btn" type="submit">Save</button>
