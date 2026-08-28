@@ -1,6 +1,10 @@
 <%- include('partials/header', { title: 'Giveaways', guild }) %>
 <h1>Giveaways</h1>
-<p class="subtitle">Start one with <code>/giveaway start</code> in Discord -- reroll winners with <code>/giveaway reroll</code>. This page is for visibility, ending early, and cleanup.</p>
+<p class="subtitle">Start one below, or with <code>/giveaway start</code> in Discord -- reroll winners with <code>/giveaway reroll</code>.</p>
+
+<div class="btn-row" style="margin-bottom:20px;">
+  <a class="btn" href="/dashboard/<%= guild.id %>/giveaways/new">🎉 Start a giveaway</a>
+</div>
 
 <div class="card">
   <h2>All giveaways (<%= giveaways.length %>)</h2>

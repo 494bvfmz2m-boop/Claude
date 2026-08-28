@@ -1,0 +1,39 @@
+<%- include('partials/header', { title: 'New giveaway', guild }) %>
+<h1>New giveaway</h1>
+<p class="subtitle">Posts immediately with an Enter button. Same as running <code>/giveaway start</code> in Discord.</p>
+
+<form class="card" method="post" action="/dashboard/<%= guild.id %>/giveaways">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="channelId">Channel</label>
+  <select id="channelId" name="channelId" required>
+    <option value="">— Select a channel —</option>
+    <% options.textChannels.forEach(c => { %>
+      <option value="<%= c.id %>"><%= c.icon %><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label for="prize">Prize</label>
+  <input type="text" id="prize" name="prize" placeholder="Discord Nitro (1 month)" required>
+
+  <label for="duration">Duration</label>
+  <input type="text" id="duration" name="duration" placeholder="e.g. 10m, 2h, 1d" required>
+  <div class="hint">Max 30d. Same format as <code>/mute</code>.</div>
+
+  <label for="winners">Winners</label>
+  <input type="number" id="winners" name="winners" value="1" min="1" max="20">
+
+  <label for="requiredRoleId">Required role (optional)</label>
+  <select id="requiredRoleId" name="requiredRoleId">
+    <option value="">— None (anyone can enter) —</option>
+    <% options.roles.forEach(r => { %>
+      <option value="<%= r.id %>"><%= r.name %></option>
+    <% }) %>
+  </select>
+
+  <div class="btn-row">
+    <button class="btn" type="submit">Start giveaway</button>
+    <a class="btn btn-ghost" href="/dashboard/<%= guild.id %>/giveaways">Cancel</a>
+  </div>
+</form>
+<%- include('partials/footer') %>

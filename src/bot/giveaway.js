@@ -33,6 +33,28 @@ function buildGiveawayMessage(giveaway) {
   return { embeds: [embed], components: [row] };
 }
 
+// Shared by the slash command and the dashboard's "start a giveaway" form --
+// both already have a posted `message` (the interaction's own reply, or a
+// channel.send from the dashboard) that needs a real DB row and then a second
+// edit once that row's id exists, since the giveaway message embeds its own id
+// in the Enter button's customId.
+async function finalizeGiveaway(message, { prize, winnerCount, requiredRoleId, hostedBy, endsAt }) {
+  const id = Giveaways.create({
+    guildId: message.guild.id,
+    channelId: message.channelId,
+    messageId: message.id,
+    prize,
+    winnerCount,
+    requiredRoleId: requiredRoleId || null,
+    hostedBy,
+    endsAt,
+  });
+  await message.edit(buildGiveawayMessage({
+    id, prize, winner_count: winnerCount, entries: [], ends_at: endsAt, required_role_id: requiredRoleId || null, hosted_by: hostedBy,
+  })).catch(() => {});
+  return id;
+}
+
 async function handleGiveawayStart(interaction) {
   const prize = interaction.options.getString('prize');
   const durationInput = interaction.options.getString('duration');
@@ -58,18 +80,9 @@ async function handleGiveawayStart(interaction) {
   await interaction.reply(buildGiveawayMessage(draft));
   const message = await interaction.fetchReply();
 
-  const id = Giveaways.create({
-    guildId: interaction.guildId,
-    channelId: message.channelId,
-    messageId: message.id,
-    prize,
-    winnerCount,
-    requiredRoleId: requiredRole?.id || null,
-    hostedBy: interaction.user.tag,
-    endsAt: endsAt.toISOString(),
+  await finalizeGiveaway(message, {
+    prize, winnerCount, requiredRoleId: requiredRole?.id || null, hostedBy: interaction.user.tag, endsAt: endsAt.toISOString(),
   });
-
-  await message.edit(buildGiveawayMessage({ ...draft, id })).catch(() => {});
 }
 
 async function handleGiveawayEnd(interaction) {
@@ -145,4 +158,6 @@ async function handleGiveawayEnter(interaction, giveawayId) {
   await interaction.message.edit(buildGiveawayMessage({ ...giveaway, entries: updatedEntries })).catch(() => {});
 }
 
-module.exports = { giveaway: handleGiveawayCommand, handleGiveawayEnter, buildGiveawayMessage };
+module.exports = {
+  giveaway: handleGiveawayCommand, handleGiveawayEnter, buildGiveawayMessage, finalizeGiveaway, parseDuration, MAX_DURATION_MS,
+};
