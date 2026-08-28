@@ -296,6 +296,68 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 .badge-claimed { background: rgba(168, 230, 255, .15); color: #7dd3fc; }
 .badge-closed { background: rgba(237, 66, 69, .15); color: #f18688; }
 
+/* ---------- Permissions: expandable per-role panels ---------- */
+.role-panel-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.role-panel-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+
+.role-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color .15s ease;
+}
+.role-panel:hover { border-color: var(--border-bright); }
+.role-panel[open] { border-color: var(--accent-2); }
+
+.role-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.role-summary::-webkit-details-marker { display: none; }
+.role-summary::marker { content: ""; }
+
+.role-summary-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.role-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform .15s ease; }
+.role-panel[open] .role-chevron { transform: rotate(180deg); }
+.role-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.role-summary-name { color: var(--text-bright); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.role-summary-meta { color: var(--text-muted); font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+.role-summary-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.role-panel-body { padding: 4px 18px 20px; border-top: 1px solid var(--border); }
+.role-panel-body .perm-section { padding-top: 16px; }
+.role-panel-body .perm-section + .perm-section { border-top: 1px solid var(--border); margin-top: 4px; }
+.perm-section-title { font-size: 13px; font-weight: 700; color: var(--text-bright); margin: 0 0 4px; }
+
+.perm-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.perm-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+}
+.perm-item:hover { border-color: var(--border-bright); }
+.perm-item:has(input:checked) { border-color: var(--accent); background: rgba(168, 230, 255, .1); color: var(--text-bright); }
+.perm-item input { width: auto; margin: 0; }
+
+.role-panel-locked .role-summary-name { color: var(--text-muted); }
+
 /* ---------- Section sub-nav (in-page jump links for card-heavy pages) ---------- */
 .staff-group-heading {
   font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;

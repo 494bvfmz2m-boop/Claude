@@ -66,6 +66,20 @@ async function notifyPingedAfkUsers(message) {
   }
 }
 
+async function handleAfkList(interaction) {
+  const guild = interaction.guild;
+  if (!guild) return interaction.reply({ content: 'This only works in a server.', ephemeral: true });
+
+  const rows = AfkStatus.listForGuild(guild.id);
+  if (rows.length === 0) {
+    return interaction.reply({ content: 'Nobody is AFK right now.', ephemeral: true });
+  }
+
+  const lines = rows.slice(0, 25).map((r) => `<@${r.user_id}> — ${r.message || 'AFK'}`);
+  const more = rows.length > 25 ? `\n*…and ${rows.length - 25} more*` : '';
+  await interaction.reply({ content: `💤 **Currently AFK:**\n${lines.join('\n')}${more}`, ephemeral: true });
+}
+
 function register(client) {
   client.on('messageCreate', async (message) => {
     try {
@@ -78,4 +92,4 @@ function register(client) {
   });
 }
 
-module.exports = { register, afk: handleAfk };
+module.exports = { register, afk: handleAfk, afklist: handleAfkList };

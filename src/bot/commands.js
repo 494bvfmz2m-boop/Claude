@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 
 const commands = [
   new SlashCommandBuilder()
@@ -187,10 +187,20 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('remind')
-    .setDescription('Set a personal reminder')
-    .addStringOption((o) => o.setName('time').setDescription('When, e.g. 10m, 2h, 3d').setRequired(true))
-    .addStringOption((o) => o.setName('message').setDescription('What to remind you about').setRequired(false))
-    .addBooleanOption((o) => o.setName('here').setDescription('Ping you in this channel instead of DMing (default: DM)').setRequired(false)),
+    .setDescription('Personal reminders')
+    .addSubcommand((sc) => sc
+      .setName('set')
+      .setDescription('Set a personal reminder')
+      .addStringOption((o) => o.setName('time').setDescription('When, e.g. 10m, 2h, 3d').setRequired(true))
+      .addStringOption((o) => o.setName('message').setDescription('What to remind you about').setRequired(false))
+      .addBooleanOption((o) => o.setName('here').setDescription('Ping you in this channel instead of DMing (default: DM)').setRequired(false)))
+    .addSubcommand((sc) => sc
+      .setName('list')
+      .setDescription('See your pending reminders'))
+    .addSubcommand((sc) => sc
+      .setName('cancel')
+      .setDescription('Cancel a pending reminder')
+      .addIntegerOption((o) => o.setName('id').setDescription('The reminder ID from /remind list').setRequired(true))),
 
   new SlashCommandBuilder()
     .setName('timestamp')
@@ -207,6 +217,46 @@ const commands = [
     .setDescription("Change someone's nickname")
     .addUserOption((o) => o.setName('user').setDescription('Who to rename').setRequired(true))
     .addStringOption((o) => o.setName('nickname').setDescription('New nickname (omit to clear it)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription("Check the bot's latency"),
+
+  new SlashCommandBuilder()
+    .setName('uptime')
+    .setDescription('How long the bot has been running'),
+
+  new SlashCommandBuilder()
+    .setName('servericon')
+    .setDescription("Show this server's icon, full size"),
+
+  new SlashCommandBuilder()
+    .setName('banner')
+    .setDescription("Show someone's profile banner, if they have one")
+    .addUserOption((o) => o.setName('user').setDescription('Whose banner to show').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('slowmode')
+    .setDescription('Set (or clear) slowmode on a channel')
+    .addIntegerOption((o) => o.setName('seconds').setDescription('Seconds between messages (0 to turn off, max 21600)').setRequired(true).setMinValue(0).setMaxValue(21600))
+    .addChannelOption((o) => o.setName('channel').setDescription('Which channel (default: this one)').setRequired(false).addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
+
+  new SlashCommandBuilder()
+    .setName('pin')
+    .setDescription('Pin a message in this channel (Manage Messages required)')
+    .addStringOption((o) => o.setName('message').setDescription('Message link or ID (must be in this channel)').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('snipe')
+    .setDescription('Show the last deleted message in this channel (Manage Messages required)'),
+
+  new SlashCommandBuilder()
+    .setName('editsnipe')
+    .setDescription('Show the last edited message in this channel, before and after (Manage Messages required)'),
+
+  new SlashCommandBuilder()
+    .setName('afklist')
+    .setDescription('See who in this server is currently AFK'),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

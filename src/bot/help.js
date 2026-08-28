@@ -16,6 +16,7 @@ const GATED_MOD_COMMANDS = [
   ['clearwarnings', '/clearwarnings <user>', "Clear someone's warnings"],
   ['purge', '/purge [amount] [user]', 'Bulk-delete messages in this channel'],
   ['nickname', '/nick <user> [nickname]', "Change someone's nickname"],
+  ['slowmode', '/slowmode <seconds> [channel]', 'Set or clear slowmode on a channel'],
 ];
 
 // Only what this specific person can actually run right now, grouped the
@@ -52,7 +53,12 @@ async function handleHelp(interaction) {
     '`/emoji <emoji>` — Show a big version of a custom emoji',
     '`/timestamp <when>` — Generate a Discord timestamp to paste into a message',
     '`/quote <message>` — Repost a message as a clean embed',
-    '`/remind <time> [message] [here]` — Set a personal reminder',
+    '`/remind set <time> [message] [here]` — Set a personal reminder · `/remind list` / `/remind cancel <id>` — Manage them',
+    '`/ping` — Check the bot\'s latency',
+    '`/uptime` — How long the bot has been running',
+    '`/servericon` — This server\'s icon, full size',
+    '`/banner [user]` — A profile banner, if they have one',
+    '`/afklist` — See who\'s currently AFK',
     '`/poll <question> <option1> <option2> ... [duration]` — Post a reaction poll, optionally auto-closing after a set time',
     '`/giveaway start <prize> <duration> [winners] [required_role]` — Start a giveaway',
     '`/giveaway end <message_id>` / `/giveaway reroll <message_id>` — End early / pick new winners',
@@ -61,6 +67,8 @@ async function handleHelp(interaction) {
   ];
   if (member.permissions.has(PermissionFlagsBits.ManageMessages)) {
     utility.push('`/tag create <name> <content>` / `/tag delete <name>` — Manage tags');
+    utility.push('`/pin <message>` — Pin a message in this channel');
+    utility.push('`/snipe` / `/editsnipe` — See the last deleted / edited message in this channel');
   }
 
   const embed = new EmbedBuilder()

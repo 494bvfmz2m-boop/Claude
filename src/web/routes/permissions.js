@@ -16,12 +16,18 @@ router.use((req, res, next) => {
   return res.status(403).render('error', { message: "Only the server owner or someone with Manage Server can manage dashboard permissions." });
 });
 
-function nonEveryoneRoles(guild) {
-  return [...guild.roles.cache.values()]
-    .filter((r) => r.id !== guild.id) // skip @everyone -- granting it would hand access to the whole server
-    .sort((a, b) => b.position - a.position);
+function allRoles(guild) {
+  return [...guild.roles.cache.values()].sort((a, b) => b.position - a.position);
 }
 
+function nonEveryoneRoles(guild) {
+  return allRoles(guild).filter((r) => r.id !== guild.id); // skip @everyone -- granting it would hand access to the whole server
+}
+
+// Every role on the server, including @everyone -- shown so the page is a
+// complete picture of the server's roles, but @everyone is flagged so the
+// view can lock it out of the checkboxes entirely (it's never included in
+// nonEveryoneRoles, so the POST handler can't grant it anything either way).
 function rolesWithGrants(guild) {
   const areaGrants = new Map(DashboardRoleAccess.listForGuild(guild.id).map((g) => [g.roleId, new Set(g.areas)]));
   const actionGrants = new Map();
@@ -30,10 +36,12 @@ function rolesWithGrants(guild) {
     actionGrants.get(roleId).add(action);
   });
 
-  return nonEveryoneRoles(guild).map((r) => ({
+  return allRoles(guild).map((r) => ({
     id: r.id,
-    name: r.name,
+    name: r.id === guild.id ? '@everyone' : r.name,
     color: r.color !== 0 ? r.hexColor : '#99aab5',
+    memberCount: r.members.size,
+    isEveryone: r.id === guild.id,
     areas: areaGrants.get(r.id) || new Set(),
     actions: actionGrants.get(r.id) || new Set(),
   }));

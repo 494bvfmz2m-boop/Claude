@@ -409,6 +409,28 @@ async function handleNick(interaction) {
   await logAction(interaction.guild, { action: '✏️ Nickname changed', target, moderator: interaction.user, reason: newNick || '(cleared)' });
 }
 
+async function handleSlowmode(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'slowmode')) return denyReply(interaction, 'slowmode');
+
+  const seconds = interaction.options.getInteger('seconds');
+  const channel = interaction.options.getChannel('channel') || interaction.channel;
+
+  if (!channel.isTextBased() || channel.isDMBased() || typeof channel.setRateLimitPerUser !== 'function') {
+    return interaction.reply({ content: "That's not a channel I can set slowmode on.", ephemeral: true });
+  }
+
+  try {
+    await channel.setRateLimitPerUser(seconds, `Set by ${interaction.user.tag}`);
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't set slowmode: ${err.message}`, ephemeral: true });
+  }
+
+  await interaction.reply(seconds > 0
+    ? `🐢 Slowmode in <#${channel.id}> set to **${seconds}s**.`
+    : `🐇 Slowmode in <#${channel.id}> turned off.`);
+  await logAction(interaction.guild, { action: '🐢 Slowmode changed', target: null, moderator: interaction.user, reason: `#${channel.name} → ${seconds}s` });
+}
+
 module.exports = {
   ban: handleBan,
   unban: handleUnban,
@@ -420,6 +442,7 @@ module.exports = {
   clearwarnings: handleClearWarnings,
   purge: handlePurge,
   nick: handleNick,
+  slowmode: handleSlowmode,
   canActOn,
   logAction,
   parseDuration,

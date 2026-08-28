@@ -3,6 +3,7 @@
 <p class="subtitle">
   Grant specific roles access to dashboard sections and specific moderation commands — without touching
   their real Discord permissions. Only you (owner / Manage Server) can see or change this page.
+  Click a role below to expand it and manage what it can do.
 </p>
 
 <% if (roles.length === 0) { %>
@@ -11,81 +12,97 @@
 <form method="post" action="/dashboard/<%= guild.id %>/permissions">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-  <div class="card">
-    <h2>Dashboard access</h2>
-    <p class="hint" style="margin-bottom:14px;">Which pages a role can open in the dashboard at all.</p>
-    <div style="overflow-x:auto;">
-      <table style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">Role</th>
-            <% areas.forEach(a => { %>
-              <th style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px;" title="<%= a.description %>"><%= a.label %></th>
-            <% }) %>
-          </tr>
-        </thead>
-        <tbody>
-          <% roles.forEach(r => { %>
-            <tr>
-              <td style="padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">
-                <span style="display:inline-flex; align-items:center; gap:8px;">
-                  <span style="width:10px; height:10px; border-radius:50%; background:<%= r.color %>; flex-shrink:0;"></span>
-                  <%= r.name %>
-                </span>
-              </td>
-              <% areas.forEach(a => { %>
-                <td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border);">
-                  <input type="checkbox" name="area_<%= a.key %>[]" value="<%= r.id %>" <%= r.areas.has(a.key) ? 'checked' : '' %>>
-                </td>
-              <% }) %>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+  <div class="role-panel-toolbar">
+    <span class="hint" style="margin:0;"><%= roles.length %> role<%= roles.length === 1 ? '' : 's' %> on this server</span>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost btn-sm" id="expandAllRoles">Expand all</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="collapseAllRoles">Collapse all</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Moderation commands</h2>
-    <p class="hint" style="margin-bottom:14px;">
-      Who can use each specific action — from Discord or the dashboard. A role with no boxes checked here
-      can't use any of these at all, even with real Discord permissions. The owner and anyone with
-      real Administrator always bypass this entirely.
-    </p>
-    <div style="overflow-x:auto;">
-      <table style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">Role</th>
-            <% moderationActions.forEach(a => { %>
-              <th style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px;" title="<%= a.description || '' %>"><%= a.label %></th>
-            <% }) %>
-          </tr>
-        </thead>
-        <tbody>
-          <% roles.forEach(r => { %>
-            <tr>
-              <td style="padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;">
-                <span style="display:inline-flex; align-items:center; gap:8px;">
-                  <span style="width:10px; height:10px; border-radius:50%; background:<%= r.color %>; flex-shrink:0;"></span>
-                  <%= r.name %>
-                </span>
-              </td>
-              <% moderationActions.forEach(a => { %>
-                <td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--border);">
-                  <input type="checkbox" name="action_<%= a.key %>[]" value="<%= r.id %>" <%= r.actions.has(a.key) ? 'checked' : '' %>>
-                </td>
+  <div class="role-panel-list">
+    <% roles.forEach(r => {
+      const areaCount = r.areas.size;
+      const actionCount = r.actions.size;
+    %>
+    <details class="role-panel<%= r.isEveryone ? ' role-panel-locked' : '' %>">
+      <summary class="role-summary">
+        <span class="role-summary-left">
+          <svg class="role-chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="role-dot" style="background:<%= r.color %>;"></span>
+          <span class="role-summary-name"><%= r.name %></span>
+          <span class="role-summary-meta"><%= r.memberCount %> member<%= r.memberCount === 1 ? '' : 's' %></span>
+        </span>
+        <span class="role-summary-right">
+          <% if (r.isEveryone) { %>
+            <span class="badge">Locked</span>
+          <% } else if (areaCount === 0 && actionCount === 0) { %>
+            <span class="badge">No access granted</span>
+          <% } else { %>
+            <% if (areaCount > 0) { %><span class="badge badge-open"><%= areaCount %> page<%= areaCount === 1 ? '' : 's' %></span><% } %>
+            <% if (actionCount > 0) { %><span class="badge badge-claimed"><%= actionCount %> command<%= actionCount === 1 ? '' : 's' %></span><% } %>
+          <% } %>
+        </span>
+      </summary>
+
+      <div class="role-panel-body">
+        <% if (r.isEveryone) { %>
+          <p class="hint" style="margin:0;">
+            @everyone can't be granted dashboard access or moderation commands here — that would hand it to
+            the entire server. Create or use a specific role instead.
+          </p>
+        <% } else { %>
+          <div class="perm-section">
+            <h3 class="perm-section-title">Dashboard access</h3>
+            <p class="hint" style="margin:0 0 12px;">Which pages this role can open in the dashboard at all.</p>
+            <div class="perm-grid">
+              <% areas.forEach(a => { %>
+                <label class="perm-item" title="<%= a.description %>">
+                  <input type="checkbox" name="area_<%= a.key %>[]" value="<%= r.id %>" <%= r.areas.has(a.key) ? 'checked' : '' %>>
+                  <span><%= a.label %></span>
+                </label>
               <% }) %>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </div>
+
+          <div class="perm-section">
+            <h3 class="perm-section-title">Moderation commands</h3>
+            <p class="hint" style="margin:0 0 12px;">
+              Who can use each action — from Discord or the dashboard. Unchecked here means this role can't
+              use it at all, even with real Discord permissions. The owner and anyone with real Administrator
+              always bypass this.
+            </p>
+            <div class="perm-grid">
+              <% moderationActions.forEach(a => { %>
+                <label class="perm-item" title="<%= a.description || '' %>">
+                  <input type="checkbox" name="action_<%= a.key %>[]" value="<%= r.id %>" <%= r.actions.has(a.key) ? 'checked' : '' %>>
+                  <span><%= a.label %></span>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </details>
+    <% }) %>
   </div>
 
   <div class="btn-row">
     <button class="btn" type="submit">Save permissions</button>
   </div>
 </form>
+<script>
+(function () {
+  var expandBtn = document.getElementById('expandAllRoles');
+  var collapseBtn = document.getElementById('collapseAllRoles');
+  var panels = document.querySelectorAll('.role-panel');
+  if (expandBtn) expandBtn.addEventListener('click', function () {
+    panels.forEach(function (p) { p.open = true; });
+  });
+  if (collapseBtn) collapseBtn.addEventListener('click', function () {
+    panels.forEach(function (p) { p.open = false; });
+  });
+})();
+</script>
 <% } %>
 <%- include('partials/footer') %>

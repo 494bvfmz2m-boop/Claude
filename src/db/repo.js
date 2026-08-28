@@ -157,6 +157,9 @@ const AfkStatus = {
   clear(guildId, userId) {
     db.prepare('DELETE FROM afk_status WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
   },
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM afk_status WHERE guild_id = ?').all(guildId);
+  },
 };
 
 const StaffNotes = {
@@ -949,6 +952,12 @@ const Reminders = {
   // format, so it compares correctly against another toISOString() value.
   listDue(nowIso) {
     return db.prepare('SELECT * FROM reminders WHERE remind_at <= ?').all(nowIso);
+  },
+  listForUser(userId) {
+    return db.prepare('SELECT * FROM reminders WHERE user_id = ? ORDER BY remind_at ASC').all(userId);
+  },
+  getForUser(id, userId) {
+    return db.prepare('SELECT * FROM reminders WHERE id = ? AND user_id = ?').get(id, userId) || null;
   },
   remove(id) {
     db.prepare('DELETE FROM reminders WHERE id = ?').run(id);

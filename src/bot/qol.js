@@ -1,7 +1,54 @@
 const { EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { parseDuration } = require('./moderation');
+const { getLastDeleted, getLastEdited } = require('./messageLog');
 
 const COLOR = '#a8e6ff';
+
+function formatDuration(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const parts = [];
+  if (d) parts.push(`${d}d`);
+  if (h) parts.push(`${h}h`);
+  if (m) parts.push(`${m}m`);
+  if (s || parts.length === 0) parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+async function handlePing(interaction) {
+  const sent = await interaction.reply({ content: '🏓 Pinging...', fetchReply: true });
+  const roundTrip = sent.createdTimestamp - interaction.createdTimestamp;
+  const wsPing = interaction.client.ws.ping;
+  await interaction.editReply(`🏓 Pong! Round trip: **${roundTrip}ms** — WebSocket: **${wsPing >= 0 ? `${wsPing}ms` : 'n/a'}**`);
+}
+
+async function handleUptime(interaction) {
+  const ms = interaction.client.uptime || 0;
+  await interaction.reply({ content: `🕒 I've been running for **${formatDuration(ms)}**.`, ephemeral: true });
+}
+
+async function handleServerIcon(interaction) {
+  const guild = interaction.guild;
+  if (!guild) return interaction.reply({ content: 'This only works in a server.', ephemeral: true });
+  const url = guild.iconURL({ size: 1024 });
+  if (!url) return interaction.reply({ content: "This server doesn't have an icon set.", ephemeral: true });
+  const embed = new EmbedBuilder().setColor(COLOR).setTitle(`${guild.name}'s icon`).setImage(url).setDescription(`[Direct link](${url})`);
+  await interaction.reply({ embeds: [embed] });
+}
+
+async function handleBanner(interaction) {
+  const target = interaction.options.getUser('user') || interaction.user;
+  // Banners aren't included on the partial User a slash command option hands
+  // back -- a fresh, forced fetch is the only way to actually get one.
+  const fullUser = await interaction.client.users.fetch(target.id, { force: true }).catch(() => target);
+  const url = fullUser.bannerURL ? fullUser.bannerURL({ size: 1024 }) : null;
+  if (!url) return interaction.reply({ content: `**${target.tag}** doesn't have a banner set.`, ephemeral: true });
+  const embed = new EmbedBuilder().setColor(COLOR).setTitle(`${target.tag}'s banner`).setImage(url).setDescription(`[Direct link](${url})`);
+  await interaction.reply({ embeds: [embed] });
+}
 
 async function handleAvatar(interaction) {
   const target = interaction.options.getUser('user') || interaction.user;
@@ -187,6 +234,85 @@ async function handleQuote(interaction) {
   await interaction.reply({ embeds: [embed] });
 }
 
+async function handlePin(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+    return interaction.reply({ content: 'You need Manage Messages to pin something.', ephemeral: true });
+  }
+
+  const parsed = parseMessageLink(interaction.options.getString('message'), interaction.channelId);
+  if (!parsed) {
+    return interaction.reply({ content: "That doesn't look like a message link or ID.", ephemeral: true });
+  }
+  // Pins are channel-bound on Discord's side anyway -- reject a link from
+  // elsewhere up front instead of letting the fetch below just fail.
+  if (parsed.channelId !== interaction.channelId) {
+    return interaction.reply({ content: 'I can only pin a message from this channel — go to that channel and run it there.', ephemeral: true });
+  }
+
+  const message = await interaction.channel.messages.fetch(parsed.messageId).catch(() => null);
+  if (!message) {
+    return interaction.reply({ content: "Couldn't find that message in this channel.", ephemeral: true });
+  }
+  if (message.pinned) {
+    return interaction.reply({ content: 'That message is already pinned.', ephemeral: true });
+  }
+
+  try {
+    await message.pin();
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't pin that: ${err.message}`, ephemeral: true });
+  }
+
+  await interaction.reply(`📌 Pinned [that message](${message.url}).`);
+}
+
+// Gated on Manage Messages -- content a moderator just deleted or edited
+// (a slur, a doxx attempt, whatever) shouldn't be one command away from
+// getting resurfaced in the channel by anyone who happens to be there.
+async function handleSnipe(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+    return interaction.reply({ content: 'You need Manage Messages to snipe a deleted message.', ephemeral: true });
+  }
+
+  const entry = getLastDeleted(interaction.channelId);
+  if (!entry) {
+    return interaction.reply({ content: "Nothing to snipe here — no recent deletion I remember.", ephemeral: true });
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR)
+    .setAuthor({ name: entry.authorTag, iconURL: entry.avatarURL || undefined })
+    .setTitle('🗑️ Last deleted message')
+    .setDescription(entry.content || '*(no text content)*')
+    .setFooter({ text: `Deleted ${Math.max(0, Math.round((Date.now() - entry.deletedAt) / 1000))}s ago` });
+  if (entry.attachments.length > 0) embed.addFields({ name: 'Attachments', value: entry.attachments.join('\n').slice(0, 1000) });
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+async function handleEditSnipe(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+    return interaction.reply({ content: 'You need Manage Messages to snipe an edited message.', ephemeral: true });
+  }
+
+  const entry = getLastEdited(interaction.channelId);
+  if (!entry) {
+    return interaction.reply({ content: "Nothing to snipe here — no recent edit I remember.", ephemeral: true });
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR)
+    .setAuthor({ name: entry.authorTag, iconURL: entry.avatarURL || undefined })
+    .setTitle('✏️ Last edited message')
+    .addFields(
+      { name: 'Before', value: entry.before || '*(no text content)*' },
+      { name: 'After', value: entry.after || '*(no text content)*' },
+    )
+    .setFooter({ text: `Edited ${Math.max(0, Math.round((Date.now() - entry.editedAt) / 1000))}s ago` });
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
 module.exports = {
   avatar: handleAvatar,
   userinfo: handleUserInfo,
@@ -195,4 +321,11 @@ module.exports = {
   emoji: handleEmoji,
   timestamp: handleTimestamp,
   quote: handleQuote,
+  ping: handlePing,
+  uptime: handleUptime,
+  servericon: handleServerIcon,
+  banner: handleBanner,
+  pin: handlePin,
+  snipe: handleSnipe,
+  editsnipe: handleEditSnipe,
 };

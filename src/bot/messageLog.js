@@ -6,6 +6,27 @@ const DELETE_COLOR = '#ed4245';
 const EDIT_COLOR = '#a8e6ff';
 const MAX_FIELD_LEN = 1000;
 
+// In-memory only, on purpose -- /snipe and /editsnipe are for catching
+// something that *just* happened, not a permanent record (the message log
+// channel above is the real audit trail). Resets on every restart, and
+// expires on its own after MAX_SNIPE_AGE_MS so a stale entry doesn't linger
+// forever in a quiet channel.
+const MAX_SNIPE_AGE_MS = 30 * 60 * 1000;
+const lastDeleted = new Map(); // channelId -> { content, authorId, authorTag, avatarURL, deletedAt, attachments }
+const lastEdited = new Map(); // channelId -> { before, after, authorId, authorTag, avatarURL, editedAt }
+
+function getLastDeleted(channelId) {
+  const entry = lastDeleted.get(channelId);
+  if (!entry || Date.now() - entry.deletedAt > MAX_SNIPE_AGE_MS) return null;
+  return entry;
+}
+
+function getLastEdited(channelId) {
+  const entry = lastEdited.get(channelId);
+  if (!entry || Date.now() - entry.editedAt > MAX_SNIPE_AGE_MS) return null;
+  return entry;
+}
+
 function truncate(text) {
   if (!text) return '*(no text content)*';
   return text.length > MAX_FIELD_LEN ? `${text.slice(0, MAX_FIELD_LEN)}…` : text;
@@ -49,6 +70,15 @@ function register(client) {
       if (!message.guild || message.author?.bot) return;
       if (message.partial) return;
 
+      lastDeleted.set(message.channelId, {
+        content: message.content,
+        authorId: message.author?.id || null,
+        authorTag: message.author?.tag || 'Unknown user',
+        avatarURL: message.author?.displayAvatarURL?.() || null,
+        deletedAt: Date.now(),
+        attachments: [...message.attachments.values()].map((a) => a.url),
+      });
+
       const channel = await getLogChannel(message.guild);
       if (!channel) return;
 
@@ -89,6 +119,15 @@ function register(client) {
       // identical content -- not an edit worth logging.
       if (oldMessage.content === newMessage.content) return;
 
+      lastEdited.set(newMessage.channelId, {
+        before: oldMessage.content,
+        after: newMessage.content,
+        authorId: newMessage.author?.id || null,
+        authorTag: newMessage.author?.tag || 'Unknown user',
+        avatarURL: newMessage.author?.displayAvatarURL?.() || null,
+        editedAt: Date.now(),
+      });
+
       const channel = await getLogChannel(newMessage.guild);
       if (!channel) return;
 
@@ -114,4 +153,4 @@ function register(client) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, getLastDeleted, getLastEdited };
