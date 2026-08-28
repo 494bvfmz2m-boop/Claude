@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Features — ModSentry</title>
-<meta name="description" content="Everything ModSentry does: support tickets, a full moderation suite, channel lockdown, content filters, auto-punishments, welcome/leave messages, staff hierarchy, reaction roles, verification, giveaways, events, tags, scheduled announcements, an embed builder, guided setup, and a real per-role permissions manager.">
+<meta name="description" content="Everything ModSentry does: support tickets, a full moderation suite, channel lockdown, content filters, auto-punishments, welcome/leave messages, staff hierarchy, reaction roles, verification, giveaways, events, tags, scheduled announcements, an embed builder, 25+ utility commands, guided setup, and a real per-role permissions manager.">
 <meta property="og:title" content="Features — ModSentry">
-<meta property="og:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, and a real permissions manager.">
+<meta property="og:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, a full utility toolkit, and a real permissions manager.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://modsentry.site/features">
 <meta property="og:image" content="https://modsentry.site/img/og-image.png">
@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Features — ModSentry">
-<meta name="twitter:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, and a real permissions manager.">
+<meta name="twitter:description" content="Everything ModSentry does, in detail: tickets, moderation, lockdown, filters, staff tools, reaction roles, verification, giveaways, events, embeds, a full utility toolkit, and a real permissions manager.">
 <meta name="twitter:image" content="https://modsentry.site/img/og-image.png">
 <link rel="icon" type="image/svg+xml" href="img/modsentry-favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -278,6 +278,7 @@
           <h2>A real permissions manager, not just Manage Server</h2>
           <p>Everyone logs into the dashboard with their own Discord account — and what they can do there is entirely up to you.</p>
           <ul class="feature-row-list">
+            <li>Every role on the server is listed, collapsed by default — click one to expand it and see (and change) exactly what it can do, with an at-a-glance badge for how many pages and commands it already has</li>
             <li>Grant a role access to specific dashboard sections (tickets, embeds, reaction roles, moderation, settings) without giving it any real Discord permission</li>
             <li>Grant a role specific moderation commands, one at a time — a helper can <code>/mute</code> without being able to <code>/ban</code>; a moderator can <code>/ban</code> without <code>/unban</code></li>
             <li>The owner and real Administrators always have full access; the Permissions page itself can't be handed off, so a granted role can never expand its own access</li>
@@ -299,6 +300,23 @@
             <li>Nothing here is enforced — it's a pointer, not a gate</li>
             <li>Starter templates fill in ticket types (Support, Bug Report, Billing, Appeal), swear-filter word lists, and link-filter presets</li>
             <li>Every template just loads into the form for editing — nothing saves until you hit Save</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="feature-row reveal">
+        <div class="feature-row-panel"><span class="feature-row-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg></span></div>
+        <div class="feature-row-body">
+          <span class="eyebrow">Utility</span>
+          <h2>25+ everyday commands, not just moderation</h2>
+          <p>The stuff every server actually reaches for a dozen times a day — none of it needs the dashboard open.</p>
+          <ul class="feature-row-list">
+            <li><strong>Away status:</strong> <code>/afk [message]</code> marks you away and renames you — pinging you gets an instant reply, and it clears itself the moment you post again; <code>/afklist</code> shows everyone currently away</li>
+            <li><strong>Reminders:</strong> <code>/remind set &lt;time&gt; [message]</code> pings you by DM or in-channel later; <code>/remind list</code> and <code>/remind cancel &lt;id&gt;</code> manage what's pending</li>
+            <li><strong>Lookups:</strong> <code>/avatar</code>, <code>/userinfo</code>, <code>/serverinfo</code>, <code>/roleinfo</code>, <code>/channelinfo</code>, <code>/emoji</code>, and <code>/membercount</code> for a humans-vs-bots split</li>
+            <li><strong>Messages:</strong> <code>/quote</code> reposts any message as a clean embed, <code>/pin</code> pins one by link, and <code>/snipe</code> / <code>/editsnipe</code> recover the last deleted or edited message in a channel — all Manage Messages only</li>
+            <li><strong>Server tools:</strong> <code>/nick</code>, <code>/slowmode</code>, <code>/role add</code>/<code>remove</code>, <code>/invite</code>, and <code>/steal</code> to grab an emoji from anywhere straight into your server — each gated exactly like every other moderation action</li>
+            <li><code>/timestamp</code> and <code>/ping</code> / <code>/uptime</code> round it out</li>
           </ul>
         </div>
       </div>
