@@ -32,18 +32,17 @@
 
 <h2 class="staff-group-heading">Overview</h2>
 
-<div class="card" id="overview">
-  <h2>Overview</h2>
-  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:14px; margin-top:10px;">
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.servers %></div><div class="list-item-meta">Servers</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.members.toLocaleString() %></div><div class="list-item-meta">Members reached</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.ticketsOpen %> / <%= overview.ticketsTotal %></div><div class="list-item-meta">Tickets open / ever</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.modActionsTotal %></div><div class="list-item-meta">Mod actions logged</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.warningsTotal %></div><div class="list-item-meta">Warnings issued</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.giveawaysActive %></div><div class="list-item-meta">Active giveaways</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.pollsActive %></div><div class="list-item-meta">Open polls</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.admins %></div><div class="list-item-meta">Admins (incl. you)</div></div>
-    <div><div style="font-size:22px; font-weight:800; color:var(--accent);"><%= overview.uptime %></div><div class="list-item-meta">Uptime</div></div>
+<div id="overview">
+  <div class="stat-grid">
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.servers %></div><div class="stat-tile-label">Servers</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.members.toLocaleString() %></div><div class="stat-tile-label">Members reached</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.ticketsOpen %> / <%= overview.ticketsTotal %></div><div class="stat-tile-label">Tickets open / ever</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.modActionsTotal %></div><div class="stat-tile-label">Mod actions logged</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.warningsTotal %></div><div class="stat-tile-label">Warnings issued</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.giveawaysActive %></div><div class="stat-tile-label">Active giveaways</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.pollsActive %></div><div class="stat-tile-label">Open polls</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.admins %></div><div class="stat-tile-label">Admins (incl. you)</div></div>
+    <div class="stat-tile"><div class="stat-tile-value"><%= overview.uptime %></div><div class="stat-tile-label">Uptime</div></div>
   </div>
 </div>
 

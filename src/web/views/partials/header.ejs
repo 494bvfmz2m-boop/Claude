@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/img/modsentry-favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -32,76 +32,155 @@
   });
 })();
 </script>
-<header class="topbar">
-  <a class="brand" href="/">
-    <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="30" height="30">
-    <span class="brand-word">ModSentry</span>
-  </a>
-  <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
-    <span class="dot"></span>
-    <span class="bot-status-label"><%= botStatus.ready ? 'Bot online' : 'Bot offline' %><%= botStatus.ping !== null ? ` · ${botStatus.ping}ms` : '' %></span>
-  </span>
-  <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
-    <% if (isOwner || isAdmin) { %>
-      <a class="btn btn-ghost" href="/staff" id="tourAdminBtn">Staff</a>
-    <% } %>
-    <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">Invite</a>
-    <div class="account-menu" id="accountMenu">
-      <button type="button" class="account-trigger" id="accountTrigger" aria-haspopup="true" aria-expanded="false">
-        <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
-        <span class="account-name"><%= discordUser.username %></span>
-        <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div class="account-dropdown" id="accountDropdown" role="menu">
-        <a href="https://paypal.me/daanederveen0" target="_blank" rel="noopener" role="menuitem">💛 Donate</a>
-        <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
-        <form action="/logout" method="post">
-          <button type="submit" role="menuitem">Log out</button>
-        </form>
+
+<button type="button" class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+</button>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-top">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
+      <span class="brand-word">ModSentry</span>
+    </a>
+  </div>
+
+  <% if (typeof guild !== 'undefined' && guild) { %>
+    <div style="padding: 0 12px;">
+      <div class="dropdown" id="switcherMenu">
+        <button type="button" class="dropdown-trigger switcher-trigger" id="tourGuildChip" aria-haspopup="true" aria-expanded="false">
+          <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+          <span class="guild-name"><%= guild.name %></span>
+          <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dropdown-panel switcher-panel" role="menu">
+          <% if (typeof switcherGuilds !== 'undefined' && switcherGuilds.length > 0) { %>
+            <div class="dropdown-panel-label">Your servers</div>
+            <% switcherGuilds.forEach(function (g) { %>
+              <% if (g.id === guild.id) { %>
+                <span class="switcher-item is-current" role="menuitem">
+                  <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+                  <span><%= g.name %></span>
+                </span>
+              <% } else { %>
+                <a class="switcher-item" href="/dashboard/<%= g.id %>/overview" role="menuitem">
+                  <img src="<%= g.iconURL || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
+                  <span><%= g.name %></span>
+                </a>
+              <% } %>
+            <% }) %>
+            <hr class="dropdown-panel-divider">
+          <% } %>
+          <a href="/" role="menuitem">All servers →</a>
+        </div>
       </div>
     </div>
   <% } %>
-</header>
+
+  <nav class="sidebar-nav">
+    <% if (typeof guild !== 'undefined' && guild) {
+      var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
+      var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
+      var isFullAccess = !access || access.level === 'full';
+      var currentPath = typeof currentArea !== 'undefined' ? currentArea : null;
+      var isActive = function (seg) { return currentPath === seg ? 'is-active' : ''; };
+    %>
+      <a class="sidebar-nav-link <%= isActive('overview') %>" href="/dashboard/<%= guild.id %>/overview">Overview</a>
+      <% if (canSee('tickets')) { %><a class="sidebar-nav-link <%= isActive('tickets') %>" href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
+      <% if (canSee('moderation')) { %><a class="sidebar-nav-link <%= isActive('moderation') %>" href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
+      <% if (canSee('settings')) { %><a class="sidebar-nav-link <%= isActive('settings') %>" href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
+      <% if (isFullAccess) { %><a class="sidebar-nav-link <%= isActive('permissions') %>" href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>
+
+      <% if (canSee('embeds') || canSee('reaction_roles') || canSee('tags') || canSee('announcements')) { %>
+        <div class="sidebar-nav-group-label">Content</div>
+        <% if (canSee('embeds')) { %><a class="sidebar-nav-link <%= isActive('embeds') %>" href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
+        <% if (canSee('reaction_roles')) { %><a class="sidebar-nav-link <%= isActive('reaction-roles') %>" href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>
+        <% if (canSee('tags')) { %><a class="sidebar-nav-link <%= isActive('tags') %>" href="/dashboard/<%= guild.id %>/tags">Tags</a><% } %>
+        <% if (canSee('announcements')) { %><a class="sidebar-nav-link <%= isActive('announcements') %>" href="/dashboard/<%= guild.id %>/announcements">Announcements</a><% } %>
+      <% } %>
+
+      <% if (canSee('giveaways') || canSee('events')) { %>
+        <div class="sidebar-nav-group-label">Community</div>
+        <% if (canSee('giveaways')) { %><a class="sidebar-nav-link <%= isActive('giveaways') %>" href="/dashboard/<%= guild.id %>/giveaways">Giveaways</a><% } %>
+        <% if (canSee('events')) { %><a class="sidebar-nav-link <%= isActive('events') %>" href="/dashboard/<%= guild.id %>/events">Events</a><% } %>
+      <% } %>
+    <% } %>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
+      <span class="dot"></span>
+      <span class="bot-status-label"><%= botStatus.ready ? 'Bot online' : 'Bot offline' %><% if (botStatus.ping !== null) { %> · <span class="mono"><%= botStatus.ping %>ms</span><% } %></span>
+    </span>
+    <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
+      <div style="display:flex; gap:8px;">
+        <% if (isOwner || isAdmin) { %><a class="btn btn-ghost btn-sm" href="/staff" id="tourAdminBtn" style="flex:1;">Staff</a><% } %>
+        <a class="btn btn-ghost btn-sm" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn" style="flex:1;">Invite</a>
+      </div>
+      <div class="dropdown" id="accountMenu">
+        <button type="button" class="dropdown-trigger account-trigger" aria-haspopup="true" aria-expanded="false">
+          <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
+          <span class="account-name"><%= discordUser.username %></span>
+          <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dropdown-panel account-dropdown opens-up" role="menu">
+          <a href="https://paypal.me/daanederveen0" target="_blank" rel="noopener" role="menuitem">💛 Donate</a>
+          <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
+          <form action="/logout" method="post">
+            <button type="submit" role="menuitem">Log out</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</aside>
+
 <script>
 (function () {
-  var menu = document.getElementById('accountMenu');
-  var trigger = document.getElementById('accountTrigger');
-  if (!menu || !trigger) return;
-  function close() { menu.classList.remove('open'); trigger.setAttribute('aria-expanded', 'false'); }
-  trigger.addEventListener('click', function (e) {
-    e.stopPropagation();
-    var open = menu.classList.toggle('open');
-    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  var menus = [].slice.call(document.querySelectorAll('.dropdown'));
+  function closeAll() {
+    menus.forEach(function (menu) {
+      menu.classList.remove('open');
+      var t = menu.querySelector('.dropdown-trigger');
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
+  menus.forEach(function (menu) {
+    var trigger = menu.querySelector('.dropdown-trigger');
+    if (!trigger) return;
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = !menu.classList.contains('open');
+      closeAll();
+      menu.classList.toggle('open', willOpen);
+      trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
   });
-  document.addEventListener('click', function (e) { if (!menu.contains(e.target)) close(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.addEventListener('click', function () { closeAll(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+
+  // ---- Hamburger + mobile drawer ----
+  var hamburger = document.getElementById('hamburgerBtn');
+  var backdrop = document.getElementById('sidebarBackdrop');
+  function setSidebarOpen(open) {
+    document.body.classList.toggle('sidebar-open', open);
+    if (hamburger) hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  if (hamburger) hamburger.addEventListener('click', function (e) { e.stopPropagation(); setSidebarOpen(!document.body.classList.contains('sidebar-open')); });
+  if (backdrop) backdrop.addEventListener('click', function () { setSidebarOpen(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setSidebarOpen(false); });
+  // A nav click on mobile should close the drawer behind it, same as any
+  // normal app sidebar -- otherwise it's still covering the page you just
+  // navigated to.
+  document.querySelectorAll('.sidebar-nav-link, .switcher-item').forEach(function (el) {
+    el.addEventListener('click', function () { setSidebarOpen(false); });
+  });
 })();
 </script>
-<% if (typeof guild !== 'undefined' && guild) {
-  var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
-  var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
-  var isFullAccess = !access || access.level === 'full';
-%>
-  <nav class="guildnav">
-    <span class="guild-chip" id="tourGuildChip">
-      <img class="guild-icon" src="<%= guild.iconURL({ size: 64 }) || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E' %>" alt="">
-      <span class="guild-name"><%= guild.name %></span>
-    </span>
-    <div class="guildnav-links">
-      <a href="/">Servers</a>
-      <a href="/dashboard/<%= guild.id %>/overview">Overview</a>
-      <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
-      <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
-      <% if (canSee('reaction_roles')) { %><a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>
-      <% if (canSee('giveaways')) { %><a href="/dashboard/<%= guild.id %>/giveaways">Giveaways</a><% } %>
-      <% if (canSee('events')) { %><a href="/dashboard/<%= guild.id %>/events">Events</a><% } %>
-      <% if (canSee('tags')) { %><a href="/dashboard/<%= guild.id %>/tags">Tags</a><% } %>
-      <% if (canSee('announcements')) { %><a href="/dashboard/<%= guild.id %>/announcements">Announcements</a><% } %>
-      <% if (canSee('moderation')) { %><a href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
-      <% if (canSee('settings')) { %><a href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
-      <% if (isFullAccess) { %><a href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>
-    </div>
-  </nav>
+
+<div class="app-content">
+<% if (typeof guild !== 'undefined' && guild) { %>
   <div class="role-warning">
     <strong>Note:</strong> Drag ModSentry's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
@@ -115,7 +194,7 @@
     if (seen) return;
 
     var STEPS = [
-      { selector: '#tourGuildChip', title: "This server's dashboard", body: 'Everything here only affects this server. Use "Servers" on the left to switch to another one you manage.' },
+      { selector: '#tourGuildChip', title: "This server's dashboard", body: 'Everything here only affects this server. Click this any time to jump to another one you manage.' },
       { selector: '#tourNavTickets', title: 'Tickets', body: 'Set up ticket types and panels, and see what\'s open.' },
       { selector: '#tourNavModeration', title: 'Moderation', body: 'Swear/link filters, staff hierarchy, auto-punishments, and a log of every action.' },
       { selector: '#tourNavSettings', title: 'Settings', body: 'Channels, roles, and welcome/leave messages for this server.' },

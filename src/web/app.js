@@ -60,6 +60,14 @@ function createApp() {
     res.locals.inviteUrl = buildGenericInviteUrl();
     const appSettings = AppSettings.get();
     res.locals.maintenance = { enabled: appSettings.maintenanceEnabled, message: appSettings.maintenanceMessage };
+    // The sidebar's server switcher -- cheap in-memory filter of the OAuth
+    // session's own guild list (no extra Discord/DB calls) down to servers
+    // the bot is actually in, so the switcher never links to a 403/404.
+    // Doesn't include guilds only reachable via a Permissions-page grant
+    // (that list requires an async per-guild membership check, too slow to
+    // do on every request) -- the home page's full list still covers those.
+    const manageable = req.session?.manageableGuilds || [];
+    res.locals.switcherGuilds = manageable.filter((g) => client.guilds.cache.has(g.id));
     next();
   });
 
@@ -106,6 +114,7 @@ function createApp() {
   // CSRF check on every state-changing POST under the dashboard
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
     res.locals.dashboardAccess = req.dashboardAccess; // so header.ejs can hide nav links the user can't reach
+    res.locals.currentArea = req.path.split('/')[1] || null; // sidebar active-link highlight
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);

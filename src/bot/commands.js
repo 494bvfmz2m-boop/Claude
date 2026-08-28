@@ -5,6 +5,17 @@ const commands = [
     .setName('change')
     .setDescription('Move this ticket to a different category (keeps all messages)'),
 
+  new SlashCommandBuilder()
+    .setName('ticket')
+    .setDescription('Manage the ticket in this channel')
+    .addSubcommand((sc) => sc
+      .setName('claim')
+      .setDescription('Claim this ticket'))
+    .addSubcommand((sc) => sc
+      .setName('close')
+      .setDescription('Close this ticket')
+      .addStringOption((o) => o.setName('reason').setDescription("Why it's being closed").setRequired(false))),
+
   // No setDefaultMemberPermissions on these -- who can actually run them is
   // decided entirely by the Permissions page (owner/Administrator always
   // can; everyone else needs their role explicitly granted that action).

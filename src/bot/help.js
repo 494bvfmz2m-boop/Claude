@@ -85,7 +85,7 @@ async function handleHelp(interaction) {
     .setColor(HELP_COLOR)
     .setDescription('Only shown below: what you can actually run right now. Run `/introduction` for the complete list.')
     .addFields(
-      { name: '🎫 Tickets', value: '`/change` — Move this ticket to a different type (run it inside a ticket channel)' },
+      { name: '🎫 Tickets', value: '`/change` — Move this ticket to a different type · `/ticket claim` / `/ticket close [reason]` — Same as the Claim/Close buttons (run these inside a ticket channel)' },
       { name: '🛡️ Moderation', value: moderation.join('\n') },
     );
 

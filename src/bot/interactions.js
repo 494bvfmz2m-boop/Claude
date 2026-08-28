@@ -1,5 +1,5 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType } = require('./tickets');
+const { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType, ticket: handleTicketCommand } = require('./tickets');
 const moderation = require('./moderation');
 const promotion = require('./promotion');
 const info = require('./info');
@@ -24,6 +24,7 @@ const { handleBetaRequestButton } = require('./betaRequests');
 
 const chatCommandHandlers = {
   change: startChangeType,
+  ticket: handleTicketCommand,
   ...moderation,
   ...promotion,
   ...info,

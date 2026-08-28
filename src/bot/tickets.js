@@ -285,4 +285,20 @@ async function applyChangeType(interaction, ticketDbId, newTypeId) {
   await interaction.followUp({ content: `Done — moved to **${newType.name}**.`, ephemeral: true });
 }
 
-module.exports = { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType, ticketControlsRow };
+// /ticket claim and /ticket close -- a slash-command alternative to the
+// Claim/Close buttons on the panel, for staff who'd rather type than click.
+// Same trust model as the buttons: no extra permission check here, because
+// the channel itself is already restricted to support roles + the opener +
+// the bot via Discord's own permission overwrites.
+async function handleTicketCommand(interaction) {
+  const ticket = Tickets.getByChannel(interaction.channelId);
+  if (!ticket) {
+    return interaction.reply({ content: "This isn't a ticket channel.", ephemeral: true });
+  }
+
+  const sub = interaction.options.getSubcommand();
+  if (sub === 'claim') return claimTicket(interaction, ticket.id);
+  if (sub === 'close') return closeTicket(interaction, ticket.id, interaction.options.getString('reason'));
+}
+
+module.exports = { openTicket, claimTicket, closeTicket, startChangeType, applyChangeType, ticketControlsRow, ticket: handleTicketCommand };

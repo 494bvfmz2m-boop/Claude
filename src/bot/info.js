@@ -49,6 +49,7 @@ function buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys }) 
     { name: 'tag get / list', available: true },
     { name: 'tag create / delete', available: hasManageMessages },
     { name: 'change (in a ticket)', available: true },
+    { name: 'ticket claim / close', available: true },
     { name: 'warnings', available: staffOverride || perms.has(PermissionFlagsBits.ModerateMembers) },
     { name: 'promote', available: inHierarchy },
     { name: 'demote', available: inHierarchy },
