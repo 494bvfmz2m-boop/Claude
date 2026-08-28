@@ -1,4 +1,4 @@
-const { EmbedBuilder, Events } = require('discord.js');
+const { EmbedBuilder, Events, AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
 
@@ -19,6 +19,26 @@ async function getLogChannel(guild) {
   return channel?.isTextBased() ? channel : null;
 }
 
+// Discord only writes a MessageDelete audit log entry when someone deletes
+// someone else's message with Manage Messages -- deleting your own message
+// leaves no entry at all. Best-effort match: the most recent entry against
+// this exact author in this exact channel, and only if it's fresh enough to
+// plausibly be *this* deletion rather than some earlier one.
+async function findDeleter(message) {
+  if (!message.guild.members.me?.permissions.has(PermissionFlagsBits.ViewAuditLog)) return null;
+  try {
+    const logs = await message.guild.fetchAuditLogs({ type: AuditLogEvent.MessageDelete, limit: 5 });
+    const entry = logs.entries.find((e) => (
+      e.target?.id === message.author?.id
+      && e.extra?.channel?.id === message.channelId
+      && Date.now() - e.createdTimestamp < 10_000
+    ));
+    return entry?.executor || null;
+  } catch {
+    return null;
+  }
+}
+
 function register(client) {
   // Only ever has content to show for messages that were in the cache before
   // they were deleted (discord.js's default cache, or ones the bot already
@@ -32,13 +52,22 @@ function register(client) {
       const channel = await getLogChannel(message.guild);
       if (!channel) return;
 
+      const deleter = await findDeleter(message);
+
       const embed = new EmbedBuilder()
         .setColor(DELETE_COLOR)
         .setAuthor({ name: message.author?.tag || 'Unknown user', iconURL: message.author?.displayAvatarURL?.() })
         .setTitle('🗑️ Message deleted')
         .setThumbnail(emojiUrl('modsentry-scan.gif'))
         .setDescription(truncate(message.content))
-        .addFields({ name: 'Channel', value: `<#${message.channelId}>`, inline: true })
+        .addFields(
+          { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
+          {
+            name: 'Deleted by',
+            value: (deleter && deleter.id !== message.author?.id) ? `<@${deleter.id}> (${deleter.tag})` : 'Likely themselves — no mod audit entry found',
+            inline: true,
+          },
+        )
         .setFooter({ text: `User ID: ${message.author?.id || 'unknown'}` })
         .setTimestamp();
 
@@ -71,6 +100,7 @@ function register(client) {
         .addFields(
           { name: 'Before', value: truncate(oldMessage.content) },
           { name: 'After', value: truncate(newMessage.content) },
+          { name: 'Edited by', value: `<@${newMessage.author.id}> (${newMessage.author.tag})`, inline: true },
           { name: 'Channel', value: `<#${newMessage.channelId}>`, inline: true },
           { name: 'Jump to message', value: `[Click here](${newMessage.url})`, inline: true },
         )
