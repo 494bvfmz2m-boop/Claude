@@ -89,6 +89,7 @@
     </span>
     <div class="guildnav-links">
       <a href="/">Servers</a>
+      <a href="/dashboard/<%= guild.id %>/overview">Overview</a>
       <% if (canSee('tickets')) { %><a href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
       <% if (canSee('embeds')) { %><a href="/dashboard/<%= guild.id %>/embeds">Embeds</a><% } %>
       <% if (canSee('reaction_roles')) { %><a href="/dashboard/<%= guild.id %>/reaction-roles">Reaction Roles</a><% } %>

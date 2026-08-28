@@ -412,6 +412,9 @@ const ModActions = {
   listForTargetAllGuilds(targetId, limit = 50) {
     return db.prepare('SELECT * FROM mod_actions WHERE target_id = ? ORDER BY id DESC LIMIT ?').all(targetId, limit);
   },
+  countThisWeekForGuild(guildId) {
+    return db.prepare("SELECT COUNT(*) AS n FROM mod_actions WHERE guild_id = ? AND created_at >= datetime('now', '-7 days')").get(guildId).n;
+  },
 };
 
 const TicketTypes = {
@@ -687,6 +690,9 @@ const Warnings = {
   listForUserAllGuilds(userId) {
     return db.prepare('SELECT * FROM warnings WHERE user_id = ? ORDER BY id DESC').all(userId);
   },
+  countTodayForGuild(guildId) {
+    return db.prepare("SELECT COUNT(*) AS n FROM warnings WHERE guild_id = ? AND date(created_at) = date('now')").get(guildId).n;
+  },
   clearForUser(guildId, userId) {
     const info = db.prepare('DELETE FROM warnings WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
     return info.changes;
@@ -871,6 +877,9 @@ const Giveaways = {
   listForGuild(guildId) {
     return db.prepare('SELECT * FROM giveaways WHERE guild_id = ? ORDER BY id DESC').all(guildId)
       .map((g) => ({ ...g, entries: parseJSON(g.entries, []) }));
+  },
+  countActiveForGuild(guildId) {
+    return db.prepare('SELECT COUNT(*) AS n FROM giveaways WHERE guild_id = ? AND ended = 0').get(guildId).n;
   },
   delete(id) {
     db.prepare('DELETE FROM giveaways WHERE id = ?').run(id);

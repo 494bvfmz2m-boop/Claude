@@ -22,6 +22,7 @@ const tagRoutes = require('./routes/tags');
 const announcementRoutes = require('./routes/announcements');
 const giveawayRoutes = require('./routes/giveaways');
 const eventRoutes = require('./routes/events');
+const overviewRoutes = require('./routes/overview');
 
 function createApp() {
   const app = express();
@@ -88,6 +89,7 @@ function createApp() {
   app.use('/', requireAuth, dashboardRoutes);
 
   const guildRouter = express.Router({ mergeParams: true });
+  guildRouter.use(overviewRoutes);
   guildRouter.use(ticketTypeRoutes);
   guildRouter.use(panelRoutes);
   guildRouter.use(settingsRoutes);

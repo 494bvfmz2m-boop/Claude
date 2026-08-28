@@ -1,0 +1,71 @@
+<%- include('partials/header', { title: 'Overview', guild }) %>
+<h1>Overview</h1>
+<p class="subtitle">A quick look at <%= guild.name %> — jump into a section above for the details.</p>
+
+<div class="stat-grid">
+  <% stats.forEach(s => { %>
+    <div class="stat-tile">
+      <div class="stat-tile-value"><%= typeof s.value === 'number' ? s.value.toLocaleString() : s.value %></div>
+      <div class="stat-tile-label"><%= s.label %></div>
+    </div>
+  <% }) %>
+</div>
+
+<% if (!seesTickets && !seesModeration) { %>
+  <div class="card empty">
+    Nothing else to show here yet — ask an admin to grant you access to Tickets or Moderation from the Permissions page to see more.
+  </div>
+<% } else { %>
+
+  <% if (seesModeration) { %>
+  <div class="card">
+    <h2>Recent moderation activity</h2>
+    <% if (recentActions.length === 0) { %>
+      <p class="empty">Nothing logged yet.</p>
+    <% } else { %>
+      <ul class="list">
+        <% recentActions.forEach(a => { %>
+          <li class="list-item">
+            <div>
+              <div class="list-item-title"><%= a.action %></div>
+              <div class="list-item-meta">
+                <%= a.target_tag || a.target_id || 'Unknown' %> · by <%= a.moderator_tag || a.moderator_id %> ·
+                <%= new Date(a.created_at + 'Z').toLocaleString() %>
+              </div>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+      <div class="btn-row" style="margin-top:14px;">
+        <a class="btn btn-ghost btn-sm" href="/dashboard/<%= guild.id %>/moderation/log">View full log →</a>
+      </div>
+    <% } %>
+  </div>
+  <% } %>
+
+  <% if (seesTickets) { %>
+  <div class="card">
+    <h2>Recent tickets</h2>
+    <% if (recentTickets.length === 0) { %>
+      <p class="empty">No tickets yet.</p>
+    <% } else { %>
+      <ul class="list">
+        <% recentTickets.forEach(t => { %>
+          <li class="list-item">
+            <div>
+              <div class="list-item-title">#<%= t.id %> · <%= t.typeName %></div>
+              <div class="list-item-meta"><%= new Date(t.created_at + 'Z').toLocaleString() %></div>
+            </div>
+            <span class="badge badge-<%= t.status %>"><%= t.status %></span>
+          </li>
+        <% }) %>
+      </ul>
+      <div class="btn-row" style="margin-top:14px;">
+        <a class="btn btn-ghost btn-sm" href="/dashboard/<%= guild.id %>/tickets#recent-tickets">View all tickets →</a>
+      </div>
+    <% } %>
+  </div>
+  <% } %>
+
+<% } %>
+<%- include('partials/footer') %>

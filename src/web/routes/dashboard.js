@@ -2,7 +2,7 @@ const express = require('express');
 const client = require('../../bot/client');
 const { buildGenericInviteUrl } = require('../lib/discordOAuth');
 const { getMemberAccess } = require('../lib/dashboardAccess');
-const { Tickets } = require('../../db/repo');
+const { Tickets, Warnings } = require('../../db/repo');
 
 const router = express.Router();
 
@@ -32,6 +32,7 @@ router.get('/', async (req, res) => {
         ...g,
         memberCount: live ? live.memberCount : null,
         openTickets: Tickets.countOpenForGuild(g.id),
+        warningsToday: Warnings.countTodayForGuild(g.id),
       };
     });
 
