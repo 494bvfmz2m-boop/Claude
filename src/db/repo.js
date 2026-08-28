@@ -390,9 +390,6 @@ const ModActions = {
   listForTargetAllGuilds(targetId, limit = 50) {
     return db.prepare('SELECT * FROM mod_actions WHERE target_id = ? ORDER BY id DESC LIMIT ?').all(targetId, limit);
   },
-  listRecentAllGuilds(limit = 50) {
-    return db.prepare('SELECT * FROM mod_actions ORDER BY id DESC LIMIT ?').all(limit);
-  },
 };
 
 const TicketTypes = {

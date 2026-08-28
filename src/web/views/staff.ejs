@@ -19,7 +19,6 @@
   { id: 'broadcast', label: 'Broadcast to owners' },
   { id: 'maintenance', label: 'Maintenance banner' },
   { id: 'user-lookup', label: 'User lookup' },
-  { id: 'activity-feed', label: 'Activity feed' },
   { id: 'audit-log', label: 'Audit log' },
   { id: 'backup', label: 'Backup' },
   { id: 'remove-server', label: 'Remove from a server' },
@@ -686,28 +685,6 @@
         <% } %>
       <% } %>
     </div>
-  <% } %>
-</div>
-
-<div class="card" id="activity-feed">
-  <h2>Activity feed</h2>
-  <p class="hint" style="margin-bottom:14px;">
-    Every server's mod actions and every admin's <code>/staff</code> actions, merged into one timeline —
-    most recent first.
-  </p>
-  <% if (activityFeed.length === 0) { %>
-    <p class="empty">Nothing logged yet.</p>
-  <% } else { %>
-    <ul class="list">
-      <% activityFeed.forEach(e => { %>
-        <li class="list-item">
-          <div>
-            <div class="list-item-title"><%= e.kind === 'mod' ? '🛡️' : '🗂️' %> <%= e.title %></div>
-            <div class="list-item-meta"><%= e.detail %> · <%= e.created_at %></div>
-          </div>
-        </li>
-      <% }) %>
-    </ul>
   <% } %>
 </div>
 

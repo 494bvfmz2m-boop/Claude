@@ -117,25 +117,6 @@ router.get('/', requireAdmin, async (req, res) => {
     return { id: g.id, name: g.name, iconURL: g.iconURL({ size: 32 }), issues };
   }).filter((g) => g.issues.length > 0).sort((a, b) => b.issues.length - a.issues.length);
 
-  // Unified activity feed: every server's mod actions plus every admin's
-  // /staff actions, merged into one timeline -- so "what's happened lately"
-  // doesn't mean checking each server's log separately.
-  const guildName = (gid) => client.guilds.cache.get(gid)?.name || gid;
-  const activityFeed = [
-    ...ModActions.listRecentAllGuilds(50).map((m) => ({
-      kind: 'mod',
-      title: `${m.action} — ${guildName(m.guild_id)}`,
-      detail: `by ${m.moderator_tag || m.moderator_id}${m.reason ? ` · ${m.reason}` : ''}`,
-      created_at: m.created_at,
-    })),
-    ...AdminAuditLog.list(50).map((l) => ({
-      kind: 'staff',
-      title: l.action,
-      detail: `${l.actor_tag || l.actor_id}${l.detail ? ` · ${l.detail}` : ''}`,
-      created_at: l.created_at,
-    })),
-  ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 60);
-
   const staffNotes = StaffNotes.list();
 
   let lookup = null;
@@ -181,7 +162,6 @@ router.get('/', requireAdmin, async (req, res) => {
     notice,
     ownerDiscordId: config.ownerDiscordId,
     healthChecks,
-    activityFeed,
     staffNotes,
   });
 });
