@@ -177,6 +177,11 @@ async function handleInvite(interaction) {
 
 const EMOJI_MENTION_RE = /<(a?):(\w{2,32}):(\d+)>/;
 
+// Discord's per-tier emoji cap -- static and animated are two separate
+// pools of this same size, not one shared pool, so hitting the cap on
+// gifs doesn't mean the server is out of room for static emoji too.
+const EMOJI_LIMIT_BY_TIER = { 0: 50, 1: 100, 2: 150, 3: 250 };
+
 async function handleSteal(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions)) {
     return interaction.reply({ content: 'You need Manage Expressions (emoji/stickers) to add an emoji.', ephemeral: true });
@@ -187,9 +192,11 @@ async function handleSteal(interaction) {
 
   let url;
   let defaultName;
+  let animated = null; // unknown for a raw URL until Discord tells us
   const mentionMatch = EMOJI_MENTION_RE.exec(input);
   if (mentionMatch) {
-    const [, animated, name, id] = mentionMatch;
+    const [, animatedFlag, name, id] = mentionMatch;
+    animated = animatedFlag === 'a';
     url = `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}`;
     defaultName = name;
   } else if (/^https?:\/\//i.test(input)) {
@@ -202,6 +209,20 @@ async function handleSteal(interaction) {
   const name = (nameOption || defaultName).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 32);
   if (name.length < 2) {
     return interaction.reply({ content: 'Emoji names need to be at least 2 characters (letters, numbers, underscores only).', ephemeral: true });
+  }
+
+  // Only checkable up front when we actually know which pool (static vs
+  // animated) this is headed for -- a pasted emoji tells us; a bare URL
+  // doesn't, so that case still falls through to Discord's own error below.
+  if (animated !== null) {
+    const limit = EMOJI_LIMIT_BY_TIER[interaction.guild.premiumTier] ?? 50;
+    const used = interaction.guild.emojis.cache.filter((e) => e.animated === animated).size;
+    if (used >= limit) {
+      return interaction.reply({
+        content: `This server is out of ${animated ? 'animated' : 'static'} emoji slots (${used}/${limit} used) — free one up first, or boost for more room.`,
+        ephemeral: true,
+      });
+    }
   }
 
   let emoji;
