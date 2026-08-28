@@ -190,7 +190,30 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 }
 .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0, 4, 10, .6); z-index: 49; }
 
-.app-content { margin-left: var(--sidebar-width); min-height: 100vh; }
+.app-content { min-height: 100vh; }
+.app-content.has-sidebar { margin-left: var(--sidebar-width); }
+
+/* ---------- Slim top bar for chrome-light pages (login, server list, /staff) --
+   there's no per-guild nav to justify a sidebar with nothing in it. ---------- */
+.topbar-lite {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 28px;
+  background: rgba(0, 16, 32, .75);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-lite > * { flex-shrink: 0; }
+.topbar-lite .bot-status { margin-left: auto; }
+.topbar-lite .dropdown-panel { left: auto; right: 0; top: calc(100% + 8px); bottom: auto; }
+@media (max-width: 680px) {
+  .topbar-lite { gap: 8px; padding: 10px 14px; }
+  .topbar-lite .bot-status-label { display: none; }
+  .topbar-lite .bot-status { padding: 7px; }
+  .topbar-lite .account-trigger .account-name { display: none; }
+  .topbar-lite .account-trigger { padding: 6px; }
+  .topbar-lite .btn { padding: 7px 11px; font-size: 12.5px; }
+}
 
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-md); }
@@ -206,7 +229,7 @@ a:hover { color: #8fc8ff; text-decoration: none; }
   padding: 36px 24px 90px;
   animation: fade-up .35s ease both;
 }
-@media (max-width: 900px) { .container { padding-top: 70px; } }
+@media (max-width: 900px) { .has-sidebar .container { padding-top: 70px; } }
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(6px); }

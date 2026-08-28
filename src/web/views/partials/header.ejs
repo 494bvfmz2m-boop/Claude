@@ -33,20 +33,24 @@
 })();
 </script>
 
-<button type="button" class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-</button>
-<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+<%
+  var inGuild = typeof guild !== 'undefined' && guild;
+  var showAccount = (typeof hideLogout === 'undefined' || !hideLogout) && discordUser;
+%>
+<% if (inGuild) { %>
+  <button type="button" class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-top">
-    <a class="brand" href="/">
-      <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
-      <span class="brand-word">ModSentry</span>
-    </a>
-  </div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
+        <span class="brand-word">ModSentry</span>
+      </a>
+    </div>
 
-  <% if (typeof guild !== 'undefined' && guild) { %>
     <div style="padding: 0 12px;">
       <div class="dropdown" id="switcherMenu">
         <button type="button" class="dropdown-trigger switcher-trigger" id="tourGuildChip" aria-haspopup="true" aria-expanded="false">
@@ -76,16 +80,15 @@
         </div>
       </div>
     </div>
-  <% } %>
 
-  <nav class="sidebar-nav">
-    <% if (typeof guild !== 'undefined' && guild) {
-      var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
-      var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
-      var isFullAccess = !access || access.level === 'full';
-      var currentPath = typeof currentArea !== 'undefined' ? currentArea : null;
-      var isActive = function (seg) { return currentPath === seg ? 'is-active' : ''; };
-    %>
+    <nav class="sidebar-nav">
+      <%
+        var access = typeof dashboardAccess !== 'undefined' ? dashboardAccess : null;
+        var canSee = function (area) { return !access || access.level === 'full' || (access.areas && access.areas.has(area)); };
+        var isFullAccess = !access || access.level === 'full';
+        var currentPath = typeof currentArea !== 'undefined' ? currentArea : null;
+        var isActive = function (seg) { return currentPath === seg ? 'is-active' : ''; };
+      %>
       <a class="sidebar-nav-link <%= isActive('overview') %>" href="/dashboard/<%= guild.id %>/overview">Overview</a>
       <% if (canSee('tickets')) { %><a class="sidebar-nav-link <%= isActive('tickets') %>" href="/dashboard/<%= guild.id %>/tickets" id="tourNavTickets">Tickets</a><% } %>
       <% if (canSee('moderation')) { %><a class="sidebar-nav-link <%= isActive('moderation') %>" href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
@@ -105,27 +108,56 @@
         <% if (canSee('giveaways')) { %><a class="sidebar-nav-link <%= isActive('giveaways') %>" href="/dashboard/<%= guild.id %>/giveaways">Giveaways</a><% } %>
         <% if (canSee('events')) { %><a class="sidebar-nav-link <%= isActive('events') %>" href="/dashboard/<%= guild.id %>/events">Events</a><% } %>
       <% } %>
-    <% } %>
-  </nav>
+    </nav>
 
-  <div class="sidebar-bottom">
+    <div class="sidebar-bottom">
+      <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
+        <span class="dot"></span>
+        <span class="bot-status-label"><%= botStatus.ready ? 'Bot online' : 'Bot offline' %><% if (botStatus.ping !== null) { %> · <span class="mono"><%= botStatus.ping %>ms</span><% } %></span>
+      </span>
+      <a class="btn btn-ghost btn-sm" href="https://paypal.me/daanederveen0" target="_blank" rel="noopener">💛 Donate</a>
+      <% if (showAccount) { %>
+        <div style="display:flex; gap:8px;">
+          <% if (isOwner || isAdmin) { %><a class="btn btn-ghost btn-sm" href="/staff" id="tourAdminBtn" style="flex:1;">Staff</a><% } %>
+          <a class="btn btn-ghost btn-sm" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn" style="flex:1;">Invite</a>
+        </div>
+        <div class="dropdown" id="accountMenu">
+          <button type="button" class="dropdown-trigger account-trigger" aria-haspopup="true" aria-expanded="false">
+            <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
+            <span class="account-name"><%= discordUser.username %></span>
+            <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="dropdown-panel account-dropdown opens-up" role="menu">
+            <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
+            <form action="/logout" method="post">
+              <button type="submit" role="menuitem">Log out</button>
+            </form>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </aside>
+<% } else { %>
+  <header class="topbar-lite">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
+      <span class="brand-word">ModSentry</span>
+    </a>
     <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
       <span class="dot"></span>
       <span class="bot-status-label"><%= botStatus.ready ? 'Bot online' : 'Bot offline' %><% if (botStatus.ping !== null) { %> · <span class="mono"><%= botStatus.ping %>ms</span><% } %></span>
     </span>
-    <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
-      <div style="display:flex; gap:8px;">
-        <% if (isOwner || isAdmin) { %><a class="btn btn-ghost btn-sm" href="/staff" id="tourAdminBtn" style="flex:1;">Staff</a><% } %>
-        <a class="btn btn-ghost btn-sm" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn" style="flex:1;">Invite</a>
-      </div>
+    <a class="btn btn-ghost" href="https://paypal.me/daanederveen0" target="_blank" rel="noopener">💛 Donate</a>
+    <% if (showAccount) { %>
+      <% if (isOwner || isAdmin) { %><a class="btn btn-ghost" href="/staff" id="tourAdminBtn">Staff</a><% } %>
+      <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">Invite</a>
       <div class="dropdown" id="accountMenu">
         <button type="button" class="dropdown-trigger account-trigger" aria-haspopup="true" aria-expanded="false">
           <img class="user-avatar" src="<%= discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${(BigInt(discordUser.id) >> 22n) % 6n}.png` %>" alt="">
           <span class="account-name"><%= discordUser.username %></span>
           <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="dropdown-panel account-dropdown opens-up" role="menu">
-          <a href="https://paypal.me/daanederveen0" target="_blank" rel="noopener" role="menuitem">💛 Donate</a>
+        <div class="dropdown-panel account-dropdown" role="menu">
           <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
           <form action="/logout" method="post">
             <button type="submit" role="menuitem">Log out</button>
@@ -133,8 +165,8 @@
         </div>
       </div>
     <% } %>
-  </div>
-</aside>
+  </header>
+<% } %>
 
 <script>
 (function () {
@@ -179,8 +211,8 @@
 })();
 </script>
 
-<div class="app-content">
-<% if (typeof guild !== 'undefined' && guild) { %>
+<div class="app-content <%= inGuild ? 'has-sidebar' : '' %>">
+<% if (inGuild) { %>
   <div class="role-warning">
     <strong>Note:</strong> Drag ModSentry's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
