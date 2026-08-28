@@ -936,4 +936,23 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus };
+const Reminders = {
+  create({ guildId, channelId, userId, message, remindAt, pingInChannel }) {
+    const info = db.prepare(`
+      INSERT INTO reminders (guild_id, channel_id, user_id, message, remind_at, ping_in_channel)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(guildId || null, channelId, userId, message || null, remindAt, pingInChannel ? 1 : 0);
+    return info.lastInsertRowid;
+  },
+  // remind_at is stored as a JS Date.toISOString() string (same convention
+  // as polls.ends_at / giveaways.ends_at), not SQLite's datetime('now')
+  // format, so it compares correctly against another toISOString() value.
+  listDue(nowIso) {
+    return db.prepare('SELECT * FROM reminders WHERE remind_at <= ?').all(nowIso);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM reminders WHERE id = ?').run(id);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };

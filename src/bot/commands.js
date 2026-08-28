@@ -160,6 +160,53 @@ const commands = [
     .addSubcommand((sc) => sc
       .setName('list')
       .setDescription('List all tags')),
+
+  new SlashCommandBuilder()
+    .setName('avatar')
+    .setDescription("Show someone's avatar, full size")
+    .addUserOption((o) => o.setName('user').setDescription('Whose avatar to show').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('userinfo')
+    .setDescription('Account/member info for someone -- join date, roles, boost status')
+    .addUserOption((o) => o.setName('user').setDescription('Who to look up').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('serverinfo')
+    .setDescription('This server at a glance -- members, channels, roles, boosts'),
+
+  new SlashCommandBuilder()
+    .setName('roleinfo')
+    .setDescription('A role at a glance -- color, position, member count')
+    .addRoleOption((o) => o.setName('role').setDescription('Which role').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('emoji')
+    .setDescription("Show a big version of one of this server's custom emoji")
+    .addStringOption((o) => o.setName('emoji').setDescription('The emoji -- paste it or type its name').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('remind')
+    .setDescription('Set a personal reminder')
+    .addStringOption((o) => o.setName('time').setDescription('When, e.g. 10m, 2h, 3d').setRequired(true))
+    .addStringOption((o) => o.setName('message').setDescription('What to remind you about').setRequired(false))
+    .addBooleanOption((o) => o.setName('here').setDescription('Ping you in this channel instead of DMing (default: DM)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('timestamp')
+    .setDescription('Generate a Discord timestamp you can paste into a message')
+    .addStringOption((o) => o.setName('when').setDescription('From now, e.g. 10m, 2h, 3d').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('quote')
+    .setDescription('Repost a message as a clean embed')
+    .addStringOption((o) => o.setName('message').setDescription('Message link or ID').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('nick')
+    .setDescription("Change someone's nickname")
+    .addUserOption((o) => o.setName('user').setDescription('Who to rename').setRequired(true))
+    .addStringOption((o) => o.setName('nickname').setDescription('New nickname (omit to clear it)').setRequired(false)),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

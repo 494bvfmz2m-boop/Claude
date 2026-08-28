@@ -385,6 +385,30 @@ async function cancelPurgeAll(interaction, invokerId) {
   await interaction.update({ content: 'Cancelled — nothing was deleted.', components: [] });
 }
 
+async function handleNick(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'nickname')) return denyReply(interaction, 'nick');
+
+  const target = interaction.options.getUser('user');
+  const newNick = interaction.options.getString('nickname');
+
+  const targetMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+  if (!targetMember) {
+    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+  }
+  if (!canActOn(interaction.guild, interaction.member, targetMember)) {
+    return interaction.reply({ content: "You can't change the nickname of someone with an equal or higher role than you.", ephemeral: true });
+  }
+
+  try {
+    await targetMember.setNickname(newNick || null);
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't change their nickname: ${err.message}`, ephemeral: true });
+  }
+
+  await interaction.reply(newNick ? `✏️ Changed **${target.tag}**'s nickname to **${newNick}**.` : `✏️ Cleared **${target.tag}**'s nickname.`);
+  await logAction(interaction.guild, { action: '✏️ Nickname changed', target, moderator: interaction.user, reason: newNick || '(cleared)' });
+}
+
 module.exports = {
   ban: handleBan,
   unban: handleUnban,
@@ -395,6 +419,7 @@ module.exports = {
   warnings: handleWarnings,
   clearwarnings: handleClearWarnings,
   purge: handlePurge,
+  nick: handleNick,
   canActOn,
   logAction,
   parseDuration,

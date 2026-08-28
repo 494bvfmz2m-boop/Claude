@@ -23,6 +23,7 @@ const ACTIONS = [
   { key: 'purge', label: 'Purge messages' },
   { key: 'lockdown', label: 'Lock channels' },
   { key: 'unlockdown', label: 'Unlock channels' },
+  { key: 'nickname', label: 'Change nickname', command: 'nick' }, // action key stays 'nickname' for canUseAction/GATED_MOD_COMMANDS, but the actual slash command is /nick
 ];
 const ACTION_KEYS = new Set(ACTIONS.map((a) => a.key));
 

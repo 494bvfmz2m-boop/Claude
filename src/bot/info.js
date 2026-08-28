@@ -23,6 +23,14 @@ function buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys }) 
     { name: 'info', available: true },
     { name: 'introduction', available: true },
     { name: 'afk', available: true },
+    { name: 'avatar', available: true },
+    { name: 'userinfo', available: true },
+    { name: 'serverinfo', available: true },
+    { name: 'roleinfo', available: true },
+    { name: 'emoji', available: true },
+    { name: 'timestamp', available: true },
+    { name: 'quote', available: true },
+    { name: 'remind', available: true },
     { name: 'poll', available: true },
     { name: 'giveaway', available: true },
     { name: 'event', available: true },
@@ -34,7 +42,7 @@ function buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys }) 
     { name: 'demote', available: inHierarchy },
   ];
   for (const action of ACTIONS) {
-    entries.push({ name: action.key, available: staffOverride || grantedActionKeys.has(action.key) });
+    entries.push({ name: action.command || action.key, available: staffOverride || grantedActionKeys.has(action.key) });
   }
   return entries;
 }

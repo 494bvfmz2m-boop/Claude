@@ -11,6 +11,8 @@ const giveaway = require('./giveaway');
 const event = require('./event');
 const tags = require('./tags');
 const afk = require('./afk');
+const qol = require('./qol');
+const reminders = require('./reminders');
 const config = require('../config');
 const { buildServerListEmbed } = require('./ownerPanel');
 const dmForm = require('./dmForm');
@@ -33,6 +35,8 @@ const chatCommandHandlers = {
   ...event,
   ...tags,
   ...afk,
+  ...qol,
+  ...reminders,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;

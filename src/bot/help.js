@@ -15,6 +15,7 @@ const GATED_MOD_COMMANDS = [
   ['warn', '/warn <user> <reason>', 'Log a warning (can auto-escalate)'],
   ['clearwarnings', '/clearwarnings <user>', "Clear someone's warnings"],
   ['purge', '/purge [amount] [user]', 'Bulk-delete messages in this channel'],
+  ['nickname', '/nick <user> [nickname]', "Change someone's nickname"],
 ];
 
 // Only what this specific person can actually run right now, grouped the
@@ -44,6 +45,14 @@ async function handleHelp(interaction) {
     '`/info [user]` — See permissions, dashboard access, staff rank, and every command you can actually run',
     "`/introduction` — ModSentry's full welcome message, plus every registered command",
     '`/afk [message]` — Mark yourself AFK, with an optional reason -- clears automatically when you next send a message',
+    '`/avatar [user]` — Show an avatar full size',
+    '`/userinfo [user]` — Account/member info -- join date, roles, boost status',
+    '`/serverinfo` — This server at a glance',
+    '`/roleinfo <role>` — A role at a glance',
+    '`/emoji <emoji>` — Show a big version of a custom emoji',
+    '`/timestamp <when>` — Generate a Discord timestamp to paste into a message',
+    '`/quote <message>` — Repost a message as a clean embed',
+    '`/remind <time> [message] [here]` — Set a personal reminder',
     '`/poll <question> <option1> <option2> ... [duration]` — Post a reaction poll, optionally auto-closing after a set time',
     '`/giveaway start <prize> <duration> [winners] [required_role]` — Start a giveaway',
     '`/giveaway end <message_id>` / `/giveaway reroll <message_id>` — End early / pick new winners',

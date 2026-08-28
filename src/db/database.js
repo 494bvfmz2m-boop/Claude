@@ -302,6 +302,17 @@ CREATE TABLE IF NOT EXISTS emoji_book (
   added_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT,
+  channel_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  message TEXT,
+  remind_at TEXT NOT NULL,
+  ping_in_channel INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS polls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id TEXT NOT NULL,
@@ -341,6 +352,7 @@ CREATE INDEX IF NOT EXISTS idx_giveaways_open ON giveaways(ended, ends_at);
 CREATE INDEX IF NOT EXISTS idx_events_guild ON events(guild_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_guild ON scheduled_announcements(guild_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_due ON scheduled_announcements(active, next_run);
+CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(remind_at);
 `);
 
 // Lightweight migrations for columns added after the initial release —
