@@ -100,6 +100,11 @@ const commands = [
     .setDescription('Have ModSentry introduce itself -- what it does, how to set it up, and its commands'),
 
   new SlashCommandBuilder()
+    .setName('afk')
+    .setDescription("Mark yourself AFK -- clears automatically the next time you send a message")
+    .addStringOption((o) => o.setName('message').setDescription("Why you're AFK, shown to anyone who pings you").setRequired(false)),
+
+  new SlashCommandBuilder()
     .setName('poll')
     .setDescription('Create a reaction poll in this channel')
     .addStringOption((o) => o.setName('question').setDescription('The poll question').setRequired(true))

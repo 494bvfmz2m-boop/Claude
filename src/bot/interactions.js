@@ -10,6 +10,7 @@ const lockdown = require('./lockdown');
 const giveaway = require('./giveaway');
 const event = require('./event');
 const tags = require('./tags');
+const afk = require('./afk');
 const config = require('../config');
 const { buildServerListEmbed } = require('./ownerPanel');
 const dmForm = require('./dmForm');
@@ -31,6 +32,7 @@ const chatCommandHandlers = {
   ...giveaway,
   ...event,
   ...tags,
+  ...afk,
 };
 // moderation.js exports these helpers too, not commands
 delete chatCommandHandlers.canActOn;
@@ -42,6 +44,8 @@ delete chatCommandHandlers.cancelPurgeAll;
 delete chatCommandHandlers.purgeMessages;
 delete chatCommandHandlers.buildPunishmentEmbed;
 delete chatCommandHandlers.sendPunishmentDM;
+// afk.js exports its messageCreate registrar too, not a command
+delete chatCommandHandlers.register;
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {

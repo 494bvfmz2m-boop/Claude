@@ -17,6 +17,7 @@ const { register: registerMessageLog } = require('./bot/messageLog');
 const { register: registerGiveawayScheduler } = require('./bot/giveawayScheduler');
 const { register: registerAnnouncementScheduler } = require('./bot/announcementScheduler');
 const { register: registerStatsChannels } = require('./bot/statsChannels');
+const { register: registerAfk } = require('./bot/afk');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -42,6 +43,7 @@ registerMessageLog(client);
 registerGiveawayScheduler(client);
 registerAnnouncementScheduler(client);
 registerStatsChannels(client);
+registerAfk(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);

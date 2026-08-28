@@ -235,6 +235,15 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS afk_status (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  message TEXT,
+  original_nickname TEXT,
+  started_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (guild_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS staff_notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   author_id TEXT NOT NULL,

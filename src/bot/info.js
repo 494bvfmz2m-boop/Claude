@@ -22,6 +22,7 @@ function buildCommandList({ isOwner, isAdmin, perms, rank, grantedActionKeys }) 
     { name: 'help', available: true },
     { name: 'info', available: true },
     { name: 'introduction', available: true },
+    { name: 'afk', available: true },
     { name: 'poll', available: true },
     { name: 'giveaway', available: true },
     { name: 'event', available: true },

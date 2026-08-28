@@ -140,6 +140,25 @@ const AppSettings = {
   },
 };
 
+const AfkStatus = {
+  get(guildId, userId) {
+    return db.prepare('SELECT * FROM afk_status WHERE guild_id = ? AND user_id = ?').get(guildId, userId) || null;
+  },
+  // originalNickname is whatever their nickname was *before* they ever went
+  // AFK -- if they were already AFK when this runs (updating their message),
+  // the caller passes the existing record's original_nickname back through
+  // so it never gets clobbered with the current "[AFK] ..." one.
+  set(guildId, userId, message, originalNickname) {
+    db.prepare(`
+      INSERT INTO afk_status (guild_id, user_id, message, original_nickname) VALUES (?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET message = excluded.message, original_nickname = excluded.original_nickname, started_at = datetime('now')
+    `).run(guildId, userId, message || null, originalNickname || null);
+  },
+  clear(guildId, userId) {
+    db.prepare('DELETE FROM afk_status WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
+  },
+};
+
 const StaffNotes = {
   list() {
     return db.prepare('SELECT * FROM staff_notes ORDER BY id DESC').all();
@@ -917,4 +936,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus };

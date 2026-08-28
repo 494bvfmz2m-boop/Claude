@@ -43,6 +43,7 @@ async function handleHelp(interaction) {
   const utility = [
     '`/info [user]` — See permissions, dashboard access, staff rank, and every command you can actually run',
     "`/introduction` — ModSentry's full welcome message, plus every registered command",
+    '`/afk [message]` — Mark yourself AFK, with an optional reason -- clears automatically when you next send a message',
     '`/poll <question> <option1> <option2> ... [duration]` — Post a reaction poll, optionally auto-closing after a set time',
     '`/giveaway start <prize> <duration> [winners] [required_role]` — Start a giveaway',
     '`/giveaway end <message_id>` / `/giveaway reroll <message_id>` — End early / pick new winners',
