@@ -134,7 +134,7 @@ const commands = [
       .setDescription('Start a giveaway')
       .addStringOption((o) => o.setName('prize').setDescription("What's being given away").setRequired(true))
       .addStringOption((o) => o.setName('duration').setDescription('Runs for, e.g. 10m, 2h, 1d (max 30d)').setRequired(true))
-      .addIntegerOption((o) => o.setName('winners').setDescription('How many winners (default 1)').setRequired(false).setMinValue(1).setMaxValue(20))
+      .addIntegerOption((o) => o.setName('winners').setDescription('How many winners (default 1)').setRequired(false).setMinValue(1))
       .addRoleOption((o) => o.setName('required_role').setDescription('Only members with this role can enter').setRequired(false)))
     .addSubcommand((sc) => sc
       .setName('end')
