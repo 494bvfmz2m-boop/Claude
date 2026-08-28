@@ -235,6 +235,14 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS staff_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  author_id TEXT NOT NULL,
+  author_tag TEXT,
+  note TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS beta_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   discord_user_id TEXT NOT NULL,

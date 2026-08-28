@@ -81,7 +81,7 @@ function buildTemplatesEmbed() {
   const embed = new EmbedBuilder().setTitle(`📋 Form templates (${templates.length})`).setColor(OWNER_COLOR);
 
   if (templates.length === 0) {
-    embed.setDescription('No templates yet — create one from /admin\'s "Application form templates" section.');
+    embed.setDescription('No templates yet — create one from /staff\'s "Application form templates" section.');
     return embed;
   }
   templates.forEach((t) => {
@@ -95,7 +95,7 @@ async function buildContactsEmbed(client) {
   const embed = new EmbedBuilder().setTitle(`📇 Contacts (${contacts.length})`).setColor(OWNER_COLOR);
 
   if (contacts.length === 0) {
-    embed.setDescription('No contacts saved yet — add one from /admin\'s "Contacts" section.');
+    embed.setDescription('No contacts saved yet — add one from /staff\'s "Contacts" section.');
     return embed;
   }
   const lines = await Promise.all(contacts.map(async (c) => {
@@ -115,7 +115,7 @@ function buildEmojiBookEmbed() {
   const embed = new EmbedBuilder().setTitle(`🗂️ Emoji book (${emoji.length})`).setColor(OWNER_COLOR);
 
   if (emoji.length === 0) {
-    embed.setDescription('No emoji saved yet — add one from /admin\'s "Emoji book" section.');
+    embed.setDescription('No emoji saved yet — add one from /staff\'s "Emoji book" section.');
     return embed;
   }
   const markup = (e) => `<${e.animated ? 'a' : ''}:${e.name}:${e.emoji_id}>`;
@@ -147,7 +147,7 @@ function buildFormsListEmbed() {
     .setColor(OWNER_COLOR);
 
   if (recent.length === 0) {
-    embed.setDescription("No forms have been sent yet — send one from /admin's \"Send a DM\" tool.");
+    embed.setDescription("No forms have been sent yet — send one from /staff's \"Send a DM\" tool.");
     return embed;
   }
 

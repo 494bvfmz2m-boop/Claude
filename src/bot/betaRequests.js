@@ -22,6 +22,19 @@ function buildRequestEmbed(request) {
     .setTimestamp();
 }
 
+// Shared with the "test beta DMs" tool on /staff, so a preview is a genuine
+// preview of this exact embed rather than a hand-maintained mockup of it.
+function buildResultEmbed(approve, { test = false } = {}) {
+  const embed = new EmbedBuilder()
+    .setColor(approve ? '#23a55a' : '#ed4245')
+    .setTitle(approve ? '✅ Beta access approved' : '❌ Beta access request declined')
+    .setDescription(approve
+      ? `You're in! Log in any time at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`
+      : "Your request wasn't approved this time.");
+  if (test) embed.addFields({ name: '⚠️ This is a test', value: "Nothing actually happened — just previewing what a real one looks like." });
+  return embed;
+}
+
 // DMs every current admin (plus the owner) a copy of the request with its
 // own Approve/Reject buttons -- each copy is a separate DM message, so
 // deciding it from one admin's DM doesn't update what any other admin sees
@@ -58,13 +71,7 @@ async function handleBetaRequestButton(interaction) {
 
   const requester = await interaction.client.users.fetch(request.discord_user_id).catch(() => null);
   if (requester) {
-    const resultEmbed = new EmbedBuilder()
-      .setColor(approve ? '#23a55a' : '#ed4245')
-      .setTitle(approve ? '✅ Beta access approved' : '❌ Beta access request declined')
-      .setDescription(approve
-        ? `You're in! Log in any time at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`
-        : "Your request wasn't approved this time.");
-    await requester.send({ embeds: [resultEmbed] }).catch(() => {});
+    await requester.send({ embeds: [buildResultEmbed(approve)] }).catch(() => {});
   }
 
   const decidedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
@@ -73,4 +80,4 @@ async function handleBetaRequestButton(interaction) {
   await interaction.update({ embeds: [decidedEmbed], components: [] });
 }
 
-module.exports = { notifyAdmins, handleBetaRequestButton };
+module.exports = { notifyAdmins, handleBetaRequestButton, buildResultEmbed };

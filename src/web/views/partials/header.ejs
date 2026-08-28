@@ -43,7 +43,7 @@
   </span>
   <% if ((typeof hideLogout === 'undefined' || !hideLogout) && discordUser) { %>
     <% if (isOwner || isAdmin) { %>
-      <a class="btn btn-ghost" href="/admin" id="tourAdminBtn">Admin</a>
+      <a class="btn btn-ghost" href="/staff" id="tourAdminBtn">Staff</a>
     <% } %>
     <a class="btn btn-ghost" href="<%= inviteUrl %>" target="_blank" rel="noopener" id="tourInviteBtn">Invite</a>
     <div class="account-menu" id="accountMenu">

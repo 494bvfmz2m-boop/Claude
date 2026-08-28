@@ -21,7 +21,7 @@ module.exports = {
   discordClientSecret,
   dashboardUrl,
   oauthRedirectUri: dashboardUrl ? `${dashboardUrl.replace(/\/+$/, '')}/auth/discord/callback` : null,
-  // The one Discord user ID that can reach /admin to toggle closed-beta mode
+  // The one Discord user ID that can reach /staff to toggle closed-beta mode
   // and manage who's allowed to log in. Leave unset to disable that entirely.
   ownerDiscordId: required('OWNER_DISCORD_ID', null),
   betaContactHandle: required('BETA_CONTACT_HANDLE', 'spontanedonder'),

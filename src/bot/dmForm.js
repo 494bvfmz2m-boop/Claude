@@ -1,6 +1,6 @@
 // A short application form the owner can attach to a manual DM: a button
 // that opens a modal, whose answers get forwarded straight to the owner.
-// Always manual, always started from /admin's "Send a DM" tool by picking
+// Always manual, always started from /staff's "Send a DM" tool by picking
 // a saved template -- nothing here ever fires on its own. If the caller
 // doesn't pass a template, sendWithForm just runs the caller's own
 // defaultSend and nothing here gets touched.

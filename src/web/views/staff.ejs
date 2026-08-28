@@ -1,21 +1,25 @@
-<%- include('partials/header', { title: 'Admin' }) %>
-<h1>Admin</h1>
+<%- include('partials/header', { title: 'Staff' }) %>
+<h1>Staff</h1>
 <p class="subtitle">Owner and admin controls — who can log in, who else can manage this, and bot-wide tools.</p>
 
 <%- include('partials/subnav', { sections: [
   { id: 'overview', label: 'Overview' },
+  { id: 'health', label: 'Server health' },
+  { id: 'staff-notes', label: 'Pinned notes' },
   { id: 'beta-toggle', label: 'Closed beta' },
   { id: 'admins', label: 'Admins' },
   { id: 'allowlist', label: 'Allowed users' },
   { id: 'blocklist', label: 'Blocklist' },
+  { id: 'test-beta-dm', label: 'Test beta DMs' },
   { id: 'contacts', label: 'Contacts' },
   { id: 'emoji-book', label: 'Emoji book' },
   { id: 'server-notes', label: 'Server notes' },
-  { id: 'user-lookup', label: 'User lookup' },
   { id: 'dm-form', label: 'Application form' },
   { id: 'send-dm', label: 'Send a DM' },
   { id: 'broadcast', label: 'Broadcast to owners' },
   { id: 'maintenance', label: 'Maintenance banner' },
+  { id: 'user-lookup', label: 'User lookup' },
+  { id: 'activity-feed', label: 'Activity feed' },
   { id: 'audit-log', label: 'Audit log' },
   { id: 'backup', label: 'Backup' },
   { id: 'remove-server', label: 'Remove from a server' },
@@ -26,6 +30,8 @@
     <%= notice.text %>
   </div>
 <% } %>
+
+<h2 class="staff-group-heading">Overview</h2>
 
 <div class="card" id="overview">
   <h2>Overview</h2>
@@ -42,11 +48,95 @@
   </div>
 </div>
 
+<div class="card" id="health">
+  <h2>Server health</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Servers missing something worth setting up — purely informational, nothing here is broken.
+  </p>
+  <% if (healthChecks.length === 0) { %>
+    <p class="empty">Every server has the basics covered.</p>
+  <% } else { %>
+    <ul class="list">
+      <% healthChecks.forEach(g => { %>
+        <li class="list-item">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <% if (g.iconURL) { %><img src="<%= g.iconURL %>" alt="" class="contact-avatar"><% } %>
+            <div style="min-width:0;">
+              <div class="list-item-title"><%= g.name %></div>
+              <div class="list-item-meta"><%= g.issues.join(' · ') %></div>
+            </div>
+          </div>
+          <div class="actions">
+            <a class="btn btn-sm btn-ghost" href="/dashboard/<%= g.id %>/settings">Open</a>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<h2 class="staff-group-heading">Pinned notes</h2>
+
+<div class="card" id="staff-notes">
+  <h2>Staff notes</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    A shared scratchpad for admins — leave a note for the others to see next time they log in.
+  </p>
+  <% if (staffNotes.length === 0) { %>
+    <p class="empty">No notes pinned right now.</p>
+  <% } else { %>
+    <ul class="list">
+      <% staffNotes.forEach(n => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= n.note %></div>
+            <div class="list-item-meta"><%= n.author_tag || n.author_id %> · <%= n.created_at %></div>
+          </div>
+          <div class="actions">
+            <form method="post" action="/staff/staff-notes/remove" onsubmit="return confirm('Remove this note?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="id" value="<%= n.id %>">
+              <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/staff/staff-notes/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1;">
+      <label style="margin-top:0;">New note</label>
+      <input type="text" name="note" maxlength="500" placeholder="e.g. Don't touch the swear filter today, I'm mid-edit" required>
+    </div>
+    <button class="btn" type="submit">Pin note</button>
+  </form>
+</div>
+
+<h2 class="staff-group-heading">Access &amp; beta</h2>
+
+<div class="card" id="beta-toggle">
+  <form method="post" action="/staff/beta-lock">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="style-option" style="max-width:420px;">
+      <input type="checkbox" name="enabled" onchange="this.form.requestSubmit()" <%= settings.betaLocked ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Closed beta enabled</div>
+        <div class="style-desc">
+          When on, only Discord accounts on the list below (plus you) can log in.
+          Everyone else gets turned away at login and can request access there.
+        </div>
+      </div>
+    </label>
+  </form>
+</div>
+
 <% if (isOwner) { %>
 <div class="card" id="admins">
   <h2>Admins</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Owner-only. Everyone below gets full <code>/admin</code> access, same as you — except managing this
+    Owner-only. Everyone below gets full <code>/staff</code> access, same as you — except managing this
     list and downloading a database backup, which stay owner-only. They can still log into the dashboard
     while closed beta is on.
   </p>
@@ -71,7 +161,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/admin/admins/remove" onsubmit="return confirm('Remove this admin? They lose /admin access next time their session refreshes.');">
+            <form method="post" action="/staff/admins/remove" onsubmit="return confirm('Remove this admin? They lose /staff access next time their session refreshes.');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= a.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -82,7 +172,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/admins/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="post" action="/staff/admins/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1; min-width:200px;">
       <label for="adminUserId" style="margin-top:0;">Discord user ID</label>
@@ -97,27 +187,12 @@
 </div>
 <% } %>
 
-<div class="card" id="beta-toggle">
-  <form method="post" action="/admin/beta-lock">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label class="style-option" style="max-width:420px;">
-      <input type="checkbox" name="enabled" onchange="this.form.requestSubmit()" <%= settings.betaLocked ? 'checked' : '' %>>
-      <div>
-        <div class="style-title">Closed beta enabled</div>
-        <div class="style-desc">
-          When on, only Discord accounts on the list below (plus you) can log in.
-          Everyone else gets turned away at login.
-        </div>
-      </div>
-    </label>
-  </form>
-</div>
-
 <div class="card" id="allowlist">
   <h2>Allowed Discord users</h2>
   <p class="hint" style="margin-bottom:14px;">
     Find a Discord user ID via Discord → User Settings → Advanced → enable Developer Mode,
-    then right-click someone → Copy User ID.
+    then right-click someone → Copy User ID. Or just approve their request from the DM you get
+    when they click "Request access" on the login page.
   </p>
 
   <% if (allowlist.length === 0) { %>
@@ -128,7 +203,7 @@
         <li class="list-item">
           <div class="list-item-title"><%= a.discord_user_id %></div>
           <div class="actions">
-            <form method="post" action="/admin/allowlist/remove" onsubmit="return confirm('Remove this user from the allowlist?');">
+            <form method="post" action="/staff/allowlist/remove" onsubmit="return confirm('Remove this user from the allowlist?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= a.discord_user_id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -139,7 +214,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/allowlist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
+  <form method="post" action="/staff/allowlist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1;">
       <label for="discordUserId" style="margin-top:0;">Discord user ID</label>
@@ -166,7 +241,7 @@
           <div class="list-item-title"><%= b.discord_user_id %></div>
           <div class="list-item-meta"><% if (b.reason) { %><%= b.reason %><% } %></div>
           <div class="actions">
-            <form method="post" action="/admin/blocklist/remove" onsubmit="return confirm('Unblock this user?');">
+            <form method="post" action="/staff/blocklist/remove" onsubmit="return confirm('Unblock this user?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= b.discord_user_id %>">
               <button class="btn btn-sm btn-danger" type="submit">Unblock</button>
@@ -177,7 +252,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/blocklist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="post" action="/staff/blocklist/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1; min-width:200px;">
       <label for="blockUserId" style="margin-top:0;">Discord user ID</label>
@@ -190,6 +265,20 @@
     <button class="btn btn-danger" type="submit">Block</button>
   </form>
 </div>
+
+<div class="card" id="test-beta-dm">
+  <h2>Test beta DMs</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    See exactly what an approved and a declined beta access request DM look like — sends both, clearly
+    marked as tests, straight to your own DMs. The real ones look identical, minus the test disclaimer.
+  </p>
+  <form method="post" action="/staff/test-beta-dm/send">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn" type="submit">Send test beta DMs to me</button>
+  </form>
+</div>
+
+<h2 class="staff-group-heading">People &amp; servers</h2>
 
 <div class="card" id="contacts">
   <h2>Contacts</h2>
@@ -218,7 +307,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/admin/contacts/remove" onsubmit="return confirm('Remove this contact?');">
+            <form method="post" action="/staff/contacts/remove" onsubmit="return confirm('Remove this contact?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= c.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -229,7 +318,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/contacts/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="post" action="/staff/contacts/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1; min-width:200px;">
       <label for="contactUserId" style="margin-top:0;">Discord user ID</label>
@@ -268,7 +357,7 @@
           </div>
           <div class="actions">
             <button type="button" class="btn btn-sm btn-ghost" onclick="copyEmojiMarkup(this, <%= JSON.stringify(e.markup) %>)">Copy</button>
-            <form method="post" action="/admin/emoji-book/remove" onsubmit="return confirm('Remove this emoji from the book?');">
+            <form method="post" action="/staff/emoji-book/remove" onsubmit="return confirm('Remove this emoji from the book?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="id" value="<%= e.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -279,7 +368,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/emoji-book/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="post" action="/staff/emoji-book/add" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1; min-width:220px;">
       <label for="emojiMarkup" style="margin-top:0;">Emoji markup</label>
@@ -311,7 +400,7 @@
             <div class="list-item-meta"><%= n.note %></div>
           </div>
           <div class="actions">
-            <form method="post" action="/admin/server-notes/save" onsubmit="return confirm('Clear the note for &quot;<%= n.guildName %>&quot;?');">
+            <form method="post" action="/staff/server-notes/save" onsubmit="return confirm('Clear the note for &quot;<%= n.guildName %>&quot;?');">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="guildId" value="<%= n.guild_id %>">
               <input type="hidden" name="note" value="">
@@ -323,7 +412,7 @@
     </ul>
   <% } %>
 
-  <form method="post" action="/admin/server-notes/save" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="post" action="/staff/server-notes/save" style="margin-top:16px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div style="flex:1; min-width:200px;">
       <label for="noteGuildId" style="margin-top:0;">Server</label>
@@ -339,6 +428,188 @@
   </form>
 </div>
 
+<h2 class="staff-group-heading">Communication</h2>
+
+<div class="card" id="dm-form">
+  <h2>Application form templates</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Short forms you can send from a DM — never automatically, only when you send one yourself below. They
+    get a button that opens a modal with your questions; the moment they submit, you get the answers by DM.
+    Two starter templates are here to edit or delete as you like; add as many as you want.
+  </p>
+
+  <% if (templates.length === 0) { %>
+    <p class="empty">No templates yet — create one below.</p>
+  <% } else { %>
+    <ul class="list">
+      <% templates.forEach(t => { %>
+        <li class="list-item">
+          <div>
+            <div class="list-item-title"><%= t.name %></div>
+            <div class="list-item-meta"><%= t.questions.length %> question<%= t.questions.length === 1 ? '' : 's' %></div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="editDmFormTemplate(<%= t.id %>)">Edit</button>
+            <form method="post" action="/staff/dm-form-templates/delete" style="display:inline;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="templateId" value="<%= t.id %>">
+              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete &quot;<%= t.name %>&quot;? There is no undo.');">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <h3 id="dmFormEditorTitle" style="margin-top:24px;">New template</h3>
+  <form method="post" action="/staff/dm-form-templates/save" id="dmFormEditor">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="templateId" id="dmFormTemplateId" value="">
+
+    <label for="dmFormName">Name (just for you)</label>
+    <input type="text" id="dmFormName" name="name" placeholder="e.g. Team application" maxlength="100" required>
+
+    <label for="dmFormTitle">Title (what they see)</label>
+    <input type="text" id="dmFormTitle" name="title" placeholder="Request beta access" maxlength="200" required>
+
+    <label for="dmFormIntro">Intro (optional)</label>
+    <textarea id="dmFormIntro" name="intro" placeholder="A couple sentences shown above the button."></textarea>
+
+    <label>Questions (up to 5)</label>
+    <% for (let i = 1; i <= 5; i++) { %>
+      <textarea name="question<%= i %>" id="dmFormQ<%= i %>" placeholder="Question <%= i %>" rows="2" style="margin-bottom:8px;"></textarea>
+    <% } %>
+
+    <div class="btn-row">
+      <button class="btn" type="submit" id="dmFormSaveBtn">Create template</button>
+      <button class="btn btn-ghost" type="button" id="dmFormCancelBtn" style="display:none;" onclick="resetDmFormTemplate()">Cancel edit</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" id="send-dm">
+  <h2>Send a DM as ModSentry</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Sends an embed straight to one or more people's DMs from the bot — pick any mix of saved contacts and
+    pasted IDs, up to <%= 50 %> at once. Works for anyone ModSentry shares a server with (they need DMs from
+    server members turned on); if a recipient can't be reached the rest still go out and you'll get told who failed.
+  </p>
+  <form method="post" action="/staff/send-dm" id="sendDmForm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label>Recipients</label>
+    <% if (contacts.length === 0) { %>
+      <p class="hint" style="margin-top:0;">No saved contacts yet — add some above, or just paste IDs below.</p>
+    <% } else { %>
+      <div style="display:flex; gap:10px; margin-bottom:6px;">
+        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectAll">Select all</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectNone">Select none</button>
+      </div>
+      <div class="contact-picker">
+        <% contacts.forEach(c => { %>
+          <label class="contact-row">
+            <input type="checkbox" name="contactIds" value="<%= c.id %>">
+            <% if (c.resolved) { %>
+              <img src="<%= c.avatarURL %>" alt="" class="contact-avatar">
+            <% } else { %>
+              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-muted);">?</span>
+            <% } %>
+            <span style="min-width:0;">
+              <span class="contact-name"><%= c.resolved ? c.tag : 'Unknown user' %></span>
+              <span class="contact-id"><%= c.id %></span>
+            </span>
+          </label>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <label for="dmExtraIds">Or paste more user IDs (comma or newline separated)</label>
+    <textarea id="dmExtraIds" name="extraIds" placeholder="1227918600753512480, 998877665544332211" rows="2"></textarea>
+
+    <label class="style-option" style="max-width:420px; margin-top:10px;">
+      <input type="checkbox" name="saveNew" checked>
+      <div>
+        <div class="style-title">Save new IDs to contacts</div>
+        <div class="style-desc">Anyone pasted above who isn't already saved gets added once the send succeeds.</div>
+      </div>
+    </label>
+
+    <label for="dmTemplateId" style="margin-top:18px;">Attach a form instead (optional)</label>
+    <select id="dmTemplateId" name="templateId">
+      <option value="">— No form, just send the message below —</option>
+      <% templates.forEach(t => { %>
+        <option value="<%= t.id %>"><%= t.name %></option>
+      <% }) %>
+    </select>
+
+    <div id="sendDmPlainFields">
+      <label for="dmTitle">Title (optional)</label>
+      <input type="text" id="dmTitle" name="title" placeholder="A message from the team">
+
+      <label for="dmDescription">Message</label>
+      <textarea id="dmDescription" name="description" required></textarea>
+
+      <label for="dmColor">Color</label>
+      <input type="color" id="dmColor" name="color" value="#a8e6ff">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Send</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" id="broadcast">
+  <h2>Broadcast to server owners</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Sends one embed to whoever owns every server ModSentry is in, all at once — for things like a planned
+    downtime notice or a new-feature heads up. Skips any owner who can't be reached and tells you who.
+  </p>
+  <form method="post" action="/staff/broadcast-owners" onsubmit="return confirm('Send this to every server owner ModSentry has (' + <%= guilds.length %> + ' server<%= guilds.length === 1 ? "" : "s" %>)? There is no undo.');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="broadcastTitle">Title (optional)</label>
+    <input type="text" id="broadcastTitle" name="title" placeholder="A message from ModSentry">
+
+    <label for="broadcastDescription">Message</label>
+    <textarea id="broadcastDescription" name="description" required></textarea>
+
+    <label for="broadcastColor">Color</label>
+    <input type="color" id="broadcastColor" name="color" value="#a8e6ff">
+
+    <div class="btn-row">
+      <button class="btn btn-danger" type="submit">Broadcast to all <%= guilds.length %> owner<%= guilds.length === 1 ? '' : 's' %></button>
+    </div>
+  </form>
+</div>
+
+<div class="card" id="maintenance">
+  <h2>Maintenance banner</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    A banner shown across every page of the dashboard (including the login page) while it's on — good for
+    a heads-up before planned downtime or a risky change.
+  </p>
+  <form method="post" action="/staff/maintenance">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="style-option" style="max-width:420px;">
+      <input type="checkbox" name="enabled" <%= settings.maintenanceEnabled ? 'checked' : '' %>>
+      <div>
+        <div class="style-title">Maintenance banner enabled</div>
+        <div class="style-desc">Toggle on/off any time — the message below is remembered either way.</div>
+      </div>
+    </label>
+
+    <label for="maintenanceMessage" style="margin-top:14px;">Banner message (optional)</label>
+    <input type="text" id="maintenanceMessage" name="message" placeholder="e.g. Scheduled maintenance tonight 10pm–11pm UTC" maxlength="300" value="<%= settings.maintenanceMessage || '' %>">
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<h2 class="staff-group-heading">Diagnostics</h2>
+
 <div class="card" id="user-lookup">
   <h2>Global user lookup</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -346,7 +617,7 @@
     them, and whether they're a contact, allowlisted, blocklisted, or an admin.
   </p>
 
-  <form method="get" action="/admin" id="userLookupForm" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+  <form method="get" action="/staff" id="userLookupForm" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
     <div style="flex:1; min-width:220px;">
       <label for="lookupId" style="margin-top:0;">Discord user ID</label>
       <input type="text" id="lookupId" name="lookupId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" value="<%= lookup ? lookup.id : '' %>" required>
@@ -418,188 +689,32 @@
   <% } %>
 </div>
 
-<div class="card" id="dm-form">
-  <h2>Application form templates</h2>
+<div class="card" id="activity-feed">
+  <h2>Activity feed</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Short forms you can send from a DM — never automatically, only when you send one yourself below. They
-    get a button that opens a modal with your questions; the moment they submit, you get the answers by DM.
-    Two starter templates are here to edit or delete as you like; add as many as you want.
+    Every server's mod actions and every admin's <code>/staff</code> actions, merged into one timeline —
+    most recent first.
   </p>
-
-  <% if (templates.length === 0) { %>
-    <p class="empty">No templates yet — create one below.</p>
+  <% if (activityFeed.length === 0) { %>
+    <p class="empty">Nothing logged yet.</p>
   <% } else { %>
     <ul class="list">
-      <% templates.forEach(t => { %>
+      <% activityFeed.forEach(e => { %>
         <li class="list-item">
           <div>
-            <div class="list-item-title"><%= t.name %></div>
-            <div class="list-item-meta"><%= t.questions.length %> question<%= t.questions.length === 1 ? '' : 's' %></div>
-          </div>
-          <div class="actions">
-            <button type="button" class="btn btn-sm btn-ghost" onclick="editDmFormTemplate(<%= t.id %>)">Edit</button>
-            <form method="post" action="/admin/dm-form-templates/delete" style="display:inline;">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="templateId" value="<%= t.id %>">
-              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete &quot;<%= t.name %>&quot;? There is no undo.');">Delete</button>
-            </form>
+            <div class="list-item-title"><%= e.kind === 'mod' ? '🛡️' : '🗂️' %> <%= e.title %></div>
+            <div class="list-item-meta"><%= e.detail %> · <%= e.created_at %></div>
           </div>
         </li>
       <% }) %>
     </ul>
   <% } %>
-
-  <h3 id="dmFormEditorTitle" style="margin-top:24px;">New template</h3>
-  <form method="post" action="/admin/dm-form-templates/save" id="dmFormEditor">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <input type="hidden" name="templateId" id="dmFormTemplateId" value="">
-
-    <label for="dmFormName">Name (just for you)</label>
-    <input type="text" id="dmFormName" name="name" placeholder="e.g. Team application" maxlength="100" required>
-
-    <label for="dmFormTitle">Title (what they see)</label>
-    <input type="text" id="dmFormTitle" name="title" placeholder="Request beta access" maxlength="200" required>
-
-    <label for="dmFormIntro">Intro (optional)</label>
-    <textarea id="dmFormIntro" name="intro" placeholder="A couple sentences shown above the button."></textarea>
-
-    <label>Questions (up to 5)</label>
-    <% for (let i = 1; i <= 5; i++) { %>
-      <textarea name="question<%= i %>" id="dmFormQ<%= i %>" placeholder="Question <%= i %>" rows="2" style="margin-bottom:8px;"></textarea>
-    <% } %>
-
-    <div class="btn-row">
-      <button class="btn" type="submit" id="dmFormSaveBtn">Create template</button>
-      <button class="btn btn-ghost" type="button" id="dmFormCancelBtn" style="display:none;" onclick="resetDmFormTemplate()">Cancel edit</button>
-    </div>
-  </form>
-</div>
-
-<div class="card" id="send-dm">
-  <h2>Send a DM as ModSentry</h2>
-  <p class="hint" style="margin-bottom:14px;">
-    Sends an embed straight to one or more people's DMs from the bot — pick any mix of saved contacts and
-    pasted IDs, up to <%= 50 %> at once. Works for anyone ModSentry shares a server with (they need DMs from
-    server members turned on); if a recipient can't be reached the rest still go out and you'll get told who failed.
-  </p>
-  <form method="post" action="/admin/send-dm" id="sendDmForm">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-    <label>Recipients</label>
-    <% if (contacts.length === 0) { %>
-      <p class="hint" style="margin-top:0;">No saved contacts yet — add some above, or just paste IDs below.</p>
-    <% } else { %>
-      <div style="display:flex; gap:10px; margin-bottom:6px;">
-        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectAll">Select all</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="contactsSelectNone">Select none</button>
-      </div>
-      <div class="contact-picker">
-        <% contacts.forEach(c => { %>
-          <label class="contact-row">
-            <input type="checkbox" name="contactIds" value="<%= c.id %>">
-            <% if (c.resolved) { %>
-              <img src="<%= c.avatarURL %>" alt="" class="contact-avatar">
-            <% } else { %>
-              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-muted);">?</span>
-            <% } %>
-            <span style="min-width:0;">
-              <span class="contact-name"><%= c.resolved ? c.tag : 'Unknown user' %></span>
-              <span class="contact-id"><%= c.id %></span>
-            </span>
-          </label>
-        <% }) %>
-      </div>
-    <% } %>
-
-    <label for="dmExtraIds">Or paste more user IDs (comma or newline separated)</label>
-    <textarea id="dmExtraIds" name="extraIds" placeholder="1227918600753512480, 998877665544332211" rows="2"></textarea>
-
-    <label class="style-option" style="max-width:420px; margin-top:10px;">
-      <input type="checkbox" name="saveNew" checked>
-      <div>
-        <div class="style-title">Save new IDs to contacts</div>
-        <div class="style-desc">Anyone pasted above who isn't already saved gets added once the send succeeds.</div>
-      </div>
-    </label>
-
-    <label for="dmTemplateId" style="margin-top:18px;">Attach a form instead (optional)</label>
-    <select id="dmTemplateId" name="templateId">
-      <option value="">— No form, just send the message below —</option>
-      <% templates.forEach(t => { %>
-        <option value="<%= t.id %>"><%= t.name %></option>
-      <% }) %>
-    </select>
-
-    <div id="sendDmPlainFields">
-      <label for="dmTitle">Title (optional)</label>
-      <input type="text" id="dmTitle" name="title" placeholder="A message from the team">
-
-      <label for="dmDescription">Message</label>
-      <textarea id="dmDescription" name="description" required></textarea>
-
-      <label for="dmColor">Color</label>
-      <input type="color" id="dmColor" name="color" value="#a8e6ff">
-    </div>
-
-    <div class="btn-row">
-      <button class="btn" type="submit">Send</button>
-    </div>
-  </form>
-</div>
-
-<div class="card" id="broadcast">
-  <h2>Broadcast to server owners</h2>
-  <p class="hint" style="margin-bottom:14px;">
-    Sends one embed to whoever owns every server ModSentry is in, all at once — for things like a planned
-    downtime notice or a new-feature heads up. Skips any owner who can't be reached and tells you who.
-  </p>
-  <form method="post" action="/admin/broadcast-owners" onsubmit="return confirm('Send this to every server owner ModSentry has (' + <%= guilds.length %> + ' server<%= guilds.length === 1 ? "" : "s" %>)? There is no undo.');">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-    <label for="broadcastTitle">Title (optional)</label>
-    <input type="text" id="broadcastTitle" name="title" placeholder="A message from ModSentry">
-
-    <label for="broadcastDescription">Message</label>
-    <textarea id="broadcastDescription" name="description" required></textarea>
-
-    <label for="broadcastColor">Color</label>
-    <input type="color" id="broadcastColor" name="color" value="#a8e6ff">
-
-    <div class="btn-row">
-      <button class="btn btn-danger" type="submit">Broadcast to all <%= guilds.length %> owner<%= guilds.length === 1 ? '' : 's' %></button>
-    </div>
-  </form>
-</div>
-
-<div class="card" id="maintenance">
-  <h2>Maintenance banner</h2>
-  <p class="hint" style="margin-bottom:14px;">
-    A banner shown across every page of the dashboard (including the login page) while it's on — good for
-    a heads-up before planned downtime or a risky change.
-  </p>
-  <form method="post" action="/admin/maintenance">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label class="style-option" style="max-width:420px;">
-      <input type="checkbox" name="enabled" <%= settings.maintenanceEnabled ? 'checked' : '' %>>
-      <div>
-        <div class="style-title">Maintenance banner enabled</div>
-        <div class="style-desc">Toggle on/off any time — the message below is remembered either way.</div>
-      </div>
-    </label>
-
-    <label for="maintenanceMessage" style="margin-top:14px;">Banner message (optional)</label>
-    <input type="text" id="maintenanceMessage" name="message" placeholder="e.g. Scheduled maintenance tonight 10pm–11pm UTC" maxlength="300" value="<%= settings.maintenanceMessage || '' %>">
-
-    <div class="btn-row">
-      <button class="btn" type="submit">Save</button>
-    </div>
-  </form>
 </div>
 
 <div class="card" id="audit-log">
   <h2>Admin action audit log</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Every add, remove, send, and leave any admin does in <code>/admin</code> — most recent first.
+    Every add, remove, send, and leave any admin does in <code>/staff</code> — most recent first.
   </p>
   <% if (auditLog.length === 0) { %>
     <p class="empty">Nothing logged yet.</p>
@@ -619,6 +734,8 @@
   <% } %>
 </div>
 
+<h2 class="staff-group-heading">System</h2>
+
 <% if (isOwner) { %>
 <div class="card" id="backup">
   <h2>Database backup</h2>
@@ -626,7 +743,7 @@
     Owner-only. Downloads a full, consistent snapshot of ModSentry's database right now — everything on
     this page plus every server's settings, tickets, tags, and logs. Good to grab before a risky change.
   </p>
-  <a class="btn" href="/admin/backup">Download backup</a>
+  <a class="btn" href="/staff/backup">Download backup</a>
 </div>
 <% } %>
 
@@ -735,7 +852,7 @@
 
     var form = document.createElement('form');
     form.method = 'post';
-    form.action = '/admin/leave-guild';
+    form.action = '/staff/leave-guild';
     form.onsubmit = function () {
       return confirm('Remove ModSentry from "' + g.name + '"? There\'s no undo here.');
     };

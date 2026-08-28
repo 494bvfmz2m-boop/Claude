@@ -8,7 +8,7 @@ const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin');
+const staffRoutes = require('./routes/staff');
 const dashboardRoutes = require('./routes/dashboard');
 const ticketTypeRoutes = require('./routes/ticketTypes');
 const panelRoutes = require('./routes/panels');
@@ -75,10 +75,15 @@ function createApp() {
 
   app.use('/', authRoutes);
 
-  app.use('/admin', requireAuth, (req, res, next) => {
+  // /admin was the original name -- redirect anyone with it bookmarked
+  // rather than just 404ing on them. 307 keeps the method (and body, for a
+  // POST mid-flight) instead of silently turning it into a GET.
+  app.all(/^\/admin(\/.*)?$/, (req, res) => res.redirect(307, req.originalUrl.replace(/^\/admin/, '/staff')));
+
+  app.use('/staff', requireAuth, (req, res, next) => {
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
-  }, adminRoutes);
+  }, staffRoutes);
 
   app.use('/', requireAuth, dashboardRoutes);
 

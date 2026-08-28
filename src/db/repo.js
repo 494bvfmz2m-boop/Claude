@@ -140,6 +140,18 @@ const AppSettings = {
   },
 };
 
+const StaffNotes = {
+  list() {
+    return db.prepare('SELECT * FROM staff_notes ORDER BY id DESC').all();
+  },
+  add(authorId, authorTag, note) {
+    db.prepare('INSERT INTO staff_notes (author_id, author_tag, note) VALUES (?, ?, ?)').run(authorId, authorTag || null, note);
+  },
+  remove(id) {
+    db.prepare('DELETE FROM staff_notes WHERE id = ?').run(id);
+  },
+};
+
 const BetaRequests = {
   create(discordUserId, discordTag, message) {
     const info = db.prepare('INSERT INTO beta_requests (discord_user_id, discord_tag, message) VALUES (?, ?, ?)')
@@ -377,6 +389,9 @@ const ModActions = {
   },
   listForTargetAllGuilds(targetId, limit = 50) {
     return db.prepare('SELECT * FROM mod_actions WHERE target_id = ? ORDER BY id DESC LIMIT ?').all(targetId, limit);
+  },
+  listRecentAllGuilds(limit = 50) {
+    return db.prepare('SELECT * FROM mod_actions ORDER BY id DESC LIMIT ?').all(limit);
   },
 };
 
@@ -905,4 +920,4 @@ const ScheduledAnnouncements = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes };

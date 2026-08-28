@@ -297,6 +297,12 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 .badge-closed { background: rgba(237, 66, 69, .15); color: #f18688; }
 
 /* ---------- Section sub-nav (in-page jump links for card-heavy pages) ---------- */
+.staff-group-heading {
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin: 34px 0 12px; padding-top: 20px; border-top: 1px solid var(--border);
+}
+.staff-group-heading:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
 .subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
 .subnav a {
   display: inline-flex; align-items: center; gap: 6px;

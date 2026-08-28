@@ -8,12 +8,13 @@ const db = require('../../db/database');
 const {
   AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook,
   DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
-  Warnings, ModActions,
+  Warnings, ModActions, GuildSettings, Hierarchies, TicketTypes, StaffNotes,
 } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
 const { formatUptime } = require('../../bot/ownerKeywords');
 const dmForm = require('../../bot/dmForm');
+const { buildResultEmbed } = require('../../bot/betaRequests');
 
 // Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
 // parseEmojiInput, but this needs the name and ID as separate fields (for
@@ -36,7 +37,7 @@ function requireOwner(req, res, next) {
   next();
 }
 
-// The owner, or anyone added to the admins list -- covers every other /admin
+// The owner, or anyone added to the admins list -- covers every other /staff
 // tool (allowlist, contacts, sending DMs, the blocklist, etc).
 function requireAdmin(req, res, next) {
   if (!req.session || !(req.session.isOwner || req.session.isAdmin)) {
@@ -47,7 +48,7 @@ function requireAdmin(req, res, next) {
 
 function redirectWithNotice(res, ok, text, anchor = 'send-dm') {
   const qs = new URLSearchParams({ ok: ok ? '1' : '0', msg: text });
-  res.redirect(`/admin?${qs.toString()}#${anchor}`);
+  res.redirect(`/staff?${qs.toString()}#${anchor}`);
 }
 
 // Every mutating route below calls this once it succeeds -- the point of an
@@ -103,6 +104,40 @@ router.get('/', requireAdmin, async (req, res) => {
   const auditLog = AdminAuditLog.list(100);
   const notesList = ServerNotes.list().map((n) => ({ ...n, guildName: client.guilds.cache.get(n.guild_id)?.name || n.guild_id }));
 
+  // Guild health: a quick scan for the handful of things that make a server
+  // effectively half-configured (no mod log, no hierarchy, no ticket types)
+  // -- purely informational, same spirit as the per-guild setup checklist,
+  // just rolled up across every server at once instead of one at a time.
+  const healthChecks = [...client.guilds.cache.values()].map((g) => {
+    const settings = GuildSettings.get(g.id);
+    const issues = [];
+    if (!settings.mod_log_channel_id) issues.push('No mod log channel');
+    if (Hierarchies.listForGuild(g.id).length === 0) issues.push('No staff hierarchy');
+    if (TicketTypes.listForGuild(g.id).length === 0) issues.push('No ticket types');
+    return { id: g.id, name: g.name, iconURL: g.iconURL({ size: 32 }), issues };
+  }).filter((g) => g.issues.length > 0).sort((a, b) => b.issues.length - a.issues.length);
+
+  // Unified activity feed: every server's mod actions plus every admin's
+  // /staff actions, merged into one timeline -- so "what's happened lately"
+  // doesn't mean checking each server's log separately.
+  const guildName = (gid) => client.guilds.cache.get(gid)?.name || gid;
+  const activityFeed = [
+    ...ModActions.listRecentAllGuilds(50).map((m) => ({
+      kind: 'mod',
+      title: `${m.action} — ${guildName(m.guild_id)}`,
+      detail: `by ${m.moderator_tag || m.moderator_id}${m.reason ? ` · ${m.reason}` : ''}`,
+      created_at: m.created_at,
+    })),
+    ...AdminAuditLog.list(50).map((l) => ({
+      kind: 'staff',
+      title: l.action,
+      detail: `${l.actor_tag || l.actor_id}${l.detail ? ` · ${l.detail}` : ''}`,
+      created_at: l.created_at,
+    })),
+  ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 60);
+
+  const staffNotes = StaffNotes.list();
+
   let lookup = null;
   if (req.query.lookupId) {
     const id = req.query.lookupId.trim();
@@ -130,7 +165,7 @@ router.get('/', requireAdmin, async (req, res) => {
     }
   }
 
-  res.render('admin', {
+  res.render('staff', {
     settings: AppSettings.get(),
     allowlist: BetaAllowlist.list(),
     templates: DmFormTemplates.list(),
@@ -145,13 +180,16 @@ router.get('/', requireAdmin, async (req, res) => {
     guilds,
     notice,
     ownerDiscordId: config.ownerDiscordId,
+    healthChecks,
+    activityFeed,
+    staffNotes,
   });
 });
 
 router.post('/beta-lock', requireAdmin, (req, res) => {
   AppSettings.setBetaLocked(req.body.enabled === 'on');
   logAudit(req, req.body.enabled === 'on' ? 'Enabled closed beta' : 'Disabled closed beta', null);
-  res.redirect('/admin');
+  res.redirect('/staff');
 });
 
 router.post('/maintenance', requireAdmin, (req, res) => {
@@ -168,13 +206,13 @@ router.post('/allowlist/add', requireAdmin, (req, res) => {
     BetaAllowlist.add(id);
     logAudit(req, 'Added to beta allowlist', id);
   }
-  res.redirect('/admin');
+  res.redirect('/staff');
 });
 
 router.post('/allowlist/remove', requireAdmin, (req, res) => {
   BetaAllowlist.remove(req.body.discordUserId);
   logAudit(req, 'Removed from beta allowlist', req.body.discordUserId);
-  res.redirect('/admin');
+  res.redirect('/staff');
 });
 
 router.post('/admins/add', requireOwner, async (req, res) => {
@@ -191,7 +229,7 @@ router.post('/admins/add', requireOwner, async (req, res) => {
     const user = await client.users.fetch(id);
     DashboardAdmins.add(id, note, req.session.discordUser.id);
     logAudit(req, 'Added an admin', `${user.tag} (${id})`);
-    return redirectWithNotice(res, true, `Added ${user.tag} as an admin — they'll get full /admin access next time they log in.`, 'admins');
+    return redirectWithNotice(res, true, `Added ${user.tag} as an admin — they'll get full /staff access next time they log in.`, 'admins');
   } catch (err) {
     return redirectWithNotice(res, false, `Couldn't find that user: ${err.message}`, 'admins');
   }
@@ -200,7 +238,7 @@ router.post('/admins/add', requireOwner, async (req, res) => {
 router.post('/admins/remove', requireOwner, (req, res) => {
   DashboardAdmins.remove(req.body.discordUserId);
   logAudit(req, 'Removed an admin', req.body.discordUserId);
-  return redirectWithNotice(res, true, 'Removed. They\'ll lose /admin access next time their session refreshes.', 'admins');
+  return redirectWithNotice(res, true, 'Removed. They\'ll lose /staff access next time their session refreshes.', 'admins');
 });
 
 router.post('/send-dm', requireAdmin, async (req, res) => {
@@ -439,6 +477,32 @@ router.post('/leave-guild', requireAdmin, async (req, res) => {
     return redirectWithNotice(res, true, `Left ${name}.`, 'remove-server');
   } catch (err) {
     return redirectWithNotice(res, false, `Couldn't leave ${name}: ${err.message}`, 'remove-server');
+  }
+});
+
+router.post('/staff-notes/add', requireAdmin, (req, res) => {
+  const note = (req.body.note || '').trim().slice(0, 500);
+  if (!note) return redirectWithNotice(res, false, 'Write something first.', 'staff-notes');
+  const actor = req.session.discordUser;
+  StaffNotes.add(actor.id, actor.username, note);
+  logAudit(req, 'Left a staff note', null);
+  return redirectWithNotice(res, true, 'Note pinned.', 'staff-notes');
+});
+
+router.post('/staff-notes/remove', requireAdmin, (req, res) => {
+  StaffNotes.remove(Number(req.body.id));
+  logAudit(req, 'Removed a staff note', null);
+  return redirectWithNotice(res, true, 'Removed.', 'staff-notes');
+});
+
+router.post('/test-beta-dm/send', requireAdmin, async (req, res) => {
+  try {
+    const user = await client.users.fetch(req.session.discordUser.id);
+    await user.send({ embeds: [buildResultEmbed(true, { test: true })] });
+    await user.send({ embeds: [buildResultEmbed(false, { test: true })] });
+    return redirectWithNotice(res, true, `Sent 2 test beta DMs to ${user.tag} — check your DMs.`, 'test-beta-dm');
+  } catch (err) {
+    return redirectWithNotice(res, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with ModSentry.`, 'test-beta-dm');
   }
 });
 

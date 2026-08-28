@@ -75,7 +75,7 @@ async function notifyOwner(client, guild, { executor, status }) {
   }
 }
 
-// The closed-beta lock (managed from /admin) previously only gated who
+// The closed-beta lock (managed from /staff) previously only gated who
 // could log into the dashboard -- it never actually stopped anyone from
 // adding the bot to their own server via Discord's own public invite flow,
 // which isn't aware of the allowlist at all. This makes the lock mean what
