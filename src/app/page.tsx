@@ -11,16 +11,32 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // A 401 here means the session cookie is present but no longer valid (e.g.
+  // the account behind it was recreated after a redeploy) — bounce to login
+  // instead of leaving the page stuck looking broken with no explanation.
+  function redirectToLogin() {
+    router.push("/login?next=%2F");
+  }
+
   async function loadProjects() {
     const res = await fetch("/api/projects");
-    if (res.ok) {
-      const data = await res.json();
-      setProjects(data.projects);
+    if (res.status === 401) {
+      redirectToLogin();
+      return;
     }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to load projects");
+      setProjects([]);
+      return;
+    }
+    const data = await res.json();
+    setProjects(data.projects);
   }
 
   useEffect(() => {
     loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(e: React.FormEvent) {
@@ -34,12 +50,18 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
-      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Failed to create project");
+        setError(data.error || `Failed to create project (server returned ${res.status})`);
         return;
       }
       router.push(`/projects/${data.project.id}`);
+    } catch {
+      setError("Could not reach the server");
     } finally {
       setCreating(false);
     }

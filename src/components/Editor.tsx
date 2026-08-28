@@ -25,6 +25,10 @@ export default function Editor({ projectId }: { projectId: string }) {
 
   async function load() {
     const res = await fetch(`/api/projects/${projectId}`);
+    if (res.status === 401) {
+      router.push(`/login?next=${encodeURIComponent(`/projects/${projectId}`)}`);
+      return;
+    }
     if (res.status === 404) {
       setNotFound(true);
       return;
