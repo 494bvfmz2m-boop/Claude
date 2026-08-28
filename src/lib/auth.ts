@@ -19,12 +19,18 @@ export async function getSession(): Promise<Session | null> {
   return verifySessionToken(token);
 }
 
-export async function setSessionCookie(token: string) {
+export async function setSessionCookie(token: string, secure: boolean) {
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // Secure cookies are silently dropped by the browser on a plain HTTP
+    // connection — behind a reverse proxy (Coolify/Traefik) the app itself
+    // always sees plain HTTP even when the real, external request was HTTPS,
+    // so this can't just be `NODE_ENV === "production"`. The caller derives it
+    // from the actual request (X-Forwarded-Proto when behind a proxy, else the
+    // request's own protocol) — see isSecureRequest in the login route.
+    secure,
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });

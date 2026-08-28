@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, createSessionToken, setSessionCookie } from "@/lib/auth";
 
+function isSecureRequest(req: NextRequest): boolean {
+  // Behind a reverse proxy (Coolify/Traefik) that terminates TLS, the app
+  // itself only ever sees a plain HTTP connection — the proxy tells us the
+  // original protocol via this header instead.
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  if (forwardedProto) return forwardedProto.split(",")[0].trim() === "https";
+  return req.nextUrl.protocol === "https:";
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body.username !== "string" || typeof body.password !== "string") {
@@ -13,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = await createSessionToken(session);
-  await setSessionCookie(token);
+  await setSessionCookie(token, isSecureRequest(req));
 
   return NextResponse.json({ ok: true, username: session.username });
 }
