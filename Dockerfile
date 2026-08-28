@@ -31,4 +31,10 @@ COPY package.json next.config.mjs ./
 RUN mkdir -p /app/data/uploads /app/data/renders
 
 EXPOSE 3000
+
+# Uses Node's built-in fetch instead of curl/wget so the runner image doesn't
+# need either installed just for this.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 CMD ["npm", "run", "start"]
