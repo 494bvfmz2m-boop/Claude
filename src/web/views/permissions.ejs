@@ -6,6 +6,12 @@
   Click a role below to expand it and manage what it can do.
 </p>
 
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
 <% if (roles.length === 0) { %>
   <div class="card empty">This server has no roles to grant access to yet.</div>
 <% } else { %>
@@ -52,6 +58,15 @@
             the entire server. Create or use a specific role instead.
           </p>
         <% } else { %>
+          <div class="perm-section" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <p class="hint" style="margin:0;">
+              DM every current <%= r.name %> member an explainer of what this role grants and what each command does.
+            </p>
+            <button type="submit" form="dmRoleForm-<%= r.id %>" class="btn btn-ghost btn-sm dm-role-btn" data-role-name="<%= r.name %>" data-member-count="<%= r.memberCount %>" <%= (areaCount === 0 && actionCount === 0) ? 'disabled title="Nothing granted to this role yet"' : '' %>>
+              📨 DM all <%= r.name %> members
+            </button>
+          </div>
+
           <div class="perm-section">
             <h3 class="perm-section-title">Dashboard access</h3>
             <p class="hint" style="margin:0 0 12px;">Which pages this role can open in the dashboard at all.</p>
@@ -91,6 +106,13 @@
     <button class="btn" type="submit">Save permissions</button>
   </div>
 </form>
+
+<% roles.filter(r => !r.isEveryone).forEach(r => { %>
+  <form id="dmRoleForm-<%= r.id %>" method="post" action="/dashboard/<%= guild.id %>/permissions/dm/<%= r.id %>" style="display:none;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  </form>
+<% }) %>
+
 <script>
 (function () {
   var expandBtn = document.getElementById('expandAllRoles');
@@ -101,6 +123,16 @@
   });
   if (collapseBtn) collapseBtn.addEventListener('click', function () {
     panels.forEach(function (p) { p.open = false; });
+  });
+
+  document.querySelectorAll('.dm-role-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      var name = btn.getAttribute('data-role-name');
+      var count = btn.getAttribute('data-member-count');
+      if (!confirm('DM ' + count + ' member(s) with the "' + name + '" role explaining their access? This sends immediately.')) {
+        e.preventDefault();
+      }
+    });
   });
 })();
 </script>
