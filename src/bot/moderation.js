@@ -431,6 +431,44 @@ async function handleSlowmode(interaction) {
   await logAction(interaction.guild, { action: '🐢 Slowmode changed', target: null, moderator: interaction.user, reason: `#${channel.name} → ${seconds}s` });
 }
 
+// True if this role is at or above the acting member's own highest role --
+// the same bar Discord itself enforces for real role assignment, applied
+// here too since the 'manage_roles' grant can hand this power to someone
+// with no real Manage Roles permission at all, bypassing that native check.
+function roleAtOrAboveMember(guild, member, role) {
+  if (guild.ownerId === member.id) return false;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return false;
+  return role.position >= member.roles.highest.position;
+}
+
+async function handleRole(interaction) {
+  if (!canUseAction(interaction.guild, interaction.member, 'manage_roles')) return denyReply(interaction, 'role');
+
+  const sub = interaction.options.getSubcommand();
+  const target = interaction.options.getUser('user');
+  const role = interaction.options.getRole('role');
+
+  const targetMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+  if (!targetMember) {
+    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+  }
+  if (roleAtOrAboveMember(interaction.guild, interaction.member, role)) {
+    return interaction.reply({ content: "You can't manage a role at or above your own highest role.", ephemeral: true });
+  }
+
+  try {
+    if (sub === 'add') await targetMember.roles.add(role);
+    else await targetMember.roles.remove(role);
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't ${sub === 'add' ? 'add' : 'remove'} that role: ${err.message}`, ephemeral: true });
+  }
+
+  await interaction.reply(sub === 'add'
+    ? `✅ Gave <@${target.id}> the **${role.name}** role.`
+    : `✅ Took the **${role.name}** role from <@${target.id}>.`);
+  await logAction(interaction.guild, { action: sub === 'add' ? '➕ Role added' : '➖ Role removed', target, moderator: interaction.user, reason: role.name });
+}
+
 module.exports = {
   ban: handleBan,
   unban: handleUnban,
@@ -443,6 +481,7 @@ module.exports = {
   purge: handlePurge,
   nick: handleNick,
   slowmode: handleSlowmode,
+  role: handleRole,
   canActOn,
   logAction,
   parseDuration,

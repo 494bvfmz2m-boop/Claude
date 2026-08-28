@@ -257,6 +257,42 @@ const commands = [
   new SlashCommandBuilder()
     .setName('afklist')
     .setDescription('See who in this server is currently AFK'),
+
+  new SlashCommandBuilder()
+    .setName('membercount')
+    .setDescription('This server\'s member count, with a human/bot split'),
+
+  new SlashCommandBuilder()
+    .setName('channelinfo')
+    .setDescription('A channel at a glance -- type, topic, slowmode, category')
+    .addChannelOption((o) => o.setName('channel').setDescription('Which channel (default: this one)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('invite')
+    .setDescription('Create an invite link (Create Invite required)')
+    .addChannelOption((o) => o.setName('channel').setDescription('Which channel (default: this one)').setRequired(false).addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildVoice))
+    .addIntegerOption((o) => o.setName('max_age_hours').setDescription('Hours until it expires (default: 24)').setRequired(false).setMinValue(1).setMaxValue(168))
+    .addIntegerOption((o) => o.setName('max_uses').setDescription('Max number of uses (default: unlimited)').setRequired(false).setMinValue(1).setMaxValue(100)),
+
+  new SlashCommandBuilder()
+    .setName('steal')
+    .setDescription('Add an emoji to this server (Manage Expressions required)')
+    .addStringOption((o) => o.setName('emoji').setDescription('Paste a custom emoji, or a direct image URL').setRequired(true))
+    .addStringOption((o) => o.setName('name').setDescription('Name for the new emoji (default: its original name)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('role')
+    .setDescription('Add or remove a role from someone')
+    .addSubcommand((sc) => sc
+      .setName('add')
+      .setDescription('Give someone a role')
+      .addUserOption((o) => o.setName('user').setDescription('Who').setRequired(true))
+      .addRoleOption((o) => o.setName('role').setDescription('Which role').setRequired(true)))
+    .addSubcommand((sc) => sc
+      .setName('remove')
+      .setDescription('Take a role away from someone')
+      .addUserOption((o) => o.setName('user').setDescription('Who').setRequired(true))
+      .addRoleOption((o) => o.setName('role').setDescription('Which role').setRequired(true))),
 ].map((c) => c.toJSON());
 
 async function registerCommandsForGuild(guild) {

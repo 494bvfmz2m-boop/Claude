@@ -96,6 +96,124 @@ async function handleUserInfo(interaction) {
   await interaction.reply({ embeds: [embed] });
 }
 
+async function handleMemberCount(interaction) {
+  const guild = interaction.guild;
+  if (!guild) return interaction.reply({ content: 'This only works in a server.', ephemeral: true });
+
+  const total = guild.memberCount;
+  const cached = guild.members.cache;
+  const bots = cached.filter((m) => m.user.bot).size;
+  const humans = cached.size - bots;
+  // memberCount is always accurate (Discord keeps it live over the gateway);
+  // the human/bot split is only as good as what's cached, so it's flagged
+  // when the cache clearly doesn't cover the whole server.
+  const cacheNote = cached.size < total ? ` *(bot/human split based on ${cached.size} cached members)*` : '';
+  await interaction.reply(`👥 **${guild.name}** has **${total}** members — **${humans}** humans, **${bots}** bots${cacheNote}.`);
+}
+
+const CHANNEL_TYPE_LABELS = {
+  [ChannelType.GuildText]: 'Text',
+  [ChannelType.GuildVoice]: 'Voice',
+  [ChannelType.GuildCategory]: 'Category',
+  [ChannelType.GuildAnnouncement]: 'Announcement',
+  [ChannelType.GuildStageVoice]: 'Stage',
+  [ChannelType.GuildForum]: 'Forum',
+  [ChannelType.PublicThread]: 'Thread',
+  [ChannelType.PrivateThread]: 'Private thread',
+  [ChannelType.AnnouncementThread]: 'Announcement thread',
+};
+
+async function handleChannelInfo(interaction) {
+  const channel = interaction.options.getChannel('channel') || interaction.channel;
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR)
+    .setTitle(`#${channel.name}`)
+    .addFields(
+      { name: 'ID', value: channel.id, inline: true },
+      { name: 'Type', value: CHANNEL_TYPE_LABELS[channel.type] || 'Unknown', inline: true },
+      { name: 'Created', value: `<t:${Math.floor(channel.createdTimestamp / 1000)}:R>`, inline: true },
+    );
+
+  if (channel.parent) embed.addFields({ name: 'Category', value: channel.parent.name, inline: true });
+  if ('nsfw' in channel) embed.addFields({ name: 'NSFW', value: channel.nsfw ? 'Yes' : 'No', inline: true });
+  if ('rateLimitPerUser' in channel && channel.rateLimitPerUser) {
+    embed.addFields({ name: 'Slowmode', value: `${channel.rateLimitPerUser}s`, inline: true });
+  }
+  if ('topic' in channel && channel.topic) embed.addFields({ name: 'Topic', value: channel.topic.slice(0, 500) });
+
+  await interaction.reply({ embeds: [embed] });
+}
+
+async function handleInvite(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.CreateInstantInvite)) {
+    return interaction.reply({ content: 'You need Create Invite to do that.', ephemeral: true });
+  }
+
+  const channel = interaction.options.getChannel('channel') || interaction.channel;
+  const maxAgeHours = interaction.options.getInteger('max_age_hours');
+  const maxUses = interaction.options.getInteger('max_uses');
+
+  if (typeof channel.createInvite !== 'function') {
+    return interaction.reply({ content: "I can't create an invite for that channel.", ephemeral: true });
+  }
+
+  let invite;
+  try {
+    invite = await channel.createInvite({
+      maxAge: maxAgeHours != null ? maxAgeHours * 3600 : 86400,
+      maxUses: maxUses || 0,
+      unique: true,
+      reason: `Requested by ${interaction.user.tag}`,
+    });
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't create an invite: ${err.message}`, ephemeral: true });
+  }
+
+  const expiryNote = maxAgeHours ? `expires in ${maxAgeHours}h` : 'expires in 24h';
+  const usesNote = maxUses ? `, max ${maxUses} use${maxUses === 1 ? '' : 's'}` : '';
+  await interaction.reply({ content: `🔗 ${invite.url} — ${expiryNote}${usesNote}`, ephemeral: true });
+}
+
+const EMOJI_MENTION_RE = /<(a?):(\w{2,32}):(\d+)>/;
+
+async function handleSteal(interaction) {
+  if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuildExpressions)) {
+    return interaction.reply({ content: 'You need Manage Expressions (emoji/stickers) to add an emoji.', ephemeral: true });
+  }
+
+  const input = interaction.options.getString('emoji').trim();
+  const nameOption = interaction.options.getString('name');
+
+  let url;
+  let defaultName;
+  const mentionMatch = EMOJI_MENTION_RE.exec(input);
+  if (mentionMatch) {
+    const [, animated, name, id] = mentionMatch;
+    url = `https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}`;
+    defaultName = name;
+  } else if (/^https?:\/\//i.test(input)) {
+    url = input;
+    defaultName = 'emoji';
+  } else {
+    return interaction.reply({ content: 'Give me a custom emoji (paste it) or a direct image URL.', ephemeral: true });
+  }
+
+  const name = (nameOption || defaultName).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 32);
+  if (name.length < 2) {
+    return interaction.reply({ content: 'Emoji names need to be at least 2 characters (letters, numbers, underscores only).', ephemeral: true });
+  }
+
+  let emoji;
+  try {
+    emoji = await interaction.guild.emojis.create({ attachment: url, name, reason: `Added by ${interaction.user.tag}` });
+  } catch (err) {
+    return interaction.reply({ content: `Couldn't add that emoji: ${err.message}`, ephemeral: true });
+  }
+
+  await interaction.reply(`✅ Added ${emoji.toString()} as \`:${emoji.name}:\``);
+}
+
 async function handleServerInfo(interaction) {
   const guild = interaction.guild;
   if (!guild) return interaction.reply({ content: 'This only works in a server.', ephemeral: true });
@@ -328,4 +446,8 @@ module.exports = {
   pin: handlePin,
   snipe: handleSnipe,
   editsnipe: handleEditSnipe,
+  membercount: handleMemberCount,
+  channelinfo: handleChannelInfo,
+  invite: handleInvite,
+  steal: handleSteal,
 };

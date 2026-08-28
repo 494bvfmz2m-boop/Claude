@@ -17,6 +17,7 @@ const GATED_MOD_COMMANDS = [
   ['purge', '/purge [amount] [user]', 'Bulk-delete messages in this channel'],
   ['nickname', '/nick <user> [nickname]', "Change someone's nickname"],
   ['slowmode', '/slowmode <seconds> [channel]', 'Set or clear slowmode on a channel'],
+  ['manage_roles', '/role add|remove <user> <role>', "Add or remove a role from someone (can't touch a role at or above your own)"],
 ];
 
 // Only what this specific person can actually run right now, grouped the
@@ -59,6 +60,8 @@ async function handleHelp(interaction) {
     '`/servericon` — This server\'s icon, full size',
     '`/banner [user]` — A profile banner, if they have one',
     '`/afklist` — See who\'s currently AFK',
+    '`/membercount` — This server\'s member count, humans vs bots',
+    '`/channelinfo [channel]` — A channel at a glance',
     '`/poll <question> <option1> <option2> ... [duration]` — Post a reaction poll, optionally auto-closing after a set time',
     '`/giveaway start <prize> <duration> [winners] [required_role]` — Start a giveaway',
     '`/giveaway end <message_id>` / `/giveaway reroll <message_id>` — End early / pick new winners',
@@ -69,6 +72,12 @@ async function handleHelp(interaction) {
     utility.push('`/tag create <name> <content>` / `/tag delete <name>` — Manage tags');
     utility.push('`/pin <message>` — Pin a message in this channel');
     utility.push('`/snipe` / `/editsnipe` — See the last deleted / edited message in this channel');
+  }
+  if (member.permissions.has(PermissionFlagsBits.ManageGuildExpressions)) {
+    utility.push('`/steal <emoji> [name]` — Add an emoji to this server');
+  }
+  if (member.permissions.has(PermissionFlagsBits.CreateInstantInvite)) {
+    utility.push('`/invite [channel] [max_age_hours] [max_uses]` — Create an invite link');
   }
 
   const embed = new EmbedBuilder()

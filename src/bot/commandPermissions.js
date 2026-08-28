@@ -25,6 +25,7 @@ const ACTIONS = [
   { key: 'unlockdown', label: 'Unlock channels' },
   { key: 'nickname', label: 'Change nickname', command: 'nick' }, // action key stays 'nickname' for canUseAction/GATED_MOD_COMMANDS, but the actual slash command is /nick
   { key: 'slowmode', label: 'Set slowmode' },
+  { key: 'manage_roles', label: 'Add/remove roles', command: 'role' }, // action key stays 'manage_roles' for canUseAction/GATED_MOD_COMMANDS, but the actual slash command is /role
 ];
 const ACTION_KEYS = new Set(ACTIONS.map((a) => a.key));
 
