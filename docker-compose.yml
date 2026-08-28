@@ -1,0 +1,17 @@
+services:
+  clipforge:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET}
+      AUTH_USER_1: ${AUTH_USER_1}
+      AUTH_PASS_1: ${AUTH_PASS_1}
+      AUTH_USER_2: ${AUTH_USER_2}
+      AUTH_PASS_2: ${AUTH_PASS_2}
+    volumes:
+      - clipforge_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  clipforge_data:
