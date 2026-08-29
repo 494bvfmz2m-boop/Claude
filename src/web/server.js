@@ -1,17 +1,44 @@
 const path = require('node:path');
+const crypto = require('node:crypto');
 const express = require('express');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const { ChannelType } = require('discord.js');
 const config = require('../config');
 const db = require('../db');
 
+const DISCORD_API = 'https://discord.com/api/v10';
+const MANAGE_GUILD = 0x20n;
+const ADMINISTRATOR = 0x8n;
+
+function canManageGuild(discordGuild) {
+  if (discordGuild.owner) return true;
+  const permissions = BigInt(discordGuild.permissions);
+  return (permissions & (MANAGE_GUILD | ADMINISTRATOR)) !== 0n;
+}
+
 function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
+  if (req.session && req.session.user) return next();
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   return res.redirect('/login');
+}
+
+function getManageableGuildIds(req) {
+  if (config.superAdminIds.includes(req.session.user.id)) {
+    return null; // null = access to every server the bot is in
+  }
+  return req.session.manageableGuildIds || [];
+}
+
+function requireGuildAccess(req, res, next) {
+  const allowed = getManageableGuildIds(req);
+  if (allowed !== null && !allowed.includes(req.params.guildId)) {
+    return res.status(403).json({
+      error: "You don't have Manage Server permission in that server, or the bot isn't in it.",
+    });
+  }
+  next();
 }
 
 function createServer(client) {
@@ -27,26 +54,75 @@ function createServer(client) {
     })
   );
 
-  // --- Auth ---
+  // --- Discord OAuth ---
   app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
   });
 
-  app.post('/api/login', (req, res) => {
-    const { username, password } = req.body || {};
-    if (!config.dashboardPasswordHash) {
-      return res.status(500).json({
-        error:
-          'DASHBOARD_PASSWORD_HASH is not set in .env. Run "npm run hash-password" and add the result to .env.',
+  app.get('/auth/discord', (req, res) => {
+    if (!config.discordClientSecret || !config.discordRedirectUri) {
+      return res.redirect(
+        '/login?error=' +
+          encodeURIComponent('Discord login is not configured (missing DISCORD_CLIENT_SECRET/DISCORD_REDIRECT_URI).')
+      );
+    }
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.oauthState = state;
+    const params = new URLSearchParams({
+      client_id: config.discordClientId,
+      redirect_uri: config.discordRedirectUri,
+      response_type: 'code',
+      scope: 'identify guilds',
+      state,
+    });
+    res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+  });
+
+  app.get('/auth/discord/callback', async (req, res) => {
+    const { code, state } = req.query;
+    if (!code || !state || state !== req.session.oauthState) {
+      return res.redirect(
+        '/login?error=' + encodeURIComponent('Invalid or expired login attempt. Please try again.')
+      );
+    }
+    delete req.session.oauthState;
+
+    try {
+      const tokenRes = await fetch(`${DISCORD_API}/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: config.discordClientId,
+          client_secret: config.discordClientSecret,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: config.discordRedirectUri,
+        }),
       });
+      if (!tokenRes.ok) throw new Error(`Token exchange failed (${tokenRes.status})`);
+      const token = await tokenRes.json();
+
+      const [userRes, guildsRes] = await Promise.all([
+        fetch(`${DISCORD_API}/users/@me`, {
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        }),
+        fetch(`${DISCORD_API}/users/@me/guilds`, {
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        }),
+      ]);
+      if (!userRes.ok || !guildsRes.ok) throw new Error('Failed to fetch Discord profile');
+
+      const user = await userRes.json();
+      const guilds = await guildsRes.json();
+
+      req.session.user = { id: user.id, username: user.username, avatar: user.avatar };
+      req.session.manageableGuildIds = guilds.filter(canManageGuild).map((g) => g.id);
+
+      res.redirect('/');
+    } catch (err) {
+      console.error('Discord OAuth error:', err);
+      res.redirect('/login?error=' + encodeURIComponent('Discord login failed. Please try again.'));
     }
-    const validUser = username === config.dashboardUsername;
-    const validPass = validUser && bcrypt.compareSync(password || '', config.dashboardPasswordHash);
-    if (!validUser || !validPass) {
-      return res.status(401).json({ error: 'Invalid username or password' });
-    }
-    req.session.authenticated = true;
-    res.json({ ok: true });
   });
 
   app.post('/api/logout', (req, res) => {
@@ -62,13 +138,21 @@ function createServer(client) {
 
   // --- API ---
   app.use('/api', requireAuth);
+  app.use('/api/guilds/:guildId', requireGuildAccess);
+
+  app.get('/api/me', (req, res) => {
+    res.json(req.session.user);
+  });
 
   app.get('/api/status', (req, res) => {
     res.json({ botOnline: client.isReady(), botTag: client.isReady() ? client.user.tag : null });
   });
 
   app.get('/api/guilds', (req, res) => {
-    const guilds = [...client.guilds.cache.values()].map((g) => ({ id: g.id, name: g.name }));
+    const allowed = getManageableGuildIds(req);
+    const guilds = [...client.guilds.cache.values()]
+      .filter((g) => allowed === null || allowed.includes(g.id))
+      .map((g) => ({ id: g.id, name: g.name }));
     res.json(guilds);
   });
 

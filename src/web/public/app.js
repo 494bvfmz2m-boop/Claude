@@ -40,13 +40,21 @@ async function refreshStatus() {
     : `<span class="status-dot offline"></span>Bot offline`;
 }
 
+async function loadMe() {
+  const me = await api('/api/me');
+  document.getElementById('user-info').textContent = `Logged in as ${me.username}`;
+}
+
 // --- Guild picker ---
 async function loadGuilds() {
   const guilds = await api('/api/guilds');
   const picker = document.getElementById('guild-picker');
   picker.innerHTML = '';
   if (guilds.length === 0) {
-    picker.innerHTML = '<option>No servers — invite the bot first</option>';
+    picker.innerHTML = '<option>No manageable servers</option>';
+    document.getElementById('faq-empty').style.display = 'block';
+    document.getElementById('faq-empty').textContent =
+      "You don't have Manage Server permission in any server the bot is installed in.";
     return;
   }
   for (const g of guilds) {
@@ -222,4 +230,5 @@ function escapeHtml(str) {
 
 refreshStatus();
 setInterval(refreshStatus, 15000);
+loadMe();
 loadGuilds();

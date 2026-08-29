@@ -4,7 +4,8 @@ A Discord bot for support/ticket servers. It answers common questions in
 ticket channels from a keyword-matched FAQ database and, when it can't find
 a confident match, pings a support role for you. No AI/LLM involved — just
 a small, transparent matching algorithm you can fully inspect, plus a web
-dashboard to manage everything.
+dashboard (with Discord login) to manage it across as many servers as you
+run the bot in.
 
 ## Features
 
@@ -20,10 +21,12 @@ dashboard to manage everything.
   live under category IDs you configure in the dashboard (works with any
   existing ticket-creation bot, since it doesn't touch ticket creation
   itself).
-- **Web dashboard** (`http://localhost:3000` by default) — password
-  protected. Manage the FAQ database, ticket categories, and the support
-  role, all with dropdowns populated live from your Discord server (no
-  manually copying IDs).
+- **Multi-server web dashboard** (`http://localhost:3000` by default) —
+  people log in with their own Discord account. Anyone with **Manage
+  Server** permission in a server the bot is installed in can manage that
+  server's FAQ database, ticket categories, and support role — no shared
+  password, no per-server bot reinvite. Dropdowns are populated live from
+  Discord (no manually copying IDs).
 
 ## How matching works (no AI)
 
@@ -44,30 +47,39 @@ forgot`) to make matching much more reliable.
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**.
 2. Under **Bot**, click **Add Bot**, then copy the **Token**.
-3. Under **OAuth2 → General**, copy the **Client ID**.
-4. Under **OAuth2 → URL Generator**, select scopes `bot` and
+3. Under **OAuth2 → General**, copy the **Client ID** and **Client Secret**.
+4. Still under **OAuth2 → General**, add a **Redirect** URL:
+   `http://localhost:3000/auth/discord/callback` for local dev, and your
+   real dashboard URL (e.g. `https://tickets.yourdomain.com/auth/discord/callback`)
+   for production. This is what lets people log into the dashboard with
+   Discord — it must match `DISCORD_REDIRECT_URI` in `.env` exactly.
+5. Under **OAuth2 → URL Generator**, select scopes `bot` and
    `applications.commands`, and bot permissions `Send Messages`,
    `Embed Links`, `Read Message History`, `View Channels`, `Mention
    @everyone, here, and All Roles` (needed to ping the support role — or
    just make sure the role is mentionable). Open the generated URL to
-   invite the bot to your server.
+   invite the bot to each server you want it in.
 
 ### 2. Configure the project
 
 ```bash
 cp .env.example .env
 npm install
-npm run hash-password   # follow the prompt, paste the output line into .env
 ```
 
 Fill in `.env`:
 
 - `DISCORD_TOKEN`, `DISCORD_CLIENT_ID` — from step 1.
-- `DISCORD_GUILD_ID` — your server's ID, for instant slash-command
-  registration while testing. Leave blank for global commands (slower to
-  propagate, ~1 hour).
+- `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` — for dashboard login,
+  from step 1.4. `DISCORD_REDIRECT_URI` must exactly match a redirect
+  you registered in the Developer Portal.
+- `DISCORD_GUILD_ID` — optional, for instant slash-command registration
+  to one server while testing. Leave blank for global commands (slower
+  to propagate, ~1 hour).
 - `SESSION_SECRET` — any long random string.
-- `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD_HASH` — dashboard login.
+- `SUPER_ADMIN_DISCORD_IDS` — optional, comma-separated Discord user IDs
+  that can manage every server the bot is in regardless of their
+  permissions in each one (useful for whoever operates the bot itself).
 
 ### 3. Register slash commands and start
 
@@ -81,12 +93,17 @@ The bot logs in and the dashboard starts on the configured `PORT`
 
 ### 4. Configure via the dashboard
 
-1. Open `http://localhost:3000`, log in.
-2. Pick your server from the dropdown.
-3. **Ticket Categories** tab — add the category (or categories) your
-   ticket channels live under.
+1. Open `http://localhost:3000`, click **Log in with Discord**.
+2. Pick a server from the dropdown — only servers where you have Manage
+   Server permission (and the bot is installed) will show up.
+3. **Ticket Categories** tab — add the category (or categories) that
+   server's ticket channels live under.
 4. **Support Role** tab — pick the role to ping when escalating.
 5. **FAQ Database** tab — add questions/keywords/answers.
+
+Repeat per server — anyone on your staff with Manage Server permission in
+a given server can log in themselves and configure that server, without
+needing a shared dashboard password.
 
 That's it — `/ask` and `/escalate` will now work in any channel under a
 configured category.
@@ -103,9 +120,11 @@ configured category.
   redeploy.
 - **Environment variables** (set these in Coolify, not in `.env` — the
   Dockerfile doesn't ship one): `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`,
-  `DISCORD_GUILD_ID` (optional), `SESSION_SECRET`,
-  `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD_HASH` (generate locally
-  with `npm run hash-password`), `DATABASE_FILE=/app/data/bot.sqlite3`.
+  `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` (your real Coolify
+  domain + `/auth/discord/callback` — must also be added as a redirect in
+  the Discord Developer Portal), `DISCORD_GUILD_ID` (optional),
+  `SESSION_SECRET`, `SUPER_ADMIN_DISCORD_IDS` (optional),
+  `DATABASE_FILE=/app/data/bot.sqlite3`.
 - **Slash commands:** `npm run register-commands` doesn't need to run
   inside the container — it just calls the Discord API. Run it once from
   your local machine (with the same `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/
@@ -122,20 +141,35 @@ src/
     bot.js             slash command + button handling
     deploy-commands.js registers /ask and /escalate with Discord
   web/
-    server.js           Express dashboard + REST API
+    server.js           Express dashboard + REST API + Discord OAuth login
     public/              dashboard frontend (vanilla HTML/CSS/JS)
   index.js              starts the bot and the dashboard together
-scripts/
-  hash-password.js      generates DASHBOARD_PASSWORD_HASH
 ```
 
 Data is stored in a local SQLite file (`DATABASE_FILE`, default
 `./data/bot.sqlite3`) — back that file up if you want to keep your FAQ
 database.
 
+## Access control
+
+There's no dashboard password anymore — access is entirely driven by
+Discord itself:
+
+- Logging in requires a real Discord account (OAuth2, scopes `identify`
+  and `guilds`).
+- A logged-in user can only see and manage servers where **both** of the
+  following are true: the bot is installed there, and they have the
+  **Manage Server** (or Administrator, or server owner) permission there.
+- Permissions are snapshotted at login time and cached in the session
+  (12-hour cookie). If someone's server role changes, they'll need to log
+  out and back in for it to take effect.
+- `SUPER_ADMIN_DISCORD_IDS` (optional) bypasses the per-server check
+  entirely for the listed Discord user IDs.
+
 ## Running in production
 
 Run `node src/index.js` under a process manager (pm2, systemd, Docker,
 etc.) so it restarts on crash/reboot. Put the dashboard behind HTTPS (a
 reverse proxy like nginx/Caddy, or a platform that terminates TLS for you)
-since login credentials are sent to it.
+— Discord OAuth requires an HTTPS redirect URI in production, and session
+cookies should never travel over plain HTTP.

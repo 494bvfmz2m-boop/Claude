@@ -48,6 +48,21 @@ body.centered {
   margin: 0 0 8px;
 }
 
+.discord-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #5865f2;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.discord-login-btn:hover { background: #4752c4; }
+
 label {
   display: flex;
   flex-direction: column;
