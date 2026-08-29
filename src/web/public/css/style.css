@@ -220,7 +220,7 @@ a:hover { color: #8fc8ff; text-decoration: none; }
   body.sidebar-open .sidebar { transform: translateX(0); }
   body.sidebar-open .sidebar-backdrop { display: block; }
   .hamburger { display: flex; }
-  .app-content { margin-left: 0; }
+  .app-content.has-sidebar { margin-left: 0; }
 }
 
 .container {
