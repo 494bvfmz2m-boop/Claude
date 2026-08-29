@@ -61,7 +61,11 @@
     <% if (h.ranks.length === 0) { %>
       <p class="empty">No ranks yet — add roles below to get started.</p>
     <% } else { %>
-      <p class="hint" style="margin-bottom:8px;">Drag to reorder — top is the highest rank.</p>
+      <p class="hint" style="margin-bottom:8px;">
+        Drag to reorder — top is the highest rank. Mark a rank "Placeholder" if it's a divider role
+        (e.g. <code>-- Staff --</code>) rather than a real rank — <code>/promote</code> and
+        <code>/demote</code> will step right over it instead of ever landing someone there.
+      </p>
       <ul class="list rank-draglist" data-hierarchy-id="<%= h.id %>">
         <% [...h.ranks].sort((a, b) => b.rank - a.rank).forEach((r) => { %>
           <li class="list-item" draggable="true" data-role-id="<%= r.roleId %>">
@@ -69,8 +73,15 @@
               <span class="drag-handle" aria-hidden="true">⠿</span>
               <span class="role-dot" style="background:<%= r.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
               <%= r.name %>
+              <% if (r.skipPromote) { %><span class="badge" style="margin-left:8px;">Placeholder</span><% } %>
             </div>
             <div class="actions">
+              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/skip-promote">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="roleId" value="<%= r.roleId %>">
+                <input type="hidden" name="enabled" value="<%= r.skipPromote ? '' : 'on' %>">
+                <button class="btn btn-sm btn-ghost" type="submit"><%= r.skipPromote ? 'Unmark placeholder' : 'Mark as placeholder' %></button>
+              </form>
               <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/remove" onsubmit="return confirm('Remove this rank?');">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="roleId" value="<%= r.roleId %>">

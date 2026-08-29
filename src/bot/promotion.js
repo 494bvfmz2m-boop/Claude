@@ -1,5 +1,5 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { getRankForRoleIds, getRoleIdForRank, getMaxRank } = require('./cache');
+const { getRankForRoleIds, getPromotableLadder } = require('./cache');
 const { GuildSettings, Hierarchies } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
@@ -54,9 +54,13 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.', ephemeral: true });
   }
 
-  const maxRank = getMaxRank(hierarchy.id);
-  if (maxRank === 0) {
-    return interaction.reply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.', ephemeral: true });
+  // The ladder /promote and /demote actually step through -- excludes any
+  // rank marked "skip" on the dashboard (a placeholder/divider role like
+  // "-- Staff --" that's part of the hierarchy for display only), so
+  // stepping through it never lands anyone on one.
+  const ladder = getPromotableLadder(hierarchy.id);
+  if (ladder.length === 0) {
+    return interaction.reply({ content: 'No promotable ranks are set up yet — configure the hierarchy on the dashboard first.', ephemeral: true });
   }
 
   const override = isOverride(guild, interaction.member);
@@ -71,14 +75,19 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: "You can only act on someone with a strictly lower rank than you.", ephemeral: true });
   }
 
-  // Promoting is capped at maxRank, and (unless override) at one below the
-  // invoker's own rank -- demoting is capped at 0. Clamped rather than
-  // refused outright, so "/promote 5" on someone 2 ranks from the top still
-  // promotes them as far as it can, instead of doing nothing.
-  const ceiling = direction > 0 && !override ? Math.min(maxRank, invokerRank.rank - 1) : maxRank;
-  const requestedRank = targetRank.rank + direction * steps;
-  const newRank = Math.min(ceiling, Math.max(0, requestedRank));
-  const actualSteps = Math.abs(newRank - targetRank.rank);
+  // Ladder positions, not raw rank numbers -- -1 means "below the bottom
+  // rung" (no role, or a role that isn't on the promotable ladder at all).
+  const targetIndex = ladder.findIndex((r) => r.role_id === targetRank.roleId);
+  const invokerIndex = ladder.findIndex((r) => r.role_id === invokerRank.roleId);
+
+  // Promoting is capped at the top of the ladder, and (unless override) at
+  // one below the invoker's own rung -- demoting is capped at the bottom.
+  // Clamped rather than refused outright, so "/promote 5" on someone 2
+  // rungs from the top still promotes them as far as it can.
+  const ceiling = direction > 0 && !override ? Math.max(-1, Math.min(ladder.length - 1, invokerIndex - 1)) : ladder.length - 1;
+  const requestedIndex = targetIndex + direction * steps;
+  const newIndex = Math.min(ceiling, Math.max(-1, requestedIndex));
+  const actualSteps = Math.abs(newIndex - targetIndex);
 
   if (actualSteps === 0) {
     const msg = direction > 0
@@ -87,7 +96,8 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: msg, ephemeral: true });
   }
 
-  const newRoleId = newRank > 0 ? getRoleIdForRank(hierarchy.id, newRank) : null;
+  const newRung = newIndex >= 0 ? ladder[newIndex] : null;
+  const newRoleId = newRung ? newRung.role_id : null;
 
   try {
     await applyRankChange(guild, targetMember, targetRank.roleId, newRoleId);
@@ -102,7 +112,7 @@ async function changeRank(interaction, direction) {
   const clampNote = actualSteps < steps ? ` (asked for ${steps}, but that's as far as they could go)` : '';
 
   await interaction.reply({ content: `${emoji} ${verb} **${user.tag}**${stepsLabel} to ${newRankLabel}.${clampNote}` });
-  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRank}`, direction > 0 ? emojiUrl('modsentry-levelup.gif') : null);
+  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRung ? newRung.rank : 0}`, direction > 0 ? emojiUrl('modsentry-levelup.gif') : null);
 }
 
 module.exports = {

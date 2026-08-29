@@ -700,17 +700,32 @@ const Warnings = {
 };
 
 const StaffRanks = {
-  // Ordered lowest (rank 1) to highest, within one hierarchy.
+  // Ordered lowest (rank 1) to highest, within one hierarchy. skip_promote
+  // marks a rank as display-only -- a placeholder/divider role (e.g. "--
+  // Staff --") that's part of the ladder for display purposes but that
+  // /promote and /demote should step over, never land someone on.
   listForHierarchy(hierarchyId) {
-    return db.prepare('SELECT role_id, rank FROM staff_ranks WHERE hierarchy_id = ? ORDER BY rank ASC').all(hierarchyId);
+    return db.prepare('SELECT role_id, rank, skip_promote FROM staff_ranks WHERE hierarchy_id = ? ORDER BY rank ASC').all(hierarchyId)
+      .map((r) => ({ ...r, skip_promote: !!r.skip_promote }));
   },
+  // Rebuilds the whole ordered list from scratch (add/remove/reorder all
+  // funnel through here) -- skip_promote is looked up per role_id first and
+  // carried over, so reordering or adding/removing a different role never
+  // resets which ranks are marked as placeholders.
   replaceAllForHierarchy(hierarchyId, guildId, roleIdsInOrder) {
     const tx = db.transaction((ids) => {
+      const skipFlags = new Map(
+        db.prepare('SELECT role_id, skip_promote FROM staff_ranks WHERE hierarchy_id = ?').all(hierarchyId)
+          .map((r) => [r.role_id, r.skip_promote]),
+      );
       db.prepare('DELETE FROM staff_ranks WHERE hierarchy_id = ?').run(hierarchyId);
-      const insert = db.prepare('INSERT INTO staff_ranks (guild_id, hierarchy_id, role_id, rank) VALUES (?, ?, ?, ?)');
-      ids.forEach((roleId, i) => insert.run(guildId, hierarchyId, roleId, i + 1));
+      const insert = db.prepare('INSERT INTO staff_ranks (guild_id, hierarchy_id, role_id, rank, skip_promote) VALUES (?, ?, ?, ?, ?)');
+      ids.forEach((roleId, i) => insert.run(guildId, hierarchyId, roleId, i + 1, skipFlags.get(roleId) || 0));
     });
     tx(roleIdsInOrder);
+  },
+  setSkipPromote(hierarchyId, roleId, skip) {
+    db.prepare('UPDATE staff_ranks SET skip_promote = ? WHERE hierarchy_id = ? AND role_id = ?').run(skip ? 1 : 0, hierarchyId, roleId);
   },
 };
 

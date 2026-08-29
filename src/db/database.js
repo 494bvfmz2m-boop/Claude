@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS staff_ranks (
   hierarchy_id INTEGER NOT NULL,
   role_id TEXT NOT NULL,
   rank INTEGER NOT NULL,
+  skip_promote INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (hierarchy_id, role_id)
 );
 
@@ -425,6 +426,7 @@ if (!staffRanksCols.includes('hierarchy_id')) {
         hierarchy_id INTEGER NOT NULL,
         role_id TEXT NOT NULL,
         rank INTEGER NOT NULL,
+        skip_promote INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (hierarchy_id, role_id)
       );
     `);
@@ -462,6 +464,7 @@ if (!staffRanksCols.includes('hierarchy_id')) {
   migrate();
 }
 db.exec('CREATE INDEX IF NOT EXISTS idx_staff_ranks_hierarchy ON staff_ranks(hierarchy_id, rank)');
+addColumnIfMissing('staff_ranks', 'skip_promote', 'INTEGER NOT NULL DEFAULT 0');
 
 // One-time seed of a couple of starter form templates -- only ever runs
 // once (gated on the flag, not on the table being empty) so deleting them

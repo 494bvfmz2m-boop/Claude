@@ -48,6 +48,7 @@ function ranksWithRoleInfo(guild, hierarchyId) {
       return {
         roleId: r.role_id,
         rank: r.rank,
+        skipPromote: r.skip_promote,
         name: role ? role.name : `Unknown role (${r.role_id})`,
         color: role && role.color !== 0 ? role.hexColor : '#99aab5',
       };
@@ -280,6 +281,16 @@ router.post('/moderation/hierarchy/:id/remove', async (req, res) => {
   if (!hierarchy) return;
   const current = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
   StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, current.filter((id) => id !== req.body.roleId));
+  cache.invalidateStaffRanks(hierarchy.id);
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
+});
+
+router.post('/moderation/hierarchy/:id/skip-promote', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+  StaffRanks.setSkipPromote(hierarchy.id, req.body.roleId, req.body.enabled === 'on');
   cache.invalidateStaffRanks(hierarchy.id);
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });

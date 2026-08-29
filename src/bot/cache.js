@@ -106,8 +106,17 @@ function getMaxRank(hierarchyId) {
   return ranks.reduce((max, r) => Math.max(max, r.rank), 0);
 }
 
+// The ladder /promote and /demote actually step through -- excludes any
+// rank marked skip_promote (a placeholder/divider role kept in the
+// hierarchy for display, e.g. "-- Staff --" in the posted staff list, but
+// never meant to be a real destination for promoting/demoting someone).
+// Still ordered lowest to highest, same as getStaffRanks.
+function getPromotableLadder(hierarchyId) {
+  return getStaffRanks(hierarchyId).filter((r) => !r.skip_promote);
+}
+
 module.exports = {
   getSwearFilter, testSwearFilter, invalidateSwearFilter,
   getLinkFilter, testLinkFilter, invalidateLinkFilter,
-  getStaffRanks, invalidateStaffRanks, getRankForRoleIds, getRoleIdForRank, getMaxRank,
+  getStaffRanks, invalidateStaffRanks, getRankForRoleIds, getRoleIdForRank, getMaxRank, getPromotableLadder,
 };
