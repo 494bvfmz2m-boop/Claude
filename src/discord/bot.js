@@ -10,8 +10,17 @@ const {
 const config = require('../config');
 const db = require('../db');
 const { findBestMatch } = require('../matcher');
+const { commands } = require('./commands');
 
 const HUMAN_HELP_BUTTON_ID = 'request_human_support';
+
+async function syncCommandsForGuild(guild) {
+  try {
+    await guild.commands.set(commands);
+  } catch (err) {
+    console.error(`Failed to sync slash commands for guild ${guild.id} (${guild.name}):`, err.message);
+  }
+}
 
 function isTicketChannel(channel) {
   if (!channel || !channel.guildId) return false;
@@ -66,8 +75,19 @@ function createBot() {
     intents: [GatewayIntentBits.Guilds],
   });
 
-  client.once('ready', () => {
+  client.once('ready', async () => {
     console.log(`Discord bot logged in as ${client.user.tag}`);
+    // Registering slash commands is otherwise a manual step that's easy to
+    // forget on a fresh deploy — sync them to every server on every startup
+    // instead, per-guild so it's instant (no ~1hr global-propagation wait).
+    for (const guild of client.guilds.cache.values()) {
+      await syncCommandsForGuild(guild);
+    }
+    console.log(`Slash commands synced to ${client.guilds.cache.size} server(s).`);
+  });
+
+  client.on('guildCreate', (guild) => {
+    syncCommandsForGuild(guild);
   });
 
   client.on('interactionCreate', async (interaction) => {

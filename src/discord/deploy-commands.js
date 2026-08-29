@@ -1,20 +1,6 @@
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes } = require('discord.js');
 const config = require('../config');
-
-const commands = [
-  new SlashCommandBuilder()
-    .setName('ask')
-    .setDescription('Ask the ticket bot a question from the FAQ database')
-    .addStringOption((option) =>
-      option.setName('question').setDescription('What do you need help with?').setRequired(true)
-    ),
-  new SlashCommandBuilder()
-    .setName('escalate')
-    .setDescription('Ping the support team for this ticket')
-    .addStringOption((option) =>
-      option.setName('reason').setDescription('Briefly, what do you need help with?').setRequired(false)
-    ),
-].map((command) => command.toJSON());
+const { commands } = require('./commands');
 
 async function main() {
   if (!config.discordToken || !config.discordClientId) {

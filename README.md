@@ -53,12 +53,19 @@ forgot`) to make matching much more reliable.
    real dashboard URL (e.g. `https://tickets.yourdomain.com/auth/discord/callback`)
    for production. This is what lets people log into the dashboard with
    Discord — it must match `DISCORD_REDIRECT_URI` in `.env` exactly.
-5. Under **OAuth2 → URL Generator**, select scopes `bot` and
-   `applications.commands`, and bot permissions `Send Messages`,
-   `Embed Links`, `Read Message History`, `View Channels`, `Mention
-   @everyone, here, and All Roles` (needed to ping the support role — or
-   just make sure the role is mentionable). Open the generated URL to
-   invite the bot to each server you want it in.
+5. Under **OAuth2 → URL Generator**, select scopes `bot` **and**
+   `applications.commands` (skipping `applications.commands` is the #1
+   cause of "/ask doesn't show up at all" — the bot literally isn't
+   allowed to register slash commands in that server without it), and
+   bot permissions `Send Messages`, `Embed Links`, `Read Message
+   History`, `View Channels`, `Mention @everyone, here, and All Roles`
+   (needed to ping the support role — or just make sure the role is
+   mentionable). Open the generated URL to invite the bot to each server
+   you want it in — or once the bot is running, just use the **Invite**
+   button in the dashboard/login page, which always includes both scopes.
+   If the bot was ever invited to a server *before* you added the
+   `applications.commands` scope, re-invite it there with that URL —
+   re-inviting is safe and doesn't duplicate anything.
 
 ### 2. Configure the project
 
@@ -73,23 +80,35 @@ Fill in `.env`:
 - `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` — for dashboard login,
   from step 1.4. `DISCORD_REDIRECT_URI` must exactly match a redirect
   you registered in the Developer Portal.
-- `DISCORD_GUILD_ID` — optional, for instant slash-command registration
-  to one server while testing. Leave blank for global commands (slower
-  to propagate, ~1 hour).
+- `DISCORD_GUILD_ID` — optional, unused by the bot itself now (see
+  below); only relevant to the standalone `npm run register-commands`
+  script.
 - `SESSION_SECRET` — any long random string.
 - `SUPER_ADMIN_DISCORD_IDS` — optional, comma-separated Discord user IDs
   that can manage every server the bot is in regardless of their
   permissions in each one (useful for whoever operates the bot itself).
 
-### 3. Register slash commands and start
+### 3. Start
 
 ```bash
-npm run register-commands
 npm start
 ```
 
-The bot logs in and the dashboard starts on the configured `PORT`
-(default `3000`).
+The bot logs in, the dashboard starts on the configured `PORT` (default
+`3000`), and **the bot automatically registers `/ask` and `/escalate` in
+every server it's in — instantly, on every startup.** There's no
+separate "register commands" step to remember; this is also why a fresh
+Coolify deploy doesn't need any manual command-registration step. If a
+particular server is missing the `applications.commands` invite scope,
+that server's sync fails and gets logged (`Failed to sync slash commands
+for guild ...`) but doesn't affect any other server or crash the bot —
+fix it by re-inviting the bot there with the URL from step 1.5 or the
+dashboard's Invite button.
+
+(`npm run register-commands` still exists for registering commands
+*globally*, e.g. if you're distributing this bot to servers you don't
+control ahead of time and can't wait for it to join first — but for a
+normal single-operator setup you'll never need it.)
 
 ### 4. Configure via the dashboard
 
@@ -122,13 +141,14 @@ configured category.
   Dockerfile doesn't ship one): `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`,
   `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` (your real Coolify
   domain + `/auth/discord/callback` — must also be added as a redirect in
-  the Discord Developer Portal), `DISCORD_GUILD_ID` (optional),
-  `SESSION_SECRET`, `SUPER_ADMIN_DISCORD_IDS` (optional),
-  `DATABASE_FILE=/app/data/bot.sqlite3`.
-- **Slash commands:** `npm run register-commands` doesn't need to run
-  inside the container — it just calls the Discord API. Run it once from
-  your local machine (with the same `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/
-  `DISCORD_GUILD_ID` in a local `.env`) before or after the first deploy.
+  the Discord Developer Portal), `SESSION_SECRET`,
+  `SUPER_ADMIN_DISCORD_IDS` (optional), `DATABASE_FILE=/app/data/bot.sqlite3`.
+- **Slash commands:** nothing to do — the bot registers `/ask` and
+  `/escalate` in every server it's in automatically on startup (see
+  above). If they don't show up after deploying, it's almost always the
+  bot missing the `applications.commands` invite scope in that specific
+  server (check the container logs for `Failed to sync slash commands`)
+  — fix it by re-inviting via the dashboard's Invite button.
 
 ## Project layout
 
