@@ -7,7 +7,7 @@ const config = require('../../config');
 const db = require('../../db/database');
 const {
   AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook,
-  DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
+  DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
   Warnings, ModActions, GuildSettings, Hierarchies, TicketTypes, StaffNotes,
 } = require('../../db/repo');
 const client = require('../../bot/client');
@@ -15,6 +15,7 @@ const { DISCORD_ID } = require('../lib/resolveMember');
 const { formatUptime } = require('../../bot/ownerKeywords');
 const dmForm = require('../../bot/dmForm');
 const { buildResultEmbed } = require('../../bot/betaRequests');
+const { STAFF_AREAS, STAFF_AREA_KEYS } = require('../lib/staffAreas');
 
 // Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
 // parseEmojiInput, but this needs the name and ID as separate fields (for
@@ -27,9 +28,10 @@ const MAX_RECIPIENTS = 50;
 const router = express.Router();
 
 // The true owner (OWNER_DISCORD_ID) -- can do everything below, plus manage
-// who else counts as an admin and pull a raw database backup. Kept separate
-// from requireAdmin so an added admin can't add more admins or lock the real
-// owner out.
+// who else counts as a full admin or a custom staff role, and pull a raw
+// database backup. Kept separate from requireStaffArea/requireAnyStaffAccess
+// so nobody delegated access can grant themselves (or anyone else) more,
+// or lock the real owner out.
 function requireOwner(req, res, next) {
   if (!req.session || !req.session.isOwner) {
     return res.status(403).render('error', { message: 'Owner access only.' });
@@ -37,11 +39,24 @@ function requireOwner(req, res, next) {
   next();
 }
 
-// The owner, or anyone added to the admins list -- covers every other /staff
-// tool (allowlist, contacts, sending DMs, the blocklist, etc).
-function requireAdmin(req, res, next) {
-  if (!req.session || !(req.session.isOwner || req.session.isAdmin)) {
-    return res.status(403).render('error', { message: 'Admin access only.' });
+// Owner, full admin, or anyone with a custom staff role that's been granted
+// this specific area (see web/lib/staffAreas.js and db/repo.js's
+// StaffRoles) -- the scoped-access tier below full admin.
+function requireStaffArea(area) {
+  return (req, res, next) => {
+    if (!req.session) return res.status(403).render('error', { message: 'Staff access only.' });
+    if (req.session.isOwner || req.session.isAdmin) return next();
+    if (req.session.staffAreas?.includes(area)) return next();
+    return res.status(403).render('error', { message: "You don't have access to this." });
+  };
+}
+
+// Anything readable by any staff tier at all -- owner, full admin, or a
+// custom role with at least one area granted. Used for the main page and
+// for tools with no meaningful area of their own (e.g. the shared notepad).
+function requireAnyStaffAccess(req, res, next) {
+  if (!req.session || !(req.session.isOwner || req.session.isAdmin || req.session.staffAreas?.length > 0)) {
+    return res.status(403).render('error', { message: 'Staff access only.' });
   }
   next();
 }
@@ -58,8 +73,11 @@ function logAudit(req, action, detail) {
   AdminAuditLog.log(actor?.id || 'unknown', actor?.username || null, action, detail || null);
 }
 
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', requireAnyStaffAccess, async (req, res) => {
   const notice = req.query.msg ? { ok: req.query.ok === '1', text: req.query.msg } : null;
+  const fullAccess = req.session.isOwner || req.session.isAdmin;
+  const grantedAreas = new Set(req.session.staffAreas || []);
+  const canSee = (area) => fullAccess || grantedAreas.has(area);
   const serverNotes = ServerNotes.getAll();
   const guilds = [...client.guilds.cache.values()]
     .map((g) => ({ id: g.id, name: g.name, memberCount: g.memberCount, iconURL: g.iconURL({ size: 32 }), note: serverNotes[g.id] || null }))
@@ -92,6 +110,21 @@ router.get('/', requireAdmin, async (req, res) => {
   }));
 
   const blocklist = GlobalBlocklist.list();
+
+  // Custom staff roles + their resolved members -- owner-only data, but
+  // cheap enough (no member fetch requiring guild.members.fetch()) that
+  // there's no reason to gate it behind isOwner here rather than in the view.
+  const staffRoles = req.session.isOwner ? await Promise.all(StaffRoles.list().map(async (role) => {
+    const members = await Promise.all(StaffRoles.membersFor(role.id).map(async (m) => {
+      try {
+        const user = await client.users.fetch(m.discord_user_id);
+        return { id: m.discord_user_id, note: m.note, tag: user.tag, avatarURL: user.displayAvatarURL({ size: 64 }), resolved: true };
+      } catch {
+        return { id: m.discord_user_id, note: m.note, tag: null, avatarURL: null, resolved: false };
+      }
+    }));
+    return { ...role, members };
+  })) : [];
 
   const overview = {
     ...Stats.overview(),
@@ -163,16 +196,19 @@ router.get('/', requireAdmin, async (req, res) => {
     ownerDiscordId: config.ownerDiscordId,
     healthChecks,
     staffNotes,
+    staffRoles,
+    staffAreaDefs: STAFF_AREAS,
+    canSee,
   });
 });
 
-router.post('/beta-lock', requireAdmin, (req, res) => {
+router.post('/beta-lock', requireStaffArea('beta'), (req, res) => {
   AppSettings.setBetaLocked(req.body.enabled === 'on');
   logAudit(req, req.body.enabled === 'on' ? 'Enabled closed beta' : 'Disabled closed beta', null);
   res.redirect('/staff');
 });
 
-router.post('/maintenance', requireAdmin, (req, res) => {
+router.post('/maintenance', requireStaffArea('maintenance'), (req, res) => {
   const enabled = req.body.enabled === 'on';
   const message = (req.body.message || '').trim().slice(0, 300);
   AppSettings.setMaintenance(enabled, message);
@@ -180,7 +216,7 @@ router.post('/maintenance', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, enabled ? 'Maintenance banner is on.' : 'Maintenance banner is off.', 'maintenance');
 });
 
-router.post('/allowlist/add', requireAdmin, (req, res) => {
+router.post('/allowlist/add', requireStaffArea('beta'), (req, res) => {
   const id = (req.body.discordUserId || '').trim();
   if (DISCORD_ID.test(id)) {
     BetaAllowlist.add(id);
@@ -189,7 +225,7 @@ router.post('/allowlist/add', requireAdmin, (req, res) => {
   res.redirect('/staff');
 });
 
-router.post('/allowlist/remove', requireAdmin, (req, res) => {
+router.post('/allowlist/remove', requireStaffArea('beta'), (req, res) => {
   BetaAllowlist.remove(req.body.discordUserId);
   logAudit(req, 'Removed from beta allowlist', req.body.discordUserId);
   res.redirect('/staff');
@@ -221,7 +257,68 @@ router.post('/admins/remove', requireOwner, (req, res) => {
   return redirectWithNotice(res, true, 'Removed. They\'ll lose /staff access next time their session refreshes.', 'admins');
 });
 
-router.post('/send-dm', requireAdmin, async (req, res) => {
+// ---------- Custom staff roles (scoped /staff access, owner-only to manage) ----------
+router.post('/staff-roles/create', requireOwner, (req, res) => {
+  const name = (req.body.name || '').trim().slice(0, 100);
+  const areas = [].concat(req.body.areas || []).filter((a) => STAFF_AREA_KEYS.has(a));
+  if (!name) {
+    return redirectWithNotice(res, false, 'Give the role a name.', 'staff-roles');
+  }
+  StaffRoles.create(name, areas);
+  logAudit(req, 'Created a staff role', `${name} (${areas.join(', ') || 'no areas'})`);
+  return redirectWithNotice(res, true, `"${name}" created.`, 'staff-roles');
+});
+
+router.post('/staff-roles/:id/save', requireOwner, (req, res) => {
+  const role = StaffRoles.get(Number(req.params.id));
+  if (!role) return redirectWithNotice(res, false, "That role doesn't exist anymore.", 'staff-roles');
+  const name = (req.body.name || '').trim().slice(0, 100);
+  const areas = [].concat(req.body.areas || []).filter((a) => STAFF_AREA_KEYS.has(a));
+  if (!name) {
+    return redirectWithNotice(res, false, 'Give the role a name.', 'staff-roles');
+  }
+  StaffRoles.update(role.id, name, areas);
+  logAudit(req, 'Updated a staff role', `${name} (${areas.join(', ') || 'no areas'})`);
+  return redirectWithNotice(res, true, `"${name}" updated.`, 'staff-roles');
+});
+
+router.post('/staff-roles/:id/delete', requireOwner, (req, res) => {
+  const role = StaffRoles.get(Number(req.params.id));
+  if (role) {
+    StaffRoles.delete(role.id);
+    logAudit(req, 'Deleted a staff role', role.name);
+  }
+  return redirectWithNotice(res, true, role ? `"${role.name}" deleted.` : 'Already gone.', 'staff-roles');
+});
+
+router.post('/staff-roles/:id/members/add', requireOwner, async (req, res) => {
+  const role = StaffRoles.get(Number(req.params.id));
+  if (!role) return redirectWithNotice(res, false, "That role doesn't exist anymore.", 'staff-roles');
+  const id = (req.body.discordUserId || '').trim();
+  const note = (req.body.note || '').trim().slice(0, 200);
+  if (!DISCORD_ID.test(id)) {
+    return redirectWithNotice(res, false, 'Enter a valid Discord user ID.', 'staff-roles');
+  }
+  try {
+    const user = await client.users.fetch(id);
+    StaffRoles.addMember(role.id, id, note, req.session.discordUser.id);
+    logAudit(req, 'Added a staff role member', `${user.tag} → ${role.name}`);
+    return redirectWithNotice(res, true, `Added ${user.tag} to "${role.name}" — they'll get that access next time they log in.`, 'staff-roles');
+  } catch (err) {
+    return redirectWithNotice(res, false, `Couldn't find that user: ${err.message}`, 'staff-roles');
+  }
+});
+
+router.post('/staff-roles/:id/members/remove', requireOwner, (req, res) => {
+  const role = StaffRoles.get(Number(req.params.id));
+  if (role) {
+    StaffRoles.removeMember(role.id, req.body.discordUserId);
+    logAudit(req, 'Removed a staff role member', `${req.body.discordUserId} ← ${role.name}`);
+  }
+  return redirectWithNotice(res, true, 'Removed. They\'ll lose that access next time their session refreshes.', 'staff-roles');
+});
+
+router.post('/send-dm', requireStaffArea('send_dm'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
   const color = req.body.color || '#a8e6ff';
@@ -286,7 +383,7 @@ router.post('/send-dm', requireAdmin, async (req, res) => {
   return redirectWithNotice(res, failed.length === 0, text);
 });
 
-router.post('/broadcast-owners', requireAdmin, async (req, res) => {
+router.post('/broadcast-owners', requireStaffArea('broadcast'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
   const color = req.body.color || '#a8e6ff';
@@ -317,7 +414,7 @@ router.post('/broadcast-owners', requireAdmin, async (req, res) => {
   return redirectWithNotice(res, failed.length === 0, text, 'broadcast');
 });
 
-router.post('/contacts/add', requireAdmin, async (req, res) => {
+router.post('/contacts/add', requireStaffArea('contacts'), async (req, res) => {
   const id = (req.body.discordUserId || '').trim();
   const note = (req.body.note || '').trim().slice(0, 200);
 
@@ -334,13 +431,13 @@ router.post('/contacts/add', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/contacts/remove', requireAdmin, (req, res) => {
+router.post('/contacts/remove', requireStaffArea('contacts'), (req, res) => {
   Contacts.remove(req.body.discordUserId);
   logAudit(req, 'Removed a contact', req.body.discordUserId);
   return redirectWithNotice(res, true, 'Removed.', 'contacts');
 });
 
-router.post('/emoji-book/add', requireAdmin, (req, res) => {
+router.post('/emoji-book/add', requireStaffArea('emoji_book'), (req, res) => {
   const raw = (req.body.markup || '').trim();
   const note = (req.body.note || '').trim().slice(0, 200);
   const match = CUSTOM_EMOJI.exec(raw);
@@ -357,13 +454,13 @@ router.post('/emoji-book/add', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, `Saved "${name}" to the emoji book.`, 'emoji-book');
 });
 
-router.post('/emoji-book/remove', requireAdmin, (req, res) => {
+router.post('/emoji-book/remove', requireStaffArea('emoji_book'), (req, res) => {
   EmojiBook.remove(Number(req.body.id));
   logAudit(req, 'Removed a saved emoji', String(req.body.id));
   return redirectWithNotice(res, true, 'Removed.', 'emoji-book');
 });
 
-router.post('/blocklist/add', requireAdmin, (req, res) => {
+router.post('/blocklist/add', requireStaffArea('blocklist'), (req, res) => {
   const id = (req.body.discordUserId || '').trim();
   const reason = (req.body.reason || '').trim().slice(0, 200);
 
@@ -375,13 +472,13 @@ router.post('/blocklist/add', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, 'Blocked bot-wide — refused tickets and auto-kicked from any server they join.', 'blocklist');
 });
 
-router.post('/blocklist/remove', requireAdmin, (req, res) => {
+router.post('/blocklist/remove', requireStaffArea('blocklist'), (req, res) => {
   GlobalBlocklist.remove(req.body.discordUserId);
   logAudit(req, 'Unblocklisted a user', req.body.discordUserId);
   return redirectWithNotice(res, true, 'Removed.', 'blocklist');
 });
 
-router.post('/server-notes/save', requireAdmin, (req, res) => {
+router.post('/server-notes/save', requireStaffArea('server_notes'), (req, res) => {
   const guildId = (req.body.guildId || '').trim();
   const note = (req.body.note || '').trim().slice(0, 500);
   const guild = client.guilds.cache.get(guildId);
@@ -394,7 +491,7 @@ router.post('/server-notes/save', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, note ? `Note saved for ${guild.name}.` : `Note cleared for ${guild.name}.`, 'server-notes');
 });
 
-router.post('/dm-form-templates/save', requireAdmin, (req, res) => {
+router.post('/dm-form-templates/save', requireStaffArea('dm_form'), (req, res) => {
   const id = req.body.templateId ? Number(req.body.templateId) : null;
   const name = (req.body.name || '').trim().slice(0, 100);
   const title = (req.body.title || '').trim().slice(0, 200);
@@ -418,7 +515,7 @@ router.post('/dm-form-templates/save', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, `"${name}" created.`, 'dm-form');
 });
 
-router.post('/dm-form-templates/delete', requireAdmin, (req, res) => {
+router.post('/dm-form-templates/delete', requireStaffArea('dm_form'), (req, res) => {
   const id = Number(req.body.templateId);
   const template = DmFormTemplates.get(id);
   if (template) {
@@ -444,7 +541,7 @@ router.get('/backup', requireOwner, async (req, res) => {
   }
 });
 
-router.post('/leave-guild', requireAdmin, async (req, res) => {
+router.post('/leave-guild', requireStaffArea('remove_server'), async (req, res) => {
   const guildId = (req.body.guildId || '').trim();
   const guild = client.guilds.cache.get(guildId);
   if (!guild) {
@@ -460,7 +557,7 @@ router.post('/leave-guild', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/staff-notes/add', requireAdmin, (req, res) => {
+router.post('/staff-notes/add', requireAnyStaffAccess, (req, res) => {
   const note = (req.body.note || '').trim().slice(0, 500);
   if (!note) return redirectWithNotice(res, false, 'Write something first.', 'staff-notes');
   const actor = req.session.discordUser;
@@ -469,13 +566,13 @@ router.post('/staff-notes/add', requireAdmin, (req, res) => {
   return redirectWithNotice(res, true, 'Note pinned.', 'staff-notes');
 });
 
-router.post('/staff-notes/remove', requireAdmin, (req, res) => {
+router.post('/staff-notes/remove', requireAnyStaffAccess, (req, res) => {
   StaffNotes.remove(Number(req.body.id));
   logAudit(req, 'Removed a staff note', null);
   return redirectWithNotice(res, true, 'Removed.', 'staff-notes');
 });
 
-router.post('/test-beta-dm/send', requireAdmin, async (req, res) => {
+router.post('/test-beta-dm/send', requireStaffArea('beta'), async (req, res) => {
   try {
     const user = await client.users.fetch(req.session.discordUser.id);
     await user.send({ embeds: [buildResultEmbed(true, { test: true })] });

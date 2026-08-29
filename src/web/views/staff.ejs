@@ -2,27 +2,35 @@
 <h1>Staff</h1>
 <p class="subtitle">Owner and admin controls — who can log in, who else can manage this, and bot-wide tools.</p>
 
-<%- include('partials/subnav', { sections: [
-  { id: 'overview', label: 'Overview' },
-  { id: 'health', label: 'Server health' },
-  { id: 'staff-notes', label: 'Pinned notes' },
-  { id: 'beta-toggle', label: 'Closed beta' },
-  { id: 'admins', label: 'Admins' },
-  { id: 'allowlist', label: 'Allowed users' },
-  { id: 'blocklist', label: 'Blocklist' },
-  { id: 'test-beta-dm', label: 'Test beta DMs' },
-  { id: 'contacts', label: 'Contacts' },
-  { id: 'emoji-book', label: 'Emoji book' },
-  { id: 'server-notes', label: 'Server notes' },
-  { id: 'dm-form', label: 'Application form' },
-  { id: 'send-dm', label: 'Send a DM' },
-  { id: 'broadcast', label: 'Broadcast to owners' },
-  { id: 'maintenance', label: 'Maintenance banner' },
-  { id: 'user-lookup', label: 'User lookup' },
-  { id: 'audit-log', label: 'Audit log' },
-  { id: 'backup', label: 'Backup' },
-  { id: 'remove-server', label: 'Remove from a server' },
-] }) %>
+<%
+  // Only list anchors for sections this session can actually see -- same
+  // gating as the cards themselves (canSee/isOwner), so a scoped staff
+  // role's nav doesn't advertise tools it can't reach.
+  const allStaffSections = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'health', label: 'Server health' },
+    { id: 'staff-notes', label: 'Pinned notes' },
+    { id: 'beta-toggle', label: 'Closed beta', area: 'beta' },
+    { id: 'admins', label: 'Admins', ownerOnly: true },
+    { id: 'staff-roles', label: 'Staff roles', ownerOnly: true },
+    { id: 'allowlist', label: 'Allowed users', area: 'beta' },
+    { id: 'blocklist', label: 'Blocklist', area: 'blocklist' },
+    { id: 'test-beta-dm', label: 'Test beta DMs', area: 'beta' },
+    { id: 'contacts', label: 'Contacts', area: 'contacts' },
+    { id: 'emoji-book', label: 'Emoji book', area: 'emoji_book' },
+    { id: 'server-notes', label: 'Server notes', area: 'server_notes' },
+    { id: 'dm-form', label: 'Application form', area: 'dm_form' },
+    { id: 'send-dm', label: 'Send a DM', area: 'send_dm' },
+    { id: 'broadcast', label: 'Broadcast to owners', area: 'broadcast' },
+    { id: 'maintenance', label: 'Maintenance banner', area: 'maintenance' },
+    { id: 'user-lookup', label: 'User lookup' },
+    { id: 'audit-log', label: 'Audit log' },
+    { id: 'backup', label: 'Backup', ownerOnly: true },
+    { id: 'remove-server', label: 'Remove from a server', area: 'remove_server' },
+  ];
+  const visibleStaffSections = allStaffSections.filter((s) => (!s.ownerOnly || isOwner) && (!s.area || canSee(s.area)));
+%>
+<%- include('partials/subnav', { sections: visibleStaffSections }) %>
 
 <% if (notice) { %>
   <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
@@ -112,8 +120,11 @@
   </form>
 </div>
 
+<% if (isOwner || canSee('beta') || canSee('blocklist')) { %>
 <h2 class="staff-group-heading">Access &amp; beta</h2>
+<% } %>
 
+<% if (canSee('beta')) { %>
 <div class="card" id="beta-toggle">
   <form method="post" action="/staff/beta-lock">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -129,6 +140,7 @@
     </label>
   </form>
 </div>
+<% } %>
 
 <% if (isOwner) { %>
 <div class="card" id="admins">
@@ -183,8 +195,131 @@
     <button class="btn" type="submit">Add admin</button>
   </form>
 </div>
+
+<div class="card" id="staff-roles">
+  <h2>Custom staff roles</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Grant scoped <code>/staff</code> access without making someone a full admin — create a role, check the
+    areas it should cover, then add whoever needs it by Discord user ID. Someone can belong to more than one
+    role; their access is the combination of all of them. They can log in while closed beta is on, same as
+    a full admin.
+  </p>
+
+  <% if (staffRoles.length === 0) { %>
+    <p class="empty">No custom roles yet — create one below.</p>
+  <% } else { %>
+    <% staffRoles.forEach(role => { %>
+      <details class="role-panel">
+        <summary class="role-summary">
+          <span class="role-summary-left">
+            <svg class="role-chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="role-summary-name"><%= role.name %></span>
+            <span class="role-summary-meta"><%= role.members.length %> member<%= role.members.length === 1 ? '' : 's' %></span>
+          </span>
+          <span class="role-summary-right">
+            <% if (role.areas.length === 0) { %>
+              <span class="badge">No access granted</span>
+            <% } else { %>
+              <span class="badge badge-open"><%= role.areas.length %> area<%= role.areas.length === 1 ? '' : 's' %></span>
+            <% } %>
+          </span>
+        </summary>
+
+        <div class="role-panel-body">
+          <form method="post" action="/staff/staff-roles/<%= role.id %>/save">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label style="margin-top:0;">Name</label>
+            <input type="text" name="name" value="<%= role.name %>" maxlength="100" required>
+
+            <label style="margin-top:14px;">Areas granted</label>
+            <div class="perm-grid">
+              <% staffAreaDefs.forEach(a => { %>
+                <label class="perm-item" title="<%= a.description %>">
+                  <input type="checkbox" name="areas" value="<%= a.key %>" <%= role.areas.includes(a.key) ? 'checked' : '' %>>
+                  <span><%= a.label %></span>
+                </label>
+              <% }) %>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-sm" type="submit">Save</button>
+              <button class="btn btn-sm btn-danger" type="submit" formaction="/staff/staff-roles/<%= role.id %>/delete" onclick="return confirm('Delete &quot;<%= role.name %>&quot;? Everyone in it loses this access next time their session refreshes.');">Delete role</button>
+            </div>
+          </form>
+
+          <h3 style="margin-top:18px;">Members</h3>
+          <% if (role.members.length === 0) { %>
+            <p class="empty">No one has this role yet.</p>
+          <% } else { %>
+            <ul class="list">
+              <% role.members.forEach(m => { %>
+                <li class="list-item">
+                  <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                    <% if (m.resolved) { %>
+                      <img src="<%= m.avatarURL %>" alt="" class="contact-avatar">
+                    <% } else { %>
+                      <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);">?</span>
+                    <% } %>
+                    <div style="min-width:0;">
+                      <div class="list-item-title"><%= m.resolved ? m.tag : 'Unknown user' %></div>
+                      <div class="list-item-meta">
+                        <span class="contact-id" style="display:inline;"><%= m.id %></span><% if (m.note) { %> · <%= m.note %><% } %>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <form method="post" action="/staff/staff-roles/<%= role.id %>/members/remove" onsubmit="return confirm('Remove this person from &quot;<%= role.name %>&quot;?');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="discordUserId" value="<%= m.id %>">
+                      <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+                    </form>
+                  </div>
+                </li>
+              <% }) %>
+            </ul>
+          <% } %>
+
+          <form method="post" action="/staff/staff-roles/<%= role.id %>/members/add" style="margin-top:14px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div style="flex:1; min-width:200px;">
+              <label style="margin-top:0;">Discord user ID</label>
+              <input type="text" name="discordUserId" placeholder="e.g. 1227918600753512480" pattern="\d{5,25}" required>
+            </div>
+            <div style="flex:1; min-width:200px;">
+              <label style="margin-top:0;">Note (optional)</label>
+              <input type="text" name="note" placeholder="e.g. support team" maxlength="200">
+            </div>
+            <button class="btn btn-sm" type="submit">Add member</button>
+          </form>
+        </div>
+      </details>
+    <% }) %>
+  <% } %>
+
+  <h3 style="margin-top:20px;">Create a role</h3>
+  <form method="post" action="/staff/staff-roles/create">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label style="margin-top:0;">Name</label>
+    <input type="text" name="name" placeholder="e.g. Support Specialist" maxlength="100" required>
+
+    <label style="margin-top:14px;">Areas granted</label>
+    <div class="perm-grid">
+      <% staffAreaDefs.forEach(a => { %>
+        <label class="perm-item" title="<%= a.description %>">
+          <input type="checkbox" name="areas" value="<%= a.key %>">
+          <span><%= a.label %></span>
+        </label>
+      <% }) %>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Create role</button>
+    </div>
+  </form>
+</div>
 <% } %>
 
+<% if (canSee('beta')) { %>
 <div class="card" id="allowlist">
   <h2>Allowed Discord users</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -221,7 +356,9 @@
     <button class="btn" type="submit">Add</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('blocklist')) { %>
 <div class="card" id="blocklist">
   <h2>Global blocklist</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -263,7 +400,9 @@
     <button class="btn btn-danger" type="submit">Block</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('beta')) { %>
 <div class="card" id="test-beta-dm">
   <h2>Test beta DMs</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -275,9 +414,13 @@
     <button class="btn" type="submit">Send test beta DMs to me</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('contacts') || canSee('emoji_book') || canSee('server_notes')) { %>
 <h2 class="staff-group-heading">People &amp; servers</h2>
+<% } %>
 
+<% if (canSee('contacts')) { %>
 <div class="card" id="contacts">
   <h2>Contacts</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -329,7 +472,9 @@
     <button class="btn" type="submit">Add contact</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('emoji_book')) { %>
 <div class="card" id="emoji-book">
   <h2>Emoji book</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -379,7 +524,9 @@
     <button class="btn" type="submit">Add emoji</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('server_notes')) { %>
 <div class="card" id="server-notes">
   <h2>Server notes</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -425,9 +572,13 @@
     <button class="btn" type="submit">Save note</button>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('dm_form') || canSee('send_dm') || canSee('broadcast') || canSee('maintenance')) { %>
 <h2 class="staff-group-heading">Communication</h2>
+<% } %>
 
+<% if (canSee('dm_form')) { %>
 <div class="card" id="dm-form">
   <h2>Application form templates</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -484,7 +635,9 @@
     </div>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('send_dm')) { %>
 <div class="card" id="send-dm">
   <h2>Send a DM as ModSentry</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -556,7 +709,9 @@
     </div>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('broadcast')) { %>
 <div class="card" id="broadcast">
   <h2>Broadcast to server owners</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -580,7 +735,9 @@
     </div>
   </form>
 </div>
+<% } %>
 
+<% if (canSee('maintenance')) { %>
 <div class="card" id="maintenance">
   <h2>Maintenance banner</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -605,6 +762,7 @@
     </div>
   </form>
 </div>
+<% } %>
 
 <h2 class="staff-group-heading">Diagnostics</h2>
 
@@ -710,7 +868,9 @@
   <% } %>
 </div>
 
+<% if (isOwner || canSee('remove_server')) { %>
 <h2 class="staff-group-heading">System</h2>
+<% } %>
 
 <% if (isOwner) { %>
 <div class="card" id="backup">
@@ -723,6 +883,7 @@
 </div>
 <% } %>
 
+<% if (canSee('remove_server')) { %>
 <div class="card" id="remove-server">
   <h2>Remove ModSentry from a server</h2>
   <p class="hint" style="margin-bottom:14px;">
@@ -732,6 +893,7 @@
   <input type="text" id="serverSearch" placeholder="Start typing a server name…" autocomplete="off">
   <div id="serverResults" style="margin-top:10px;"></div>
 </div>
+<% } %>
 
 <script>
 (function () {
@@ -795,10 +957,12 @@
 
 <script>
 (function () {
-  var guilds = <%- JSON.stringify(guilds).replace(/</g, '\\u003c') %>;
-  var csrfToken = <%- JSON.stringify(csrfToken).replace(/</g, '\\u003c') %>;
   var input = document.getElementById('serverSearch');
   var results = document.getElementById('serverResults');
+  if (!input || !results) return; // hidden -- no "remove_server" staff access
+
+  var guilds = <%- JSON.stringify(guilds).replace(/</g, '\\u003c') %>;
+  var csrfToken = <%- JSON.stringify(csrfToken).replace(/</g, '\\u003c') %>;
 
   function row(g) {
     var li = document.createElement('li');

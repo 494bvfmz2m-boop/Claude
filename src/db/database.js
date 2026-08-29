@@ -271,6 +271,25 @@ CREATE TABLE IF NOT EXISTS dashboard_admins (
   added_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Scoped /staff access, below full-admin: a named role grants only the
+-- listed areas (see web/lib/staffAreas.js) rather than everything
+-- dashboard_admins gets. Owner-managed only.
+CREATE TABLE IF NOT EXISTS staff_roles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  areas TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS staff_role_members (
+  staff_role_id INTEGER NOT NULL,
+  discord_user_id TEXT NOT NULL,
+  note TEXT,
+  added_by TEXT,
+  added_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (staff_role_id, discord_user_id)
+);
+
 CREATE TABLE IF NOT EXISTS admin_audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   actor_id TEXT NOT NULL,
@@ -364,6 +383,7 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_guild ON scheduled_announ
 CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_due ON scheduled_announcements(active, next_run);
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(remind_at);
 CREATE INDEX IF NOT EXISTS idx_role_triggers_guild ON role_triggers(guild_id);
+CREATE INDEX IF NOT EXISTS idx_staff_role_members_user ON staff_role_members(discord_user_id);
 `);
 
 // Lightweight migrations for columns added after the initial release —

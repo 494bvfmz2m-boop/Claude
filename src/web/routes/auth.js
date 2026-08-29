@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const config = require('../../config');
 const { buildAuthorizeUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds } = require('../lib/discordOAuth');
-const { AppSettings, BetaAllowlist, BetaRequests, DashboardAdmins } = require('../../db/repo');
+const { AppSettings, BetaAllowlist, BetaRequests, DashboardAdmins, StaffRoles } = require('../../db/repo');
 const client = require('../../bot/client');
 const { notifyAdmins } = require('../../bot/betaRequests');
 const { verifyCsrf } = require('../middleware/auth');
@@ -43,7 +43,11 @@ router.get('/auth/discord/callback', async (req, res) => {
 
     const isOwner = Boolean(config.ownerDiscordId) && user.id === config.ownerDiscordId;
     const isAdmin = isOwner || DashboardAdmins.has(user.id);
-    if (!isAdmin && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
+    // A custom staff role (scoped /staff access, see web/lib/staffAreas.js)
+    // also needs to get past the beta lock -- they need to log in at all to
+    // reach whatever they've been granted.
+    const staffAreas = [...StaffRoles.areasForUser(user.id)];
+    if (!isAdmin && staffAreas.length === 0 && AppSettings.get().betaLocked && !BetaAllowlist.has(user.id)) {
       // Stash who they are (without granting a real session) so the login
       // page can offer "Request access" without making them go through
       // Discord OAuth a second time just to submit it.
@@ -55,6 +59,7 @@ router.get('/auth/discord/callback', async (req, res) => {
     req.session.discordUser = { id: user.id, username: user.username, avatar: user.avatar };
     req.session.isOwner = isOwner;
     req.session.isAdmin = isAdmin;
+    req.session.staffAreas = staffAreas;
     req.session.manageableGuilds = manageableGuilds;
     res.redirect('/');
   } catch (err) {

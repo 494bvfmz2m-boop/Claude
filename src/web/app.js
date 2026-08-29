@@ -57,6 +57,7 @@ function createApp() {
     res.locals.discordUser = req.session?.discordUser || null;
     res.locals.isOwner = Boolean(req.session?.isOwner);
     res.locals.isAdmin = Boolean(req.session?.isAdmin);
+    res.locals.hasStaffAccess = Boolean(req.session?.isOwner || req.session?.isAdmin || (req.session?.staffAreas?.length > 0));
     res.locals.inviteUrl = buildGenericInviteUrl();
     const appSettings = AppSettings.get();
     res.locals.maintenance = { enabled: appSettings.maintenanceEnabled, message: appSettings.maintenanceMessage };

@@ -211,6 +211,60 @@ const DashboardAdmins = {
   },
 };
 
+// Scoped /staff access, below full-admin (DashboardAdmins) -- a named role
+// grants only its listed areas (web/lib/staffAreas.js) to whoever's added
+// as a member, rather than everything a full admin gets. A user can belong
+// to more than one role; their actual access is the union of all of them.
+const StaffRoles = {
+  list() {
+    return db.prepare('SELECT * FROM staff_roles ORDER BY name COLLATE NOCASE').all()
+      .map((r) => ({ ...r, areas: parseJSON(r.areas, []) }));
+  },
+  get(id) {
+    const row = db.prepare('SELECT * FROM staff_roles WHERE id = ?').get(id);
+    if (!row) return null;
+    return { ...row, areas: parseJSON(row.areas, []) };
+  },
+  create(name, areas) {
+    const info = db.prepare('INSERT INTO staff_roles (name, areas) VALUES (?, ?)').run(name, JSON.stringify(areas || []));
+    return info.lastInsertRowid;
+  },
+  update(id, name, areas) {
+    db.prepare('UPDATE staff_roles SET name = ?, areas = ? WHERE id = ?').run(name, JSON.stringify(areas || []), id);
+  },
+  delete(id) {
+    db.prepare('DELETE FROM staff_role_members WHERE staff_role_id = ?').run(id);
+    db.prepare('DELETE FROM staff_roles WHERE id = ?').run(id);
+  },
+  membersFor(id) {
+    return db.prepare('SELECT * FROM staff_role_members WHERE staff_role_id = ? ORDER BY added_at DESC').all(id);
+  },
+  addMember(roleId, discordUserId, note, addedBy) {
+    db.prepare('INSERT OR IGNORE INTO staff_role_members (staff_role_id, discord_user_id, note, added_by) VALUES (?, ?, ?, ?)')
+      .run(roleId, discordUserId, note || null, addedBy || null);
+  },
+  removeMember(roleId, discordUserId) {
+    db.prepare('DELETE FROM staff_role_members WHERE staff_role_id = ? AND discord_user_id = ?').run(roleId, discordUserId);
+  },
+  // Every custom role a given Discord user belongs to.
+  rolesForUser(discordUserId) {
+    return db.prepare(`
+      SELECT sr.* FROM staff_roles sr
+      JOIN staff_role_members srm ON srm.staff_role_id = sr.id
+      WHERE srm.discord_user_id = ?
+    `).all(discordUserId).map((r) => ({ ...r, areas: parseJSON(r.areas, []) }));
+  },
+  // The union of areas granted by every role a user belongs to -- what
+  // requireStaffArea actually checks against.
+  areasForUser(discordUserId) {
+    const areas = new Set();
+    for (const role of StaffRoles.rolesForUser(discordUserId)) {
+      role.areas.forEach((a) => areas.add(a));
+    }
+    return areas;
+  },
+};
+
 const AdminAuditLog = {
   log(actorId, actorTag, action, detail) {
     db.prepare('INSERT INTO admin_audit_log (actor_id, actor_tag, action, detail) VALUES (?, ?, ?, ?)')
@@ -1006,4 +1060,4 @@ const Reminders = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };
