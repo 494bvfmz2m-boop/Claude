@@ -63,6 +63,31 @@ body.centered {
 }
 .discord-login-btn:hover { background: #4752c4; }
 
+.invite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+.invite-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.invite-btn-small {
+  color: var(--text-dim);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.invite-btn-small:hover { color: var(--text); border-color: var(--accent); }
+
 label {
   display: flex;
   flex-direction: column;

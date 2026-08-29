@@ -10,6 +10,9 @@ const DISCORD_API = 'https://discord.com/api/v10';
 const MANAGE_GUILD = 0x20n;
 const ADMINISTRATOR = 0x8n;
 
+// View Channels, Send Messages, Embed Links, Read Message History, Mention @everyone/here/roles
+const BOT_INVITE_PERMISSIONS = '216064';
+
 function canManageGuild(discordGuild) {
   if (discordGuild.owner) return true;
   const permissions = BigInt(discordGuild.permissions);
@@ -57,6 +60,19 @@ function createServer(client) {
   // --- Discord OAuth ---
   app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  });
+
+  // Public — anyone can invite the bot to a server they manage, no dashboard login required.
+  app.get('/invite', (req, res) => {
+    if (!config.discordClientId) {
+      return res.status(500).send('Bot invite is not configured (missing DISCORD_CLIENT_ID).');
+    }
+    const params = new URLSearchParams({
+      client_id: config.discordClientId,
+      permissions: BOT_INVITE_PERMISSIONS,
+      scope: 'bot applications.commands',
+    });
+    res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
   });
 
   app.get('/auth/discord', (req, res) => {
