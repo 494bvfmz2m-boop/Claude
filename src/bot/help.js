@@ -38,8 +38,8 @@ async function handleHelp(interaction) {
   const rank = primaryHierarchy ? getRankForRoleIds(primaryHierarchy.id, [...member.roles.cache.keys()]) : { rank: 0, roleId: null };
   const staff = (isOwnerOrAdmin || rank.rank > 0)
     ? [
-        '`/promote <user>` — Move someone up the staff hierarchy',
-        '`/demote <user>` — Move someone down the staff hierarchy',
+        '`/promote <user> [levels]` — Move someone up the staff hierarchy (default 1 rank)',
+        '`/demote <user> [levels]` — Move someone down the staff hierarchy (default 1 rank)',
       ]
     : [];
 

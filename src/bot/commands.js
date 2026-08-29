@@ -89,13 +89,15 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('promote')
-    .setDescription('Promote a staff member to the next rank up')
-    .addUserOption((o) => o.setName('user').setDescription('Who to promote').setRequired(true)),
+    .setDescription('Promote a staff member up the hierarchy')
+    .addUserOption((o) => o.setName('user').setDescription('Who to promote').setRequired(true))
+    .addIntegerOption((o) => o.setName('levels').setDescription('How many ranks up (default 1)').setRequired(false).setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('demote')
-    .setDescription('Demote a staff member to the next rank down')
-    .addUserOption((o) => o.setName('user').setDescription('Who to demote').setRequired(true)),
+    .setDescription('Demote a staff member down the hierarchy')
+    .addUserOption((o) => o.setName('user').setDescription('Who to demote').setRequired(true))
+    .addIntegerOption((o) => o.setName('levels').setDescription('How many ranks down (default 1)').setRequired(false).setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('help')

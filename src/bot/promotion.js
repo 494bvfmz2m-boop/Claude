@@ -37,6 +37,7 @@ async function applyRankChange(guild, targetMember, currentRoleId, newRoleId) {
 
 async function changeRank(interaction, direction) {
   const user = interaction.options.getUser('user');
+  const steps = interaction.options.getInteger('levels') || 1;
   const guild = interaction.guild;
 
   if (user.id === interaction.user.id) {
@@ -70,16 +71,20 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: "You can only act on someone with a strictly lower rank than you.", ephemeral: true });
   }
 
-  const newRank = targetRank.rank + direction;
+  // Promoting is capped at maxRank, and (unless override) at one below the
+  // invoker's own rank -- demoting is capped at 0. Clamped rather than
+  // refused outright, so "/promote 5" on someone 2 ranks from the top still
+  // promotes them as far as it can, instead of doing nothing.
+  const ceiling = direction > 0 && !override ? Math.min(maxRank, invokerRank.rank - 1) : maxRank;
+  const requestedRank = targetRank.rank + direction * steps;
+  const newRank = Math.min(ceiling, Math.max(0, requestedRank));
+  const actualSteps = Math.abs(newRank - targetRank.rank);
 
-  if (newRank > maxRank) {
-    return interaction.reply({ content: `**${user.tag}** is already at the top rank.`, ephemeral: true });
-  }
-  if (newRank < 0) {
-    return interaction.reply({ content: `**${user.tag}** isn't part of the staff hierarchy — nothing to demote.`, ephemeral: true });
-  }
-  if (!override && invokerRank.rank <= newRank) {
-    return interaction.reply({ content: "You can't promote someone to a rank equal to or higher than your own.", ephemeral: true });
+  if (actualSteps === 0) {
+    const msg = direction > 0
+      ? `**${user.tag}** is already at the highest rank you can promote them to.`
+      : `**${user.tag}** isn't part of the staff hierarchy — nothing to demote.`;
+    return interaction.reply({ content: msg, ephemeral: true });
   }
 
   const newRoleId = newRank > 0 ? getRoleIdForRank(hierarchy.id, newRank) : null;
@@ -93,8 +98,10 @@ async function changeRank(interaction, direction) {
   const verb = direction > 0 ? 'Promoted' : 'Demoted';
   const emoji = direction > 0 ? '⬆️' : '⬇️';
   const newRankLabel = newRoleId ? `<@&${newRoleId}>` : 'no staff role (fully demoted)';
+  const stepsLabel = actualSteps > 1 ? ` ${actualSteps} ranks` : '';
+  const clampNote = actualSteps < steps ? ` (asked for ${steps}, but that's as far as they could go)` : '';
 
-  await interaction.reply({ content: `${emoji} ${verb} **${user.tag}** to ${newRankLabel}.` });
+  await interaction.reply({ content: `${emoji} ${verb} **${user.tag}**${stepsLabel} to ${newRankLabel}.${clampNote}` });
   await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRank}`, direction > 0 ? emojiUrl('modsentry-levelup.gif') : null);
 }
 
