@@ -9,18 +9,25 @@ run the bot in.
 
 ## Features
 
-- **`/ask <question>`** — searches the FAQ database for the best keyword
-  match and replies with the answer. If nothing matches confidently, it
-  automatically pings your support role instead of guessing.
+- **Auto-reply** — every plain message someone types in a ticket channel
+  is checked against the FAQ database automatically, no command needed.
+  A confident match gets an instant reply. The *first* message in a
+  ticket that doesn't match anything automatically pings your support
+  role — later unmatched chatter in the same ticket won't re-ping (only
+  the first miss escalates, so ordinary back-and-forth doesn't spam
+  staff).
+- **`/ask <question>`** — same matching, on demand. Useful for staff
+  re-checking the FAQ, or if someone wants to ask outside of what they
+  already typed.
 - **`/escalate [reason]`** — the "I don't want the bot's answer" command.
   Runs instantly and pings the support role directly, regardless of what
-  `/ask` did or didn't find.
-- **"This didn't help" button** — attached to every automated answer, in
-  case the match was wrong.
-- **Ticket-only by category** — commands only work inside channels that
-  live under category IDs you configure in the dashboard (works with any
-  existing ticket-creation bot, since it doesn't touch ticket creation
-  itself).
+  auto-reply or `/ask` did or didn't find.
+- **"This didn't help" button** — attached to every automated answer
+  (auto-reply and `/ask` alike), in case the match was wrong.
+- **Ticket-only by category** — all of the above only activates inside
+  channels that live under category IDs you configure in the dashboard
+  (works with any existing ticket-creation bot, since it doesn't touch
+  ticket creation itself).
 - **Multi-server web dashboard** (`http://localhost:3000` by default) —
   people log in with their own Discord account. Anyone with **Manage
   Server** permission in a server the bot is installed in can manage that
@@ -31,12 +38,12 @@ run the bot in.
 ## How matching works (no AI)
 
 Each FAQ entry has a question, optional comma-separated keywords, and an
-answer. When someone runs `/ask`, the bot tokenizes their question and
-scores it against every entry's question + keywords by word overlap. The
-entry with the most overlapping words wins, as long as it clears two
-minimum thresholds (`MATCH_MIN_OVERLAP`, `MATCH_MIN_RATIO` in `.env`). If
-nothing clears the bar, the bot escalates instead of answering — it never
-invents an answer.
+answer. For every message in a ticket channel (or a `/ask` question), the
+bot tokenizes the text and scores it against every entry's question +
+keywords by word overlap. The entry with the most overlapping words wins,
+as long as it clears two minimum thresholds (`MATCH_MIN_OVERLAP`,
+`MATCH_MIN_RATIO` in `.env`). If nothing clears the bar, the bot escalates
+instead of answering — it never invents an answer.
 
 Add a few keywords to each FAQ entry (e.g. `password, reset, login,
 forgot`) to make matching much more reliable.
@@ -47,13 +54,19 @@ forgot`) to make matching much more reliable.
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application**.
 2. Under **Bot**, click **Add Bot**, then copy the **Token**.
-3. Under **OAuth2 → General**, copy the **Client ID** and **Client Secret**.
-4. Still under **OAuth2 → General**, add a **Redirect** URL:
+3. Still under **Bot**, scroll to **Privileged Gateway Intents** and turn
+   **on Message Content Intent**. This is required for auto-reply to see
+   what people type in ticket channels at all — without it, every message
+   looks empty to the bot and auto-reply silently never fires (no error,
+   just nothing happens). `/ask` and `/escalate` don't need this, only
+   auto-reply does.
+4. Under **OAuth2 → General**, copy the **Client ID** and **Client Secret**.
+5. Still under **OAuth2 → General**, add a **Redirect** URL:
    `http://localhost:3000/auth/discord/callback` for local dev, and your
    real dashboard URL (e.g. `https://tickets.yourdomain.com/auth/discord/callback`)
    for production. This is what lets people log into the dashboard with
    Discord — it must match `DISCORD_REDIRECT_URI` in `.env` exactly.
-5. Under **OAuth2 → URL Generator**, select scopes `bot` **and**
+6. Under **OAuth2 → URL Generator**, select scopes `bot` **and**
    `applications.commands` (skipping `applications.commands` is the #1
    cause of "/ask doesn't show up at all" — the bot literally isn't
    allowed to register slash commands in that server without it), and

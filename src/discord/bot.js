@@ -70,9 +70,24 @@ function buildHumanHelpRow() {
   );
 }
 
+function buildAnswerEmbed(entry) {
+  return new EmbedBuilder()
+    .setColor(0x57f287)
+    .setTitle(entry.question)
+    .setDescription(entry.answer)
+    .setFooter({ text: 'Automated answer from the FAQ database' });
+}
+
+// Channels that have already been auto-escalated once from a passive
+// (non-command) message, so later unmatched chatter in the same ticket
+// doesn't re-ping support. Intentionally in-memory: resets on restart,
+// which just means at most one extra escalation per ticket — acceptable,
+// and avoids a DB migration for what's essentially a debounce flag.
+const autoEscalatedChannels = new Set();
+
 function createBot() {
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   });
 
   client.once('ready', async () => {
@@ -108,7 +123,34 @@ function createBot() {
     }
   });
 
+  client.on('messageCreate', async (message) => {
+    try {
+      await handleAutoReply(message);
+    } catch (err) {
+      console.error('Error handling auto-reply message:', err);
+    }
+  });
+
   return client;
+}
+
+async function handleAutoReply(message) {
+  if (message.author.bot) return;
+  if (!message.inGuild()) return;
+  if (!message.content.trim()) return;
+  if (!isTicketChannel(message.channel)) return;
+
+  const entries = db.listFaqEntries(message.guildId);
+  const match = findBestMatch(message.content, entries);
+
+  if (match) {
+    await message.reply({ embeds: [buildAnswerEmbed(match.entry)], components: [buildHumanHelpRow()] });
+    return;
+  }
+
+  if (autoEscalatedChannels.has(message.channelId)) return;
+  autoEscalatedChannels.add(message.channelId);
+  await pingSupport(message.channel, { requestedBy: message.author, question: message.content });
 }
 
 async function handleCommand(interaction) {
@@ -148,13 +190,7 @@ async function handleAsk(interaction) {
     return;
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(0x57f287)
-    .setTitle(match.entry.question)
-    .setDescription(match.entry.answer)
-    .setFooter({ text: 'Automated answer from the FAQ database' });
-
-  await interaction.reply({ embeds: [embed], components: [buildHumanHelpRow()] });
+  await interaction.reply({ embeds: [buildAnswerEmbed(match.entry)], components: [buildHumanHelpRow()] });
 }
 
 async function handleEscalate(interaction) {
