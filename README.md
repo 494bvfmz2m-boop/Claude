@@ -11,7 +11,9 @@ dashboard to manage everything.
 - **`/ask <question>`** — searches the FAQ database for the best keyword
   match and replies with the answer. If nothing matches confidently, it
   automatically pings your support role instead of guessing.
-- **`/escalate [reason]`** — pings the support role directly, any time.
+- **`/escalate [reason]`** — the "I don't want the bot's answer" command.
+  Runs instantly and pings the support role directly, regardless of what
+  `/ask` did or didn't find.
 - **"This didn't help" button** — attached to every automated answer, in
   case the match was wrong.
 - **Ticket-only by category** — commands only work inside channels that
@@ -88,6 +90,26 @@ The bot logs in and the dashboard starts on the configured `PORT`
 
 That's it — `/ask` and `/escalate` will now work in any channel under a
 configured category.
+
+## Deploying on Coolify
+
+- **Repository:** `494bvfmz2m-boop/claude`
+- **Branch:** `claude/discord-auto-reply-tickets-44awck`
+- **Build pack:** Dockerfile (the repo includes one at the root — `better-sqlite3`
+  is a native module, so this is more reliable than Nixpacks auto-detect).
+- **Port:** `3000` (or set `PORT` and match it in Coolify's port mapping).
+- **Persistent storage:** mount a volume at `/app/data` — that's where the
+  SQLite file lives. Without it, your FAQ database resets on every
+  redeploy.
+- **Environment variables** (set these in Coolify, not in `.env` — the
+  Dockerfile doesn't ship one): `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`,
+  `DISCORD_GUILD_ID` (optional), `SESSION_SECRET`,
+  `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD_HASH` (generate locally
+  with `npm run hash-password`), `DATABASE_FILE=/app/data/bot.sqlite3`.
+- **Slash commands:** `npm run register-commands` doesn't need to run
+  inside the container — it just calls the Discord API. Run it once from
+  your local machine (with the same `DISCORD_TOKEN`/`DISCORD_CLIENT_ID`/
+  `DISCORD_GUILD_ID` in a local `.env`) before or after the first deploy.
 
 ## Project layout
 
