@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ticket Bot Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🎫 Ticket Auto-Reply Dashboard</h1>
+    <div class="row">
+      <span id="bot-status" class="muted"><span class="status-dot offline"></span>checking...</span>
+      <button class="secondary" id="logout-btn">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="guild-select">
+      <label for="guild-picker" class="muted">Server</label>
+      <select id="guild-picker"></select>
+    </div>
+
+    <nav class="tabs">
+      <button data-tab="faq" class="active">FAQ Database</button>
+      <button data-tab="categories">Ticket Categories</button>
+      <button data-tab="role">Support Role</button>
+    </nav>
+
+    <section id="tab-faq" class="panel active">
+      <form id="faq-form" class="card faq-form">
+        <input type="hidden" id="faq-id" />
+        <label>Question / topic
+          <input type="text" id="faq-question" placeholder="How do I reset my password?" required />
+        </label>
+        <label>Keywords (comma-separated, optional — improves matching)
+          <input type="text" id="faq-keywords" placeholder="password, reset, login, forgot" />
+        </label>
+        <label>Answer
+          <textarea id="faq-answer" placeholder="Go to Settings > Account > Reset Password..." required></textarea>
+        </label>
+        <div class="row">
+          <button type="submit" id="faq-submit">Add entry</button>
+          <button type="button" id="faq-cancel" class="secondary" style="display:none">Cancel edit</button>
+        </div>
+      </form>
+
+      <table>
+        <thead><tr><th>Question</th><th>Keywords</th><th>Answer</th><th></th></tr></thead>
+        <tbody id="faq-rows"></tbody>
+      </table>
+      <p class="muted" id="faq-empty" style="display:none">No FAQ entries yet. Add one above.</p>
+    </section>
+
+    <section id="tab-categories" class="panel">
+      <p class="muted">Only channels inside these categories will respond to <code>/ask</code> and <code>/escalate</code>.</p>
+      <div class="row">
+        <select id="category-picker"></select>
+        <button id="category-add">Add category</button>
+      </div>
+      <div id="category-list" class="row" style="flex-wrap: wrap; gap: 8px;"></div>
+    </section>
+
+    <section id="tab-role" class="panel">
+      <p class="muted">When the bot can't find a confident FAQ match, or someone clicks "get a human", this role is pinged.</p>
+      <div class="row">
+        <select id="role-picker"></select>
+        <button id="role-save">Save</button>
+      </div>
+      <p class="muted" id="role-current"></p>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

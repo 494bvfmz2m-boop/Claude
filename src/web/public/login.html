@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ticket Bot Dashboard — Login</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="centered">
+  <form id="login-form" class="card login-card">
+    <h1>Ticket Bot Dashboard</h1>
+    <label>Username<input type="text" id="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" id="password" autocomplete="current-password" required /></label>
+    <button type="submit">Log in</button>
+    <p id="error" class="error"></p>
+  </form>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.ok) {
+        window.location.href = '/';
+      } else {
+        const data = await res.json().catch(() => ({}));
+        document.getElementById('error').textContent = data.error || 'Login failed';
+      }
+    });
+  </script>
+</body>
+</html>
