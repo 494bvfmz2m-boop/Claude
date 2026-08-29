@@ -1,5 +1,5 @@
 {
-  "name": "ticket-auto-reply-bot",
+  "name": "modreply",
   "version": "1.0.0",
   "description": "Discord bot that auto-answers ticket-channel questions from a keyword-matched FAQ database, with a web dashboard, and escalates to a support role when it can't help.",
   "private": true,

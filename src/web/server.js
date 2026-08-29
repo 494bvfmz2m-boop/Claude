@@ -151,6 +151,7 @@ function createServer(client) {
   });
   app.use('/app.js', requireAuth, express.static(path.join(__dirname, 'public', 'app.js')));
   app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')));
+  app.use('/logo.svg', express.static(path.join(__dirname, 'public', 'logo.svg')));
 
   // --- API ---
   app.use('/api', requireAuth);
@@ -161,14 +162,23 @@ function createServer(client) {
   });
 
   app.get('/api/status', (req, res) => {
-    res.json({ botOnline: client.isReady(), botTag: client.isReady() ? client.user.tag : null });
+    res.json({
+      botOnline: client.isReady(),
+      botTag: client.isReady() ? client.user.tag : null,
+      ping: client.isReady() && client.ws.ping >= 0 ? Math.round(client.ws.ping) : null,
+    });
   });
 
   app.get('/api/guilds', (req, res) => {
     const allowed = getManageableGuildIds(req);
     const guilds = [...client.guilds.cache.values()]
       .filter((g) => allowed === null || allowed.includes(g.id))
-      .map((g) => ({ id: g.id, name: g.name }));
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        iconUrl: g.iconURL({ extension: 'png', size: 64 }),
+        memberCount: g.memberCount,
+      }));
     res.json(guilds);
   });
 

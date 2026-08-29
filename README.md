@@ -1,4 +1,4 @@
-# Ticket Auto-Reply Bot
+# ModReply
 
 A Discord bot for support/ticket servers. It answers common questions in
 ticket channels from a keyword-matched FAQ database and, when it can't find
@@ -94,8 +94,8 @@ The bot logs in and the dashboard starts on the configured `PORT`
 ### 4. Configure via the dashboard
 
 1. Open `http://localhost:3000`, click **Log in with Discord**.
-2. Pick a server from the dropdown — only servers where you have Manage
-   Server permission (and the bot is installed) will show up.
+2. Pick a server from the "Your servers" grid — only servers where you
+   have Manage Server permission (and the bot is installed) will show up.
 3. **Ticket Categories** tab — add the category (or categories) that
    server's ticket channels live under.
 4. **Support Role** tab — pick the role to ping when escalating.

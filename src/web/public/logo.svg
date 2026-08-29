@@ -1,0 +1,17 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="modreply-chevron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfe8ff"/>
+      <stop offset="100%" stop-color="#3d7ea6"/>
+    </linearGradient>
+    <clipPath id="modreply-shield-clip">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+    </clipPath>
+  </defs>
+  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" fill="#0a0e17" stroke="#3d6d8f" stroke-width="1.2"/>
+  <g clip-path="url(#modreply-shield-clip)" stroke="url(#modreply-chevron)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M6.5 10.5 12 6.5 17.5 10.5"/>
+    <path d="M6.5 14.5 12 10.5 17.5 14.5"/>
+    <path d="M6.5 18.5 12 14.5 17.5 18.5"/>
+  </g>
+</svg>

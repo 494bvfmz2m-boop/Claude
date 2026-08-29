@@ -3,75 +3,148 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ticket Bot Dashboard</title>
+  <title>ModReply Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>🎫 Ticket Auto-Reply Dashboard</h1>
-    <div class="row">
-      <span id="bot-status" class="muted"><span class="status-dot offline"></span>checking...</span>
-      <span id="user-info" class="muted"></span>
-      <a href="/invite" target="_blank" rel="noopener" class="invite-btn-small">+ Invite to a server</a>
-      <button class="secondary" id="logout-btn">Log out</button>
-    </div>
-  </header>
-
-  <main>
-    <div class="guild-select">
-      <label for="guild-picker" class="muted">Server</label>
-      <select id="guild-picker"></select>
-    </div>
-
-    <nav class="tabs">
-      <button data-tab="faq" class="active">FAQ Database</button>
-      <button data-tab="categories">Ticket Categories</button>
-      <button data-tab="role">Support Role</button>
-    </nav>
-
-    <section id="tab-faq" class="panel active">
-      <form id="faq-form" class="card faq-form">
-        <input type="hidden" id="faq-id" />
-        <label>Question / topic
-          <input type="text" id="faq-question" placeholder="How do I reset my password?" required />
-        </label>
-        <label>Keywords (comma-separated, optional — improves matching)
-          <input type="text" id="faq-keywords" placeholder="password, reset, login, forgot" />
-        </label>
-        <label>Answer
-          <textarea id="faq-answer" placeholder="Go to Settings > Account > Reset Password..." required></textarea>
-        </label>
-        <div class="row">
-          <button type="submit" id="faq-submit">Add entry</button>
-          <button type="button" id="faq-cancel" class="secondary" style="display:none">Cancel edit</button>
+  <!-- ===== Servers picker view ===== -->
+  <div id="view-servers">
+    <header class="topbar">
+      <div class="brand-mark">
+        <img src="/logo.svg" alt="ModReply" />
+        <span>ModReply</span>
+      </div>
+      <div class="row">
+        <span id="bot-status" class="status-pill"><span class="status-dot offline"></span>checking...</span>
+        <a href="/invite" target="_blank" rel="noopener" class="invite-btn-small">+ Invite</a>
+        <div class="user-menu">
+          <button class="user-menu-btn" id="user-menu-btn" type="button">
+            <img id="user-avatar" alt="" />
+            <span id="user-name">...</span>
+            <span>▾</span>
+          </button>
+          <div class="user-menu-dropdown" id="user-menu-dropdown">
+            <button id="logout-btn" type="button">Log out</button>
+          </div>
         </div>
-      </form>
-
-      <table>
-        <thead><tr><th>Question</th><th>Keywords</th><th>Answer</th><th></th></tr></thead>
-        <tbody id="faq-rows"></tbody>
-      </table>
-      <p class="muted" id="faq-empty" style="display:none">No FAQ entries yet. Add one above.</p>
-    </section>
-
-    <section id="tab-categories" class="panel">
-      <p class="muted">Only channels inside these categories will respond to <code>/ask</code> and <code>/escalate</code>.</p>
-      <div class="row">
-        <select id="category-picker"></select>
-        <button id="category-add">Add category</button>
       </div>
-      <div id="category-list" class="row" style="flex-wrap: wrap; gap: 8px;"></div>
-    </section>
+    </header>
+    <main class="servers-view">
+      <h1>Your servers</h1>
+      <p class="muted">Servers ModReply is in that you manage.</p>
+      <div class="server-grid" id="server-grid"></div>
+      <p class="empty-state" id="server-empty" style="display:none"></p>
+    </main>
+  </div>
 
-    <section id="tab-role" class="panel">
-      <p class="muted">When the bot can't find a confident FAQ match, or someone clicks "get a human", this role is pinged.</p>
-      <div class="row">
-        <select id="role-picker"></select>
-        <button id="role-save">Save</button>
+  <!-- ===== Dashboard view ===== -->
+  <div id="view-dashboard" class="dashboard-layout" style="display:none">
+    <aside class="sidebar">
+      <div class="sidebar-brand" id="sidebar-back" role="button" tabindex="0">
+        <img src="/logo.svg" alt="ModReply" />
+        <span>ModReply</span>
       </div>
-      <p class="muted" id="role-current"></p>
-    </section>
-  </main>
+
+      <div class="server-switcher">
+        <select id="guild-picker"></select>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="overview" type="button">Overview</button>
+        <button class="nav-item" data-tab="faq" type="button">FAQ Database</button>
+        <button class="nav-item" data-tab="categories" type="button">Ticket Categories</button>
+        <button class="nav-item" data-tab="role" type="button">Support Role</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span id="bot-status-sidebar" class="status-pill"><span class="status-dot offline"></span>checking...</span>
+        <a href="/invite" target="_blank" rel="noopener" class="invite-btn-small">+ Invite to a server</a>
+        <div class="user-menu">
+          <button class="user-menu-btn" id="user-menu-btn-sidebar" type="button">
+            <img id="user-avatar-sidebar" alt="" />
+            <span id="user-name-sidebar">...</span>
+            <span>▾</span>
+          </button>
+          <div class="user-menu-dropdown" id="user-menu-dropdown-sidebar">
+            <button id="logout-btn-sidebar" type="button">Log out</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="dashboard-main">
+      <div id="banners"></div>
+
+      <div class="dashboard-content">
+        <section id="tab-overview" class="panel active">
+          <div class="section-header">
+            <h1>Overview</h1>
+            <p>A quick look at ModReply for this server.</p>
+          </div>
+          <div class="stat-grid" id="stat-grid"></div>
+          <div class="card">
+            <div class="activity-panel-header"><span class="bar"></span><h3>Recently updated FAQ entries</h3></div>
+            <div id="recent-faq"></div>
+          </div>
+        </section>
+
+        <section id="tab-faq" class="panel">
+          <div class="section-header">
+            <h1>FAQ Database</h1>
+            <p>Questions ModReply can answer automatically in ticket channels.</p>
+          </div>
+
+          <form id="faq-form" class="card faq-form">
+            <input type="hidden" id="faq-id" />
+            <label>Question / topic
+              <input type="text" id="faq-question" placeholder="How do I reset my password?" required />
+            </label>
+            <label>Keywords (comma-separated, optional — improves matching)
+              <input type="text" id="faq-keywords" placeholder="password, reset, login, forgot" />
+            </label>
+            <label>Answer
+              <textarea id="faq-answer" placeholder="Go to Settings > Account > Reset Password..." required></textarea>
+            </label>
+            <div class="row">
+              <button type="submit" id="faq-submit">Add entry</button>
+              <button type="button" id="faq-cancel" class="secondary" style="display:none">Cancel edit</button>
+            </div>
+          </form>
+
+          <table>
+            <thead><tr><th>Question</th><th>Keywords</th><th>Answer</th><th></th></tr></thead>
+            <tbody id="faq-rows"></tbody>
+          </table>
+          <p class="muted" id="faq-empty" style="display:none">No FAQ entries yet. Add one above.</p>
+        </section>
+
+        <section id="tab-categories" class="panel">
+          <div class="section-header">
+            <h1>Ticket Categories</h1>
+            <p>Only channels inside these categories will respond to <code>/ask</code> and <code>/escalate</code>.</p>
+          </div>
+          <div class="row">
+            <select id="category-picker"></select>
+            <button id="category-add" type="button">Add category</button>
+          </div>
+          <div id="category-list" class="row" style="flex-wrap: wrap; gap: 8px;"></div>
+        </section>
+
+        <section id="tab-role" class="panel">
+          <div class="section-header">
+            <h1>Support Role</h1>
+            <p>When ModReply can't find a confident FAQ match, or someone clicks "get a human", this role is pinged.</p>
+          </div>
+          <div class="row">
+            <select id="role-picker"></select>
+            <button id="role-save" type="button">Save</button>
+          </div>
+          <p class="muted" id="role-current"></p>
+        </section>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
