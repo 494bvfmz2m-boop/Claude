@@ -1,6 +1,6 @@
 const express = require('express');
 const { PermissionFlagsBits, GuildSystemChannelFlags, SystemChannelFlagsBitField } = require('discord.js');
-const { GuildSettings } = require('../../db/repo');
+const { GuildSettings, RoleTriggers } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
 const { postOrUpdatePanel } = require('../../bot/verification');
@@ -30,7 +30,7 @@ function buildCategories(settings) {
     {
       id: 'roles',
       label: 'Roles',
-      desc: 'The ticket-banned role and the role new members get automatically.',
+      desc: 'The ticket-banned role, the role new members get automatically, and automatic role assignment rules.',
       total: 2,
       set: [settings.ticket_banned_role_id, settings.autorole_id].filter(Boolean).length,
     },
@@ -82,10 +82,32 @@ router.post('/settings/channels', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/settings/channels`);
 });
 
+// Attaches display info (name/color, or "deleted role" for a ref to a role
+// that's since been removed from Discord) so the view never has to reach
+// into guild.roles.cache itself.
+function describeRoleTriggers(guild, rules) {
+  const roleInfo = (id) => {
+    const role = guild.roles.cache.get(id);
+    return role ? { id, name: role.name, color: role.color !== 0 ? role.hexColor : '#99aab5' } : { id, name: 'deleted role', color: '#99aab5' };
+  };
+  return rules.map((r) => ({
+    id: r.id,
+    trigger: roleInfo(r.trigger_role_id),
+    add: roleInfo(r.add_role_id),
+    remove: r.remove_role_id ? roleInfo(r.remove_role_id) : null,
+  }));
+}
+
 router.get('/settings/roles', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('settingsRoles', { guild, settings: GuildSettings.get(guild.id), options: guildChannelOptions(guild) });
+  res.render('settingsRoles', {
+    guild,
+    settings: GuildSettings.get(guild.id),
+    options: guildChannelOptions(guild),
+    roleTriggers: describeRoleTriggers(guild, RoleTriggers.listForGuild(guild.id)),
+    notice: notice(req),
+  });
 });
 
 router.post('/settings/roles', async (req, res) => {
@@ -93,6 +115,36 @@ router.post('/settings/roles', async (req, res) => {
   if (!guild) return;
   GuildSettings.setTicketBannedRole(guild.id, req.body.ticketBannedRoleId || null);
   GuildSettings.setAutorole(guild.id, req.body.autoroleId || null);
+  res.redirect(`/dashboard/${guild.id}/settings/roles`);
+});
+
+router.post('/settings/role-triggers', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+
+  const triggerRoleId = req.body.triggerRoleId || null;
+  const addRoleId = req.body.addRoleId || null;
+  const removeRoleId = req.body.removeRoleId || null;
+
+  if (!triggerRoleId || !addRoleId) {
+    return res.redirect(`/dashboard/${guild.id}/settings/roles?msg=${encodeURIComponent('Pick both a trigger role and a role to add.')}&ok=0`);
+  }
+  if (triggerRoleId === addRoleId) {
+    return res.redirect(`/dashboard/${guild.id}/settings/roles?msg=${encodeURIComponent("The added role can't be the same as the trigger role.")}&ok=0`);
+  }
+  if (removeRoleId && removeRoleId === addRoleId) {
+    return res.redirect(`/dashboard/${guild.id}/settings/roles?msg=${encodeURIComponent("The role to remove can't be the same as the role to add.")}&ok=0`);
+  }
+
+  RoleTriggers.create(guild.id, { triggerRoleId, addRoleId, removeRoleId });
+  res.redirect(`/dashboard/${guild.id}/settings/roles?msg=${encodeURIComponent('Rule added.')}&ok=1`);
+});
+
+router.post('/settings/role-triggers/:id/delete', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const rule = RoleTriggers.listForGuild(guild.id).find((r) => String(r.id) === req.params.id);
+  if (rule) RoleTriggers.delete(rule.id);
   res.redirect(`/dashboard/${guild.id}/settings/roles`);
 });
 

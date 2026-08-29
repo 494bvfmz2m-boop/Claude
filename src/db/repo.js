@@ -831,6 +831,24 @@ const Tags = {
   },
 };
 
+// One row = "when someone gains trigger_role_id, add add_role_id (and, if
+// set, remove remove_role_id)" -- evaluated by bot/roleTriggers.js.
+const RoleTriggers = {
+  listForGuild(guildId) {
+    return db.prepare('SELECT * FROM role_triggers WHERE guild_id = ? ORDER BY id ASC').all(guildId);
+  },
+  create(guildId, { triggerRoleId, addRoleId, removeRoleId }) {
+    const info = db.prepare(`
+      INSERT INTO role_triggers (guild_id, trigger_role_id, add_role_id, remove_role_id)
+      VALUES (?, ?, ?, ?)
+    `).run(guildId, triggerRoleId, addRoleId, removeRoleId || null);
+    return info.lastInsertRowid;
+  },
+  delete(id) {
+    db.prepare('DELETE FROM role_triggers WHERE id = ?').run(id);
+  },
+};
+
 const Giveaways = {
   create(data) {
     const info = db.prepare(`
@@ -973,4 +991,4 @@ const Reminders = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };

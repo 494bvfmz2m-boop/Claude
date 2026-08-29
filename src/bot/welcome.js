@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { GuildSettings, GlobalBlocklist } = require('../db/repo');
+const { applyRoleTriggers } = require('./roleTriggers');
 
 const WELCOME_COLOR = '#23a55a';
 const LEAVE_COLOR = '#a8e6ff';
@@ -28,7 +29,10 @@ function register(client) {
 
     if (settings.autorole_id) {
       const role = member.guild.roles.cache.get(settings.autorole_id);
-      if (role) await member.roles.add(role).catch(() => {});
+      if (role) {
+        await member.roles.add(role).catch(() => {});
+        await applyRoleTriggers(member, [settings.autorole_id]);
+      }
     }
 
     if (!settings.welcome_channel_id) return;

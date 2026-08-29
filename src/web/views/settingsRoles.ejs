@@ -1,7 +1,13 @@
 <%- include('partials/header', { title: 'Roles', guild }) %>
 <a href="/dashboard/<%= guild.id %>/settings" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">&larr; Settings</a>
 <h1>Roles</h1>
-<p class="subtitle">The ticket-banned role and the role new members get automatically.</p>
+<p class="subtitle">The ticket-banned role, the role new members get automatically, and rules that react to role changes.</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
 
 <form class="card" method="post" action="/dashboard/<%= guild.id %>/settings/roles">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -34,4 +40,70 @@
     <button class="btn" type="submit">Save</button>
   </div>
 </form>
+
+<div class="card" style="margin-top:20px;">
+  <h2>Automatic role assignment</h2>
+  <p class="hint" style="margin:0 0 16px;">
+    When someone gains a role, automatically give them another role — and optionally take one away.
+    Fires the moment the trigger role is added, whether that's by hand, another bot, or the "role to
+    give new members" setting above. Rules can chain: if getting role B also triggers another rule,
+    that one fires too.
+  </p>
+
+  <% if (roleTriggers.length === 0) { %>
+    <p class="empty" style="margin:0 0 16px;">No rules yet.</p>
+  <% } else { %>
+    <ul class="list" style="margin-bottom:16px;">
+      <% roleTriggers.forEach(rule => { %>
+        <li class="list-item">
+          <div class="list-item-title">
+            <span class="role-dot" style="background:<%= rule.trigger.color %>;"></span> <%= rule.trigger.name %>
+            → add <span class="role-dot" style="background:<%= rule.add.color %>;"></span> <%= rule.add.name %>
+            <% if (rule.remove) { %>
+              , remove <span class="role-dot" style="background:<%= rule.remove.color %>;"></span> <%= rule.remove.name %>
+            <% } %>
+          </div>
+          <div class="actions">
+            <form method="post" action="/dashboard/<%= guild.id %>/settings/role-triggers/<%= rule.id %>/delete" onsubmit="return confirm('Delete this rule?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="post" action="/dashboard/<%= guild.id %>/settings/role-triggers">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="triggerRoleId">When someone has this role</label>
+    <select id="triggerRoleId" name="triggerRoleId" required>
+      <option value="">— Select a role —</option>
+      <% options.roles.forEach(r => { %>
+        <option value="<%= r.id %>"><%= r.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="addRoleId">Give them this role</label>
+    <select id="addRoleId" name="addRoleId" required>
+      <option value="">— Select a role —</option>
+      <% options.roles.forEach(r => { %>
+        <option value="<%= r.id %>"><%= r.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="removeRoleId">And remove this role (optional)</label>
+    <select id="removeRoleId" name="removeRoleId">
+      <option value="">— None —</option>
+      <% options.roles.forEach(r => { %>
+        <option value="<%= r.id %>"><%= r.name %></option>
+      <% }) %>
+    </select>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Add rule</button>
+    </div>
+  </form>
+</div>
 <%- include('partials/footer') %>

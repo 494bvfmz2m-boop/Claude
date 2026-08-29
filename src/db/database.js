@@ -325,6 +325,15 @@ CREATE TABLE IF NOT EXISTS polls (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS role_triggers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  trigger_role_id TEXT NOT NULL,
+  add_role_id TEXT NOT NULL,
+  remove_role_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);
@@ -353,6 +362,7 @@ CREATE INDEX IF NOT EXISTS idx_events_guild ON events(guild_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_guild ON scheduled_announcements(guild_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_due ON scheduled_announcements(active, next_run);
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(remind_at);
+CREATE INDEX IF NOT EXISTS idx_role_triggers_guild ON role_triggers(guild_id);
 `);
 
 // Lightweight migrations for columns added after the initial release —

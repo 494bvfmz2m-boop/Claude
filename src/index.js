@@ -19,6 +19,7 @@ const { register: registerAnnouncementScheduler } = require('./bot/announcementS
 const { register: registerStatsChannels } = require('./bot/statsChannels');
 const { register: registerAfk } = require('./bot/afk');
 const { register: registerReminderScheduler } = require('./bot/reminderScheduler');
+const { register: registerRoleTriggers } = require('./bot/roleTriggers');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -46,6 +47,7 @@ registerAnnouncementScheduler(client);
 registerStatsChannels(client);
 registerAfk(client);
 registerReminderScheduler(client);
+registerRoleTriggers(client);
 
 client.once(Events.ClientReady, async () => {
   console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
