@@ -23,12 +23,13 @@
   // it disappear after the very first page and look broken.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   window.addEventListener('load', function () {
-    // The impact GIF is a 2.72s one-shot animation that loops by default --
-    // wait for it to finish its first (only intended) play before fading.
+    // The impact GIF is a 1.36s one-shot animation (sped up 2x from the
+    // original) that loops by default -- wait for it to finish its first
+    // (only intended) play before fading.
     setTimeout(function () {
       el.classList.add('modsentry-splash--out');
       setTimeout(function () { el.remove(); }, 300);
-    }, 2820);
+    }, 1400);
   });
 })();
 </script>

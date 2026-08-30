@@ -13,12 +13,13 @@
       splash.remove();
     } else {
       window.addEventListener('load', function () {
-        // The impact GIF is a 2.72s one-shot animation that loops by default --
-        // wait for it to finish its first (only intended) play before fading.
+        // The impact GIF is a 1.36s one-shot animation (sped up 2x from the
+        // original) that loops by default -- wait for it to finish its
+        // first (only intended) play before fading.
         setTimeout(function () {
           splash.classList.add('modsentry-splash--out');
           setTimeout(function () { splash.remove(); }, 400);
-        }, 2820);
+        }, 1400);
       });
     }
   }
