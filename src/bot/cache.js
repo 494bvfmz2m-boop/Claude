@@ -83,12 +83,16 @@ function invalidateStaffRanks(hierarchyId) {
 }
 
 // Highest rank among a member's roles, within one hierarchy. Rank 0 means
-// "not in this hierarchy" (holds none of its ranked roles).
+// "not in this hierarchy" (holds none of its ranked roles). Placeholder
+// (skip_promote) ranks are ignored here -- a member who holds a placeholder
+// role alongside a real rank role should still be treated as that real rank,
+// not the placeholder.
 function getRankForRoleIds(hierarchyId, roleIds) {
   const ranks = getStaffRanks(hierarchyId);
   const roleIdSet = new Set(roleIds);
   let best = { rank: 0, roleId: null };
   for (const r of ranks) {
+    if (r.skip_promote) continue;
     if (roleIdSet.has(r.role_id) && r.rank > best.rank) {
       best = { rank: r.rank, roleId: r.role_id };
     }

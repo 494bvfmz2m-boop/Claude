@@ -22,6 +22,13 @@ async function renderHierarchyList(guild, hierarchy) {
   const shown = new Set();
   const fields = sorted.map((r) => {
     const role = guild.roles.cache.get(r.role_id);
+    // Placeholder (skip_promote) ranks are dividers/headers, not real ranks --
+    // they never list members and never claim members via "only show highest"
+    // (which would otherwise let a placeholder sitting above real ranks steal
+    // everyone from the real sections below it).
+    if (r.skip_promote) {
+      return { name: role ? role.name : `Unknown role (${r.role_id})`, value: '​', inline: false };
+    }
     let members = role ? [...role.members.values()] : [];
     if (hierarchy.only_show_highest) {
       members = members.filter((m) => !shown.has(m.id));
