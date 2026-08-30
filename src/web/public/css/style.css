@@ -338,7 +338,7 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 .rank-draglist li { cursor: grab; }
 .rank-draglist li.dragging { opacity: .4; cursor: grabbing; }
 .rank-draglist .drag-handle { color: var(--text-muted); margin-right: 6px; font-size: 15px; letter-spacing: -1px; }
-.actions { display: flex; gap: 8px; align-items: center; }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .actions form { display: inline; }
 
 .empty { color: var(--text-muted); padding: 18px 0; font-size: 14px; }

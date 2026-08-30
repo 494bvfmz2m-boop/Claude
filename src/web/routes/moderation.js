@@ -295,6 +295,27 @@ router.post('/moderation/hierarchy/:id/skip-promote', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
+// One-step reorder for the move up/down buttons -- a real form POST that
+// works with a tap and needs no JS, unlike the drag list above (native
+// HTML5 drag-and-drop, which touch browsers never fire events for at all).
+router.post('/moderation/hierarchy/:id/move', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
+  if (!hierarchy) return;
+
+  const ranks = StaffRanks.listForHierarchy(hierarchy.id); // ascending: index 0 = rank 1 (lowest)
+  const index = ranks.findIndex((r) => r.role_id === req.body.roleId);
+  // "Up" moves toward the top of the (highest-rank-first) list on screen,
+  // i.e. a higher rank number -- the next entry up in this ascending array.
+  const neighborIndex = req.body.direction === 'down' ? index - 1 : index + 1;
+  if (index !== -1 && neighborIndex >= 0 && neighborIndex < ranks.length) {
+    StaffRanks.swapRanks(hierarchy.id, req.body.roleId, ranks[neighborIndex].role_id);
+    cache.invalidateStaffRanks(hierarchy.id);
+  }
+  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
+});
+
 router.post('/moderation/hierarchy/:id/reorder', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
