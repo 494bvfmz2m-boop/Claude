@@ -781,19 +781,6 @@ const StaffRanks = {
   setSkipPromote(hierarchyId, roleId, skip) {
     db.prepare('UPDATE staff_ranks SET skip_promote = ? WHERE hierarchy_id = ? AND role_id = ?').run(skip ? 1 : 0, hierarchyId, roleId);
   },
-  // Swaps two roles' rank numbers -- the mobile-friendly "move up"/"move
-  // down" buttons use this instead of drag-and-drop, which needs native
-  // HTML5 drag events that touch browsers don't fire at all.
-  swapRanks(hierarchyId, roleIdA, roleIdB) {
-    const a = db.prepare('SELECT rank FROM staff_ranks WHERE hierarchy_id = ? AND role_id = ?').get(hierarchyId, roleIdA);
-    const b = db.prepare('SELECT rank FROM staff_ranks WHERE hierarchy_id = ? AND role_id = ?').get(hierarchyId, roleIdB);
-    if (!a || !b) return;
-    const tx = db.transaction(() => {
-      db.prepare('UPDATE staff_ranks SET rank = ? WHERE hierarchy_id = ? AND role_id = ?').run(b.rank, hierarchyId, roleIdA);
-      db.prepare('UPDATE staff_ranks SET rank = ? WHERE hierarchy_id = ? AND role_id = ?').run(a.rank, hierarchyId, roleIdB);
-    });
-    tx();
-  },
 };
 
 // A guild can run more than one named, ranked-role list ("hierarchy") --

@@ -65,41 +65,23 @@
         Drag to reorder (or use the arrows — drag doesn't work on a phone) — top is the highest rank.
         Mark a rank "📌 Placeholder" if it's a divider role (e.g. <code>-- Staff --</code>) rather than a
         real rank — <code>/promote</code> and <code>/demote</code> will step right over it instead of
-        ever landing someone there.
+        ever landing someone there. Reordering and marking placeholders happen right here on the page —
+        nothing is saved until you hit "Save changes" below, so feel free to move things around or toggle
+        several before committing.
       </p>
       <ul class="list rank-draglist" data-hierarchy-id="<%= h.id %>">
-        <% const sortedRanks = [...h.ranks].sort((a, b) => b.rank - a.rank);
-        sortedRanks.forEach((r, i) => { %>
-          <li class="list-item" draggable="true" data-role-id="<%= r.roleId %>">
+        <% [...h.ranks].sort((a, b) => b.rank - a.rank).forEach((r) => { %>
+          <li class="list-item" draggable="true" data-role-id="<%= r.roleId %>" data-skip-promote="<%= r.skipPromote ? 'true' : 'false' %>">
             <div class="list-item-title">
               <span class="drag-handle" aria-hidden="true">⠿</span>
               <span class="role-dot" style="background:<%= r.color %>; width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px;"></span>
               <%= r.name %>
-              <% if (r.skipPromote) { %><span class="badge" style="margin-left:8px;">📌 Placeholder</span><% } %>
+              <span class="badge placeholder-badge" style="margin-left:8px; <%= r.skipPromote ? '' : 'display:none;' %>">📌 Placeholder</span>
             </div>
             <div class="actions">
-              <% if (i > 0) { %>
-                <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/move">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="roleId" value="<%= r.roleId %>">
-                  <input type="hidden" name="direction" value="up">
-                  <button class="btn btn-sm btn-ghost" type="submit" title="Move up (higher rank)" aria-label="Move up">▲</button>
-                </form>
-              <% } %>
-              <% if (i < sortedRanks.length - 1) { %>
-                <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/move">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="roleId" value="<%= r.roleId %>">
-                  <input type="hidden" name="direction" value="down">
-                  <button class="btn btn-sm btn-ghost" type="submit" title="Move down (lower rank)" aria-label="Move down">▼</button>
-                </form>
-              <% } %>
-              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/skip-promote">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="roleId" value="<%= r.roleId %>">
-                <input type="hidden" name="enabled" value="<%= r.skipPromote ? '' : 'on' %>">
-                <button class="btn btn-sm btn-ghost" type="submit">📌 <%= r.skipPromote ? 'Unmark placeholder' : 'Mark as placeholder' %></button>
-              </form>
+              <button type="button" class="btn btn-sm btn-ghost move-up-btn" title="Move up (higher rank)" aria-label="Move up">▲</button>
+              <button type="button" class="btn btn-sm btn-ghost move-down-btn" title="Move down (lower rank)" aria-label="Move down">▼</button>
+              <button type="button" class="btn btn-sm btn-ghost placeholder-toggle-btn">📌 <%= r.skipPromote ? 'Unmark placeholder' : 'Mark as placeholder' %></button>
               <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/remove" onsubmit="return confirm('Remove this rank?');">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="roleId" value="<%= r.roleId %>">
@@ -110,7 +92,7 @@
         <% }) %>
       </ul>
       <div class="btn-row">
-        <button class="btn" type="button" onclick="saveRankOrder(<%= h.id %>)">Save order</button>
+        <button class="btn" type="button" onclick="saveRankChanges(<%= h.id %>)">Save changes</button>
       </div>
     <% } %>
 
@@ -209,22 +191,40 @@
     picker.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = checked; });
   };
 
-  // Submits the drag list's current top-to-bottom DOM order as a plain form
-  // POST (not fetch) -- consistent with how every other action on this page
-  // works, and means no JS at all is needed for anything except reordering.
-  window.saveRankOrder = function (hierarchyId) {
+  // Everything below (drag, the arrow buttons, marking a placeholder) only
+  // ever touches the DOM -- nothing is sent to the server until "Save
+  // changes" is clicked, so reordering a few ranks or toggling several
+  // placeholders is one page load, not one per click.
+  function updateMoveButtonStates(list) {
+    var items = Array.prototype.slice.call(list.querySelectorAll('li'));
+    items.forEach(function (li, i) {
+      li.querySelector('.move-up-btn').disabled = i === 0;
+      li.querySelector('.move-down-btn').disabled = i === items.length - 1;
+    });
+  }
+
+  // Submits the drag list's current top-to-bottom DOM order, plus which
+  // roles are currently marked as placeholders, as one plain form POST --
+  // consistent with how every other action on this page works, and means
+  // no JS at all is needed for anything except editing the list itself.
+  window.saveRankChanges = function (hierarchyId) {
     var list = document.querySelector('.rank-draglist[data-hierarchy-id="' + hierarchyId + '"]');
     if (!list) return;
     var form = document.createElement('form');
     form.method = 'post';
-    form.action = '/dashboard/' + guildId + '/moderation/hierarchy/' + hierarchyId + '/reorder';
+    form.action = '/dashboard/' + guildId + '/moderation/hierarchy/' + hierarchyId + '/save-ranks';
     var csrf = document.createElement('input');
     csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;
     form.appendChild(csrf);
     list.querySelectorAll('li').forEach(function (li) {
-      var inp = document.createElement('input');
-      inp.type = 'hidden'; inp.name = 'roleOrder'; inp.value = li.dataset.roleId;
-      form.appendChild(inp);
+      var orderInp = document.createElement('input');
+      orderInp.type = 'hidden'; orderInp.name = 'roleOrder'; orderInp.value = li.dataset.roleId;
+      form.appendChild(orderInp);
+      if (li.dataset.skipPromote === 'true') {
+        var skipInp = document.createElement('input');
+        skipInp.type = 'hidden'; skipInp.name = 'skipPromote'; skipInp.value = li.dataset.roleId;
+        form.appendChild(skipInp);
+      }
     });
     document.body.appendChild(form);
     form.submit();
@@ -241,12 +241,16 @@
   }
 
   document.querySelectorAll('.rank-draglist').forEach(function (list) {
+    updateMoveButtonStates(list);
+
     list.addEventListener('dragstart', function (e) {
       if (e.target.tagName !== 'LI') return;
       e.target.classList.add('dragging');
     });
     list.addEventListener('dragend', function (e) {
-      if (e.target.tagName === 'LI') e.target.classList.remove('dragging');
+      if (e.target.tagName !== 'LI') return;
+      e.target.classList.remove('dragging');
+      updateMoveButtonStates(list);
     });
     list.addEventListener('dragover', function (e) {
       e.preventDefault();
@@ -255,6 +259,27 @@
       var after = closestAfterElement(list, e.clientY);
       if (after == null) list.appendChild(dragging);
       else list.insertBefore(dragging, after);
+    });
+
+    list.addEventListener('click', function (e) {
+      var li = e.target.closest('li');
+      if (!li) return;
+
+      if (e.target.classList.contains('move-up-btn')) {
+        var prev = li.previousElementSibling;
+        if (prev) li.parentNode.insertBefore(li, prev);
+        updateMoveButtonStates(list);
+      } else if (e.target.classList.contains('move-down-btn')) {
+        var next = li.nextElementSibling;
+        if (next) li.parentNode.insertBefore(next, li);
+        updateMoveButtonStates(list);
+      } else if (e.target.classList.contains('placeholder-toggle-btn')) {
+        var nowSkip = li.dataset.skipPromote !== 'true';
+        li.dataset.skipPromote = nowSkip ? 'true' : 'false';
+        e.target.textContent = '📌 ' + (nowSkip ? 'Unmark placeholder' : 'Mark as placeholder');
+        var badge = li.querySelector('.placeholder-badge');
+        if (badge) badge.style.display = nowSkip ? '' : 'none';
+      }
     });
   });
 })();
