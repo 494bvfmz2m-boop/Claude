@@ -47,14 +47,14 @@
   <% } else { %>
     <ul class="list">
       <% ticketTypes.forEach(t => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= t.emoji ? t.emoji + ' ' : '' %><%= t.name %></div>
             <div class="list-item-meta"><%= t.support_role_ids.length %> support role(s) · max <%= t.max_open_per_user %> open per user</div>
           </div>
           <div class="actions">
             <a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/ticket-types/<%= t.id %>/edit">Edit</a>
-            <form method="post" action="/dashboard/<%= guild.id %>/ticket-types/<%= t.id %>/delete" onsubmit="return confirm('Delete this ticket type? Panels referencing it will stop offering it.');">
+            <form method="post" action="/dashboard/<%= guild.id %>/ticket-types/<%= t.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>
@@ -76,7 +76,7 @@
   <% } else { %>
     <ul class="list">
       <% panels.forEach(p => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= p.title %></div>
             <div class="list-item-meta">
@@ -86,7 +86,7 @@
           </div>
           <div class="actions">
             <a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/panels/<%= p.id %>/edit">Edit / Post</a>
-            <form method="post" action="/dashboard/<%= guild.id %>/panels/<%= p.id %>/delete" onsubmit="return confirm('Delete this panel? This does not remove the posted Discord message.');">
+            <form method="post" action="/dashboard/<%= guild.id %>/panels/<%= p.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

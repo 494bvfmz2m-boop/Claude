@@ -13,7 +13,7 @@
   <% } else { %>
     <ul class="list">
       <% giveaways.forEach(g => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title">🎉 <%= g.prize %></div>
             <div class="list-item-meta">
@@ -30,7 +30,7 @@
                 <button class="btn btn-sm btn-ghost" type="submit">End now</button>
               </form>
             <% } %>
-            <form method="post" action="/dashboard/<%= guild.id %>/giveaways/<%= g.id %>/delete" onsubmit="return confirm('Delete this giveaway record? This does not touch the posted Discord message.');">
+            <form method="post" action="/dashboard/<%= guild.id %>/giveaways/<%= g.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

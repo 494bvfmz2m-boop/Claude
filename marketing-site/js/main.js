@@ -13,13 +13,15 @@
       splash.remove();
     } else {
       window.addEventListener('load', function () {
-        // The impact GIF is a 1.36s one-shot animation (sped up 2x from the
-        // original) that loops by default -- wait for it to finish its
-        // first (only intended) play before fading.
+        // The impact GIF plays at its normal (original, ~2.7s) speed, but
+        // this only shows once per browser session, so we don't hold the
+        // page hostage waiting for the whole clip -- a short fixed wait
+        // clears it quickly, then the animation keeps quietly playing out
+        // underneath while the fade finishes.
         setTimeout(function () {
           splash.classList.add('modsentry-splash--out');
           setTimeout(function () { splash.remove(); }, 400);
-        }, 1400);
+        }, 650);
       });
     }
   }

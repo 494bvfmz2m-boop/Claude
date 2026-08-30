@@ -93,13 +93,13 @@
   <% } else { %>
     <ul class="list">
       <% staffNotes.forEach(n => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= n.note %></div>
             <div class="list-item-meta"><%= n.author_tag || n.author_id %> · <%= n.created_at %></div>
           </div>
           <div class="actions">
-            <form method="post" action="/staff/staff-notes/remove" onsubmit="return confirm('Remove this note?');">
+            <form method="post" action="/staff/staff-notes/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="id" value="<%= n.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -156,7 +156,7 @@
   <% } else { %>
     <ul class="list">
       <% admins.forEach(a => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div style="display:flex; align-items:center; gap:12px; min-width:0;">
             <% if (a.resolved) { %>
               <img src="<%= a.avatarURL %>" alt="" class="contact-avatar">
@@ -171,7 +171,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/staff/admins/remove" onsubmit="return confirm('Remove this admin? They lose /staff access next time their session refreshes.');">
+            <form method="post" action="/staff/admins/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= a.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -209,7 +209,7 @@
     <p class="empty">No custom roles yet — create one below.</p>
   <% } else { %>
     <% staffRoles.forEach(role => { %>
-      <details class="role-panel">
+      <details class="role-panel" data-delete-item>
         <summary class="role-summary">
           <span class="role-summary-left">
             <svg class="role-chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -243,7 +243,7 @@
 
             <div class="btn-row">
               <button class="btn btn-sm" type="submit">Save</button>
-              <button class="btn btn-sm btn-danger" type="submit" formaction="/staff/staff-roles/<%= role.id %>/delete" onclick="return confirm('Delete &quot;<%= role.name %>&quot;? Everyone in it loses this access next time their session refreshes.');">Delete role</button>
+              <button class="btn btn-sm btn-danger js-pending-delete-btn" type="submit" formaction="/staff/staff-roles/<%= role.id %>/delete">Delete role</button>
             </div>
           </form>
 
@@ -253,7 +253,7 @@
           <% } else { %>
             <ul class="list">
               <% role.members.forEach(m => { %>
-                <li class="list-item">
+                <li class="list-item" data-delete-item>
                   <div style="display:flex; align-items:center; gap:12px; min-width:0;">
                     <% if (m.resolved) { %>
                       <img src="<%= m.avatarURL %>" alt="" class="contact-avatar">
@@ -268,7 +268,7 @@
                     </div>
                   </div>
                   <div class="actions">
-                    <form method="post" action="/staff/staff-roles/<%= role.id %>/members/remove" onsubmit="return confirm('Remove this person from &quot;<%= role.name %>&quot;?');">
+                    <form method="post" action="/staff/staff-roles/<%= role.id %>/members/remove" class="js-pending-delete">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <input type="hidden" name="discordUserId" value="<%= m.id %>">
                       <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -333,10 +333,10 @@
   <% } else { %>
     <ul class="list">
       <% allowlist.forEach(a => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div class="list-item-title"><%= a.discord_user_id %></div>
           <div class="actions">
-            <form method="post" action="/staff/allowlist/remove" onsubmit="return confirm('Remove this user from the allowlist?');">
+            <form method="post" action="/staff/allowlist/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= a.discord_user_id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -372,11 +372,11 @@
   <% } else { %>
     <ul class="list">
       <% blocklist.forEach(b => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div class="list-item-title"><%= b.discord_user_id %></div>
           <div class="list-item-meta"><% if (b.reason) { %><%= b.reason %><% } %></div>
           <div class="actions">
-            <form method="post" action="/staff/blocklist/remove" onsubmit="return confirm('Unblock this user?');">
+            <form method="post" action="/staff/blocklist/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= b.discord_user_id %>">
               <button class="btn btn-sm btn-danger" type="submit">Unblock</button>
@@ -433,7 +433,7 @@
   <% } else { %>
     <ul class="list">
       <% contacts.forEach(c => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div style="display:flex; align-items:center; gap:12px; min-width:0;">
             <% if (c.resolved) { %>
               <img src="<%= c.avatarURL %>" alt="" class="contact-avatar">
@@ -448,7 +448,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/staff/contacts/remove" onsubmit="return confirm('Remove this contact?');">
+            <form method="post" action="/staff/contacts/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="discordUserId" value="<%= c.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -488,7 +488,7 @@
   <% } else { %>
     <ul class="list">
       <% emojiBook.forEach(e => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div style="display:flex; align-items:center; gap:12px; min-width:0;">
             <img src="https://cdn.discordapp.com/emojis/<%= e.emoji_id %>.<%= e.animated ? 'gif' : 'png' %>" alt="" class="contact-avatar" style="border-radius:8px; object-fit:contain; background:rgba(255,255,255,.04);">
             <div style="min-width:0;">
@@ -500,7 +500,7 @@
           </div>
           <div class="actions">
             <button type="button" class="btn btn-sm btn-ghost" onclick="copyEmojiMarkup(this, <%= JSON.stringify(e.markup) %>)">Copy</button>
-            <form method="post" action="/staff/emoji-book/remove" onsubmit="return confirm('Remove this emoji from the book?');">
+            <form method="post" action="/staff/emoji-book/remove" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="id" value="<%= e.id %>">
               <button class="btn btn-sm btn-danger" type="submit">Remove</button>
@@ -539,13 +539,13 @@
   <% } else { %>
     <ul class="list">
       <% serverNotesList.forEach(n => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= n.guildName %></div>
             <div class="list-item-meta"><%= n.note %></div>
           </div>
           <div class="actions">
-            <form method="post" action="/staff/server-notes/save" onsubmit="return confirm('Clear the note for &quot;<%= n.guildName %>&quot;?');">
+            <form method="post" action="/staff/server-notes/save" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="guildId" value="<%= n.guild_id %>">
               <input type="hidden" name="note" value="">
@@ -592,17 +592,17 @@
   <% } else { %>
     <ul class="list">
       <% templates.forEach(t => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= t.name %></div>
             <div class="list-item-meta"><%= t.questions.length %> question<%= t.questions.length === 1 ? '' : 's' %></div>
           </div>
           <div class="actions">
             <button type="button" class="btn btn-sm btn-ghost" onclick="editDmFormTemplate(<%= t.id %>)">Edit</button>
-            <form method="post" action="/staff/dm-form-templates/delete" style="display:inline;">
+            <form method="post" action="/staff/dm-form-templates/delete" class="js-pending-delete" style="display:inline;">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="templateId" value="<%= t.id %>">
-              <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete &quot;<%= t.name %>&quot;? There is no undo.');">Delete</button>
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>
           </div>
         </li>

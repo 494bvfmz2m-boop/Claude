@@ -82,17 +82,15 @@
               <button type="button" class="btn btn-sm btn-ghost move-up-btn" title="Move up (higher rank)" aria-label="Move up">▲</button>
               <button type="button" class="btn btn-sm btn-ghost move-down-btn" title="Move down (lower rank)" aria-label="Move down">▼</button>
               <button type="button" class="btn btn-sm btn-ghost placeholder-toggle-btn">📌 <%= r.skipPromote ? 'Unmark placeholder' : 'Mark as placeholder' %></button>
-              <form method="post" action="/dashboard/<%= guild.id %>/moderation/hierarchy/<%= h.id %>/remove" onsubmit="return confirm('Remove this rank?');">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="roleId" value="<%= r.roleId %>">
-                <button class="btn btn-sm btn-danger" type="submit">Remove</button>
-              </form>
+              <button type="button" class="btn btn-sm btn-danger remove-rank-btn">Remove</button>
             </div>
           </li>
         <% }) %>
       </ul>
-      <div class="btn-row">
-        <button class="btn" type="button" onclick="saveRankChanges(<%= h.id %>)">Save changes</button>
+      <div class="btn-row rank-changes-bar" id="rankChangesBar-<%= h.id %>" style="display:none;">
+        <span class="pending-changes-count">Unsaved changes</span>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="revertRankChanges(<%= h.id %>)">Revert</button>
+        <button class="btn btn-sm btn-danger" type="button" onclick="saveRankChanges(<%= h.id %>)">Save changes</button>
       </div>
     <% } %>
 
@@ -196,17 +194,33 @@
   // changes" is clicked, so reordering a few ranks or toggling several
   // placeholders is one page load, not one per click.
   function updateMoveButtonStates(list) {
-    var items = Array.prototype.slice.call(list.querySelectorAll('li'));
+    var items = Array.prototype.slice.call(list.querySelectorAll('li:not(.pending-delete-hidden)'));
     items.forEach(function (li, i) {
       li.querySelector('.move-up-btn').disabled = i === 0;
       li.querySelector('.move-down-btn').disabled = i === items.length - 1;
     });
   }
 
-  // Submits the drag list's current top-to-bottom DOM order, plus which
-  // roles are currently marked as placeholders, as one plain form POST --
-  // consistent with how every other action on this page works, and means
-  // no JS at all is needed for anything except editing the list itself.
+  // Reordering, placeholder-toggling, and removing a rank are all pure DOM
+  // edits (a removed rank is just hidden, not deleted from the page) --
+  // nothing hits the server until "Save changes". markDirty just reveals
+  // the bar so it's clear there's something to save or revert.
+  function markDirty(list) {
+    var bar = document.getElementById('rankChangesBar-' + list.dataset.hierarchyId);
+    if (bar) bar.style.display = 'flex';
+  }
+
+  window.revertRankChanges = function () {
+    // Nothing was ever sent to the server, so the freshest copy of
+    // everything (order, placeholder flags, removed ranks) is just what's
+    // already saved there -- a reload is a full, exact revert.
+    window.location.reload();
+  };
+
+  // Submits the drag list's current top-to-bottom DOM order, which roles
+  // are currently marked as placeholders, and which were removed (hidden,
+  // not deleted from the DOM, so Revert could still undo them) -- one plain
+  // form POST, consistent with how every other action on this page works.
   window.saveRankChanges = function (hierarchyId) {
     var list = document.querySelector('.rank-draglist[data-hierarchy-id="' + hierarchyId + '"]');
     if (!list) return;
@@ -217,6 +231,12 @@
     csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;
     form.appendChild(csrf);
     list.querySelectorAll('li').forEach(function (li) {
+      if (li.classList.contains('pending-delete-hidden')) {
+        var remInp = document.createElement('input');
+        remInp.type = 'hidden'; remInp.name = 'removedRoleId'; remInp.value = li.dataset.roleId;
+        form.appendChild(remInp);
+        return;
+      }
       var orderInp = document.createElement('input');
       orderInp.type = 'hidden'; orderInp.name = 'roleOrder'; orderInp.value = li.dataset.roleId;
       form.appendChild(orderInp);
@@ -240,6 +260,17 @@
     }, { offset: -Infinity, element: null }).element;
   }
 
+  function prevVisible(li) {
+    var sib = li.previousElementSibling;
+    while (sib && sib.classList.contains('pending-delete-hidden')) sib = sib.previousElementSibling;
+    return sib;
+  }
+  function nextVisible(li) {
+    var sib = li.nextElementSibling;
+    while (sib && sib.classList.contains('pending-delete-hidden')) sib = sib.nextElementSibling;
+    return sib;
+  }
+
   document.querySelectorAll('.rank-draglist').forEach(function (list) {
     updateMoveButtonStates(list);
 
@@ -251,6 +282,7 @@
       if (e.target.tagName !== 'LI') return;
       e.target.classList.remove('dragging');
       updateMoveButtonStates(list);
+      markDirty(list);
     });
     list.addEventListener('dragover', function (e) {
       e.preventDefault();
@@ -266,19 +298,26 @@
       if (!li) return;
 
       if (e.target.classList.contains('move-up-btn')) {
-        var prev = li.previousElementSibling;
+        var prev = prevVisible(li);
         if (prev) li.parentNode.insertBefore(li, prev);
         updateMoveButtonStates(list);
+        markDirty(list);
       } else if (e.target.classList.contains('move-down-btn')) {
-        var next = li.nextElementSibling;
+        var next = nextVisible(li);
         if (next) li.parentNode.insertBefore(next, li);
         updateMoveButtonStates(list);
+        markDirty(list);
       } else if (e.target.classList.contains('placeholder-toggle-btn')) {
         var nowSkip = li.dataset.skipPromote !== 'true';
         li.dataset.skipPromote = nowSkip ? 'true' : 'false';
         e.target.textContent = '📌 ' + (nowSkip ? 'Unmark placeholder' : 'Mark as placeholder');
         var badge = li.querySelector('.placeholder-badge');
         if (badge) badge.style.display = nowSkip ? '' : 'none';
+        markDirty(list);
+      } else if (e.target.classList.contains('remove-rank-btn')) {
+        li.classList.add('pending-delete-hidden');
+        updateMoveButtonStates(list);
+        markDirty(list);
       }
     });
   });

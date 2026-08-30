@@ -9,7 +9,7 @@
   <% } else { %>
     <ul class="list">
       <% events.forEach(e => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title">📅 <%= e.title %></div>
             <div class="list-item-meta">
@@ -18,7 +18,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/dashboard/<%= guild.id %>/events/<%= e.id %>/delete" onsubmit="return confirm('Delete this event record? This does not touch the posted Discord message.');">
+            <form method="post" action="/dashboard/<%= guild.id %>/events/<%= e.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

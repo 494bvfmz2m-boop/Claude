@@ -12,7 +12,7 @@
   <% } else { %>
     <ul class="list">
       <% announcements.forEach(a => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title">#<%= (guild.channels.cache.get(a.channel_id) || {}).name || 'unknown-channel' %></div>
             <div class="list-item-meta">
@@ -25,7 +25,7 @@
             </div>
           </div>
           <div class="actions">
-            <form method="post" action="/dashboard/<%= guild.id %>/announcements/<%= a.id %>/delete" onsubmit="return confirm('Delete this scheduled announcement?');">
+            <form method="post" action="/dashboard/<%= guild.id %>/announcements/<%= a.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

@@ -55,7 +55,7 @@
   <% } else { %>
     <ul class="list" style="margin-bottom:16px;">
       <% roleTriggers.forEach(rule => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div class="list-item-title">
             <span class="role-dot" style="background:<%= rule.trigger.color %>;"></span> <%= rule.trigger.name %>
             → add <span class="role-dot" style="background:<%= rule.add.color %>;"></span> <%= rule.add.name %>
@@ -64,7 +64,7 @@
             <% } %>
           </div>
           <div class="actions">
-            <form method="post" action="/dashboard/<%= guild.id %>/settings/role-triggers/<%= rule.id %>/delete" onsubmit="return confirm('Delete this rule?');">
+            <form method="post" action="/dashboard/<%= guild.id %>/settings/role-triggers/<%= rule.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

@@ -274,22 +274,12 @@ router.post('/moderation/hierarchy/:id/add', async (req, res) => {
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
-router.post('/moderation/hierarchy/:id/remove', async (req, res) => {
-  const guild = await getGuildOr404(req, res);
-  if (!guild) return;
-  const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
-  if (!hierarchy) return;
-  const current = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
-  StaffRanks.replaceAllForHierarchy(hierarchy.id, guild.id, current.filter((id) => id !== req.body.roleId));
-  cache.invalidateStaffRanks(hierarchy.id);
-  res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
-});
-
-// One save for the whole rank list -- order (drag or the arrow buttons) and
-// which ranks are marked as placeholders are both edited client-side only
-// (see moderationHierarchy.ejs) and submitted together here in one POST, so
-// moving several ranks around or toggling a few placeholders costs one page
-// load instead of one per click.
+// One save for the whole rank list -- order (drag or the arrow buttons),
+// which ranks are marked as placeholders, and which were removed are all
+// edited client-side only (see moderationHierarchy.ejs) and submitted
+// together here in one POST, so moving several ranks around, toggling a
+// few placeholders, or removing one costs one page load instead of one
+// per click.
 router.post('/moderation/hierarchy/:id/save-ranks', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
@@ -298,12 +288,15 @@ router.post('/moderation/hierarchy/:id/save-ranks', async (req, res) => {
 
   // roleOrder is the list's final DOM order, highest-rank-first (top of the
   // list = top rank), so it gets reversed here before renumbering 1..N.
-  // Anything that didn't come through (JS disabled, stale form) keeps its
-  // current relative order, tacked on at the bottom, rather than vanishing.
+  // removedRoleId is explicit -- the user clicked "Remove" on it -- and is
+  // dropped entirely, unlike a role that simply didn't come through (JS
+  // disabled, stale form), which keeps its current relative order, tacked
+  // on at the bottom, rather than vanishing.
   const existing = StaffRanks.listForHierarchy(hierarchy.id).sort((a, b) => a.rank - b.rank).map((r) => r.role_id);
   const existingSet = new Set(existing);
-  const submitted = [...new Set([].concat(req.body.roleOrder || []))].filter((id) => existingSet.has(id));
-  const missing = existing.filter((id) => !submitted.includes(id));
+  const removed = new Set([].concat(req.body.removedRoleId || []).filter((id) => existingSet.has(id)));
+  const submitted = [...new Set([].concat(req.body.roleOrder || []))].filter((id) => existingSet.has(id) && !removed.has(id));
+  const missing = existing.filter((id) => !submitted.includes(id) && !removed.has(id));
   // missing goes first: replaceAllForHierarchy assigns rank = array index + 1
   // (ascending), so the front of this array becomes the lowest rank -- i.e.
   // the bottom of the list, matching the comment above.

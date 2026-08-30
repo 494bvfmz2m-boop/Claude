@@ -23,7 +23,7 @@
   <% } else { %>
     <ul class="list">
       <% tags.forEach(t => { %>
-        <li class="list-item" style="align-items:flex-start;">
+        <li class="list-item" style="align-items:flex-start;" data-delete-item>
           <form method="post" action="/dashboard/<%= guild.id %>/tags/<%= t.id %>" style="flex:1;">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <label style="margin:0 0 4px;"><code><%= t.name %></code></label>
@@ -32,7 +32,7 @@
               <button class="btn btn-sm" type="submit">Save</button>
             </div>
           </form>
-          <form method="post" action="/dashboard/<%= guild.id %>/tags/<%= t.id %>/delete" onsubmit="return confirm('Delete this tag?');" style="margin-left:12px;">
+          <form method="post" action="/dashboard/<%= guild.id %>/tags/<%= t.id %>/delete" class="js-pending-delete" style="margin-left:12px;">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button class="btn btn-sm btn-danger" type="submit">Delete</button>
           </form>

@@ -129,11 +129,11 @@
   <% } else { %>
     <ul class="list">
       <% templates.forEach(t => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div class="list-item-title"><%= t.name %></div>
           <div class="actions">
             <a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/embeds?load=<%= t.id %>">Load</a>
-            <form method="post" action="/dashboard/<%= guild.id %>/embeds/<%= t.id %>/delete" onsubmit="return confirm('Delete this template?');">
+            <form method="post" action="/dashboard/<%= guild.id %>/embeds/<%= t.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>

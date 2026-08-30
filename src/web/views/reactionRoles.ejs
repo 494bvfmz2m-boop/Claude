@@ -12,7 +12,7 @@
   <% } else { %>
     <ul class="list">
       <% panels.forEach(p => { %>
-        <li class="list-item">
+        <li class="list-item" data-delete-item>
           <div>
             <div class="list-item-title"><%= p.title %></div>
             <div class="list-item-meta">
@@ -22,7 +22,7 @@
           </div>
           <div class="actions">
             <a class="btn btn-sm btn-ghost" href="/dashboard/<%= guild.id %>/reaction-roles/<%= p.id %>/edit">Edit / Post</a>
-            <form method="post" action="/dashboard/<%= guild.id %>/reaction-roles/<%= p.id %>/delete" onsubmit="return confirm('Delete this panel? This does not remove the posted Discord message.');">
+            <form method="post" action="/dashboard/<%= guild.id %>/reaction-roles/<%= p.id %>/delete" class="js-pending-delete">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Delete</button>
             </form>
