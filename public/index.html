@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Text to Speech</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #1a1d24;
+    --border: #2a2e37;
+    --text: #e8eaed;
+    --muted: #9aa0aa;
+    --accent: #5b8cff;
+    --accent-hover: #6f9aff;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal {
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  }
+  .modal h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .modal p.subtitle {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    background: #12141a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  button {
+    flex: 1;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #22252e;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.15s ease;
+  }
+  button:hover:not(:disabled) {
+    background: #2b2f3a;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .status {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+  }
+  .status.error {
+    color: var(--danger);
+  }
+  audio {
+    width: 100%;
+    margin-top: 14px;
+    display: none;
+  }
+  .charcount {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="modal">
+    <h1>Text to Speech</h1>
+    <p class="subtitle">Type something, listen to it, export the audio.</p>
+
+    <textarea id="text" maxlength="4000" placeholder="Type or paste text here..."></textarea>
+    <div class="charcount"><span id="charcount">0</span> / 4000</div>
+
+    <div class="row">
+      <button id="speakBtn" class="primary">Speak</button>
+      <button id="exportBtn" disabled>Export</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <audio id="player" controls></audio>
+  </div>
+
+<script>
+  const textEl = document.getElementById('text');
+  const charcountEl = document.getElementById('charcount');
+  const speakBtn = document.getElementById('speakBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const statusEl = document.getElementById('status');
+  const player = document.getElementById('player');
+
+  let currentBlobUrl = null;
+
+  textEl.addEventListener('input', () => {
+    charcountEl.textContent = textEl.value.length;
+  });
+
+  function setStatus(message, isError = false) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', isError);
+  }
+
+  function setBusy(busy) {
+    speakBtn.disabled = busy;
+    textEl.disabled = busy;
+  }
+
+  async function generateSpeech() {
+    const text = textEl.value.trim();
+    if (!text) {
+      setStatus('Enter some text first.', true);
+      return;
+    }
+
+    setBusy(true);
+    exportBtn.disabled = true;
+    setStatus('Generating speech...');
+
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate speech.');
+      }
+
+      const blob = await res.blob();
+
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+      currentBlobUrl = URL.createObjectURL(blob);
+
+      player.src = currentBlobUrl;
+      player.style.display = 'block';
+      player.play();
+
+      exportBtn.disabled = false;
+      setStatus('Done.');
+    } catch (err) {
+      setStatus(err.message || 'Something went wrong.', true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function exportAudio() {
+    if (!currentBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = currentBlobUrl;
+    a.download = 'speech.wav';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  speakBtn.addEventListener('click', generateSpeech);
+  exportBtn.addEventListener('click', exportAudio);
+  textEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      generateSpeech();
+    }
+  });
+</script>
+</body>
+</html>
