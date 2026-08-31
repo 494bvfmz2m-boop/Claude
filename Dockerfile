@@ -1,11 +1,11 @@
-FROM php:8.2-cli
+FROM php:8.2-alpine
 
-# Install dependencies required for PHP IMAP extension on modern Debian
-RUN apt-get update && apt-get install -y \
-    libc-client-dev \
-    libkrb5-dev \
-    libssl-dev \
-    && docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
+# Install dependencies and build the IMAP extension on Alpine
+RUN apk add --no-cache \
+    imap-dev \
+    openssl-dev \
+    c-client \
+    && docker-php-ext-configure imap --with-imap --with-imap-ssl \
     && docker-php-ext-install imap
 
 WORKDIR /app
