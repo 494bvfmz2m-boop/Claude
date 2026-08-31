@@ -6,25 +6,28 @@ $discordWebhookUrl = getenv('DISCORD_WEBHOOK_URL');
 
 $mailboxes = [
     [
-        'user'  => getenv('BILLING_USER'),
-        'pass'  => getenv('BILLING_PASS'),
-        'title' => '📬 New Billing Email',
-        'color' => 3447003,
-        'reply_msg' => "Hello,\n\nWe have received your billing inquiry and our team will look into it shortly.\n\nBest regards,\nBilling Team"
+        'user'      => getenv('BILLING_USER'),
+        'pass'      => getenv('BILLING_PASS'),
+        'title'     => '📬 New Billing Email',
+        'bot_name'  => 'Xyphros Billing',
+        'color'     => 3447003,
+        'reply_msg' => "Hello,\n\nThis is an automated reply. We have received your billing inquiry and our team will look into it shortly.\n\nBest regards,\nBilling Team\nXyphros Studios"
     ],
     [
-        'user'  => getenv('HELLO_USER'),
-        'pass'  => getenv('HELLO_PASS'),
-        'title' => '👋 New Hello Email',
-        'color' => 5763719,
-        'reply_msg' => "Hello,\n\nThanks for reaching out! We've received your message and someone will get back to you soon.\n\nBest regards,\nTeam"
+        'user'      => getenv('HELLO_USER'),
+        'pass'      => getenv('HELLO_PASS'),
+        'title'     => '👋 New Hello Email',
+        'bot_name'  => 'Xyphros Hello',
+        'color'     => 5763719,
+        'reply_msg' => "Hello,\n\nThis is an automated reply. Thanks for reaching out! We've received your message and someone will get back to you soon.\n\nBest regards,\nTeam\nXyphros Studios"
     ],
     [
-        'user'  => getenv('SUPPORT_USER'),
-        'pass'  => getenv('SUPPORT_PASS'),
-        'title' => '🛠️ New Support Ticket',
-        'color' => 15548997,
-        'reply_msg' => "Hello,\n\nYour support request has been logged. Our team is looking into it and will follow up with you soon.\n\nBest regards,\nSupport Team"
+        'user'      => getenv('SUPPORT_USER'),
+        'pass'      => getenv('SUPPORT_PASS'),
+        'title'     => '🛠️ New Support Ticket',
+        'bot_name'  => 'Xyphros Support',
+        'color'     => 15548997,
+        'reply_msg' => "Hello,\n\nThis is an automated reply. Your support request has been logged. Our team is looking into it and will follow up with you soon.\n\nBest regards,\nSupport Team\nXyphros Studios"
     ]
 ];
 
@@ -66,7 +69,7 @@ function getCleanEmailBody($inbox, $emailId) {
     return empty($bodySnippet) ? '*[No text content]*' : $bodySnippet;
 }
 
-function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
+function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody, $senderName = '') {
     $smtpHost = 'smtp.purelymail.com';
     $smtpPort = 465;
 
@@ -97,77 +100,49 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
         return $data;
     };
 
-    // Read initial greeting
     $greeting = $helperRead($socket);
     if (strpos($greeting, '220') === false) {
-        echo "SMTP Invalid Greeting: {$greeting}\n";
         fclose($socket);
         return false;
     }
 
-    // EHLO
     fwrite($socket, "EHLO [127.0.0.1]\r\n");
-    $ehloResp = $helperRead($socket);
+    $helperRead($socket);
 
-    // AUTH LOGIN
     fwrite($socket, "AUTH LOGIN\r\n");
-    $authResp = $helperRead($socket);
-    if (strpos($authResp, '334') === false) {
-        echo "SMTP AUTH LOGIN rejected: {$authResp}\n";
-        fclose($socket);
-        return false;
-    }
+    $helperRead($socket);
 
-    // Username
     fwrite($socket, base64_encode($smtpUser) . "\r\n");
-    $userResp = $helperRead($socket);
-    if (strpos($userResp, '334') === false) {
-        echo "SMTP Username rejected: {$userResp}\n";
-        fclose($socket);
-        return false;
-    }
+    $helperRead($socket);
 
-    // Password
     fwrite($socket, base64_encode($smtpPass) . "\r\n");
     $passResp = $helperRead($socket);
     if (strpos($passResp, '235') === false) {
-        echo "SMTP Password Authentication Failed: {$passResp}\n";
         fclose($socket);
         return false;
     }
 
-    // MAIL FROM
     fwrite($socket, "MAIL FROM: <{$smtpUser}>\r\n");
-    $fromResp = $helperRead($socket);
-    if (strpos($fromResp, '250') === false) {
-        echo "SMTP MAIL FROM failed: {$fromResp}\n";
-        fclose($socket);
-        return false;
-    }
+    $helperRead($socket);
 
-    // RCPT TO
     fwrite($socket, "RCPT TO: <{$toEmail}>\r\n");
     $rcptResp = $helperRead($socket);
     if (strpos($rcptResp, '250') === false && strpos($rcptResp, '251') === false) {
-        echo "SMTP RCPT TO failed: {$rcptResp}\n";
         fclose($socket);
         return false;
     }
 
-    // DATA
     fwrite($socket, "DATA\r\n");
-    $dataResp = $helperRead($socket);
-    if (strpos($dataResp, '354') === false) {
-        echo "SMTP DATA command failed: {$dataResp}\n";
-        fclose($socket);
-        return false;
-    }
+    $helperRead($socket);
 
-    // Payload
     $cleanSubject = str_replace(["\r", "\n"], '', $subject);
-    $headers  = "From: <{$smtpUser}>\r\n";
+    $fromHeader = !empty($senderName) ? "From: {$senderName} <{$smtpUser}>" : "From: <{$smtpUser}>";
+    
+    $headers  = $fromHeader . "\r\n";
     $headers .= "To: <{$toEmail}>\r\n";
-    $headers .= "Subject: Re: " . $cleanSubject . "\r\n";
+    $headers .= "Subject: Automated Reply to - " . $cleanSubject . "\r\n";
+    $headers .= "X-Auto-Response-Suppress: All\r\n";
+    $headers .= "Auto-Submitted: auto-replied\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "\r\n";
@@ -175,16 +150,12 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
     fwrite($socket, $headers . $messageBody . "\r\n.\r\n");
     $finishResp = $helperRead($socket);
     if (strpos($finishResp, '250') === false) {
-        echo "SMTP Message transmission failed: {$finishResp}\n";
         fclose($socket);
         return false;
     }
 
-    // QUIT
     fwrite($socket, "QUIT\r\n");
     fclose($socket);
-    
-    echo "Auto-reply successfully sent to {$toEmail} from {$smtpUser}\n";
     return true;
 }
 
@@ -216,9 +187,8 @@ foreach ($mailboxes as $mailbox) {
             $date = isset($overview[0]->date) ? $overview[0]->date : date('Y-m-d H:i:s');
             $bodySnippet = getCleanEmailBody($inbox, $emailId);
 
-            // Send Discord Notification
             $embedData = [
-                'username' => 'Mail Notifier',
+                'username' => $mailbox['bot_name'],
                 'embeds' => [
                     [
                         'title'       => $mailbox['title'] . ': ' . $subject,
@@ -226,7 +196,7 @@ foreach ($mailboxes as $mailbox) {
                         'color'       => $mailbox['color'],
                         'fields'      => [
                             ['name' => 'From', 'value' => $from, 'inline' => true],
-                            ['name' => 'To', 'value' => '`' . $mailbox['user'] . '`', 'inline`' => true]
+                            ['name' => 'To', 'value' => '`' . $mailbox['user'] . '`', 'inline' => true]
                         ],
                         'footer'      => ['text' => 'Received • ' . $date]
                     ]
@@ -241,9 +211,8 @@ foreach ($mailboxes as $mailbox) {
             curl_exec($ch);
             curl_close($ch);
 
-            // Send Auto-Reply
             if (!empty($rawSenderEmail)) {
-                sendAutoReply($mailbox['user'], $mailbox['pass'], $rawSenderEmail, $subject, $mailbox['reply_msg']);
+                sendAutoReply($mailbox['user'], $mailbox['pass'], $rawSenderEmail, $subject, $mailbox['reply_msg'], $mailbox['bot_name']);
             }
 
             imap_setflag_full($inbox, $emailId, '\\Seen');
