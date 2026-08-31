@@ -67,47 +67,40 @@ function getCleanEmailBody($inbox, $emailId) {
 }
 
 function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
-    $smtpHost = 'ssl://smtp.purelymail.com';
+    $smtpHost = 'smtp.purelymail.com';
     $smtpPort = 465;
 
-    $socket = @fsockopen($smtpHost, $smtpPort, $errno, $errstr, 15);
+    $context = stream_context_create([
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true
+        ]
+    ]);
+
+    $socket = @stream_socket_client("ssl://{$smtpHost}:{$smtpPort}", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $context);
     if (!$socket) {
-        echo "SMTP Connection Error: $errstr ($errno)\n";
+        echo "SMTP Socket Error for {$smtpUser}: $errstr ($errno)\n";
         return false;
     }
 
     stream_set_timeout($socket, 15);
-
-    $serverReply = fgets($socket, 512);
-    if (substr($serverReply, 0, 3) != '220') {
-        echo "SMTP Greeting Error: $serverReply\n";
-        fclose($socket);
-        return false;
-    }
+    $greeting = fgets($socket, 512);
 
     fwrite($socket, "EHLO [127.0.0.1]\r\n");
-    $serverReply = fgets($socket, 512);
+    fgets($socket, 512);
 
     fwrite($socket, "AUTH LOGIN\r\n");
-    $authResp1 = fgets($socket, 512);
-    if (substr($authResp1, 0, 3) != '334') {
-        echo "SMTP Auth Login Error: $authResp1\n";
-        fclose($socket);
-        return false;
-    }
+    fgets($socket, 512);
 
     fwrite($socket, base64_encode($smtpUser) . "\r\n");
-    $authResp2 = fgets($socket, 512);
-    if (substr($authResp2, 0, 3) != '334') {
-        echo "SMTP Username Error: $authResp2\n";
-        fclose($socket);
-        return false;
-    }
+    fgets($socket, 512);
 
     fwrite($socket, base64_encode($smtpPass) . "\r\n");
     $authReply = fgets($socket, 512);
-    if (substr($authReply, 0, 3) != '235') {
-        echo "SMTP Password Authentication Failed: $authReply\n";
+
+    if (strpos($authReply, '235') === false) {
+        echo "SMTP Auth Failed for {$smtpUser}: $authReply\n";
         fclose($socket);
         return false;
     }
@@ -128,7 +121,7 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
     $headers .= "\r\n";
 
     fwrite($socket, $headers . $messageBody . "\r\n.\r\n");
-    $dataReply = fgets($socket, 512);
+    fgets($socket, 512);
 
     fwrite($socket, "QUIT\r\n");
     fclose($socket);
