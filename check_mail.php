@@ -2,7 +2,6 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// --- CONFIGURATION ---
 $discordWebhookUrl = getenv('DISCORD_WEBHOOK_URL');
 
 $mailboxes = [
@@ -21,37 +20,29 @@ $mailboxes = [
     [
         'user'  => getenv('SUPPORT_USER'),
         'pass'  => getenv('SUPPORT_PASS'),
-        'title' => '🛠️ New Support Ticket Email',
+        'title' => '🛠️ New Support Ticket',
         'color' => 15548997
     ]
 ];
 
 $imapHost = '{imap.purelymail.com:993/imap/ssl/novalidate-cert}INBOX';
 
-// Helper function to extract and clean up email body cleanly
 function getCleanEmailBody($inbox, $emailId) {
     $structure = @imap_fetchstructure($inbox, $emailId);
     $rawBody = '';
 
-    // If it's a multi-part email, look for the plain text section (part 1 or 1.1)
     if (isset($structure->parts) && count($structure->parts) > 0) {
-        // Try to fetch part 1 (usually text/plain)
         $rawBody = @imap_fetchbody($inbox, $emailId, '1');
-        
-        // If part 1 was actually HTML, try part 1.2 or 2 if available, or fallback
         if (empty(trim($rawBody))) {
             $rawBody = @imap_fetchbody($inbox, $emailId, '1.1');
         }
     } else {
-        // Simple non-multipart email
         $rawBody = @imap_body($inbox, $emailId, FT_PEEK);
     }
 
-    // Decode quoted-printable if present
     if ($structure && isset($structure->encoding) && $structure->encoding == 4) {
         $rawBody = quoted_printable_decode($rawBody);
     } else {
-        // Fallback safety decode
         $decoded = quoted_printable_decode($rawBody);
         if (!empty(trim($decoded))) {
             $rawBody = $decoded;
@@ -61,20 +52,16 @@ function getCleanEmailBody($inbox, $emailId) {
     $cleanBody = trim(strip_tags($rawBody));
     
     if (empty($cleanBody)) {
-        // Absolute fallback if parsing fails
         $fallback = @imap_body($inbox, $emailId, FT_PEEK);
         $cleanBody = trim(strip_tags($fallback));
     }
 
-    $bodySnippet = mb_substr($cleanBody, 0, 450);
-    if (mb_strlen($cleanBody) > 450) {
+    // Keep it tight so it doesn't spam the channel
+    $bodySnippet = mb_substr($cleanBody, 0, 250);
+    if (mb_strlen($cleanBody) > 250) {
         $bodySnippet .= '...';
     }
-    if (empty($bodySnippet)) {
-        $bodySnippet = '*[No text content or attachment-only]*';
-    }
-
-    return $bodySnippet;
+    return empty($bodySnippet) ? '*[No text content]*' : $bodySnippet;
 }
 
 foreach ($mailboxes as $mailbox) {
@@ -82,12 +69,9 @@ foreach ($mailboxes as $mailbox) {
         continue;
     }
 
-    echo "Checking mailbox: " . $mailbox['user'] . "\n";
     $inbox = @imap_open($imapHost, $mailbox['user'], $mailbox['pass']);
-
     if (!$inbox) {
-        echo "Failed to connect to " . $mailbox['user'] . ": " . imap_last_error() . "\n";
-        continue;
+        continue; 
     }
 
     $emails = @imap_search($inbox, 'UNSEEN');
@@ -103,19 +87,19 @@ foreach ($mailboxes as $mailbox) {
 
             $bodySnippet = getCleanEmailBody($inbox, $emailId);
 
+            // Using description for the body and inline fields for metadata
             $embedData = [
                 'username' => 'Mail Notifier',
                 'embeds' => [
                     [
-                        'title' => $mailbox['title'],
-                        'color' => $mailbox['color'],
-                        'fields' => [
-                            ['name' => 'To Inbox', 'value' => '`' . $mailbox['user'] . '`', 'inline' => false],
-                            ['name' => 'From', 'value' => '`' . $from . '`', 'inline' => false],
-                            ['name' => 'Subject', 'value' => '**' . $subject . '**', 'inline' => false],
-                            ['name' => 'Preview', 'value' => $bodySnippet, 'inline' => false]
+                        'title'       => $mailbox['title'] . ': ' . $subject,
+                        'description' => "> " . str_replace("\n", "\n> ", $bodySnippet), // Blockquote format for preview
+                        'color'       => $mailbox['color'],
+                        'fields'      => [
+                            ['name' => 'From', 'value' => $from, 'inline' => true],
+                            ['name' => 'To', 'value' => '`' . $mailbox['user'] . '`', 'inline' => true]
                         ],
-                        'footer' => ['text' => 'Received • ' . $date]
+                        'footer'      => ['text' => 'Received • ' . $date]
                     ]
                 ]
             ];
@@ -133,4 +117,6 @@ foreach ($mailboxes as $mailbox) {
     }
     imap_close($inbox);
 }
+
+exit(0);
 ?>
