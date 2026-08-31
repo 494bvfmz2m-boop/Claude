@@ -78,54 +78,113 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
         ]
     ]);
 
-    $socket = @stream_socket_client("ssl://{$smtpHost}:{$smtpPort}", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $context);
+    $socket = @stream_socket_client("ssl://{$smtpHost}:{$smtpPort}", $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $context);
     if (!$socket) {
-        echo "SMTP Socket Error for {$smtpUser}: $errstr ($errno)\n";
+        echo "SMTP Connection Failed for {$smtpUser}: $errstr ($errno)\n";
         return false;
     }
 
-    stream_set_timeout($socket, 15);
-    $greeting = fgets($socket, 512);
+    stream_set_timeout($socket, 20);
 
-    fwrite($socket, "EHLO [127.0.0.1]\r\n");
-    fgets($socket, 512);
+    $helperRead = function($sock) {
+        $data = '';
+        while (($line = fgets($sock, 512)) !== false) {
+            $data .= $line;
+            if (isset($line[3]) && $line[3] === ' ') {
+                break;
+            }
+        }
+        return $data;
+    };
 
-    fwrite($socket, "AUTH LOGIN\r\n");
-    fgets($socket, 512);
-
-    fwrite($socket, base64_encode($smtpUser) . "\r\n");
-    fgets($socket, 512);
-
-    fwrite($socket, base64_encode($smtpPass) . "\r\n");
-    $authReply = fgets($socket, 512);
-
-    if (strpos($authReply, '235') === false) {
-        echo "SMTP Auth Failed for {$smtpUser}: $authReply\n";
+    // Read initial greeting
+    $greeting = $helperRead($socket);
+    if (strpos($greeting, '220') === false) {
+        echo "SMTP Invalid Greeting: {$greeting}\n";
         fclose($socket);
         return false;
     }
 
+    // EHLO
+    fwrite($socket, "EHLO [127.0.0.1]\r\n");
+    $ehloResp = $helperRead($socket);
+
+    // AUTH LOGIN
+    fwrite($socket, "AUTH LOGIN\r\n");
+    $authResp = $helperRead($socket);
+    if (strpos($authResp, '334') === false) {
+        echo "SMTP AUTH LOGIN rejected: {$authResp}\n";
+        fclose($socket);
+        return false;
+    }
+
+    // Username
+    fwrite($socket, base64_encode($smtpUser) . "\r\n");
+    $userResp = $helperRead($socket);
+    if (strpos($userResp, '334') === false) {
+        echo "SMTP Username rejected: {$userResp}\n";
+        fclose($socket);
+        return false;
+    }
+
+    // Password
+    fwrite($socket, base64_encode($smtpPass) . "\r\n");
+    $passResp = $helperRead($socket);
+    if (strpos($passResp, '235') === false) {
+        echo "SMTP Password Authentication Failed: {$passResp}\n";
+        fclose($socket);
+        return false;
+    }
+
+    // MAIL FROM
     fwrite($socket, "MAIL FROM: <{$smtpUser}>\r\n");
-    fgets($socket, 512);
+    $fromResp = $helperRead($socket);
+    if (strpos($fromResp, '250') === false) {
+        echo "SMTP MAIL FROM failed: {$fromResp}\n";
+        fclose($socket);
+        return false;
+    }
 
+    // RCPT TO
     fwrite($socket, "RCPT TO: <{$toEmail}>\r\n");
-    fgets($socket, 512);
+    $rcptResp = $helperRead($socket);
+    if (strpos($rcptResp, '250') === false && strpos($rcptResp, '251') === false) {
+        echo "SMTP RCPT TO failed: {$rcptResp}\n";
+        fclose($socket);
+        return false;
+    }
 
+    // DATA
     fwrite($socket, "DATA\r\n");
-    fgets($socket, 512);
+    $dataResp = $helperRead($socket);
+    if (strpos($dataResp, '354') === false) {
+        echo "SMTP DATA command failed: {$dataResp}\n";
+        fclose($socket);
+        return false;
+    }
 
+    // Payload
+    $cleanSubject = str_replace(["\r", "\n"], '', $subject);
     $headers  = "From: <{$smtpUser}>\r\n";
     $headers .= "To: <{$toEmail}>\r\n";
-    $headers .= "Subject: Re: " . $subject . "\r\n";
+    $headers .= "Subject: Re: " . $cleanSubject . "\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "\r\n";
 
     fwrite($socket, $headers . $messageBody . "\r\n.\r\n");
-    fgets($socket, 512);
+    $finishResp = $helperRead($socket);
+    if (strpos($finishResp, '250') === false) {
+        echo "SMTP Message transmission failed: {$finishResp}\n";
+        fclose($socket);
+        return false;
+    }
 
+    // QUIT
     fwrite($socket, "QUIT\r\n");
     fclose($socket);
     
+    echo "Auto-reply successfully sent to {$toEmail} from {$smtpUser}\n";
     return true;
 }
 
@@ -167,7 +226,7 @@ foreach ($mailboxes as $mailbox) {
                         'color'       => $mailbox['color'],
                         'fields'      => [
                             ['name' => 'From', 'value' => $from, 'inline' => true],
-                            ['name' => 'To', 'value' => '`' . $mailbox['user'] . '`', 'inline' => true]
+                            ['name' => 'To', 'value' => '`' . $mailbox['user'] . '`', 'inline`' => true]
                         ],
                         'footer'      => ['text' => 'Received • ' . $date]
                     ]
