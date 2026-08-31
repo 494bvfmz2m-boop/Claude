@@ -141,8 +141,6 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody, $
     $headers  = $fromHeader . "\r\n";
     $headers .= "To: <{$toEmail}>\r\n";
     $headers .= "Subject: Automated Reply to - " . $cleanSubject . "\r\n";
-    $headers .= "X-Auto-Response-Suppress: All\r\n";
-    $headers .= "Auto-Submitted: auto-replied\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "\r\n";
