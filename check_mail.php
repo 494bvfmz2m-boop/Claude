@@ -66,29 +66,48 @@ function getCleanEmailBody($inbox, $emailId) {
     return empty($bodySnippet) ? '*[No text content]*' : $bodySnippet;
 }
 
-// Lightweight SMTP sender for Purelymail to avoid external dependencies
 function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
     $smtpHost = 'ssl://smtp.purelymail.com';
     $smtpPort = 465;
 
-    $socket = @fsockopen($smtpHost, $smtpPort, $errno, $errstr, 10);
-    if (!$socket) return false;
+    $socket = @fsockopen($smtpHost, $smtpPort, $errno, $errstr, 15);
+    if (!$socket) {
+        echo "SMTP Connection Error: $errstr ($errno)\n";
+        return false;
+    }
+
+    stream_set_timeout($socket, 15);
 
     $serverReply = fgets($socket, 512);
-    
-    fwrite($socket, "EHLO " . parse_url($smtpHost, PHP_URL_HOST) . "\r\n");
+    if (substr($serverReply, 0, 3) != '220') {
+        echo "SMTP Greeting Error: $serverReply\n";
+        fclose($socket);
+        return false;
+    }
+
+    fwrite($socket, "EHLO [127.0.0.1]\r\n");
     $serverReply = fgets($socket, 512);
 
     fwrite($socket, "AUTH LOGIN\r\n");
-    fgets($socket, 512);
+    $authResp1 = fgets($socket, 512);
+    if (substr($authResp1, 0, 3) != '334') {
+        echo "SMTP Auth Login Error: $authResp1\n";
+        fclose($socket);
+        return false;
+    }
 
     fwrite($socket, base64_encode($smtpUser) . "\r\n");
-    fgets($socket, 512);
+    $authResp2 = fgets($socket, 512);
+    if (substr($authResp2, 0, 3) != '334') {
+        echo "SMTP Username Error: $authResp2\n";
+        fclose($socket);
+        return false;
+    }
 
     fwrite($socket, base64_encode($smtpPass) . "\r\n");
     $authReply = fgets($socket, 512);
-
-    if (strpos($authReply, '235') === false) {
+    if (substr($authReply, 0, 3) != '235') {
+        echo "SMTP Password Authentication Failed: $authReply\n";
         fclose($socket);
         return false;
     }
@@ -109,10 +128,11 @@ function sendAutoReply($smtpUser, $smtpPass, $toEmail, $subject, $messageBody) {
     $headers .= "\r\n";
 
     fwrite($socket, $headers . $messageBody . "\r\n.\r\n");
-    fgets($socket, 512);
+    $dataReply = fgets($socket, 512);
 
     fwrite($socket, "QUIT\r\n");
     fclose($socket);
+    
     return true;
 }
 
@@ -136,7 +156,6 @@ foreach ($mailboxes as $mailbox) {
             $subject = isset($headerInfo->subject) ? mb_decode_mimeheader($headerInfo->subject) : 'No Subject';
             $from    = isset($headerInfo->fromaddress) ? mb_decode_mimeheader($headerInfo->fromaddress) : 'Unknown Sender';
             
-            // Extract pure email address from 'Name <email@domain.com>' format for replying
             $rawSenderEmail = '';
             if (isset($headerInfo->from[0]->mailbox) && isset($headerInfo->from[0]->host)) {
                 $rawSenderEmail = $headerInfo->from[0]->mailbox . '@' . $headerInfo->from[0]->host;
@@ -170,12 +189,11 @@ foreach ($mailboxes as $mailbox) {
             curl_exec($ch);
             curl_close($ch);
 
-            // Send Auto-Reply to the sender
+            // Send Auto-Reply
             if (!empty($rawSenderEmail)) {
                 sendAutoReply($mailbox['user'], $mailbox['pass'], $rawSenderEmail, $subject, $mailbox['reply_msg']);
             }
 
-            // Mark as read so it doesn't loop
             imap_setflag_full($inbox, $emailId, '\\Seen');
         }
     }
