@@ -1,14 +1,14 @@
 FROM php:8.2-cli
 
-# Install dependencies required for PHP IMAP extension
+# Install dependencies required for PHP IMAP extension on modern Debian
 RUN apt-get update && apt-get install -y \
-    libimap-dev \
+    libc-client-dev \
+    libkrb5-dev \
     libssl-dev \
-    && docker-php-ext-configure imap --with-imap-ssl \
+    && docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
     && docker-php-ext-install imap
 
 WORKDIR /app
 COPY check_mail.php /app/check_mail.php
 
-# Run the script every 5 minutes via a simple infinite loop, or leave it for Coolify's scheduler
 CMD ["php", "/app/check_mail.php"]
