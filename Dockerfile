@@ -11,5 +11,5 @@ RUN apk add --no-cache \
 WORKDIR /app
 COPY check_mail.php /app/check_mail.php
 
-# Run the script in an infinite loop every 5 minutes (300 seconds)
-CMD ["sh", "-c", "while true; do php /app/check_mail.php; sleep 300; done"]
+# The '|| true' ensures that even if the script crashes, the loop stays alive
+CMD ["sh", "-c", "while true; do php /app/check_mail.php || true; sleep 300; done"]
