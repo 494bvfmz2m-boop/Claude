@@ -1,22 +1,14 @@
 <?php
 /**
- * Discord — OAuth2 account linking + role granting.
+ * Discord — OAuth2 account linking.
  *
- * Why this exists: Tebex can only hand out a Discord role automatically
- * if it knows which Discord account a customer is. Relying on Tebex's
- * own per-purchase "log in with Discord" step (see the old
- * requiredOptions flow that used to live in store-buy.php) meant a
- * customer had to reconnect Discord on every single purchase, and any
- * hiccup in that flow surfaced as a confusing "couldn't find account"
- * error with nothing to act on.
- *
- * Instead, a customer links their Discord account to their Xyphros
- * account ONCE (see /discord-link + /discord-callback below, and the
- * "Connections" tab in account.php). From then on, every basket we
- * create for them carries their Discord ID as custom data, and once
- * Tebex confirms payment (webhook-tebex.php) we grant the purchased
- * role ourselves via the bot token — no per-purchase Discord prompt,
- * and no dependency on Tebex's own Discord integration at all.
+ * Lets a customer link their Discord account to their Xyphros account
+ * (see /discord-link + /discord-callback, and the "Connections" tab in
+ * account.php) so it's visible on their profile. Store checkout and
+ * role granting are handled entirely by Tebex's own Discord
+ * integration (configured in the Tebex creator dashboard) — this class
+ * only ever reads a "who is this" identity via the `identify` OAuth
+ * scope, it doesn't act as the customer or touch roles.
  */
 class Discord
 {
@@ -123,49 +115,5 @@ class Discord
         if (!$avatarHash) return null;
         $ext = str_starts_with($avatarHash, 'a_') ? 'gif' : 'png';
         return "https://cdn.discordapp.com/avatars/{$discordId}/{$avatarHash}.{$ext}?size=128";
-    }
-
-    /** Grants one role to one guild member using the bot token. Idempotent — Discord no-ops if they already have it. */
-    public static function grantRole(string $discordUserId, string $roleId): array
-    {
-        if (empty(DISCORD_BOT_TOKEN) || empty(DISCORD_GUILD_ID)) {
-            return [false, 'Discord role granting is not configured yet (missing bot token or guild ID).'];
-        }
-        $url = "https://discord.com/api/v10/guilds/" . DISCORD_GUILD_ID . "/members/{$discordUserId}/roles/{$roleId}";
-        [$ok, , $status, $err] = self::request('PUT', $url, ['Authorization: Bot ' . DISCORD_BOT_TOKEN]);
-        if (!$ok) {
-            if ($status === 404) {
-                return [false, "That Discord account isn't a member of the server, so the role couldn't be granted yet."];
-            }
-            return [false, $err ?? 'Discord rejected the role grant.'];
-        }
-        return [true, null];
-    }
-
-    /**
-     * Called from webhook-tebex.php once a payment completes. Looks up
-     * whether the purchased package grants a Discord role and, if so,
-     * grants it to the buyer's linked Discord account. Entirely
-     * best-effort and non-fatal — a failure here never affects order
-     * status, it's only logged so staff can grant the role by hand.
-     */
-    public static function grantRoleForOrder(array $order, ?array $buyer): void
-    {
-        $packageId = (int) ($order['package_id'] ?? 0);
-        $roleId = TEBEX_DISCORD_ROLES[$packageId] ?? null;
-        if (!$roleId) return; // this package doesn't grant a Discord role
-
-        $discordId = $order['discord_id'] ?? ($buyer['discord_id'] ?? null);
-        if (!$discordId) {
-            error_log("Discord role grant skipped for order {$order['id']}: buyer has no linked Discord account.");
-            return;
-        }
-
-        [$ok, $err] = self::grantRole((string) $discordId, (string) $roleId);
-        if ($ok) {
-            error_log("Discord role {$roleId} granted for order {$order['id']} (discord user {$discordId}).");
-        } else {
-            error_log("Discord role grant failed for order {$order['id']} (discord user {$discordId}): {$err}");
-        }
     }
 }

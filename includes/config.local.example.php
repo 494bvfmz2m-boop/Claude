@@ -26,10 +26,9 @@ define('CONTACT_SMTP_USERNAME', 'contact@xyphros.net');
 define('CONTACT_SMTP_PASSWORD', 'your_contact_smtp_password');
 define('CONTACT_FROM_EMAIL', 'contact@xyphros.net');
 
-// Discord bot (for role granting + staff avatar fetch)
+// Discord bot (for the staff avatar-fetch button only)
 define('DISCORD_BOT_TOKEN', '');
 define('DISCORD_INVITE_URL', 'https://discord.gg/your-invite');
-define('DISCORD_GUILD_ID', '');
 
 // Discord OAuth2 app (for account linking — see /discord-link)
 define('DISCORD_CLIENT_ID', '');

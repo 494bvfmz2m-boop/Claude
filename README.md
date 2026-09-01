@@ -15,11 +15,16 @@ work across every `*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
   `/login`, `/register`, `/forgot-password`, `/account`.
 - **Store** (Tebex-backed) — `/store` lists categories/packages from
   Tebex's Headless API and checks out through Tebex's hosted checkout
-  widget. Requires signing in AND linking Discord first (see below).
-- **Discord account linking** — a customer links their Discord account
-  once, from `/account?tab=connections` (or the prompt on `/store`).
-  From then on, every purchase automatically grants the matching
-  Discord role once payment completes — see "Discord linking" below.
+  widget. For any package Tebex has marked as requiring Discord login
+  (a required package option, set in the Tebex creator dashboard),
+  `store-buy.php` sends the customer through Tebex's own Discord auth
+  before checkout — Tebex's own Discord integration is what grants the
+  role once payment completes. Nothing on this site's side is involved
+  in that role grant.
+- **Discord account linking** (separate, optional) — a customer can
+  link their Discord account to their Xyphros profile from
+  `/account?tab=connections`, purely so it's visible there. It isn't
+  used by the store or anything role-related — see `includes/Discord.php`.
 - **License keys** — some Tebex packages (see `TEBEX_LICENSE_PACKAGES`
   in config) auto-issue a Portal workspace-limit license key on
   purchase, emailed to the buyer and viewable from Account → Orders.
@@ -53,47 +58,33 @@ work across every `*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
    hand-edit a file in `assets/` over FTP, so browsers don't keep
    serving a stale cached copy.
 
-## Discord linking — how it fits together
+## Discord — two separate things
 
-Tebex can only grant a Discord role automatically if it knows which
-Discord account a customer is. The old approach (Tebex's own
-per-purchase "log in with Discord" step, configured as a required
-package option) meant reconnecting Discord on every single purchase,
-and any hiccup in that round trip surfaced as an unhelpful "couldn't
-find account" error with nothing the customer could do about it.
+It's worth being explicit that this codebase touches Discord in two
+unrelated ways:
 
-Instead:
+1. **Store role granting** — entirely Tebex's job. In the Tebex
+   creator dashboard, connect your Discord server and map
+   packages/categories to roles; Tebex marks those packages as
+   requiring Discord login, and `store-buy.php` sends the customer
+   through Tebex's own hosted Discord auth before checkout. This site
+   never touches the role grant itself — if a customer reports a
+   missing role, that's a Tebex-dashboard/Discord-integration question,
+   not a bug in this code.
+2. **Account linking** (`/discord-link` → Discord OAuth2 →
+   `/discord-callback`, see `includes/Discord.php`) — lets a customer
+   show which Discord account is theirs on their Xyphros profile
+   (Account → Connections). Purely cosmetic/informational; nothing
+   else on the site reads it. Only needed if you want that profile
+   feature at all — skip the OAuth2 app setup entirely if not.
 
-1. A customer links Discord to their Xyphros account **once**, via
-   Discord's own OAuth2 (`/discord-link` → Discord → `/discord-callback`,
-   see `includes/Discord.php`). We only ever request the `identify`
-   scope — just their Discord user ID and username, nothing else.
-2. `/store` requires that link before showing the "Buy now" buttons at
-   all (`store.php`), and `store-buy.php` checks again server-side.
-3. Every basket created for them carries `discord_id` as custom data,
-   and `xs_store_finalize_purchase()` snapshots it onto the pending
-   order too.
-4. Once Tebex's `payment.completed` webhook fires (`webhook-tebex.php`),
-   `Discord::grantRoleForOrder()` looks up the purchased package in
-   `TEBEX_DISCORD_ROLES` (config) and grants that role directly via the
-   bot token — no dependency on Tebex's own Discord integration at all.
-
-**To finish setting this up on your end:**
-
-- Create/open a Discord application at
-  https://discord.com/developers/applications.
-- **Bot tab**: copy the bot token into `DISCORD_BOT_TOKEN`. Invite the
-  bot to your server with the "Manage Roles" permission, and make sure
-  its highest role sits *above* every role it needs to grant (Discord
-  enforces this — a bot can't grant a role ranked above its own).
-- **OAuth2 tab**: copy the Client ID/Secret into `DISCORD_CLIENT_ID` /
-  `DISCORD_CLIENT_SECRET`, and add
-  `https://xyphros.net/discord-callback` as a redirect URL there
-  (must match `DISCORD_OAUTH_REDIRECT_URI` exactly).
-- Enable Developer Mode in Discord (User Settings → Advanced) so you
-  can right-click to copy IDs: your server → `DISCORD_GUILD_ID`; each
-  role you want a package to grant → `TEBEX_DISCORD_ROLES` in
-  `includes/config.php` (`package_id => role_id`).
+**To enable account linking**, create/open a Discord application at
+https://discord.com/developers/applications, open its **OAuth2** tab,
+copy the Client ID/Secret into `DISCORD_CLIENT_ID` /
+`DISCORD_CLIENT_SECRET`, and add `https://xyphros.net/discord-callback`
+as a redirect URL there (must match `DISCORD_OAUTH_REDIRECT_URI`
+exactly). `DISCORD_BOT_TOKEN` is separate and only used by the staff
+"fetch avatar from Discord" button.
 
 ## Deploying
 

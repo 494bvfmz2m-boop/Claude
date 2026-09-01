@@ -52,9 +52,8 @@ if (!$identity) {
     $bounce('Couldn\'t read your Discord profile — please try again.');
 }
 
-// One Discord account can only be linked to one Xyphros account — stops
-// someone linking the same Discord account across multiple Xyphros
-// accounts to collect a role-granting purchase more than once.
+// One Discord account can only be linked to one Xyphros account —
+// keeps "which Discord account is this" unambiguous.
 $existingOwner = XyphrosAuth::findByDiscordId($identity['id']);
 if ($existingOwner && $existingOwner['id'] !== $user['id']) {
     $bounce('That Discord account is already linked to a different Xyphros account.');

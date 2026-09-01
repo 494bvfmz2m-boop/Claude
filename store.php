@@ -6,8 +6,7 @@ $pageTitle = 'Store';
 $pageDescription = 'Support Xyphros and unlock Discord perks.';
 
 $user = XyphrosAuth::currentUser();
-$discordLinked = $user && !empty($user['discord_id']);
-$categories = $discordLinked ? Tebex::getCategories() : [];
+$categories = $user ? Tebex::getCategories() : [];
 
 // Cheapest-first: sort packages within each category by price, then sort
 // the categories themselves by their cheapest package, so the grid reads
@@ -35,7 +34,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Store</span>
         <h1>Support Xyphros, unlock perks</h1>
-        <p class="lede lede--center">Every purchase grants its Discord role automatically &mdash; no separate login at checkout, just a linked account.</p>
+        <p class="lede lede--center">Purchases connect straight to Discord at checkout &mdash; your role shows up automatically once payment goes through.</p>
     </div>
 </section>
 
@@ -48,19 +47,8 @@ require __DIR__ . '/includes/header.php';
             <div class="store-gate">
                 <div class="store-gate__icon"><?php echo xs_icon('user', 26); ?></div>
                 <h2>Sign in to shop</h2>
-                <p>Your Xyphros account is what ties a purchase to your Discord role.</p>
+                <p>Your Xyphros account is what ties a purchase to your order history.</p>
                 <a href="/login?return_to=<?php echo rawurlencode(SITE_URL . '/store'); ?>" class="btn btn--primary">Sign in</a>
-            </div>
-
-        <?php elseif (!$discordLinked): ?>
-            <div class="store-gate store-gate--discord">
-                <div class="store-gate__icon store-gate__icon--discord"><?php echo xs_icon_discord(26); ?></div>
-                <h2>Link Discord to unlock the store</h2>
-                <p>Every item here grants a Discord role, so we need to know which Discord account is yours before you can check out. Takes about ten seconds.</p>
-                <a href="/discord-link?return_to=<?php echo rawurlencode('/store'); ?>" class="btn btn--discord">
-                    <?php echo xs_icon_discord(18); ?> <span>Link your Discord account</span>
-                </a>
-                <p class="store-gate__note">We only ever read your Discord user ID and username &mdash; never your messages, servers, or friends list.</p>
             </div>
 
         <?php elseif ($totalPackages === 0): ?>
@@ -70,16 +58,6 @@ require __DIR__ . '/includes/header.php';
             </div>
 
         <?php else: ?>
-
-            <div class="store-linked-strip">
-                <?php if (!empty($user['discord_avatar'])): ?>
-                    <img src="<?php echo e($user['discord_avatar']); ?>" alt="" class="store-linked-strip__avatar">
-                <?php else: ?>
-                    <span class="store-linked-strip__avatar store-linked-strip__avatar--placeholder"><?php echo xs_icon_discord(14); ?></span>
-                <?php endif; ?>
-                <span>Purchases will grant roles to <strong><?php echo e($user['discord_username']); ?></strong></span>
-                <a href="/account?tab=connections">Not you?</a>
-            </div>
 
             <?php if (count($categories) > 1): ?>
             <nav class="store-tabs" aria-label="Categories">
@@ -143,7 +121,7 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<?php if ($discordLinked && count($categories) > 1): ?>
+<?php if ($user && count($categories) > 1): ?>
 <script>
 (function () {
     var tabs = document.querySelectorAll('.store-tabs__item');

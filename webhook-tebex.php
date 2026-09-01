@@ -151,15 +151,10 @@ function handlePaymentCompleted(array $subject): void
         error_log("Tebex payment.completed: post-completion email/license work failed for order {$match['id']}: " . $e->getMessage());
     }
 
-    // Grant any Discord role this package maps to (TEBEX_DISCORD_ROLES in
-    // config.php), using the Discord account the buyer had linked at
-    // checkout time. Best-effort and non-fatal, same reasoning as email
-    // above — the order itself is already safely recorded regardless.
-    try {
-        Discord::grantRoleForOrder($match, $buyer ?? null);
-    } catch (Throwable $e) {
-        error_log("Tebex payment.completed: Discord role grant threw for order {$match['id']}: " . $e->getMessage());
-    }
+    // Discord role granting for this package (if any) happens on Tebex's
+    // own side — see the Discord integration in the Tebex creator
+    // dashboard, and the required-auth redirect in store-buy.php. Nothing
+    // to do here.
 }
 
 /** One combined email: order confirmation, plus the license key if this package issued one. */

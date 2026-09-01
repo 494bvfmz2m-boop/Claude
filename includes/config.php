@@ -112,23 +112,20 @@ define('CONTACT_FROM_EMAIL', xs_env('CONTACT_FROM_EMAIL', 'contact@xyphros.net')
 define('CONTACT_FROM_NAME', SITE_NAME);
 
 // ---- Discord (bot + OAuth) ----------------------------------------------
-// The bot token is used for two things: (1) the staff "fetch avatar from
-// Discord" button, and (2) granting store-purchase roles automatically
-// once a customer's Discord account is linked (see webhook-tebex.php and
-// includes/Discord.php). Create an application at
-// https://discord.com/developers/applications, add a Bot, invite it to
-// your server with the "Manage Roles" permission, and make sure its
-// highest role sits ABOVE every role it needs to grant.
+// The bot token is used only for the staff "fetch avatar from Discord"
+// button. Store-purchase role granting is handled entirely by Tebex's
+// own Discord integration (configured in the Tebex creator dashboard,
+// not here) — see store-buy.php's required-auth redirect.
 define('DISCORD_BOT_TOKEN', xs_env('DISCORD_BOT_TOKEN', ''));
 define('DISCORD_INVITE_URL', xs_env('DISCORD_INVITE_URL', 'https://discord.gg/Y6rdEBwsMr'));
-define('DISCORD_GUILD_ID', xs_env('DISCORD_GUILD_ID', ''));
 
-// OAuth2 app credentials, from the same Discord application's "OAuth2"
-// tab. Used by /discord-link (account.php's "Link Discord" button) so a
-// customer can prove they own a specific Discord account — this is what
-// lets webhook-tebex.php grant roles without depending on Tebex's own
-// per-purchase Discord login step. Redirect URI must be added in the
-// Discord developer portal EXACTLY as below (including https://).
+// OAuth2 app credentials, from a Discord application's "OAuth2" tab
+// (can be the same application as the bot above, or a separate one).
+// Used by /discord-link (account.php's "Connections" tab) so a customer
+// can show which Discord account is theirs on their Xyphros profile —
+// purely informational, not used for checkout. Redirect URI must be
+// added in the Discord developer portal EXACTLY as below (including
+// https://).
 define('DISCORD_CLIENT_ID', xs_env('DISCORD_CLIENT_ID', ''));
 define('DISCORD_CLIENT_SECRET', xs_env('DISCORD_CLIENT_SECRET', ''));
 define('DISCORD_OAUTH_REDIRECT_URI', xs_env('DISCORD_OAUTH_REDIRECT_URI', SITE_URL . '/discord-callback'));
@@ -162,16 +159,6 @@ define('TEBEX_LICENSE_PACKAGES', [
     7557349 => 'ws10',
     7557352 => 'unlimited',
     7582198 => 'editor_pro', // XyphrosEditor Pro — redeemed at editor.xyphros.net/license.php, not Portal
-]);
-
-// ---- Discord roles granted by store purchases ----------------------------
-// Maps a Tebex package ID to a Discord role ID to grant (in
-// DISCORD_GUILD_ID) once payment completes AND the buyer has linked
-// their Discord account. See includes/Discord.php::grantRoleForOrder().
-// Fill these in with real role IDs (Discord: enable Developer Mode,
-// right-click a role in Server Settings -> Roles -> Copy Role ID).
-define('TEBEX_DISCORD_ROLES', [
-    // 7557311 => '123456789012345678',
 ]);
 
 // ---- Deferred email sending -------------------------------------------

@@ -758,12 +758,6 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user):
     // purchase to a Xyphros account. The webhook looks this up by matching
     // the Xyphros user ID we set as custom.xyphros_user_id at basket
     // creation, which Tebex includes in the payment.completed webhook.
-    //
-    // discord_id is snapshotted here (rather than only read fresh from
-    // the user's account when the webhook fires) so that if someone
-    // unlinks/relinks a different Discord account between checkout and
-    // payment completing, the role goes to the account they actually
-    // paid as, not whatever happens to be linked later.
     Content::insert('shop_orders', [
         'order_number' => xs_next_order_number(),
         'basket_ident' => $ident,
@@ -773,8 +767,6 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user):
         'price' => $package['total_price'] ?? $package['base_price'] ?? 0,
         'currency' => $package['currency'] ?? 'USD',
         'status' => 'pending',
-        'discord_id' => $user['discord_id'] ?? null,
-        'discord_username' => $user['discord_username'] ?? null,
     ]);
 
     header('Location: /store-checkout?ident=' . rawurlencode($ident));

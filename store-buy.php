@@ -17,15 +17,6 @@ if (empty(TEBEX_PUBLIC_TOKEN) || empty(TEBEX_PRIVATE_KEY)) {
     exit;
 }
 
-// Every purchasable role/perk in this store is delivered through Discord,
-// so a linked Discord account is required before checkout can start —
-// see includes/Discord.php for why this replaced Tebex's own per-purchase
-// Discord login step.
-if (empty($user['discord_id'])) {
-    header('Location: /store?error=' . rawurlencode('Link your Discord account before checking out — see the box above.'));
-    exit;
-}
-
 $packageId = (int) ($_POST['package_id'] ?? 0);
 if (!$packageId) {
     header('Location: /store?error=' . rawurlencode('Something went wrong finding that item.'));
@@ -40,19 +31,11 @@ if (!$package) {
 
 $customerIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
-// custom.discord_id / custom.discord_username ride along on the basket
-// itself (visible in the Tebex dashboard for support purposes), but the
-// authoritative copy the webhook actually acts on is the snapshot taken
-// on the shop_orders row in xs_store_finalize_purchase().
 [$ok, $basket, $err] = Tebex::createBasket(
     SITE_URL . '/store-checkout?complete=1',
     SITE_URL . '/store',
     $customerIp,
-    [
-        'xyphros_user_id' => $user['id'],
-        'discord_id' => $user['discord_id'],
-        'discord_username' => $user['discord_username'] ?? '',
-    ]
+    ['xyphros_user_id' => $user['id']]
 );
 
 if (!$ok || empty($basket['ident'])) {
@@ -61,4 +44,40 @@ if (!$ok || empty($basket['ident'])) {
     exit;
 }
 
-xs_store_finalize_purchase($basket['ident'], $packageId, $user);
+$ident = $basket['ident'];
+
+// Some packages require the customer to authenticate with a provider
+// (e.g. Discord) before they can be added to a basket — Tebex declares
+// this on the package itself via "options", and grants the matching
+// role itself through its own Discord integration (configured in the
+// Tebex creator dashboard) once payment completes. If any are required,
+// send the customer through Tebex's auth flow first instead of adding
+// the package directly.
+$requiredOptions = array_filter($package['options'] ?? [], fn($opt) => !empty($opt['required']));
+
+if ($requiredOptions) {
+    $returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
+    $authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
+
+    // Each entry looks like {"name": "Discord", "url": "..."}. Take the
+    // first usable one — in practice a basket only has one provider it's
+    // waiting on at a time.
+    $authUrl = null;
+    foreach ($authOptions as $opt) {
+        if (!empty($opt['url'])) {
+            $authUrl = $opt['url'];
+            break;
+        }
+    }
+
+    if (!$authUrl) {
+        error_log('Tebex basket auth required but no usable auth option returned for basket ' . $ident);
+        header('Location: /store?error=' . rawurlencode("Couldn't start login for this item — please try again in a moment."));
+        exit;
+    }
+
+    header('Location: ' . $authUrl);
+    exit;
+}
+
+xs_store_finalize_purchase($ident, $packageId, $user);

@@ -404,7 +404,7 @@ require __DIR__ . '/includes/header.php';
                 <div class="acct-card">
                     <div class="acct-card__head"><div class="acct-card__icon acct-card__icon--discord"><?php echo xs_icon_discord(); ?></div></div>
                     <h2>Discord</h2>
-                    <p class="hint">Link your Discord account so the <a href="/store" style="color:var(--magenta);">store</a> can grant your roles automatically the moment a purchase completes &mdash; no separate login at checkout.</p>
+                    <p class="hint">Link your Discord account to show it here on your profile. Store purchases connect to Discord separately at checkout, so this isn't required to buy anything.</p>
 
                     <?php if (!empty($user['discord_id'])): ?>
                         <div class="connection-row connection-row--linked">
@@ -418,7 +418,7 @@ require __DIR__ . '/includes/header.php';
                                 <div class="hint" style="margin:2px 0 0;font-size:12.5px;">Linked <?php echo e(date('M j, Y', strtotime($user['discord_linked_at'] ?? 'now'))); ?></div>
                             </div>
                             <span class="twofa-badge twofa-badge--on"><?php echo xs_icon('check'); ?> Connected</span>
-                            <form method="post" onsubmit="return confirm('Unlink Discord? You\'ll need to relink before buying anything in the store.');">
+                            <form method="post" onsubmit="return confirm('Unlink Discord from your profile?');">
                                 <input type="hidden" name="csrf_token" value="<?php echo e(XyphrosAuth::csrfToken()); ?>">
                                 <input type="hidden" name="action" value="discord_unlink">
                                 <button type="submit" class="btn btn--ghost btn--sm">Unlink</button>
@@ -429,7 +429,7 @@ require __DIR__ . '/includes/header.php';
                             <div class="connection-row__avatar connection-row__avatar--placeholder"><?php echo xs_icon_discord(20); ?></div>
                             <div style="flex:1;min-width:0;">
                                 <div style="font-weight:700;font-size:14.5px;">Not linked</div>
-                                <div class="hint" style="margin:2px 0 0;font-size:12.5px;">Required before checking out in the store.</div>
+                                <div class="hint" style="margin:2px 0 0;font-size:12.5px;">Optional.</div>
                             </div>
                             <a href="/discord-link?return_to=<?php echo rawurlencode('/account?tab=connections'); ?>" class="btn btn--discord btn--sm">
                                 <?php echo xs_icon_discord(16); ?> <span>Link Discord</span>
