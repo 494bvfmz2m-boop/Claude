@@ -354,6 +354,36 @@
 
   <hr class="card-divider">
 
+  <h3 style="margin-top:0;">Preview as</h3>
+  <p class="hint" style="margin-bottom:12px;">
+    See the dashboard exactly as a given tier would -- which nav links and features show up -- without
+    actually holding it. Only affects your own session; your real subscription (if any) is untouched.
+    <% if (previewTierId) { %><strong>Currently previewing.</strong><% } %>
+  </p>
+  <div style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <form method="post" action="/staff/tebex/preview" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div style="flex:1; min-width:200px;">
+        <label style="margin-top:0;">Tier</label>
+        <select name="tierId">
+          <option value="">— Not previewing (my real subscription) —</option>
+          <% tebexTiers.forEach(tier => { %>
+            <option value="<%= tier.id %>" <%= previewTierId === tier.id ? 'selected' : '' %>><%= tier.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button class="btn btn-sm" type="submit"><%= previewTierId ? 'Change preview' : 'Preview' %></button>
+    </form>
+    <% if (previewTierId) { %>
+      <form method="post" action="/staff/tebex/preview">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-sm btn-ghost" type="submit">Stop previewing</button>
+      </form>
+    <% } %>
+  </div>
+
+  <hr class="card-divider">
+
   <h3>Tiers</h3>
   <p class="hint" style="margin-bottom:14px;">
     A tier matches on Tebex package ID -- whichever tier lists a package that shows up in a webhook's

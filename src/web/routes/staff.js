@@ -221,6 +221,7 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
     tebexSubscribers,
     tebexWebhookUrl,
     tebexWebhookSecret: AppSettings.get().tebexWebhookSecret,
+    previewTierId: req.session.previewTierId || null,
   });
 });
 
@@ -388,6 +389,18 @@ router.post('/tebex/tiers/:id/delete', requireOwner, (req, res) => {
     logAudit(req, 'Deleted a Tebex tier', tier.name);
   }
   return redirectWithNotice(res, true, tier ? `"${tier.name}" deleted.` : 'Already gone.', 'subscriptions');
+});
+
+// Lets the owner see the dashboard exactly as a given tier would -- which
+// nav links/features show up -- without actually needing to hold that
+// tier. Session-only (see web/lib/subscriptionGate.js's getActiveTier),
+// never touches real subscription data, and only ever takes effect for
+// the owner's own session regardless of what's stored here.
+router.post('/tebex/preview', requireOwner, (req, res) => {
+  const tierId = req.body.tierId ? Number(req.body.tierId) : null;
+  const tier = tierId ? TebexTiers.get(tierId) : null;
+  req.session.previewTierId = tier ? tier.id : null;
+  return redirectWithNotice(res, true, tier ? `Now previewing as "${tier.name}".` : 'Preview turned off.', 'subscriptions');
 });
 
 router.post('/send-dm', requireStaffArea('send_dm'), async (req, res) => {

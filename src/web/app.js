@@ -6,7 +6,7 @@ const { mainClient: client, allKnownGuilds } = require('../bot/clientRegistry');
 const { BetaAllowlist, AppSettings } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { verifyAndHandleTebexWebhook } = require('./lib/tebexWebhook');
-const { hasFeature } = require('./lib/subscriptionGate');
+const { hasFeature, getActiveTier } = require('./lib/subscriptionGate');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -26,6 +26,7 @@ const giveawayRoutes = require('./routes/giveaways');
 const eventRoutes = require('./routes/events');
 const overviewRoutes = require('./routes/overview');
 const customBotRoutes = require('./routes/customBot');
+const subscriptionRoutes = require('./routes/subscription');
 
 function createApp() {
   const app = express();
@@ -73,6 +74,12 @@ function createApp() {
     const manageable = req.session?.manageableGuilds || [];
     const knownGuildIds = new Set(allKnownGuilds().map((g) => g.id));
     res.locals.switcherGuilds = manageable.filter((g) => knownGuildIds.has(g.id));
+    // Sitewide (not just under /dashboard/:guildId) since subscription
+    // status/preview isn't guild-specific, and the "Previewing as X" banner
+    // needs to show on every page the owner might be on -- see
+    // staff.js's /tebex/preview routes and views/partials/header.ejs.
+    res.locals.isPreviewingTier = Boolean(req.session?.isOwner && req.session?.previewTierId);
+    res.locals.previewTier = res.locals.isPreviewingTier ? getActiveTier(null, req.session) : null;
     next();
   });
 
@@ -111,6 +118,10 @@ function createApp() {
   }, staffRoutes);
 
   app.use('/', requireAuth, dashboardRoutes);
+  app.use('/', requireAuth, (req, res, next) => {
+    if (req.method === 'POST') return verifyCsrf(req, res, next);
+    next();
+  }, subscriptionRoutes);
 
   const guildRouter = express.Router({ mergeParams: true });
   guildRouter.use(overviewRoutes);
@@ -132,7 +143,7 @@ function createApp() {
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
     res.locals.dashboardAccess = req.dashboardAccess; // so header.ejs can hide nav links the user can't reach
     res.locals.currentArea = req.path.split('/')[1] || null; // sidebar active-link highlight
-    res.locals.hasCustomBotFeature = hasFeature(req.session?.discordUser?.id, 'custom_bot');
+    res.locals.hasCustomBotFeature = hasFeature(req.session?.discordUser?.id, 'custom_bot', req.session);
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);

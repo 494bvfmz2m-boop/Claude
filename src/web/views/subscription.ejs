@@ -1,0 +1,67 @@
+<%- include('partials/header', { title: 'Subscription' }) %>
+<h1>Subscription</h1>
+<p class="subtitle">Your XyphrosMod subscription status and what each tier unlocks.</p>
+
+<% if (isPreviewingTier) { %>
+  <div class="card" style="border-color: var(--accent); margin-bottom: 20px;">
+    <p style="margin:0;">
+      <strong>You're previewing as "<%= previewTier.name %>"</strong> — this page (and the rest of the
+      dashboard) is showing what that tier sees, not your real subscription. Turn it off from
+      Staff → Subscriptions when you're done.
+    </p>
+  </div>
+<% } %>
+
+<div class="card">
+  <h2>Your plan</h2>
+  <% if (activeTier) { %>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+      <span class="badge badge-open" style="font-size:14px; padding:6px 12px;"><%= activeTier.name %></span>
+    </div>
+    <% if (activeTier.features.length === 0) { %>
+      <p class="empty">This tier doesn't unlock anything yet.</p>
+    <% } else { %>
+      <p class="hint" style="margin-bottom:8px;">What this unlocks:</p>
+      <ul class="list">
+        <% activeTier.features.forEach(f => { %>
+          <li class="list-item"><div class="list-item-title"><%= f %></div></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  <% } else { %>
+    <p class="empty">No active subscription right now.</p>
+  <% } %>
+  <div class="btn-row">
+    <a class="btn" href="https://xyphros.net/store" target="_blank" rel="noopener">
+      <%= activeTier ? 'Manage on the store' : 'View plans on the store' %>
+    </a>
+  </div>
+  <p class="hint" style="margin-top:10px;">
+    Billing, upgrades, downgrades, and cancellation are all handled on the store — this page just
+    reflects whatever Tebex tells us about your account.
+  </p>
+</div>
+
+<div class="card">
+  <h2>All tiers</h2>
+  <% if (tiers.length === 0) { %>
+    <p class="empty">No tiers have been set up yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% tiers.forEach(t => { %>
+        <li class="list-item" style="align-items:flex-start;">
+          <div>
+            <div class="list-item-title">
+              <%= t.name %>
+              <% if (activeTier && activeTier.id === t.id) { %><span class="badge badge-open" style="margin-left:6px;">Your plan</span><% } %>
+            </div>
+            <div class="list-item-meta">
+              <%= t.features.length === 0 ? 'Nothing configured yet' : t.features.join(', ') %>
+            </div>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

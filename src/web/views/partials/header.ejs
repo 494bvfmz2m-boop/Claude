@@ -135,6 +135,7 @@
             <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="dropdown-panel account-dropdown opens-up" role="menu">
+            <a href="/subscription" role="menuitem">⭐ Subscription</a>
             <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
             <form action="/logout" method="post">
               <button type="submit" role="menuitem">Log out</button>
@@ -165,6 +166,7 @@
           <svg class="chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div class="dropdown-panel account-dropdown" role="menu">
+          <a href="/subscription" role="menuitem">⭐ Subscription</a>
           <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
           <form action="/logout" method="post">
             <button type="submit" role="menuitem">Log out</button>
@@ -253,6 +255,15 @@
 <% if (typeof maintenance !== 'undefined' && maintenance && maintenance.enabled) { %>
   <div class="maintenance-banner">
     <strong>Maintenance:</strong> <%= maintenance.message || 'XyphrosMod is undergoing scheduled maintenance — some things may be flaky right now.' %>
+  </div>
+<% } %>
+<% if (typeof isPreviewingTier !== 'undefined' && isPreviewingTier) { %>
+  <div class="preview-banner">
+    <strong>Previewing as "<%= previewTier.name %>"</strong> — this is what that tier sees, not your real subscription.
+    <form action="/staff/tebex/preview" method="post" style="display:inline;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="preview-banner-stop">Stop previewing</button>
+    </form>
   </div>
 <% } %>
 <main class="container">

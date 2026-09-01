@@ -680,6 +680,20 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   padding: 9px 20px;
 }
 
+.preview-banner {
+  background: rgba(163, 46, 226, .14);
+  border-bottom: 1px solid rgba(163, 46, 226, .4);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 9px 20px;
+}
+.preview-banner-stop {
+  background: none; border: none; color: var(--accent); font-weight: 700;
+  font-size: 13px; cursor: pointer; text-decoration: underline; margin-left: 8px; padding: 0;
+}
+
 .bot-status {
   display: flex;
   align-items: center;
