@@ -173,6 +173,17 @@ define('TEBEX_LICENSE_PACKAGES', [
     7582198 => 'editor_pro', // XyphrosEditor Pro — redeemed at editor.xyphros.net/license.php, not Portal
 ]);
 
+// ---- Store: which packages get the "Best value" badge --------------------
+// Manually chosen, not automatic — list the Tebex package IDs (the same
+// numeric ID used above, visible in the Tebex dashboard when editing a
+// package, or in this site's error log as "package <id>" from a failed
+// checkout attempt) that should show the badge on /store. Anything not
+// listed here just shows normally, with no badge.
+define('TEBEX_FEATURED_PACKAGES', [
+    7649984,
+    7650960,
+]);
+
 // ---- Deferred email sending -------------------------------------------
 // send-pending-emails.php sends order-confirmation and license-key emails
 // OUTSIDE the Tebex webhook request (SMTP is too slow to do inline —

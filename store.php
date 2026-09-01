@@ -84,12 +84,12 @@ require __DIR__ . '/includes/header.php';
                         <span class="store-category__count"><?php echo count($category['packages']); ?> item<?php echo count($category['packages']) === 1 ? '' : 's'; ?></span>
                     </div>
                     <div class="shop-grid">
-                        <?php foreach ($category['packages'] as $pi => $package):
+                        <?php foreach ($category['packages'] as $package):
                             $price = (float) ($package['total_price'] ?? $package['base_price'] ?? 0);
                             $basePrice = (float) ($package['base_price'] ?? $price);
                             $onSale = $basePrice > $price;
                             $isSub = ($package['type'] ?? 'single') === 'subscription';
-                            $isFeatured = $pi === 0 && count($category['packages']) > 2;
+                            $isFeatured = in_array((int) $package['id'], TEBEX_FEATURED_PACKAGES, true);
                             $hasImage = !empty($package['image']);
                             $descLines = xs_store_description_lines($package['description'] ?? '', 5);
                             // First line reads as the intro sentence ("Buying this
