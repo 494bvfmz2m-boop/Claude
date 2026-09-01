@@ -548,6 +548,26 @@ function xs_store_description_lines(string $html, int $max = 4): array
     return $lines;
 }
 
+/**
+ * Truncates to at most $max characters, breaking at the last space
+ * rather than mid-word (so "automated ticket management" at 30 chars
+ * becomes "automated ticket…" not "automated ticket manag…").
+ * Falls back to a hard cut only if there's no space to break on at all
+ * (one long unbroken word longer than $max itself).
+ */
+function xs_truncate_words(string $text, int $max): string
+{
+    if (str_length($text) <= $max) {
+        return $text;
+    }
+    $cut = str_sub($text, 0, $max);
+    $lastSpace = strrpos($cut, ' ');
+    if ($lastSpace !== false && $lastSpace > 0) {
+        $cut = str_sub($cut, 0, $lastSpace);
+    }
+    return rtrim($cut, " \t\n\r\0\x0B.,;:") . '…';
+}
+
 /** A short label + dot color for a product status value. */
 function product_status_meta(string $status): array
 {

@@ -106,21 +106,21 @@ require __DIR__ . '/includes/header.php';
                             </div>
                             <?php endif; ?>
                             <div class="shop-card__body">
-                                <div class="shop-card__head">
-                                    <?php if (!$hasImage): ?>
+                                <?php if (!$hasImage): ?>
+                                    <div class="shop-card__top">
                                         <div class="shop-card__icon"><?php echo xs_icon_discord(18); ?></div>
-                                    <?php endif; ?>
-                                    <h3><?php echo e($package['name']); ?></h3>
-                                    <?php if (!$hasImage && $isFeatured): ?><span class="shop-card__tag shop-card__tag--inline shop-card__tag--best">Best value</span>
-                                    <?php elseif (!$hasImage && $isSub): ?><span class="shop-card__tag shop-card__tag--inline">Subscription</span><?php endif; ?>
-                                </div>
+                                        <?php if ($isFeatured): ?><span class="shop-card__tag shop-card__tag--inline shop-card__tag--best">Best value</span>
+                                        <?php elseif ($isSub): ?><span class="shop-card__tag shop-card__tag--inline">Subscription</span><?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <h3><?php echo e($package['name']); ?></h3>
                                 <?php if ($descIntro !== ''): ?>
-                                    <p class="shop-card__intro"><?php echo e(str_length($descIntro) > 110 ? str_sub($descIntro, 0, 107) . '…' : $descIntro); ?></p>
+                                    <p class="shop-card__intro"><?php echo e(xs_truncate_words($descIntro, 100)); ?></p>
                                 <?php endif; ?>
                                 <?php if ($descBullets): ?>
                                     <ul class="shop-card__perks">
                                         <?php foreach ($descBullets as $bullet): ?>
-                                            <li><?php echo xs_icon('check', 13); ?><span><?php echo e(str_length($bullet) > 64 ? str_sub($bullet, 0, 61) . '…' : $bullet); ?></span></li>
+                                            <li><?php echo xs_icon('check', 13); ?><span><?php echo e(xs_truncate_words($bullet, 58)); ?></span></li>
                                         <?php endforeach; ?>
                                     </ul>
                                 <?php endif; ?>
