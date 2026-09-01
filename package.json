@@ -1,5 +1,5 @@
 {
-  "name": "ticket-bot",
+  "name": "xyphrosmod",
   "version": "1.0.0",
   "description": "Self-hosted Discord ticket + embed bot with a web dashboard for full customization",
   "main": "src/index.js",

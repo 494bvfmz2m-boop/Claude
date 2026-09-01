@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const { Tickets } = require('../db/repo');
 
-const OWNER_COLOR = '#a8e6ff';
+const OWNER_COLOR = '#a32ee2';
 const MAX_FIELDS = 24; // leave room for a "+N more" field under Discord's 25-field cap
 
 function totalMembers(client) {
@@ -18,7 +18,7 @@ function totalOpenTickets(client) {
 function buildOwnerPanelEmbed(client) {
   const guilds = [...client.guilds.cache.values()];
   return new EmbedBuilder()
-    .setTitle('🛠️ ModSentry — owner panel')
+    .setTitle('🛠️ XyphrosMod — owner panel')
     .setColor(OWNER_COLOR)
     .addFields(
       { name: 'Servers', value: String(guilds.length), inline: true },
@@ -36,7 +36,7 @@ function buildOwnerPanelRow() {
 }
 
 // Best-effort -- needs Create Instant Invite in at least one viewable channel,
-// which older servers won't have until ModSentry is re-authorized with the
+// which older servers won't have until XyphrosMod is re-authorized with the
 // current invite link (same caveat as View Audit Log). Falls back to no link
 // per-server rather than failing the whole list.
 async function getInviteLink(guild) {
@@ -55,7 +55,7 @@ async function getInviteLink(guild) {
   }
 }
 
-// One embed listing every server ModSentry is in, each with member count, open
+// One embed listing every server XyphrosMod is in, each with member count, open
 // tickets, and (when possible) a working invite link -- capped at
 // MAX_FIELDS so a large install still fits in one embed instead of erroring.
 async function buildServerListEmbed(client) {

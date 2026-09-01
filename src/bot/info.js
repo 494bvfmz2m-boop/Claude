@@ -4,7 +4,7 @@ const { Hierarchies } = require('../db/repo');
 const { getMemberAccess } = require('../web/lib/dashboardAccess');
 const { ACTIONS, canUseAction } = require('./commandPermissions');
 
-const INFO_COLOR = '#a8e6ff';
+const INFO_COLOR = '#a32ee2';
 
 function permLine(label, has) {
   return `${has ? '✅' : '❌'} ${label}`;
@@ -103,9 +103,9 @@ async function handleInfo(interaction) {
         ].join('\n'),
       },
       {
-        name: 'ModSentry dashboard',
+        name: 'XyphrosMod dashboard',
         value: dashAccess.level === 'full'
-          ? '✅ Full access — can log in and manage this server at bot.modsentry.site'
+          ? '✅ Full access — can log in and manage this server at bot.xyphros.site'
           : dashAccess.level === 'limited'
             ? `✅ Limited access — can log in and use: ${[...dashAccess.areas].join(', ')}`
             : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",

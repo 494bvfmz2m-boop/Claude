@@ -35,7 +35,7 @@ async function openTicket(interaction, ticketTypeId) {
   }
 
   if (GlobalBlocklist.has(interaction.user.id)) {
-    return interaction.reply({ content: "You're not able to use ModSentry.", ephemeral: true });
+    return interaction.reply({ content: "You're not able to use XyphrosMod.", ephemeral: true });
   }
 
   const settings = GuildSettings.get(interaction.guildId);
@@ -97,8 +97,8 @@ async function openTicket(interaction, ticketTypeId) {
   const welcomeEmbed = new EmbedBuilder()
     .setTitle(ticketType.welcome_title || `${ticketType.name} ticket`)
     .setDescription(ticketType.welcome_description || `Thanks for reaching out, <@${interaction.user.id}>. Support will be with you shortly.`)
-    .setColor(ticketType.welcome_color || '#a8e6ff')
-    .setThumbnail(emojiUrl('modsentry-ticket.png'))
+    .setColor(ticketType.welcome_color || '#a32ee2')
+    .setThumbnail(emojiUrl('xyphros-ticket.png'))
     .setTimestamp();
 
   const mentionRoles = ticketType.support_role_ids.map((r) => `<@&${r}>`).join(' ');
@@ -167,7 +167,7 @@ async function closeTicket(interaction, ticketDbId, reason) {
     try {
       const embed = new EmbedBuilder()
         .setTitle(`🔒 Ticket closed: ${channel.name}`)
-        .setThumbnail(emojiUrl('modsentry-gavel.png'))
+        .setThumbnail(emojiUrl('xyphros-gavel.png'))
         .addFields(
           { name: 'Opened by', value: `<@${ticket.opener_id}>`, inline: true },
           { name: 'Closed by', value: `<@${interaction.user.id}>`, inline: true },
@@ -279,7 +279,7 @@ async function applyChangeType(interaction, ticketDbId, newTypeId) {
     content: mentionRoles || undefined,
     embeds: [new EmbedBuilder()
       .setDescription(`🔄 This ticket was moved to **${newType.name}** by <@${interaction.user.id}>. Everything above stays right here.`)
-      .setColor(newType.welcome_color || '#a8e6ff')],
+      .setColor(newType.welcome_color || '#a32ee2')],
   });
 
   await interaction.followUp({ content: `Done — moved to **${newType.name}**.`, ephemeral: true });

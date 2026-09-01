@@ -6,7 +6,7 @@
 
   // What actually happens inside a server, in the order it would really
   // happen -- a punishment, a filter catch, a ticket lifecycle, a reaction
-  // role grant. Not abstract "features," the actual log lines ModSentry
+  // role grant. Not abstract "features," the actual log lines XyphrosMod
   // writes.
   var SCRIPT = [
     { cmd: '/warn @Rowdy37 spamming invite links', type: 'warn', text: 'Warning logged for Rowdy37 — 2/3 toward auto-mute', meta: 'mod-log' },

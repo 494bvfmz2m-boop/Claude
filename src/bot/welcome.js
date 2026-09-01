@@ -3,7 +3,7 @@ const { GuildSettings, GlobalBlocklist } = require('../db/repo');
 const { applyRoleTriggers } = require('./roleTriggers');
 
 const WELCOME_COLOR = '#23a55a';
-const LEAVE_COLOR = '#a8e6ff';
+const LEAVE_COLOR = '#a32ee2';
 
 const DEFAULT_WELCOME = "Welcome {user} to **{server}**! We're now at {membercount} members.";
 const DEFAULT_LEAVE = '**{username}** has left **{server}**. Now at {membercount} members.';
@@ -21,7 +21,7 @@ function register(client) {
     // Bot-wide blocklist (managed from /staff) -- checked before anything
     // else so a blocked user never gets an autorole or a welcome message.
     if (GlobalBlocklist.has(member.id)) {
-      await member.kick('Blocked bot-wide (ModSentry global blocklist)').catch(() => {});
+      await member.kick('Blocked bot-wide (XyphrosMod global blocklist)').catch(() => {});
       return;
     }
 

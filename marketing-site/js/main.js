@@ -2,12 +2,12 @@
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- Splash: play once per browser session ----
-  var splash = document.getElementById('modsentry-splash');
+  var splash = document.getElementById('xyphros-splash');
   if (splash) {
     var skip = false;
     try {
-      skip = Boolean(sessionStorage.getItem('modsentrySplashShown')) || reduceMotion;
-      if (!skip) sessionStorage.setItem('modsentrySplashShown', '1');
+      skip = Boolean(sessionStorage.getItem('xyphrosSplashShown')) || reduceMotion;
+      if (!skip) sessionStorage.setItem('xyphrosSplashShown', '1');
     } catch (e) {}
     if (skip) {
       splash.remove();
@@ -19,7 +19,7 @@
         // clears it quickly, then the animation keeps quietly playing out
         // underneath while the fade finishes.
         setTimeout(function () {
-          splash.classList.add('modsentry-splash--out');
+          splash.classList.add('xyphros-splash--out');
           setTimeout(function () { splash.remove(); }, 400);
         }, 650);
       });
@@ -150,7 +150,7 @@
       animateCount();
     }
 
-    fetch('https://bot.modsentry.site/api/beta-status', { cache: 'no-store' })
+    fetch('https://bot.xyphros.site/api/beta-status', { cache: 'no-store' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         if (!data || typeof data.taken !== 'number' || typeof data.total !== 'number') return;

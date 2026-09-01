@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS hierarchies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT 'Staff',
-  color TEXT NOT NULL DEFAULT '#a8e6ff',
+  color TEXT NOT NULL DEFAULT '#a32ee2',
   only_show_highest INTEGER NOT NULL DEFAULT 0,
   is_primary INTEGER NOT NULL DEFAULT 0,
   channel_id TEXT,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS ticket_types (
   max_open_per_user INTEGER NOT NULL DEFAULT 1,
   welcome_title TEXT,
   welcome_description TEXT,
-  welcome_color TEXT DEFAULT '#a8e6ff',
+  welcome_color TEXT DEFAULT '#a32ee2',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS panels (
   message_id TEXT,
   title TEXT NOT NULL DEFAULT 'Support',
   description TEXT NOT NULL DEFAULT 'Click below to open a ticket.',
-  color TEXT DEFAULT '#a8e6ff',
+  color TEXT DEFAULT '#a32ee2',
   ticket_type_ids TEXT NOT NULL DEFAULT '[]',
   style TEXT NOT NULL DEFAULT 'buttons',
   created_at TEXT DEFAULT (datetime('now'))
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS reaction_role_panels (
   message_id TEXT,
   title TEXT NOT NULL DEFAULT 'Reaction Roles',
   description TEXT NOT NULL DEFAULT 'React to get a role!',
-  color TEXT DEFAULT '#a8e6ff',
+  color TEXT DEFAULT '#a32ee2',
   mappings TEXT NOT NULL DEFAULT '[]',
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -401,7 +401,7 @@ addColumnIfMissing('guild_settings', 'swear_filter_enabled', 'INTEGER NOT NULL D
 addColumnIfMissing('guild_settings', 'swear_words', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'staff_list_channel_id', 'TEXT');
 addColumnIfMissing('guild_settings', 'staff_list_message_id', 'TEXT');
-addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#a8e6ff'");
+addColumnIfMissing('guild_settings', 'staff_list_color', "TEXT NOT NULL DEFAULT '#a32ee2'");
 addColumnIfMissing('guild_settings', 'warning_thresholds', "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing('guild_settings', 'ticket_banned_role_id', 'TEXT');
 addColumnIfMissing('ticket_types', 'generate_transcript', 'INTEGER NOT NULL DEFAULT 1');
@@ -469,7 +469,7 @@ if (!staffRanksCols.includes('hierarchy_id')) {
       const settings = getSettings.get(guildId) || {};
       const info = insertHierarchy.run(
         guildId,
-        settings.staff_list_color || '#a8e6ff',
+        settings.staff_list_color || '#a32ee2',
         settings.staff_list_channel_id || null,
         settings.staff_list_message_id || null,
       );
@@ -501,7 +501,7 @@ if (seeded && !seeded.dm_templates_seeded) {
     JSON.stringify([
       "What's your server's name, and can you share an invite link?",
       'Roughly how many members do you have?',
-      'What made you want to try ModSentry?',
+      'What made you want to try XyphrosMod?',
     ]),
   );
   insertTemplate.run(

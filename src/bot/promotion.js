@@ -4,7 +4,7 @@ const { GuildSettings, Hierarchies } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
 
-const PROMO_COLOR = '#a8e6ff';
+const PROMO_COLOR = '#a32ee2';
 
 function isOverride(guild, member) {
   return guild.ownerId === member.id || member.permissions.has(PermissionFlagsBits.Administrator);
@@ -112,7 +112,7 @@ async function changeRank(interaction, direction) {
   const clampNote = actualSteps < steps ? ` (asked for ${steps}, but that's as far as they could go)` : '';
 
   await interaction.reply({ content: `${emoji} ${verb} **${user.tag}**${stepsLabel} to ${newRankLabel}.${clampNote}` });
-  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRung ? newRung.rank : 0}`, direction > 0 ? emojiUrl('modsentry-levelup.gif') : null);
+  await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRung ? newRung.rank : 0}`, direction > 0 ? emojiUrl('xyphros-levelup.gif') : null);
 }
 
 module.exports = {

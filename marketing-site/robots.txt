@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://modsentry.site/sitemap.xml
+Sitemap: https://xyphros.site/sitemap.xml

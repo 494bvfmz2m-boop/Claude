@@ -39,7 +39,7 @@ router.post('/reaction-roles', async (req, res) => {
   ReactionRolePanels.create(guild.id, {
     title: req.body.title?.trim() || 'Reaction Roles',
     description: req.body.description?.trim() || 'React to get a role!',
-    color: req.body.color || '#a8e6ff',
+    color: req.body.color || '#a32ee2',
     mappings: parseMappingsFromBody(req.body),
     exclusive: req.body.exclusive === 'on',
   });
@@ -63,7 +63,7 @@ router.post('/reaction-roles/:id', async (req, res) => {
   ReactionRolePanels.update(req.params.id, {
     title: req.body.title?.trim() || 'Reaction Roles',
     description: req.body.description?.trim() || 'React to get a role!',
-    color: req.body.color || '#a8e6ff',
+    color: req.body.color || '#a32ee2',
     mappings: parseMappingsFromBody(req.body),
     exclusive: req.body.exclusive === 'on',
   });

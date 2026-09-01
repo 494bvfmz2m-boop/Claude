@@ -10,10 +10,10 @@ const STAFF_AREAS = [
   { key: 'emoji_book', label: 'Emoji book', description: 'Save and remove custom emoji markup.' },
   { key: 'server_notes', label: 'Server notes', description: 'Private notes about a server, visible only here.' },
   { key: 'dm_form', label: 'Application form templates', description: 'Create, edit, and delete DM form templates.' },
-  { key: 'send_dm', label: 'Send a DM', description: 'DM contacts or pasted user IDs as ModSentry.' },
-  { key: 'broadcast', label: 'Broadcast to server owners', description: 'DM every server owner ModSentry has, all at once.' },
+  { key: 'send_dm', label: 'Send a DM', description: 'DM contacts or pasted user IDs as XyphrosMod.' },
+  { key: 'broadcast', label: 'Broadcast to server owners', description: 'DM every server owner XyphrosMod has, all at once.' },
   { key: 'maintenance', label: 'Maintenance banner', description: 'Toggle the dashboard-wide maintenance banner.' },
-  { key: 'remove_server', label: 'Remove from a server', description: 'Make ModSentry leave a server.' },
+  { key: 'remove_server', label: 'Remove from a server', description: 'Make XyphrosMod leave a server.' },
 ];
 const STAFF_AREA_KEYS = new Set(STAFF_AREAS.map((a) => a.key));
 

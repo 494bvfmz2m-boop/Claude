@@ -3,7 +3,7 @@ const { canUseAction } = require('./commandPermissions');
 const { getRankForRoleIds } = require('./cache');
 const { Hierarchies } = require('../db/repo');
 
-const HELP_COLOR = '#a8e6ff';
+const HELP_COLOR = '#a32ee2';
 
 // [action key used by canUseAction, usage string, description]
 const GATED_MOD_COMMANDS = [
@@ -45,7 +45,7 @@ async function handleHelp(interaction) {
 
   const utility = [
     '`/info [user]` — See permissions, dashboard access, staff rank, and every command you can actually run',
-    "`/introduction` — ModSentry's full welcome message, plus every registered command",
+    "`/introduction` — XyphrosMod's full welcome message, plus every registered command",
     '`/afk [message]` — Mark yourself AFK, with an optional reason -- clears automatically when you next send a message',
     '`/avatar [user]` — Show an avatar full size',
     '`/userinfo [user]` — Account/member info -- join date, roles, boost status',
@@ -81,7 +81,7 @@ async function handleHelp(interaction) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('📖 ModSentry commands')
+    .setTitle('📖 XyphrosMod commands')
     .setColor(HELP_COLOR)
     .setDescription('Only shown below: what you can actually run right now. Run `/introduction` for the complete list.')
     .addFields(

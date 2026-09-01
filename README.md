@@ -1,4 +1,4 @@
-# ModSentry
+# XyphrosMod
 
 A self-hosted Discord ticket + moderation bot with a full web dashboard — ticket
 categories, panels (the embed + button/dropdown users click to open a ticket), staff
@@ -82,7 +82,7 @@ their own Discord account and can only configure their own server.
    same link again and re-authorize to pick up the new scopes/permissions —
    you don't need to kick and re-add the bot.
 
-   That permissions value covers everything ModSentry actually needs (View Channels,
+   That permissions value covers everything XyphrosMod actually needs (View Channels,
    Manage Channels, Manage Roles, Send Messages, Embed Links, Attach Files, Read
    Message History, Manage Messages, Kick Members, Ban Members, Moderate
    Members — Discord's name for the timeout permission — View Audit Log, used
@@ -90,12 +90,12 @@ their own Discord account and can only configure their own server.
    Invite, used to hand the owner a working invite link for each server from
    their DM server list) and nothing more.
 
-   **Don't grant `Administrator`.** It's not needed for anything ModSentry does, and it
+   **Don't grant `Administrator`.** It's not needed for anything XyphrosMod does, and it
    turns "someone gets hold of the bot token or a dashboard session" into "someone
    controls the entire server" instead of "someone can do what a mod can do." See
    **Permissions & security** below.
 
-6. In your server's **Server Settings → Roles**, drag ModSentry's own role *above* every
+6. In your server's **Server Settings → Roles**, drag XyphrosMod's own role *above* every
    staff role you want it to manage (the roles used in ticket support-role pickers and
    the staff hierarchy). Discord blocks a bot from touching roles/members positioned
    at or above its own role, regardless of what permissions it holds — so it only
@@ -104,7 +104,7 @@ their own Discord account and can only configure their own server.
 ## Permissions & security
 
 - **No `Administrator`, ever.** The specific permissions above are the actual ceiling
-  of what ModSentry can do. If the bot token or a dashboard session is ever compromised,
+  of what XyphrosMod can do. If the bot token or a dashboard session is ever compromised,
   that ceiling is the whole blast radius — moderation and channel/role management
   within servers it's in, nothing account-wide and nothing outside what a human mod
   could already do by hand.
@@ -156,7 +156,7 @@ Fill in `.env`:
 
 The dashboard has one login method: Discord OAuth. Anyone who logs in only sees
 and can configure servers where they're the owner or have the **Manage Server**
-permission — never any other server, even other ones ModSentry is in.
+permission — never any other server, even other ones XyphrosMod is in.
 
 1. In the Developer Portal, go to **OAuth2** → **General**.
 2. Under **Client Secret**, click **Reset Secret** and copy it → this is `DISCORD_CLIENT_SECRET`.
@@ -210,16 +210,16 @@ Then open `http://YOUR_VPS_IP:3000` and log in with Discord.
 **With Docker (recommended for the VPS — this is what Coolify will do for you):**
 
 ```bash
-docker build -t modsentry .
-docker run -d --name modsentry \
+docker build -t xyphros .
+docker run -d --name xyphros \
   --env-file .env \
   -p 3000:3000 \
-  -v modsentry-data:/app/data \
+  -v xyphros-data:/app/data \
   --restart unless-stopped \
-  modsentry
+  xyphros
 ```
 
-The SQLite database lives in the `modsentry-data` volume, so it survives restarts
+The SQLite database lives in the `xyphros-data` volume, so it survives restarts
 and redeploys.
 
 **On Coolify:** create a new Application → point it at this repo (or upload the
@@ -229,7 +229,7 @@ volume mounted at `/app/data` so the database isn't wiped on redeploy.
 
 ## 4. Using the dashboard
 
-1. Log in at `/` with **Log in with Discord** — you'll see every server ModSentry is in
+1. Log in at `/` with **Log in with Discord** — you'll see every server XyphrosMod is in
    that you own or have Manage Server on, plus an **+ Invite to Server** button in the
    header to add it to any other server of yours.
 2. Pick a server → **Settings** → choose your **transcript channel** (where closed

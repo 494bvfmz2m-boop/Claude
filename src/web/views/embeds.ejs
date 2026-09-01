@@ -27,7 +27,7 @@
       <div class="grid">
         <div>
           <label for="color">Color</label>
-          <input type="color" id="color" name="color" value="<%= loaded?.data?.color || '#a8e6ff' %>">
+          <input type="color" id="color" name="color" value="<%= loaded?.data?.color || '#a32ee2' %>">
         </div>
         <div>
           <label for="url">Title link URL (optional)</label>
@@ -161,8 +161,8 @@
   });
 </script>
 <script>
-  window.MODSENTRY_GUILD_ID = <%- JSON.stringify(guild.id) %>;
-  window.MODSENTRY_ROLES = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))) %>;
+  window.XYPHROS_GUILD_ID = <%- JSON.stringify(guild.id) %>;
+  window.XYPHROS_ROLES = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))) %>;
 </script>
 <script src="/js/mentionInsert.js"></script>
 <script src="/js/embedPreview.js"></script>

@@ -3,7 +3,7 @@ const { GuildSettings } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
 
 const DELETE_COLOR = '#ed4245';
-const EDIT_COLOR = '#a8e6ff';
+const EDIT_COLOR = '#a32ee2';
 const MAX_FIELD_LEN = 1000;
 
 // In-memory only, on purpose -- /snipe and /editsnipe are for catching
@@ -88,7 +88,7 @@ function register(client) {
         .setColor(DELETE_COLOR)
         .setAuthor({ name: message.author?.tag || 'Unknown user', iconURL: message.author?.displayAvatarURL?.() })
         .setTitle('🗑️ Message deleted')
-        .setThumbnail(emojiUrl('modsentry-scan.gif'))
+        .setThumbnail(emojiUrl('xyphros-scan.gif'))
         .setDescription(truncate(message.content))
         .addFields(
           { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
@@ -135,7 +135,7 @@ function register(client) {
         .setColor(EDIT_COLOR)
         .setAuthor({ name: newMessage.author?.tag || 'Unknown user', iconURL: newMessage.author?.displayAvatarURL?.() })
         .setTitle('✏️ Message edited')
-        .setThumbnail(emojiUrl('modsentry-scan.gif'))
+        .setThumbnail(emojiUrl('xyphros-scan.gif'))
         .addFields(
           { name: 'Before', value: truncate(oldMessage.content) },
           { name: 'After', value: truncate(newMessage.content) },

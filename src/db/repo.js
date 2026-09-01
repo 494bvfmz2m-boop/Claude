@@ -22,7 +22,7 @@ const GuildSettings = {
       return {
         guild_id: guildId, transcript_channel_id: null, mod_log_channel_id: null,
         swear_filter_enabled: false, swear_words: [], staff_list_channel_id: null, staff_list_message_id: null,
-        staff_list_color: '#a8e6ff', warning_thresholds: [], ticket_banned_role_id: null,
+        staff_list_color: '#a32ee2', warning_thresholds: [], ticket_banned_role_id: null,
         welcome_channel_id: null, welcome_message: null, leave_channel_id: null, leave_message: null,
         autorole_id: null, link_filter_mode: 'off', message_log_channel_id: null,
         verification_enabled: false, verification_channel_id: null, verification_role_id: null,
@@ -496,7 +496,7 @@ const TicketTypes = {
       maxOpenPerUser: data.maxOpenPerUser ?? 1,
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
-      welcomeColor: data.welcomeColor || '#a8e6ff',
+      welcomeColor: data.welcomeColor || '#a32ee2',
       generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
     return info.lastInsertRowid;
@@ -520,7 +520,7 @@ const TicketTypes = {
       maxOpenPerUser: data.maxOpenPerUser ?? 1,
       welcomeTitle: data.welcomeTitle || null,
       welcomeDescription: data.welcomeDescription || null,
-      welcomeColor: data.welcomeColor || '#a8e6ff',
+      welcomeColor: data.welcomeColor || '#a32ee2',
       generateTranscript: data.generateTranscript === false ? 0 : 1,
     });
   },
@@ -547,7 +547,7 @@ const Panels = {
       guildId,
       title: data.title || 'Support',
       description: data.description || 'Click below to open a ticket.',
-      color: data.color || '#a8e6ff',
+      color: data.color || '#a32ee2',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
       style: data.style === 'select' ? 'select' : 'buttons',
     });
@@ -562,7 +562,7 @@ const Panels = {
       id,
       title: data.title || 'Support',
       description: data.description || 'Click below to open a ticket.',
-      color: data.color || '#a8e6ff',
+      color: data.color || '#a32ee2',
       ticketTypeIds: JSON.stringify(data.ticketTypeIds || []),
       style: data.style === 'select' ? 'select' : 'buttons',
     });
@@ -641,7 +641,7 @@ const ReactionRolePanels = {
       guildId,
       title: data.title || 'Reaction Roles',
       description: data.description || 'React to get a role!',
-      color: data.color || '#a8e6ff',
+      color: data.color || '#a32ee2',
       mappings: JSON.stringify(data.mappings || []),
       exclusive: data.exclusive ? 1 : 0,
     });
@@ -656,7 +656,7 @@ const ReactionRolePanels = {
       id,
       title: data.title || 'Reaction Roles',
       description: data.description || 'React to get a role!',
-      color: data.color || '#a8e6ff',
+      color: data.color || '#a32ee2',
       mappings: JSON.stringify(data.mappings || []),
       exclusive: data.exclusive ? 1 : 0,
     });
@@ -833,7 +833,7 @@ const Hierarchies = {
     db.prepare('UPDATE hierarchies SET message_id = ? WHERE id = ?').run(messageId || null, id);
   },
   setColor(id, color) {
-    db.prepare('UPDATE hierarchies SET color = ? WHERE id = ?').run(color || '#a8e6ff', id);
+    db.prepare('UPDATE hierarchies SET color = ? WHERE id = ?').run(color || '#a32ee2', id);
   },
   // If the hierarchy being removed was the primary one and another
   // hierarchy still exists for this guild, that one is promoted to primary

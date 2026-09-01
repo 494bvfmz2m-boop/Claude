@@ -75,7 +75,7 @@ router.post('/ticket-types', async (req, res) => {
     maxOpenPerUser: Math.max(1, parseInt(req.body.maxOpenPerUser, 10) || 1),
     welcomeTitle: req.body.welcomeTitle?.trim(),
     welcomeDescription: req.body.welcomeDescription?.trim(),
-    welcomeColor: req.body.welcomeColor || '#a8e6ff',
+    welcomeColor: req.body.welcomeColor || '#a32ee2',
     generateTranscript: req.body.generateTranscript === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);
@@ -105,7 +105,7 @@ router.post('/ticket-types/:id', async (req, res) => {
     maxOpenPerUser: Math.max(1, parseInt(req.body.maxOpenPerUser, 10) || 1),
     welcomeTitle: req.body.welcomeTitle?.trim(),
     welcomeDescription: req.body.welcomeDescription?.trim(),
-    welcomeColor: req.body.welcomeColor || '#a8e6ff',
+    welcomeColor: req.body.welcomeColor || '#a32ee2',
     generateTranscript: req.body.generateTranscript === 'on',
   });
   res.redirect(`/dashboard/${guild.id}/tickets`);

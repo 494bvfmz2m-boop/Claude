@@ -40,7 +40,7 @@ async function renderHierarchyList(guild, hierarchy) {
 
   const embed = new EmbedBuilder()
     .setTitle(`👮 ${hierarchy.name}`)
-    .setColor(hierarchy.color || '#a8e6ff')
+    .setColor(hierarchy.color || '#a32ee2')
     .addFields(fields)
     .setTimestamp()
     .setFooter({ text: 'Auto-updates when tracked roles change' });

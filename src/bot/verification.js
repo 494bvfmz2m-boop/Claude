@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
 
-const VERIFY_COLOR = '#a8e6ff';
+const VERIFY_COLOR = '#a32ee2';
 const DEFAULT_MESSAGE = 'Click the button below to verify and get access to the rest of the server.';
 
 function buildVerificationMessage(settings) {
@@ -46,7 +46,7 @@ async function handleVerifyClick(interaction) {
   try {
     await interaction.member.roles.add(role);
   } catch {
-    return interaction.reply({ content: "Couldn't give you the role -- ModSentry's role might need to be dragged above it in Server Settings → Roles.", ephemeral: true });
+    return interaction.reply({ content: "Couldn't give you the role -- XyphrosMod's role might need to be dragged above it in Server Settings → Roles.", ephemeral: true });
   }
 
   return interaction.reply({ content: "You're verified! Welcome in.", ephemeral: true });

@@ -4,7 +4,7 @@
   <% if (!botReady) { %>
     The bot is still connecting to Discord. Refresh in a few seconds.
   <% } else { %>
-    Servers ModSentry is in that you manage.
+    Servers XyphrosMod is in that you manage.
   <% } %>
 </p>
 
@@ -13,7 +13,7 @@
 
 <% if (guilds.length === 0) { %>
   <div class="card empty">
-    ModSentry isn't in any of your servers yet — hit <strong>Invite to Server</strong> above to add it.
+    XyphrosMod isn't in any of your servers yet — hit <strong>Invite to Server</strong> above to add it.
   </div>
 <% } else { %>
   <div class="guild-grid">
@@ -37,8 +37,8 @@
         e.preventDefault();
         var href = card.getAttribute('href');
         var splash = document.createElement('div');
-        splash.className = 'modsentry-splash';
-        splash.innerHTML = '<img src="/img/modsentry-logo-impact.gif" alt="" width="130" height="130">';
+        splash.className = 'xyphros-splash';
+        splash.innerHTML = '<img src="/img/xyphros-logo-impact.gif" alt="" width="130" height="130">';
         document.body.appendChild(splash);
         setTimeout(function () { window.location.href = href; }, 1000);
       });
@@ -50,19 +50,19 @@
 <script src="/js/tour.js"></script>
 <script>
 (function () {
-  var SEEN_INTRO_VIDEO = 'modsentryIntroVideoSeen';
-  var SEEN_SERVER_LIST = 'modsentryTourServerListSeen';
-  var SEEN_GUILD_NAV = 'modsentryTourGuildNavSeen';
+  var SEEN_INTRO_VIDEO = 'xyphrosIntroVideoSeen';
+  var SEEN_SERVER_LIST = 'xyphrosTourServerListSeen';
+  var SEEN_GUILD_NAV = 'xyphrosTourGuildNavSeen';
 
   var STEPS = [
-    { title: 'Welcome to ModSentry', body: "A 30-second look around the dashboard. Skip any time -- Take the tour on this page brings it back later." },
+    { title: 'Welcome to XyphrosMod', body: "A 30-second look around the dashboard. Skip any time -- Take the tour on this page brings it back later." },
     { selector: '.guild-grid', title: 'Your servers', body: 'Every server you manage shows up here. Click one to open its dashboard -- tickets, moderation, settings, all of it.' },
-    { selector: '#tourInviteBtn', title: 'Add ModSentry somewhere new', body: 'Invite the bot to another server you manage, any time.' },
+    { selector: '#tourInviteBtn', title: 'Add XyphrosMod somewhere new', body: 'Invite the bot to another server you manage, any time.' },
     { selector: '#tourAdminBtn', title: 'Staff tools', body: "Closed beta settings, DMs, and server management for the whole install -- only owners and admins see this." },
   ];
 
   function startTour() {
-    new ModSentryTour(STEPS, {
+    new XyphrosModTour(STEPS, {
       onEnd: function () {
         try { localStorage.setItem(SEEN_SERVER_LIST, '1'); } catch (e) {}
       },
@@ -77,16 +77,16 @@
 
   function showIntroVideo(done) {
     var overlay = document.createElement('div');
-    overlay.className = 'modsentry-intro-overlay';
+    overlay.className = 'xyphros-intro-overlay';
 
     var box = document.createElement('div');
-    box.className = 'modsentry-intro-box';
+    box.className = 'xyphros-intro-box';
 
     var head = document.createElement('div');
-    head.className = 'modsentry-intro-head';
+    head.className = 'xyphros-intro-head';
     var title = document.createElement('div');
-    title.className = 'modsentry-intro-title';
-    title.textContent = 'Welcome to ModSentry';
+    title.className = 'xyphros-intro-title';
+    title.textContent = 'Welcome to XyphrosMod';
     var skipBtn = document.createElement('button');
     skipBtn.type = 'button';
     skipBtn.className = 'btn btn-ghost btn-sm';
@@ -95,7 +95,7 @@
     head.appendChild(skipBtn);
 
     var video = document.createElement('video');
-    video.src = '/video/modsentry-intro.mp4';
+    video.src = '/video/xyphros-intro.mp4';
     video.controls = true;
     video.playsInline = true;
     video.autoplay = true;

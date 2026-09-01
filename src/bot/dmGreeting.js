@@ -7,22 +7,22 @@ const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 const { handleOwnerKeyword } = require('./ownerKeywords');
 const { emojiUrl } = require('./emoji');
 
-const GREETING_COLOR = '#a8e6ff';
-const WEBSITE_URL = 'https://modsentry.site';
+const GREETING_COLOR = '#a32ee2';
+const WEBSITE_URL = 'https://xyphros.site';
 const DISCORD_INVITE = 'https://discord.gg/5bNyCzsyJ2';
 
 function buildGreetingEmbed() {
   return new EmbedBuilder()
     .setTitle('👋 Invite me to your server for me to work!')
     .setColor(GREETING_COLOR)
-    .setThumbnail(emojiUrl('modsentry-online.gif'))
+    .setThumbnail(emojiUrl('xyphros-online.gif'))
     .setDescription(
       "I only do anything once I'm in a server — I can't help over DMs. Add me with the button below, then " +
-        `manage everything from the dashboard at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`,
+        `manage everything from the dashboard at [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}).`,
     )
     .addFields(
       { name: '🔗 Invite me', value: `[Add to a server](${buildGenericInviteUrl()})`, inline: true },
-      { name: '🌐 Website', value: `[modsentry.site](${WEBSITE_URL})`, inline: true },
+      { name: '🌐 Website', value: `[xyphros.site](${WEBSITE_URL})`, inline: true },
       { name: '💬 Support server', value: `[Join Discord](${DISCORD_INVITE})`, inline: true },
       {
         name: 'What I do',
@@ -38,13 +38,13 @@ function buildGreetingEmbed() {
 // the link in front of someone it's just going to reject anyway.
 function buildClosedBetaEmbed() {
   return new EmbedBuilder()
-    .setTitle('🔒 ModSentry is in closed beta')
+    .setTitle('🔒 XyphrosMod is in closed beta')
     .setColor(GREETING_COLOR)
     .setDescription(
-      `I'm not accepting new servers right now. Head to [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}) ` +
+      `I'm not accepting new servers right now. Head to [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}) ` +
         'and click **Log in with Discord** — you\'ll get a **Request access** button there, and a DM from me the moment it\'s reviewed.',
     )
-    .addFields({ name: '🌐 Website', value: `[modsentry.site](${WEBSITE_URL})` });
+    .addFields({ name: '🌐 Website', value: `[xyphros.site](${WEBSITE_URL})` });
 }
 
 function register(client) {

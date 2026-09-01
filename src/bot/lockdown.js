@@ -4,7 +4,7 @@ const { recordModAction } = require('./modLog');
 const { GuildSettings } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
 
-const LOCK_COLOR = '#a8e6ff';
+const LOCK_COLOR = '#a32ee2';
 const UNLOCK_COLOR = '#23a55a';
 
 function denyReply(interaction, command) {
@@ -38,7 +38,7 @@ async function handleLockdown(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('🔒 Channel locked down')
     .setColor(LOCK_COLOR)
-    .setThumbnail(emojiUrl('modsentry-lock.gif'))
+    .setThumbnail(emojiUrl('xyphros-lock.gif'))
     .setDescription(`This channel is locked — no one but staff can send messages here.${reason ? `\n**Reason:** ${reason}` : ''}`)
     .setFooter({ text: `Locked by ${member.user.tag}` })
     .setTimestamp();

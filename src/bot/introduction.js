@@ -1,7 +1,7 @@
 const { EmbedBuilder, AuditLogEvent } = require('discord.js');
 const config = require('../config');
 
-const INTRO_COLOR = '#a8e6ff';
+const INTRO_COLOR = '#a32ee2';
 
 // Best-effort -- needs the bot to have View Audit Log, and Discord only
 // keeps bot-add entries for a limited time, so this can legitimately come
@@ -33,10 +33,10 @@ async function handleIntroduction(interaction) {
         .slice(0, 1024)
     : "Commands haven't finished registering yet -- try again in a minute.";
 
-  const dashboardUrl = config.dashboardUrl || 'https://bot.modsentry.site';
+  const dashboardUrl = config.dashboardUrl || 'https://bot.xyphros.site';
 
   const embed = new EmbedBuilder()
-    .setTitle("👋 Hi, I'm ModSentry!")
+    .setTitle("👋 Hi, I'm XyphrosMod!")
     .setColor(INTRO_COLOR)
     .setThumbnail(guild.client.user.displayAvatarURL())
     .setDescription(
@@ -46,8 +46,8 @@ async function handleIntroduction(interaction) {
     .addFields(
       {
         name: '⚙️ Get set up',
-        value: `1. Open **[bot.modsentry.site](${dashboardUrl})** and log in with Discord\n` +
-          '2. Drag my **ModSentry** role above every role you want me to manage (Server Settings → Roles) -- ' +
+        value: `1. Open **[bot.xyphros.site](${dashboardUrl})** and log in with Discord\n` +
+          '2. Drag my **XyphrosMod** role above every role you want me to manage (Server Settings → Roles) -- ' +
           "otherwise ticket access, staff ranks, timeouts, and reaction roles won't work for those roles\n" +
           '3. Set up ticket types, panels, moderation, and staff ranks from the dashboard',
       },
@@ -55,7 +55,7 @@ async function handleIntroduction(interaction) {
       { name: '➕ Added by', value: addedBy || 'Unknown', inline: true },
       { name: 'ℹ️ Check your access', value: 'Run `/info` to see your own permissions and dashboard access.', inline: true },
     )
-    .setFooter({ text: 'ModSentry — a product of Xyphros Studios' });
+    .setFooter({ text: 'XyphrosMod — a product of Xyphros Studios' });
 
   await interaction.editReply({ embeds: [embed] });
 }

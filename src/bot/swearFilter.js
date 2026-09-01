@@ -19,7 +19,7 @@ async function logDeletion(guild, message, matchedWord) {
   const embed = new EmbedBuilder()
     .setTitle('🧼 Swear filter triggered')
     .setColor('#ed4245')
-    .setThumbnail(emojiUrl('modsentry-filter.png'))
+    .setThumbnail(emojiUrl('xyphros-filter.png'))
     .addFields(
       { name: 'User', value: `<@${message.author.id}>`, inline: true },
       { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },

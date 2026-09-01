@@ -1,24 +1,28 @@
 :root {
-  --bg: #001020;
-  --bg-elevated: #071b30;
-  --bg-elevated-2: #0d2740;
-  --bg-input: #051526;
-  --border: #123049;
-  --border-bright: #1c4a6b;
-  --text: #bcdcec;
-  --text-muted: #6d90a6;
-  --text-bright: #eaf8ff;
-  --accent: #a8e6ff;
-  --accent-2: #145a8c;
-  --accent-hover: #6fd0f5;
-  --gradient: linear-gradient(135deg, #a8e6ff, #145a8c 55%, #001020);
+  /* XyphrosMod violet/magenta ramp -- #150524 through #EFA8F7, sampled from
+     the orb mark itself (see brand-assets/README.txt). Danger/success stay
+     off-ramp on purpose (universal red/green for destructive vs. healthy,
+     same as before the rebrand) -- only the brand-carrying tokens moved. */
+  --bg: #150524;
+  --bg-elevated: #25083c;
+  --bg-elevated-2: #320a50;
+  --bg-input: #1c062e;
+  --border: #4b0f78;
+  --border-bright: #5a128e;
+  --text: #f5c6fa;
+  --text-muted: #b676d5;
+  --text-bright: #fbe9fd;
+  --accent: #a32ee2;
+  --accent-2: #6a15a8;
+  --accent-hover: #cf45e0;
+  --gradient: linear-gradient(135deg, #a32ee2, #6a15a8 55%, #150524);
   --danger: #ed4245;
   --danger-hover: #c53537;
   --success: #23a55a;
   --radius: 10px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, .5);
-  --shadow-glow: 0 0 0 1px rgba(168, 230, 255, .25), 0 8px 24px rgba(168, 230, 255, .12);
+  --shadow-glow: 0 0 0 1px rgba(163, 46, 226, .25), 0 8px 24px rgba(163, 46, 226, .12);
   /* Used for anything that reads as data rather than prose -- IDs, counters,
      timestamps, the ping number -- same thread the marketing site uses, so
      the product actually looks like the thing it's advertising. */
@@ -46,10 +50,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a { color: #6fb8ff; text-decoration: none; transition: color .15s ease; }
-a:hover { color: #8fc8ff; text-decoration: none; }
+a { color: #cf45e0; text-decoration: none; transition: color .15s ease; }
+a:hover { color: #db74e8; text-decoration: none; }
 
-::selection { background: rgba(168, 230, 255, .35); }
+::selection { background: rgba(163, 46, 226, .35); }
 
 .brand { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
@@ -64,22 +68,22 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 
 .brand-mark { display: inline-block; width: 28px; height: 28px; flex-shrink: 0; }
 
-.modsentry-intro-overlay {
+.xyphros-intro-overlay {
   position: fixed; inset: 0; z-index: 10000;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 16, 32, .92);
+  background: rgba(21, 5, 36, .92);
   padding: 24px;
 }
-.modsentry-intro-box {
+.xyphros-intro-box {
   width: 100%; max-width: 860px;
   background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 16px;
   padding: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
 }
-.modsentry-intro-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.modsentry-intro-title { font-weight: 800; font-size: 18px; color: var(--text-bright); }
-.modsentry-intro-box video { width: 100%; display: block; border-radius: 10px; background: #000; }
+.xyphros-intro-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.xyphros-intro-title { font-weight: 800; font-size: 18px; color: var(--text-bright); }
+.xyphros-intro-box video { width: 100%; display: block; border-radius: 10px; background: #000; }
 
-.modsentry-splash {
+.xyphros-splash {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -89,8 +93,8 @@ a:hover { color: #8fc8ff; text-decoration: none; }
   background: var(--bg);
   transition: opacity .35s ease;
 }
-.modsentry-splash img { width: 120px; height: 120px; }
-.modsentry-splash--out { opacity: 0; pointer-events: none; }
+.xyphros-splash img { width: 120px; height: 120px; }
+.xyphros-splash--out { opacity: 0; pointer-events: none; }
 
 /* ---------- Sidebar (replaces the old topbar + guildnav entirely) ---------- */
 :root { --sidebar-width: 244px; }
@@ -198,7 +202,7 @@ a:hover { color: #8fc8ff; text-decoration: none; }
 .topbar-lite {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 28px;
-  background: rgba(0, 16, 32, .75);
+  background: rgba(21, 5, 36, .75);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 40;
@@ -285,7 +289,7 @@ input[type=text], input[type=password], input[type=url], input[type=number], tex
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(168, 230, 255, .18);
+  box-shadow: 0 0 0 3px rgba(163, 46, 226, .18);
 }
 textarea { min-height: 80px; resize: vertical; }
 select[multiple] { min-height: 110px; }
@@ -307,10 +311,10 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(168, 230, 255, .3);
+  box-shadow: 0 2px 10px rgba(163, 46, 226, .3);
   transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease;
 }
-.btn:hover { transform: translateY(-1px); background-color: var(--accent-hover); box-shadow: 0 6px 18px rgba(168, 230, 255, .4); text-decoration: none; }
+.btn:hover { transform: translateY(-1px); background-color: var(--accent-hover); box-shadow: 0 6px 18px rgba(163, 46, 226, .4); text-decoration: none; }
 .btn:active { transform: translateY(0); }
 .btn-danger { background: var(--danger); box-shadow: 0 2px 10px rgba(237, 66, 69, .3); }
 .btn-danger:hover { background: var(--danger-hover); box-shadow: 0 6px 18px rgba(237, 66, 69, .4); }
@@ -355,7 +359,7 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   color: var(--text-muted);
 }
 .badge-open { background: rgba(35, 165, 90, .15); color: var(--success); }
-.badge-claimed { background: rgba(168, 230, 255, .15); color: #7dd3fc; }
+.badge-claimed { background: rgba(163, 46, 226, .15); color: #f1b5f8; }
 .badge-closed { background: rgba(237, 66, 69, .15); color: #f18688; }
 
 /* ---------- Overview page: at-a-glance stat tiles ---------- */
@@ -434,7 +438,7 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
   color: var(--text);
 }
 .perm-item:hover { border-color: var(--border-bright); }
-.perm-item:has(input:checked) { border-color: var(--accent); background: rgba(168, 230, 255, .1); color: var(--text-bright); }
+.perm-item:has(input:checked) { border-color: var(--accent); background: rgba(163, 46, 226, .1); color: var(--text-bright); }
 .perm-item input { width: auto; margin: 0; }
 
 .role-panel-locked .role-summary-name { color: var(--text-muted); }
@@ -635,7 +639,7 @@ input[type=color] { width: 60px; height: 38px; padding: 2px; background: var(--b
 }
 .style-option:hover { border-color: var(--border-bright); }
 .style-option input { margin: 0; accent-color: var(--accent); }
-.style-option:has(input:checked) { border-color: var(--accent); background: rgba(168, 230, 255, .12); }
+.style-option:has(input:checked) { border-color: var(--accent); background: rgba(163, 46, 226, .12); }
 .style-option .style-title { color: var(--text-bright); font-weight: 700; font-size: 14px; }
 .style-option .style-desc { color: var(--text-muted); font-size: 12px; }
 

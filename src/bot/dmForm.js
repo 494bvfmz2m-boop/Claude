@@ -13,7 +13,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder
 const config = require('../config');
 const { DmFormSends } = require('../db/repo');
 
-const FORM_COLOR = '#a8e6ff';
+const FORM_COLOR = '#a32ee2';
 
 async function sendWithForm(client, { recipientId, recipientTag, template, defaultSend }) {
   if (!template) return defaultSend();
@@ -26,7 +26,7 @@ async function sendWithForm(client, { recipientId, recipientTag, template, defau
   const embed = new EmbedBuilder()
     .setColor(FORM_COLOR)
     .setTitle(template.title)
-    .setFooter({ text: 'Your answers go straight to the ModSentry owner -- nothing is posted publicly.' });
+    .setFooter({ text: 'Your answers go straight to the XyphrosMod owner -- nothing is posted publicly.' });
   if (template.intro) embed.setDescription(template.intro);
   template.questions.forEach((question, i) => {
     embed.addFields({ name: `${i + 1}.`, value: question });

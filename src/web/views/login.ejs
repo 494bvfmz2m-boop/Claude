@@ -1,6 +1,6 @@
 <%- include('partials/header', { title: 'Login', hideLogout: true }) %>
 <div class="login-wrap">
-  <h1>ModSentry</h1>
+  <h1>XyphrosMod</h1>
   <p class="subtitle">Log in to manage tickets, moderation, embeds and settings.</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>
 
@@ -9,13 +9,13 @@
       <h2 style="margin-top:0;">Closed beta</h2>
       <% if (alreadyRequested) { %>
         <p class="hint" style="margin-top:0;">
-          Your request is in, <strong><%= pendingBetaUser.username %></strong> — you'll get a DM from ModSentry
+          Your request is in, <strong><%= pendingBetaUser.username %></strong> — you'll get a DM from XyphrosMod
           the moment it's reviewed. No need to ask again.
         </p>
       <% } else { %>
         <p class="hint" style="margin-top:0;">
           <strong><%= pendingBetaUser.username %></strong> isn't on the beta list yet. Send a quick request and
-          you'll get a DM from ModSentry once it's approved or declined.
+          you'll get a DM from XyphrosMod once it's approved or declined.
         </p>
         <form method="post" action="/request-access">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">

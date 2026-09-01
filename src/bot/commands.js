@@ -110,7 +110,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('introduction')
-    .setDescription('Have ModSentry introduce itself -- what it does, how to set it up, and its commands'),
+    .setDescription('Have XyphrosMod introduce itself -- what it does, how to set it up, and its commands'),
 
   new SlashCommandBuilder()
     .setName('afk')

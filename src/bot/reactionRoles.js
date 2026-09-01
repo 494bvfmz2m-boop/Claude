@@ -26,7 +26,7 @@ function buildReactionRoleMessage(panel, guild) {
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
     .setDescription(`${panel.description}\n\n${lines.join('\n')}${note}`)
-    .setColor(panel.color || '#a8e6ff');
+    .setColor(panel.color || '#a32ee2');
 
   return { embeds: [embed] };
 }
@@ -62,7 +62,7 @@ async function handleReaction(reaction, user, adding) {
     if (adding) await member.roles.add(mapping.roleId);
     else await member.roles.remove(mapping.roleId);
   } catch {
-    // Missing permissions or the role sits above ModSentry's own -- nothing
+    // Missing permissions or the role sits above XyphrosMod's own -- nothing
     // sensible to report back through a reaction click, so just drop it.
   }
 

@@ -4,7 +4,7 @@ const { AppSettings, BetaAllowlist } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
 
 const JOIN_COLOR = '#5865F2';
-const LEFT_COLOR = '#a8e6ff';
+const LEFT_COLOR = '#a32ee2';
 
 function isAuthorized(discordUserId) {
   if (!discordUserId) return false;
@@ -37,19 +37,19 @@ async function notifyOwner(client, guild, { executor, status }) {
   if (!config.ownerDiscordId) return;
 
   const STATUS_COPY = {
-    joined: { title: '➕ Joined a new server', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('modsentry-radar.gif') },
-    authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('modsentry-radar.gif') },
+    joined: { title: '➕ Joined a new server', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('xyphros-radar.gif') },
+    authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('xyphros-radar.gif') },
     unverified: {
       title: '⚠️ Joined a new server (unverified)',
       color: '#d97706',
       note: "Couldn't identify who added me -- missing View Audit Log, the entry hasn't shown up yet, or it aged out. Closed beta is on, so I stayed rather than guess and kick someone legitimate. Worth a manual look.",
-      footerIcon: emojiUrl('modsentry-warning.png'),
+      footerIcon: emojiUrl('xyphros-warning.png'),
     },
     kicked: {
       title: '❌ Left a server (closed beta)',
       color: LEFT_COLOR,
       note: 'Whoever added me is not on the beta allowlist, so I left and told them how to request access.',
-      footerIcon: emojiUrl('modsentry-cross.png'),
+      footerIcon: emojiUrl('xyphros-cross.png'),
     },
   };
   const copy = STATUS_COPY[status];
@@ -111,7 +111,7 @@ function register(client) {
       return;
     }
 
-    const message = `ModSentry is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
+    const message = `XyphrosMod is currently in closed beta and isn't accepting new servers right now. Message **${config.betaContactHandle}** on Discord if you'd like to be added to the beta list.`;
     await executor.send({ content: message }).catch(() => {});
     // Notify before leaving -- guild.memberCount/iconURL should stay readable
     // on the same object either way, but there's no reason to rely on that.

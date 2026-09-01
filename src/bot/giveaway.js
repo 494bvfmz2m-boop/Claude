@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Giveaways } = require('../db/repo');
 
-const GIVEAWAY_COLOR = '#a8e6ff';
+const GIVEAWAY_COLOR = '#a32ee2';
 const MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30d -- our own scheduler, not a Discord-imposed limit
 
 function parseDuration(input) {

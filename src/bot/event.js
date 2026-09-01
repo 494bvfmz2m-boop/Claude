@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Events: EventsRepo } = require('../db/repo');
 
-const EVENT_COLOR = '#a8e6ff';
+const EVENT_COLOR = '#a32ee2';
 
 // Best-effort -- there's no date picker on a slash command option, so this
 // accepts anything from a full ISO string to "friday 8pm". A value Date can

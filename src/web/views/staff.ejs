@@ -362,8 +362,8 @@
 <div class="card" id="blocklist">
   <h2>Global blocklist</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Blocks a Discord user bot-wide, across every server ModSentry is in — they're refused when opening a
-    ticket, and auto-kicked the moment they join any server ModSentry manages. Separate from a single
+    Blocks a Discord user bot-wide, across every server XyphrosMod is in — they're refused when opening a
+    ticket, and auto-kicked the moment they join any server XyphrosMod manages. Separate from a single
     server's own ban list.
   </p>
 
@@ -639,10 +639,10 @@
 
 <% if (canSee('send_dm')) { %>
 <div class="card" id="send-dm">
-  <h2>Send a DM as ModSentry</h2>
+  <h2>Send a DM as XyphrosMod</h2>
   <p class="hint" style="margin-bottom:14px;">
     Sends an embed straight to one or more people's DMs from the bot — pick any mix of saved contacts and
-    pasted IDs, up to <%= 50 %> at once. Works for anyone ModSentry shares a server with (they need DMs from
+    pasted IDs, up to <%= 50 %> at once. Works for anyone XyphrosMod shares a server with (they need DMs from
     server members turned on); if a recipient can't be reached the rest still go out and you'll get told who failed.
   </p>
   <form method="post" action="/staff/send-dm" id="sendDmForm">
@@ -701,7 +701,7 @@
       <textarea id="dmDescription" name="description" required></textarea>
 
       <label for="dmColor">Color</label>
-      <input type="color" id="dmColor" name="color" value="#a8e6ff">
+      <input type="color" id="dmColor" name="color" value="#a32ee2">
     </div>
 
     <div class="btn-row">
@@ -715,20 +715,20 @@
 <div class="card" id="broadcast">
   <h2>Broadcast to server owners</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Sends one embed to whoever owns every server ModSentry is in, all at once — for things like a planned
+    Sends one embed to whoever owns every server XyphrosMod is in, all at once — for things like a planned
     downtime notice or a new-feature heads up. Skips any owner who can't be reached and tells you who.
   </p>
-  <form method="post" action="/staff/broadcast-owners" onsubmit="return confirm('Send this to every server owner ModSentry has (' + <%= guilds.length %> + ' server<%= guilds.length === 1 ? "" : "s" %>)? There is no undo.');">
+  <form method="post" action="/staff/broadcast-owners" onsubmit="return confirm('Send this to every server owner XyphrosMod has (' + <%= guilds.length %> + ' server<%= guilds.length === 1 ? "" : "s" %>)? There is no undo.');">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <label for="broadcastTitle">Title (optional)</label>
-    <input type="text" id="broadcastTitle" name="title" placeholder="A message from ModSentry">
+    <input type="text" id="broadcastTitle" name="title" placeholder="A message from XyphrosMod">
 
     <label for="broadcastDescription">Message</label>
     <textarea id="broadcastDescription" name="description" required></textarea>
 
     <label for="broadcastColor">Color</label>
-    <input type="color" id="broadcastColor" name="color" value="#a8e6ff">
+    <input type="color" id="broadcastColor" name="color" value="#a32ee2">
 
     <div class="btn-row">
       <button class="btn btn-danger" type="submit">Broadcast to all <%= guilds.length %> owner<%= guilds.length === 1 ? '' : 's' %></button>
@@ -804,7 +804,7 @@
 
         <h3>In <%= lookup.inGuilds.length %> server<%= lookup.inGuilds.length === 1 ? '' : 's' %></h3>
         <% if (lookup.inGuilds.length === 0) { %>
-          <p class="empty">Not currently in any server ModSentry manages.</p>
+          <p class="empty">Not currently in any server XyphrosMod manages.</p>
         <% } else { %>
           <p class="list-item-meta" style="margin-bottom:14px;"><%= lookup.inGuilds.map(g => g.name).join(', ') %></p>
         <% } %>
@@ -876,7 +876,7 @@
 <div class="card" id="backup">
   <h2>Database backup</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Owner-only. Downloads a full, consistent snapshot of ModSentry's database right now — everything on
+    Owner-only. Downloads a full, consistent snapshot of XyphrosMod's database right now — everything on
     this page plus every server's settings, tickets, tags, and logs. Good to grab before a risky change.
   </p>
   <a class="btn" href="/staff/backup">Download backup</a>
@@ -885,9 +885,9 @@
 
 <% if (canSee('remove_server')) { %>
 <div class="card" id="remove-server">
-  <h2>Remove ModSentry from a server</h2>
+  <h2>Remove XyphrosMod from a server</h2>
   <p class="hint" style="margin-bottom:14px;">
-    Search by server name, then leave it. There's no undo here — whoever wants ModSentry back has to re-invite it.
+    Search by server name, then leave it. There's no undo here — whoever wants XyphrosMod back has to re-invite it.
   </p>
   <label for="serverSearch">Search servers</label>
   <input type="text" id="serverSearch" placeholder="Start typing a server name…" autocomplete="off">
@@ -994,7 +994,7 @@
     form.method = 'post';
     form.action = '/staff/leave-guild';
     form.onsubmit = function () {
-      return confirm('Remove ModSentry from "' + g.name + '"? There\'s no undo here.');
+      return confirm('Remove XyphrosMod from "' + g.name + '"? There\'s no undo here.');
     };
     var csrf = document.createElement('input');
     csrf.type = 'hidden'; csrf.name = '_csrf'; csrf.value = csrfToken;

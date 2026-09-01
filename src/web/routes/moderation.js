@@ -236,7 +236,7 @@ router.post('/moderation/hierarchy/:id/list-settings', async (req, res) => {
   const hierarchy = ownHierarchyOr404(res, guild, req.params.id);
   if (!hierarchy) return;
   Hierarchies.setListChannel(hierarchy.id, req.body.channelId || null);
-  Hierarchies.setColor(hierarchy.id, req.body.color || '#a8e6ff');
+  Hierarchies.setColor(hierarchy.id, req.body.color || '#a32ee2');
   res.redirect(`/dashboard/${guild.id}/moderation/hierarchy`);
 });
 
@@ -342,7 +342,7 @@ router.post('/moderation/test-dms/send', async (req, res) => {
     }
     return redirectWithNotice(res, guild.id, true, `Sent 4 test DMs to ${user.tag} — check your DMs.`, 'test-dms');
   } catch (err) {
-    return redirectWithNotice(res, guild.id, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with ModSentry.`, 'test-dms');
+    return redirectWithNotice(res, guild.id, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with XyphrosMod.`, 'test-dms');
   }
 });
 
@@ -588,7 +588,7 @@ router.post('/moderation/bulk-roles/apply', async (req, res) => {
       else await member.roles.remove(roleId);
       changed++;
     } catch {
-      // Missing permissions or the role sits above ModSentry's own -- skip
+      // Missing permissions or the role sits above XyphrosMod's own -- skip
       // and keep going rather than aborting the whole batch over one member.
     }
   }

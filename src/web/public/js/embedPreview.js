@@ -9,11 +9,11 @@
   let nextFieldIndex = fieldsContainer.querySelectorAll('.field-row').length;
 
   function roleOptionsHtml() {
-    return (window.MODSENTRY_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    return (window.XYPHROS_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
   }
 
   function mentionToolsHtml(targetId) {
-    const guildId = window.MODSENTRY_GUILD_ID || '';
+    const guildId = window.XYPHROS_GUILD_ID || '';
     return `
       <div class="mention-tools">
         <select id="roleSel_${targetId}">
@@ -78,7 +78,7 @@
   function renderPreview() {
     const data = new FormData(form);
     preview.innerHTML = '';
-    preview.style.borderLeftColor = data.get('color') || '#a8e6ff';
+    preview.style.borderLeftColor = data.get('color') || '#a32ee2';
 
     const authorName = data.get('authorName');
     const authorIconUrl = data.get('authorIconUrl');

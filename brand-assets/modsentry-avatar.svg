@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" fill="none">
-  <rect width="200" height="200" fill="#001020"></rect>
-  <g transform="translate(100,100) scale(0.82) translate(-100,-100)">
-    <path d="M100 12 L172 40 V104 C172 148 138 174 100 190 C62 174 28 148 28 104 V40 Z" stroke="#3d7a9c" stroke-width="6"></path>
-    <path d="M64 66 L100 40 L136 66" stroke="#a8e6ff" stroke-width="14" stroke-linecap="square"></path>
-    <path d="M64 100 L100 74 L136 100" stroke="#6fb3d0" stroke-width="14" stroke-linecap="square"></path>
-    <path d="M64 134 L100 108 L136 134" stroke="#3d7a9c" stroke-width="14" stroke-linecap="square"></path>
-  </g>
-</svg>

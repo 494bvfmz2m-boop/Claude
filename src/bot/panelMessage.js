@@ -16,7 +16,7 @@ function buildPanelMessage(panel) {
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
     .setDescription(panel.description)
-    .setColor(panel.color || '#a8e6ff');
+    .setColor(panel.color || '#a32ee2');
 
   if (types.length === 0) {
     return { embeds: [embed], components: [] };

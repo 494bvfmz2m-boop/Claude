@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const config = require('../config');
 const { BetaRequests, BetaAllowlist, DashboardAdmins } = require('../db/repo');
 
-const COLOR = '#a8e6ff';
+const COLOR = '#a32ee2';
 
 function adminRecipientIds() {
   const ids = new Set(DashboardAdmins.list().map((a) => a.discord_user_id));
@@ -29,7 +29,7 @@ function buildResultEmbed(approve, { test = false } = {}) {
     .setColor(approve ? '#23a55a' : '#ed4245')
     .setTitle(approve ? '✅ Beta access approved' : '❌ Beta access request declined')
     .setDescription(approve
-      ? `You're in! Log in any time at [bot.modsentry.site](${config.dashboardUrl || 'https://bot.modsentry.site'}).`
+      ? `You're in! Log in any time at [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}).`
       : "Your request wasn't approved this time.");
   if (test) embed.addFields({ name: '⚠️ This is a test', value: "Nothing actually happened — just previewing what a real one looks like." });
   return embed;

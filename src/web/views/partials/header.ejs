@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? title + ' · ModSentry' : 'ModSentry' %></title>
-  <link rel="icon" type="image/svg+xml" href="/img/modsentry-favicon.svg">
+  <title><%= typeof title !== 'undefined' ? title + ' · XyphrosMod' : 'XyphrosMod' %></title>
+  <link rel="icon" type="image/svg+xml" href="/img/xyphros-favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div id="modsentry-splash" class="modsentry-splash" aria-hidden="true">
-  <img src="/img/modsentry-logo-impact.gif" alt="" width="120" height="120">
+<div id="xyphros-splash" class="xyphros-splash" aria-hidden="true">
+  <img src="/img/xyphros-logo-impact.gif" alt="" width="120" height="120">
 </div>
 <script>
 (function () {
-  var el = document.getElementById('modsentry-splash');
+  var el = document.getElementById('xyphros-splash');
   if (!el) return;
   // Plays on every full page load (every dashboard nav click is one) --
   // deliberately not gated to "once per session" anymore, since that made
@@ -29,7 +29,7 @@
     // the transition feeling instant instead of gating every click behind
     // the whole clip.
     setTimeout(function () {
-      el.classList.add('modsentry-splash--out');
+      el.classList.add('xyphros-splash--out');
       setTimeout(function () { el.remove(); }, 220);
     }, 450);
   });
@@ -49,8 +49,8 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <a class="brand" href="/">
-        <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
-        <span class="brand-word">ModSentry</span>
+        <img class="brand-mark" src="/img/xyphros-logo-spin3d.gif" alt="" width="28" height="28">
+        <span class="brand-word">XyphrosMod</span>
       </a>
     </div>
 
@@ -143,8 +143,8 @@
 <% } else { %>
   <header class="topbar-lite">
     <a class="brand" href="/">
-      <img class="brand-mark" src="/img/modsentry-logo-spin3d.gif" alt="" width="28" height="28">
-      <span class="brand-word">ModSentry</span>
+      <img class="brand-mark" src="/img/xyphros-logo-spin3d.gif" alt="" width="28" height="28">
+      <span class="brand-word">XyphrosMod</span>
     </a>
     <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
       <span class="dot"></span>
@@ -217,13 +217,13 @@
 <div class="app-content <%= inGuild ? 'has-sidebar' : '' %>">
 <% if (inGuild) { %>
   <div class="role-warning">
-    <strong>Note:</strong> Drag ModSentry's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
+    <strong>Note:</strong> Drag XyphrosMod's role above every role you want it to manage — Server Settings → Roles in Discord — or ticket
     access, staff ranks, timeouts, and reaction roles won't work for those roles.
   </div>
   <script src="/js/tour.js"></script>
   <script>
   (function () {
-    var SEEN_GUILD_NAV = 'modsentryTourGuildNavSeen';
+    var SEEN_GUILD_NAV = 'xyphrosTourGuildNavSeen';
     var seen = false;
     try { seen = !!localStorage.getItem(SEEN_GUILD_NAV); } catch (e) {}
     if (seen) return;
@@ -237,7 +237,7 @@
     ];
 
     setTimeout(function () {
-      new ModSentryTour(STEPS, {
+      new XyphrosModTour(STEPS, {
         onEnd: function () {
           try { localStorage.setItem(SEEN_GUILD_NAV, '1'); } catch (e) {}
         },
@@ -248,7 +248,7 @@
 <% } %>
 <% if (typeof maintenance !== 'undefined' && maintenance && maintenance.enabled) { %>
   <div class="maintenance-banner">
-    <strong>Maintenance:</strong> <%= maintenance.message || 'ModSentry is undergoing scheduled maintenance — some things may be flaky right now.' %>
+    <strong>Maintenance:</strong> <%= maintenance.message || 'XyphrosMod is undergoing scheduled maintenance — some things may be flaky right now.' %>
   </div>
 <% } %>
 <main class="container">

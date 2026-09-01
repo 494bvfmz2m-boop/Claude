@@ -5,8 +5,8 @@ const { canUseAction } = require('./commandPermissions');
 const { emojiUrl } = require('./emoji');
 
 const PUNISHMENT_THUMBNAILS = {
-  banned: emojiUrl('modsentry-ban.gif'),
-  warned: emojiUrl('modsentry-warn.gif'),
+  banned: emojiUrl('xyphros-ban.gif'),
+  warned: emojiUrl('xyphros-warn.gif'),
 };
 
 function denyReply(interaction, command) {

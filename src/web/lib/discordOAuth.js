@@ -13,7 +13,7 @@ const MANAGE_GUILD = 0x20n;
 // and bot/moderation.js), Manage Expressions (needed for /steal to add
 // emoji -- see bot/qol.js), and Manage Server (needed to suppress Discord's
 // own "X joined the server" system message -- see bot/welcome.js and
-// web/routes/settings.js). Used to build "invite ModSentry here" links for
+// web/routes/settings.js). Used to build "invite XyphrosMod here" links for
 // servers an OAuth user manages but hasn't added the bot to yet.
 //
 // Existing servers that invited the bot before Manage Nicknames, Manage

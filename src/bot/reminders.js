@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { Reminders } = require('../db/repo');
 const { parseDuration } = require('./moderation');
 
-const COLOR = '#a8e6ff';
+const COLOR = '#a32ee2';
 
 async function handleSet(interaction) {
   const durationInput = interaction.options.getString('time');

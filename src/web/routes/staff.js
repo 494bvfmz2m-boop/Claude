@@ -321,7 +321,7 @@ router.post('/staff-roles/:id/members/remove', requireOwner, (req, res) => {
 router.post('/send-dm', requireStaffArea('send_dm'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
-  const color = req.body.color || '#a8e6ff';
+  const color = req.body.color || '#a32ee2';
   const templateId = req.body.templateId ? Number(req.body.templateId) : null;
   const saveNew = req.body.saveNew === 'on';
 
@@ -386,7 +386,7 @@ router.post('/send-dm', requireStaffArea('send_dm'), async (req, res) => {
 router.post('/broadcast-owners', requireStaffArea('broadcast'), async (req, res) => {
   const title = (req.body.title || '').trim();
   const description = (req.body.description || '').trim();
-  const color = req.body.color || '#a8e6ff';
+  const color = req.body.color || '#a32ee2';
 
   if (!description) {
     return redirectWithNotice(res, false, 'A message is required.', 'broadcast');
@@ -484,7 +484,7 @@ router.post('/server-notes/save', requireStaffArea('server_notes'), (req, res) =
   const guild = client.guilds.cache.get(guildId);
 
   if (!guild) {
-    return redirectWithNotice(res, false, "ModSentry isn't in that server (anymore).", 'server-notes');
+    return redirectWithNotice(res, false, "XyphrosMod isn't in that server (anymore).", 'server-notes');
   }
   ServerNotes.set(guildId, note, req.session.discordUser.id);
   logAudit(req, note ? 'Set a server note' : 'Cleared a server note', guild.name);
@@ -526,13 +526,13 @@ router.post('/dm-form-templates/delete', requireStaffArea('dm_form'), (req, res)
 });
 
 router.get('/backup', requireOwner, async (req, res) => {
-  const tmpPath = path.join(os.tmpdir(), `modsentry-backup-${Date.now()}.sqlite`);
+  const tmpPath = path.join(os.tmpdir(), `xyphros-backup-${Date.now()}.sqlite`);
   try {
     // An online backup via better-sqlite3's own API, not a raw file copy --
     // safe to run while the bot is writing to the WAL-mode database.
     await db.backup(tmpPath);
     logAudit(req, 'Downloaded a database backup', null);
-    res.download(tmpPath, `modsentry-backup-${new Date().toISOString().slice(0, 10)}.sqlite`, () => {
+    res.download(tmpPath, `xyphros-backup-${new Date().toISOString().slice(0, 10)}.sqlite`, () => {
       fs.unlink(tmpPath, () => {});
     });
   } catch (err) {
@@ -545,7 +545,7 @@ router.post('/leave-guild', requireStaffArea('remove_server'), async (req, res) 
   const guildId = (req.body.guildId || '').trim();
   const guild = client.guilds.cache.get(guildId);
   if (!guild) {
-    return redirectWithNotice(res, false, "ModSentry isn't in that server (anymore).", 'remove-server');
+    return redirectWithNotice(res, false, "XyphrosMod isn't in that server (anymore).", 'remove-server');
   }
   const name = guild.name;
   try {
@@ -579,7 +579,7 @@ router.post('/test-beta-dm/send', requireStaffArea('beta'), async (req, res) => 
     await user.send({ embeds: [buildResultEmbed(false, { test: true })] });
     return redirectWithNotice(res, true, `Sent 2 test beta DMs to ${user.tag} — check your DMs.`, 'test-beta-dm');
   } catch (err) {
-    return redirectWithNotice(res, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with ModSentry.`, 'test-beta-dm');
+    return redirectWithNotice(res, false, `Couldn't DM you: ${err.message} — make sure your DMs are open and you share a server with XyphrosMod.`, 'test-beta-dm');
   }
 });
 
