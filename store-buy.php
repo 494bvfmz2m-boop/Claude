@@ -76,16 +76,19 @@ if ($authOptions) {
     }
 
     if (!$authUrl) {
-        // Confirmed (not a guess): Tebex has returned ok=1 with an entry
-        // in the list that has no name/url on it at all — it's telling
-        // us an auth step is pending but not giving anything to send the
-        // customer to. That's a Tebex-side thing, not this code: check
-        // the Discord connection under this webstore's settings in the
-        // Tebex creator dashboard (creator.tebex.io) — it likely needs
-        // to be (re)authorized. Retrying here can't fix that, so the
-        // message doesn't pretend it might.
-        error_log('Tebex basket auth required but returned no usable provider for basket ' . $ident . ': ' . json_encode($authOptions));
-        header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
+        // Confirmed (not a guess) via a support ticket with Tebex: this
+        // account's Discord integration, role hierarchy, and package
+        // config are all correctly set up on the dashboard side, yet
+        // this call keeps returning ok=1 with an entry that has no
+        // name/url on it — a Tebex-side issue still being chased down.
+        //
+        // Blocking the sale entirely until Tebex responds isn't worth
+        // it — proceed with the purchase anyway (skip the login
+        // redirect) so the item can actually be sold, but flag the
+        // order clearly so staff know the Discord role for it needs to
+        // be granted by hand until this is resolved.
+        error_log('MANUAL DISCORD ROLE NEEDED: basket auth required but returned no usable provider for basket ' . $ident . ' (package ' . $packageId . ', user ' . $user['id'] . '): ' . json_encode($authOptions));
+        xs_store_finalize_purchase($ident, $packageId, $user, true); // always exits
         exit;
     }
 

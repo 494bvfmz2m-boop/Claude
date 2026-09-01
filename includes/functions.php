@@ -772,7 +772,14 @@ function xs_next_order_number(): int
     return (int) $db->lastInsertId();
 }
 
-function xs_store_finalize_purchase(string $ident, int $packageId, array $user): void
+/**
+ * $needsManualDiscordRole: set true when this purchase skipped Tebex's
+ * basket-auth step because it wasn't returning a usable login URL (see
+ * store-buy.php) — flags the order so whoever handles orders knows this
+ * one's Discord role has to be granted by hand until that's sorted out
+ * on Tebex's side, instead of it silently never showing up.
+ */
+function xs_store_finalize_purchase(string $ident, int $packageId, array $user, bool $needsManualDiscordRole = false): void
 {
     [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1);
     if (!$addOk) {
@@ -796,6 +803,7 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user):
         'price' => $package['total_price'] ?? $package['base_price'] ?? 0,
         'currency' => $package['currency'] ?? 'USD',
         'status' => 'pending',
+        'needs_manual_discord_role' => $needsManualDiscordRole,
     ]);
 
     header('Location: /store-checkout?ident=' . rawurlencode($ident));
