@@ -174,10 +174,12 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   const type = payload?.type || null;
 
   // Tebex sends this to confirm the endpoint URL works when you save it in
-  // the creator panel -- just acknowledge it, nothing to process.
+  // the creator panel. Per their docs, a 200 alone isn't enough -- the
+  // response body must be JSON echoing the validation webhook's own `id`
+  // (e.g. {"id": "<payload.id>"}), or Tebex won't mark the endpoint validated.
   if (type === 'validation.webhook') {
     TebexEvents.log(type, bodyStr, 1, `Validation ping acknowledged (signature matched using the ${matchedEncoding} key)`);
-    return { status: 200, message: 'OK' };
+    return { status: 200, json: { id: payload?.id } };
   }
 
   const discordId = extractDiscordId(payload);

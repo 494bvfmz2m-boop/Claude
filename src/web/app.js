@@ -102,6 +102,7 @@ function createApp() {
   // copy before hashing would break signature verification.
   app.post('/webhooks/tebex', express.raw({ type: 'application/json', limit: '512kb' }), async (req, res) => {
     const result = await verifyAndHandleTebexWebhook(req.body, req.headers);
+    if (result.json) return res.status(result.status).json(result.json);
     res.status(result.status).send(result.message);
   });
 
