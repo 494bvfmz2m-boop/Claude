@@ -19,7 +19,7 @@ const FREE_LIMITS = {
 function parseLimits(features) {
   const limits = {};
   for (const entry of features || []) {
-    const match = /^([a-z0-9_]+):(-?\d+)$/i.exec(String(entry).trim());
+    const match = /^([a-z0-9_]+)\s*:\s*(-?\d+)$/i.exec(String(entry).trim());
     if (match) limits[match[1].toLowerCase()] = Number(match[2]);
   }
   return limits;
