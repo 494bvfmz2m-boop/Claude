@@ -118,6 +118,26 @@
     color: var(--muted);
     margin-top: 6px;
   }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  select {
+    width: 100%;
+    background: #12141a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -127,6 +147,9 @@
 
     <textarea id="text" maxlength="4000" placeholder="Type or paste text here..."></textarea>
     <div class="charcount"><span id="charcount">0</span> / 4000</div>
+
+    <label for="voice">Voice</label>
+    <select id="voice"></select>
 
     <div class="row">
       <button id="speakBtn" class="primary">Speak</button>
@@ -140,6 +163,7 @@
 <script>
   const textEl = document.getElementById('text');
   const charcountEl = document.getElementById('charcount');
+  const voiceEl = document.getElementById('voice');
   const speakBtn = document.getElementById('speakBtn');
   const exportBtn = document.getElementById('exportBtn');
   const statusEl = document.getElementById('status');
@@ -150,6 +174,19 @@
   textEl.addEventListener('input', () => {
     charcountEl.textContent = textEl.value.length;
   });
+
+  async function loadVoices() {
+    try {
+      const res = await fetch('/api/voices');
+      const voices = await res.json();
+      voiceEl.innerHTML = voices
+        .map((v) => `<option value="${v.id}">${v.label}</option>`)
+        .join('');
+    } catch (err) {
+      voiceEl.innerHTML = '<option value="">Default</option>';
+    }
+  }
+  loadVoices();
 
   function setStatus(message, isError = false) {
     statusEl.textContent = message;
@@ -176,7 +213,7 @@
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice: voiceEl.value }),
       });
 
       if (!res.ok) {
