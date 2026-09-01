@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= typeof title !== 'undefined' ? title + ' · XyphrosMod' : 'XyphrosMod' %></title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/xyphros-favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/img/xyphros-favicon-16.png">
   <link rel="icon" type="image/svg+xml" href="/img/xyphros-favicon.svg">
+  <link rel="apple-touch-icon" href="/img/xyphros-apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -49,7 +52,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-top">
       <a class="brand" href="/">
-        <img class="brand-mark" src="/img/xyphros-logo-spin3d.gif" alt="" width="28" height="28">
+        <img class="brand-mark" src="/img/xyphros-logo.svg" alt="" width="28" height="28">
         <span class="brand-word">XyphrosMod</span>
       </a>
     </div>
@@ -143,7 +146,7 @@
 <% } else { %>
   <header class="topbar-lite">
     <a class="brand" href="/">
-      <img class="brand-mark" src="/img/xyphros-logo-spin3d.gif" alt="" width="28" height="28">
+      <img class="brand-mark" src="/img/xyphros-logo.svg" alt="" width="28" height="28">
       <span class="brand-word">XyphrosMod</span>
     </a>
     <span class="bot-status <%= botStatus.ready ? 'online' : 'offline' %>" title="<%= botStatus.ready ? `Connected to ${botStatus.guildCount} server(s)` : 'Not connected to Discord' %>">
