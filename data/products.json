@@ -1,0 +1,14 @@
+[
+    {
+        "id": "xyphrosportal",
+        "name": "XyphrosPortal",
+        "tagline": "Shared workspaces for tasks, to-dos, and notes.",
+        "description": "Spin up a workspace, invite the people you're working with, and keep everything in one place. XyphrosPortal gives every workspace its own tasks, to-do lists, and notes, so your team always knows what's been done, what's next, and where the context lives \u2014 without it getting scattered across chats and documents.",
+        "status": "online",
+        "url": "https:\/\/portal.xyphros.net",
+        "cta_label": "Open XyphrosPortal",
+        "icon": null,
+        "featured": true,
+        "created_at": "2026-06-17T00:00:00+00:00"
+    }
+]

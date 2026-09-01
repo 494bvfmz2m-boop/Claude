@@ -1,0 +1,73 @@
+RewriteEngine On
+RewriteBase /
+
+# ---------------------------------------------------------------------
+# Security headers, sent on every response.
+# ---------------------------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    # Not a strict CSP (this codebase uses inline <script>/<style> in a
+    # few places, e.g. the Tebex checkout embed), but this still blocks
+    # the two most common injection payoffs: loading a script from an
+    # attacker-controlled domain, and framing this site elsewhere.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.tebex.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://headless.tebex.io; frame-src https://js.tebex.io https://pay.tebex.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+# Never serve includes/*.php over the web directly — everything in
+# there is meant to be require()'d, not requested (config.local.php
+# especially must never be reachable, even if it somehow ended up
+# world-readable).
+<IfModule mod_rewrite.c>
+    RewriteRule ^includes/ - [F,L]
+</IfModule>
+
+# ---------------------------------------------------------------------
+# 1. Canonicalize: anyone hitting an old *.php URL directly (bookmarks,
+#    old links, search engines) gets redirected to the clean version.
+# ---------------------------------------------------------------------
+RewriteCond %{THE_REQUEST} \s/+index\.php[?\s] [NC]
+RewriteRule ^index\.php$ /? [R=301,L]
+
+RewriteCond %{THE_REQUEST} \s/+(.+)\.php[?\s] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# ---------------------------------------------------------------------
+# 2. Drop trailing slashes on virtual (non-directory) routes, e.g.
+#    /products/ -> /products. Real directories are left
+#    alone so PHP's normal DirectoryIndex handling still applies.
+# ---------------------------------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/(.+)/$
+RewriteRule ^ /%1 [R=301,L]
+
+# ---------------------------------------------------------------------
+# 3. Single post: /posts/some-slug -> post.php?slug=some-slug
+#    (must come before the generic rule below, since there's no
+#    posts/some-slug.php file on disk)
+# ---------------------------------------------------------------------
+RewriteRule ^posts/([a-zA-Z0-9-]+)$ post.php?slug=$1 [L,QSA]
+
+# ---------------------------------------------------------------------
+# 4. Generic clean URL: /anything -> anything.php, only if that file
+#    actually exists. Covers every current and future plain page
+#    (products, about, contact, forgot-password, ...)
+#    without needing one rule per route.
+# ---------------------------------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.php -f
+RewriteRule ^(.*)$ $1.php [L,QSA]
+
+# ---------------------------------------------------------------------
+# Security: deny direct access to data files and stop scripts from
+# executing inside uploads/, even if validation were ever bypassed.
+# (Duplicated here in case your host ignores per-directory .htaccess —
+# the originals in data/.htaccess and uploads/.htaccess still apply too.)
+# ---------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteRule ^data/ - [F,L]
+</IfModule>

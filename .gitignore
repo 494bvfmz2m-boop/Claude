@@ -1,0 +1,12 @@
+includes/config.local.php
+data/sent_emails.json
+uploads/avatars/*
+uploads/team/*
+uploads/posts/*
+uploads/products/*
+!uploads/avatars/.gitkeep
+!uploads/team/.gitkeep
+!uploads/posts/.gitkeep
+!uploads/products/.gitkeep
+.DS_Store
+*.log
