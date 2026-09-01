@@ -15,6 +15,42 @@ function timingSafeEqualHex(expectedHex, givenHex) {
   }
 }
 
+// A "secret" shown in a provider's dashboard isn't always meant to be used
+// as literal UTF-8 text for the HMAC key -- some encode it as base64 (or
+// hex) and expect it decoded into raw bytes first. We don't know which
+// convention Tebex uses, so this computes the digest under every plausible
+// interpretation of the same configured secret and accepts a match against
+// any of them, rather than assuming one and rejecting a genuinely correct
+// secret just because it needed decoding first.
+function candidateKeys(secret) {
+  const keys = [{ label: 'utf8 (literal text)', buf: Buffer.from(secret, 'utf8') }];
+  try {
+    const b64 = Buffer.from(secret, 'base64');
+    // Buffer.from(str, 'base64') silently ignores invalid characters rather
+    // than throwing, so only trust it as a real interpretation if
+    // re-encoding it lands back on the same string (i.e. it actually was
+    // valid base64), and it's not identical to the literal-text bytes.
+    if (b64.length > 0 && b64.toString('base64').replace(/=+$/, '') === secret.replace(/=+$/, '') && !b64.equals(keys[0].buf)) {
+      keys.push({ label: 'base64-decoded', buf: b64 });
+    }
+  } catch { /* not valid base64 -- skip */ }
+  if (/^[0-9a-f]+$/i.test(secret) && secret.length % 2 === 0) {
+    const hexBuf = Buffer.from(secret, 'hex');
+    if (hexBuf.length > 0 && !hexBuf.equals(keys[0].buf)) keys.push({ label: 'hex-decoded', buf: hexBuf });
+  }
+  return keys;
+}
+
+// Tries every candidate key interpretation against the signature found in
+// the request; returns the label of whichever matched, or null.
+function matchAnyKeyEncoding(secret, bodyStr, signatureHex) {
+  for (const { label, buf } of candidateKeys(secret)) {
+    const digest = crypto.createHmac('sha256', buf).update(bodyStr).digest('hex');
+    if (timingSafeEqualHex(digest, signatureHex)) return label;
+  }
+  return null;
+}
+
 // Tebex's webhook payload carries the buyer's platform account ID under a
 // shape that varies by store/platform type and event -- this tries every
 // candidate path rather than assuming one. Every event is logged in full
@@ -103,13 +139,14 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   }
 
   const found = findSignatureHeader(headers);
-  const expected = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
-  const matched = found && timingSafeEqualHex(expected, stripAlgoPrefix(found.value));
-  if (!matched) {
+  const matchedEncoding = found ? matchAnyKeyEncoding(secret, bodyStr, stripAlgoPrefix(found.value)) : null;
+  if (!matchedEncoding) {
+    const literalDigest = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
+    const headerList = Object.keys(headers).join(', ') || '(none)';
     const receivedNote = found
       ? `header "${found.name}" = "${found.value}"`
-      : `no signature header found (checked: ${SIGNATURE_HEADER_CANDIDATES.join(', ')}; headers present: ${Object.keys(headers).join(', ') || '(none)'})`;
-    TebexEvents.log(null, bodyStr, 0, `Signature did not match -- rejected. Computed "${expected}", received ${receivedNote}.`);
+      : `no signature header found (checked: ${SIGNATURE_HEADER_CANDIDATES.join(', ')})`;
+    TebexEvents.log(null, bodyStr, 0, `Signature did not match under any key encoding (literal/base64/hex) -- rejected. Computed (literal utf8) "${literalDigest}" over a ${bodyStr.length}-byte body, received ${receivedNote}. All headers present: ${headerList}.`);
     return { status: 401, message: 'Invalid signature' };
   }
 
@@ -126,7 +163,7 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   // Tebex sends this to confirm the endpoint URL works when you save it in
   // the creator panel -- just acknowledge it, nothing to process.
   if (type === 'validation.webhook') {
-    TebexEvents.log(type, bodyStr, 1, 'Validation ping acknowledged');
+    TebexEvents.log(type, bodyStr, 1, `Validation ping acknowledged (signature matched using the ${matchedEncoding} key)`);
     return { status: 200, message: 'OK' };
   }
 
@@ -157,4 +194,4 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   return { status: 200, message: 'OK' };
 }
 
-module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix };
+module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix, candidateKeys, matchAnyKeyEncoding };
