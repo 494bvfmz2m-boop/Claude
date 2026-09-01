@@ -783,7 +783,14 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user, 
 {
     [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1);
     if (!$addOk) {
-        error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error'));
+        // Logging the package's own "options" here too — a rejection
+        // like "One of the options provided is invalid" means the
+        // package has a required custom field/variable (a dropdown, a
+        // text box, etc.) that addPackage() never sends any
+        // variable_data for. Seeing the real options array is what
+        // tells us what to actually build a form field for.
+        $failedPackage = Tebex::getPackage($packageId);
+        error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error') . ' — package options: ' . json_encode($failedPackage['options'] ?? null));
         header('Location: /store?error=' . rawurlencode("Couldn't add that item to checkout — please try again."));
         exit;
     }
