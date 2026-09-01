@@ -772,23 +772,16 @@ function xs_next_order_number(): int
     return (int) $db->lastInsertId();
 }
 
-/**
- * $needsManualDiscordRole: set true when this purchase skipped Tebex's
- * basket-auth step because it wasn't returning a usable login URL (see
- * store-buy.php) — flags the order so whoever handles orders knows this
- * one's Discord role has to be granted by hand until that's sorted out
- * on Tebex's side, instead of it silently never showing up.
- */
-function xs_store_finalize_purchase(string $ident, int $packageId, array $user, bool $needsManualDiscordRole = false): void
+function xs_store_finalize_purchase(string $ident, int $packageId, array $user): void
 {
     [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1);
     if (!$addOk) {
         // Logging the package's own "options" here too — a rejection
         // like "One of the options provided is invalid" means the
-        // package has a required custom field/variable (a dropdown, a
-        // text box, etc.) that addPackage() never sends any
-        // variable_data for. Seeing the real options array is what
-        // tells us what to actually build a form field for.
+        // package has a required custom field/variable (e.g. Tebex's
+        // built-in "discord_id" option type, or a plain dropdown/text
+        // box) that addPackage() never sends any variable_data for.
+        // Seeing the real options array is what tells us what's needed.
         $failedPackage = Tebex::getPackage($packageId);
         error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error') . ' — package options: ' . json_encode($failedPackage['options'] ?? null));
         header('Location: /store?error=' . rawurlencode("Couldn't add that item to checkout — please try again."));
@@ -810,7 +803,6 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user, 
         'price' => $package['total_price'] ?? $package['base_price'] ?? 0,
         'currency' => $package['currency'] ?? 'USD',
         'status' => 'pending',
-        'needs_manual_discord_role' => $needsManualDiscordRole,
     ]);
 
     header('Location: /store-checkout?ident=' . rawurlencode($ident));

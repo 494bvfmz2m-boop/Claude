@@ -76,19 +76,19 @@ if ($authOptions) {
     }
 
     if (!$authUrl) {
-        // Confirmed (not a guess) via a support ticket with Tebex: this
-        // account's Discord integration, role hierarchy, and package
-        // config are all correctly set up on the dashboard side, yet
-        // this call keeps returning ok=1 with an entry that has no
-        // name/url on it — a Tebex-side issue still being chased down.
-        //
-        // Blocking the sale entirely until Tebex responds isn't worth
-        // it — proceed with the purchase anyway (skip the login
-        // redirect) so the item can actually be sold, but flag the
-        // order clearly so staff know the Discord role for it needs to
-        // be granted by hand until this is resolved.
-        error_log('MANUAL DISCORD ROLE NEEDED: basket auth required but returned no usable provider for basket ' . $ident . ' (package ' . $packageId . ', user ' . $user['id'] . '): ' . json_encode($authOptions));
-        xs_store_finalize_purchase($ident, $packageId, $user, true); // always exits
+        // Confirmed via Tebex's own error response (not a guess): this
+        // package has a required option of Tebex's built-in type
+        // "discord_id", which only ever gets filled in by completing
+        // the Discord login this auth endpoint is supposed to hand us a
+        // URL for. Since it isn't giving us one, that option can never
+        // be satisfied, and Tebex rejects addPackage() server-side with
+        // "One of the options provided is invalid" no matter what we
+        // send — there is no way to add this package to a basket from
+        // our side while Tebex's login step stays broken. Don't bother
+        // attempting it; block with an honest message instead of
+        // trading this for a more confusing failure two steps later.
+        error_log('Tebex basket auth required but returned no usable provider for basket ' . $ident . ' (package ' . $packageId . ', user ' . $user['id'] . '): ' . json_encode($authOptions));
+        header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
         exit;
     }
 

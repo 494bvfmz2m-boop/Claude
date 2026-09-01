@@ -504,9 +504,6 @@ require __DIR__ . '/includes/header.php';
                             ][$order['status'] ?? 'pending'] ?? ['label' => ucfirst($order['status'] ?? 'pending'), 'class' => 'acct-badge--muted'];
                             ?>
                             <span class="acct-badge <?php echo e($statusMeta['class']); ?>"><?php echo e($statusMeta['label']); ?></span>
-                            <?php if (!empty($order['needs_manual_discord_role'])): ?>
-                                <div style="width:100%;margin-top:8px;font-size:12.5px;color:var(--text-faint);">Your Discord role for this order is being applied manually and may take a little longer to show up.</div>
-                            <?php endif; ?>
                             <?php if ($orderLicense): ?>
                                 <button type="button" class="btn btn--ghost btn--sm" style="margin-left:8px;" onclick="var b=this.nextElementSibling; b.style.display = b.style.display==='none' ? 'flex' : 'none'; this.style.display='none';">View key</button>
                                 <div style="display:none;width:100%;margin-top:10px;align-items:center;gap:10px;flex-wrap:wrap;">
