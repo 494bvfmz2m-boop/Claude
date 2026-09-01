@@ -63,13 +63,37 @@ function isRevocation(type, payload) {
   return false;
 }
 
-// Verifies the X-Tebex-Signature header (HMAC-SHA256 of the raw request
-// body, keyed with the webhook secret configured in Settings > Webhooks
-// on the Tebex creator panel) and, if valid, updates tebex_subscribers
-// from the event. rawBody must be the *unparsed* request body (a Buffer
-// or string) -- Tebex signs the exact bytes it sent, so anything that
-// re-serializes the parsed JSON before this runs would break verification.
-async function verifyAndHandleTebexWebhook(rawBody, signatureHeader) {
+// The exact header name Tebex uses isn't fully pinned down (their docs
+// were unreachable while building this -- see the commit that introduced
+// this file), so this checks every plausible variant rather than assuming
+// one. Whichever is present gets used; if none are, that's logged plainly
+// rather than silently failing as if a signature had been checked at all.
+const SIGNATURE_HEADER_CANDIDATES = ['x-tebex-signature', 'x-signature', 'x-webhook-signature', 'x-hub-signature-256'];
+
+function findSignatureHeader(headers) {
+  for (const name of SIGNATURE_HEADER_CANDIDATES) {
+    const value = headers?.[name];
+    if (value) return { name, value };
+  }
+  return null;
+}
+
+// A signature value is sometimes prefixed with the algorithm name (GitHub/
+// Stripe-style "sha256=<hex>") -- strip that if present so a correct
+// signature isn't rejected just for carrying a prefix we didn't expect.
+function stripAlgoPrefix(value) {
+  const match = /^sha256=(.+)$/i.exec(value.trim());
+  return match ? match[1] : value.trim();
+}
+
+// Verifies the signature header (HMAC-SHA256 of the raw request body,
+// keyed with the webhook secret configured in Settings > Webhooks on the
+// Tebex creator panel) and, if valid, updates tebex_subscribers from the
+// event. rawBody must be the *unparsed* request body (a Buffer or string)
+// -- Tebex signs the exact bytes it sent, so anything that re-serializes
+// the parsed JSON before this runs would break verification. headers is
+// the request's header map (lowercase keys, as Node/Express give them).
+async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   const bodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody || '');
   const secret = AppSettings.get().tebexWebhookSecret;
 
@@ -78,9 +102,14 @@ async function verifyAndHandleTebexWebhook(rawBody, signatureHeader) {
     return { status: 503, message: 'Webhook not configured' };
   }
 
+  const found = findSignatureHeader(headers);
   const expected = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
-  if (!timingSafeEqualHex(expected, signatureHeader)) {
-    TebexEvents.log(null, bodyStr, 0, 'Signature did not match -- rejected');
+  const matched = found && timingSafeEqualHex(expected, stripAlgoPrefix(found.value));
+  if (!matched) {
+    const receivedNote = found
+      ? `header "${found.name}" = "${found.value}"`
+      : `no signature header found (checked: ${SIGNATURE_HEADER_CANDIDATES.join(', ')}; headers present: ${Object.keys(headers).join(', ') || '(none)'})`;
+    TebexEvents.log(null, bodyStr, 0, `Signature did not match -- rejected. Computed "${expected}", received ${receivedNote}.`);
     return { status: 401, message: 'Invalid signature' };
   }
 
@@ -128,4 +157,4 @@ async function verifyAndHandleTebexWebhook(rawBody, signatureHeader) {
   return { status: 200, message: 'OK' };
 }
 
-module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation };
+module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix };

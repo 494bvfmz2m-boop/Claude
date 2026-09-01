@@ -94,7 +94,7 @@ function createApp() {
   // keeps req.body as the exact bytes Tebex signed; re-serializing a parsed
   // copy before hashing would break signature verification.
   app.post('/webhooks/tebex', express.raw({ type: 'application/json', limit: '512kb' }), async (req, res) => {
-    const result = await verifyAndHandleTebexWebhook(req.body, req.get('X-Tebex-Signature'));
+    const result = await verifyAndHandleTebexWebhook(req.body, req.headers);
     res.status(result.status).send(result.message);
   });
 
