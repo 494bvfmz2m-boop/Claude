@@ -1,0 +1,9 @@
+<%- include('partials/header', { title: 'Upgrade required' }) %>
+<h1>This needs a subscription</h1>
+<p class="subtitle">
+  This feature is part of a paid tier<% if (typeof featureKey !== 'undefined' && featureKey) { %> (<code><%= featureKey %></code>)<% } %>.
+  Subscribe on the store and it unlocks automatically once your Discord account is linked.
+</p>
+<a class="btn" href="https://xyphros.net/store" target="_blank" rel="noopener">Go to the store</a>
+<a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<%- include('partials/footer') %>

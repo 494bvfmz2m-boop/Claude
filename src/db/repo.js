@@ -125,11 +125,12 @@ const GuildSettings = {
 
 const AppSettings = {
   get() {
-    const row = db.prepare('SELECT beta_locked, maintenance_enabled, maintenance_message FROM app_settings WHERE id = 1').get();
+    const row = db.prepare('SELECT beta_locked, maintenance_enabled, maintenance_message, tebex_webhook_secret FROM app_settings WHERE id = 1').get();
     return {
       betaLocked: !!(row && row.beta_locked),
       maintenanceEnabled: !!(row && row.maintenance_enabled),
       maintenanceMessage: row ? row.maintenance_message : null,
+      tebexWebhookSecret: row ? row.tebex_webhook_secret : null,
     };
   },
   setBetaLocked(enabled) {
@@ -137,6 +138,9 @@ const AppSettings = {
   },
   setMaintenance(enabled, message) {
     db.prepare('UPDATE app_settings SET maintenance_enabled = ?, maintenance_message = ? WHERE id = 1').run(enabled ? 1 : 0, message || null);
+  },
+  setTebexWebhookSecret(secret) {
+    db.prepare('UPDATE app_settings SET tebex_webhook_secret = ? WHERE id = 1').run(secret || null);
   },
 };
 
@@ -1060,4 +1064,84 @@ const Reminders = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders };
+// Tebex subscription tiers -- see database.js for why these are global
+// rather than per-guild. A tier's package_ids is "any of these Tebex
+// package IDs grants this tier"; features is the set of premium dashboard
+// feature keys it unlocks (see web/lib/subscriptionGate.js).
+const TebexTiers = {
+  list() {
+    return db.prepare('SELECT * FROM tebex_tiers ORDER BY level DESC, name COLLATE NOCASE').all()
+      .map((t) => ({ ...t, package_ids: parseJSON(t.package_ids, []), features: parseJSON(t.features, []) }));
+  },
+  get(id) {
+    const row = db.prepare('SELECT * FROM tebex_tiers WHERE id = ?').get(id);
+    if (!row) return null;
+    return { ...row, package_ids: parseJSON(row.package_ids, []), features: parseJSON(row.features, []) };
+  },
+  create(name, level, packageIds, features) {
+    const info = db.prepare('INSERT INTO tebex_tiers (name, level, package_ids, features) VALUES (?, ?, ?, ?)')
+      .run(name, level || 0, JSON.stringify(packageIds || []), JSON.stringify(features || []));
+    return info.lastInsertRowid;
+  },
+  update(id, name, level, packageIds, features) {
+    db.prepare('UPDATE tebex_tiers SET name = ?, level = ?, package_ids = ?, features = ? WHERE id = ?')
+      .run(name, level || 0, JSON.stringify(packageIds || []), JSON.stringify(features || []), id);
+  },
+  delete(id) {
+    // Soft-unlink rather than cascade-delete -- a subscriber row is a
+    // record of who used to have a tier, worth keeping even once the tier
+    // itself is gone.
+    db.prepare('UPDATE tebex_subscribers SET tier_id = NULL WHERE tier_id = ?').run(id);
+    db.prepare('DELETE FROM tebex_tiers WHERE id = ?').run(id);
+  },
+  // Every tier that lists this Tebex package ID as one of its own -- a
+  // package can only realistically belong to one tier, but this returns
+  // all matches rather than assuming that, so a misconfigured overlap is
+  // visible instead of silently picking one.
+  forPackageId(packageId) {
+    return TebexTiers.list().filter((t) => t.package_ids.includes(String(packageId)));
+  },
+};
+
+const TebexSubscribers = {
+  get(discordUserId) {
+    return db.prepare('SELECT * FROM tebex_subscribers WHERE discord_user_id = ?').get(discordUserId) || null;
+  },
+  list() {
+    return db.prepare('SELECT * FROM tebex_subscribers ORDER BY updated_at DESC').all();
+  },
+  upsert(discordUserId, tierId, status, reference) {
+    db.prepare(`
+      INSERT INTO tebex_subscribers (discord_user_id, tier_id, status, tebex_reference, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(discord_user_id) DO UPDATE SET
+        tier_id = excluded.tier_id, status = excluded.status,
+        tebex_reference = excluded.tebex_reference, updated_at = datetime('now')
+    `).run(discordUserId, tierId || null, status, reference || null);
+  },
+  // The tier a user currently has active, or null -- what
+  // subscriptionGate.js actually checks. A cancelled/expired row still
+  // exists (for history) but no longer resolves to a tier here.
+  activeTierFor(discordUserId) {
+    const row = db.prepare(`
+      SELECT t.* FROM tebex_subscribers s
+      JOIN tebex_tiers t ON t.id = s.tier_id
+      WHERE s.discord_user_id = ? AND s.status = 'active'
+    `).get(discordUserId);
+    if (!row) return null;
+    return { ...row, package_ids: parseJSON(row.package_ids, []), features: parseJSON(row.features, []) };
+  },
+};
+
+const TebexEvents = {
+  log(type, rawJson, processed, note) {
+    const info = db.prepare('INSERT INTO tebex_events (type, raw_json, processed, note) VALUES (?, ?, ?, ?)')
+      .run(type || null, rawJson, processed ? 1 : 0, note || null);
+    return info.lastInsertRowid;
+  },
+  recent(limit = 50) {
+    return db.prepare('SELECT * FROM tebex_events ORDER BY id DESC LIMIT ?').all(limit);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders, TebexTiers, TebexSubscribers, TebexEvents };

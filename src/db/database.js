@@ -354,6 +354,43 @@ CREATE TABLE IF NOT EXISTS role_triggers (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Tebex subscription tiers -- global, not per-guild, since a Tebex store
+-- sells to a Discord *person*, not a specific server. A tier bundles one or
+-- more Tebex package IDs (any of them grants it) with a set of premium
+-- dashboard feature keys it unlocks.
+CREATE TABLE IF NOT EXISTS tebex_tiers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 0,
+  package_ids TEXT NOT NULL DEFAULT '[]',
+  features TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- One row per Discord user who has ever matched a tier via a Tebex webhook.
+-- tier_id is nulled out (not deleted) on cancellation/expiry so there's
+-- still a record of who used to subscribe and to what.
+CREATE TABLE IF NOT EXISTS tebex_subscribers (
+  discord_user_id TEXT PRIMARY KEY,
+  tier_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'active',
+  tebex_reference TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Raw audit log of every Tebex webhook received, whether or not we could
+-- act on it -- lets the owner see actual payloads (field names, structure)
+-- from their live store, since Tebex's exact webhook schema can vary by
+-- store/platform type and is worth confirming against real deliveries.
+CREATE TABLE IF NOT EXISTS tebex_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT,
+  raw_json TEXT NOT NULL,
+  processed INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  received_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);
@@ -384,6 +421,7 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_announcements_due ON scheduled_announce
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(remind_at);
 CREATE INDEX IF NOT EXISTS idx_role_triggers_guild ON role_triggers(guild_id);
 CREATE INDEX IF NOT EXISTS idx_staff_role_members_user ON staff_role_members(discord_user_id);
+CREATE INDEX IF NOT EXISTS idx_tebex_subscribers_tier ON tebex_subscribers(tier_id);
 `);
 
 // Lightweight migrations for columns added after the initial release —
@@ -429,6 +467,7 @@ addColumnIfMissing('guild_settings', 'stats_boosts_channel_id', 'TEXT');
 addColumnIfMissing('reaction_role_panels', 'exclusive', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('app_settings', 'maintenance_enabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('app_settings', 'maintenance_message', 'TEXT');
+addColumnIfMissing('app_settings', 'tebex_webhook_secret', 'TEXT');
 
 // staff_ranks pre-dates the multi-hierarchy feature -- rebuild it onto the
 // new schema (adds hierarchy_id, and a role can now belong to more than one

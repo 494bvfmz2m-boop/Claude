@@ -5,6 +5,7 @@ const config = require('../config');
 const client = require('../bot/client');
 const { BetaAllowlist, AppSettings } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
+const { verifyAndHandleTebexWebhook } = require('./lib/tebexWebhook');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -81,6 +82,17 @@ function createApp() {
     const taken = BetaAllowlist.list().length;
     const total = config.betaTotalSlots;
     res.json({ taken, total, remaining: Math.max(0, total - taken) });
+  });
+
+  // Public, server-to-server, verified by HMAC signature rather than a
+  // session -- Tebex's own servers post here, there's no browser involved.
+  // express.raw() (not the global express.urlencoded() above, which only
+  // parses application/x-www-form-urlencoded and leaves this body alone)
+  // keeps req.body as the exact bytes Tebex signed; re-serializing a parsed
+  // copy before hashing would break signature verification.
+  app.post('/webhooks/tebex', express.raw({ type: 'application/json', limit: '512kb' }), async (req, res) => {
+    const result = await verifyAndHandleTebexWebhook(req.body, req.get('X-Tebex-Signature'));
+    res.status(result.status).send(result.message);
   });
 
   app.use('/', authRoutes);

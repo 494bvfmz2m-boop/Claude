@@ -13,6 +13,7 @@
     { id: 'beta-toggle', label: 'Closed beta', area: 'beta' },
     { id: 'admins', label: 'Admins', ownerOnly: true },
     { id: 'staff-roles', label: 'Staff roles', ownerOnly: true },
+    { id: 'subscriptions', label: 'Subscriptions', ownerOnly: true },
     { id: 'allowlist', label: 'Allowed users', area: 'beta' },
     { id: 'blocklist', label: 'Blocklist', area: 'blocklist' },
     { id: 'test-beta-dm', label: 'Test beta DMs', area: 'beta' },
@@ -316,6 +317,166 @@
       <button class="btn" type="submit">Create role</button>
     </div>
   </form>
+</div>
+
+<div class="card" id="subscriptions">
+  <h2>Subscriptions (Tebex)</h2>
+  <p class="hint" style="margin-bottom:14px;">
+    Grants premium dashboard features to whoever holds a matching Tebex subscription -- global, not
+    per-server, since Tebex sells to a Discord <em>person</em>. Nothing in the dashboard is gated behind a
+    tier's features yet; wire <code>requirePremiumFeature('key')</code> (see
+    <code>web/lib/subscriptionGate.js</code>) into a route once you've decided what's premium.
+  </p>
+
+  <h3 style="margin-top:0;">Webhook</h3>
+  <p class="hint" style="margin-bottom:10px;">
+    In your Tebex creator panel, add a webhook pointing at the URL below, then paste its
+    <strong>Webhook Signature Secret</strong> here. Tebex sends a <code>validation.webhook</code> test event
+    when you save the URL there -- it'll show up in Recent events below once it lands.
+  </p>
+  <label style="margin-top:0;">Webhook URL</label>
+  <input type="text" value="<%= tebexWebhookUrl %>" readonly onclick="this.select()">
+  <form method="post" action="/staff/tebex/settings" style="margin-top:14px; display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1; min-width:260px;">
+      <label style="margin-top:0;">Webhook Signature Secret</label>
+      <input type="text" name="webhookSecret" value="<%= tebexWebhookSecret || '' %>" placeholder="paste from Tebex's webhook settings" autocomplete="off">
+    </div>
+    <button class="btn btn-sm" type="submit">Save</button>
+  </form>
+  <p class="hint" style="margin-top:8px;">
+    <% if (tebexWebhookSecret) { %>
+      <span class="badge badge-open">Configured</span> incoming webhooks are verified against this secret.
+    <% } else { %>
+      <span class="badge badge-closed">Not set</span> every incoming webhook is rejected until this is saved.
+    <% } %>
+  </p>
+
+  <hr class="card-divider">
+
+  <h3>Tiers</h3>
+  <p class="hint" style="margin-bottom:14px;">
+    A tier matches on Tebex package ID -- whichever tier lists a package that shows up in a webhook's
+    payload is what gets granted. If more than one tier somehow matches the same event, the higher-level
+    one wins.
+  </p>
+  <% if (tebexTiers.length === 0) { %>
+    <p class="empty">No tiers yet -- create one below.</p>
+  <% } else { %>
+    <% tebexTiers.forEach(tier => { %>
+      <details class="role-panel" data-delete-item>
+        <summary class="role-summary">
+          <span class="role-summary-left">
+            <svg class="role-chevron" width="10" height="10" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="role-summary-name"><%= tier.name %></span>
+            <span class="role-summary-meta">level <%= tier.level %></span>
+          </span>
+          <span class="role-summary-right">
+            <span class="badge"><%= tier.package_ids.length %> package ID<%= tier.package_ids.length === 1 ? '' : 's' %></span>
+          </span>
+        </summary>
+        <div class="role-panel-body">
+          <form method="post" action="/staff/tebex/tiers/<%= tier.id %>/save">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label style="margin-top:0;">Name</label>
+            <input type="text" name="name" value="<%= tier.name %>" maxlength="100" required>
+
+            <label style="margin-top:14px;">Level</label>
+            <input type="number" name="level" value="<%= tier.level %>" min="0" step="1" style="max-width:120px;">
+            <p class="hint" style="margin-top:4px;">Higher wins if two tiers ever match the same event.</p>
+
+            <label style="margin-top:14px;">Tebex package IDs (one per line or comma-separated)</label>
+            <textarea name="packageIds" rows="3" placeholder="123456&#10;123457"><%= tier.package_ids.join('\n') %></textarea>
+
+            <label style="margin-top:14px;">Premium feature keys this tier unlocks (one per line or comma-separated)</label>
+            <textarea name="features" rows="2" placeholder="custom_branding&#10;priority_support"><%= tier.features.join('\n') %></textarea>
+
+            <div class="btn-row">
+              <button class="btn btn-sm" type="submit">Save</button>
+              <button class="btn btn-sm btn-danger js-pending-delete-btn" type="submit" formaction="/staff/tebex/tiers/<%= tier.id %>/delete">Delete tier</button>
+            </div>
+          </form>
+        </div>
+      </details>
+    <% }) %>
+  <% } %>
+
+  <h3 style="margin-top:20px;">Create a tier</h3>
+  <form method="post" action="/staff/tebex/tiers/create">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label style="margin-top:0;">Name</label>
+    <input type="text" name="name" placeholder="e.g. Supporter" maxlength="100" required>
+
+    <label style="margin-top:14px;">Level</label>
+    <input type="number" name="level" value="0" min="0" step="1" style="max-width:120px;">
+
+    <label style="margin-top:14px;">Tebex package IDs (one per line or comma-separated)</label>
+    <textarea name="packageIds" rows="3" placeholder="123456"></textarea>
+
+    <label style="margin-top:14px;">Premium feature keys this tier unlocks (one per line or comma-separated)</label>
+    <textarea name="features" rows="2" placeholder="custom_branding"></textarea>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Create tier</button>
+    </div>
+  </form>
+
+  <hr class="card-divider">
+
+  <h3>Subscribers</h3>
+  <% if (tebexSubscribers.length === 0) { %>
+    <p class="empty">No one's matched a webhook yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% tebexSubscribers.forEach(s => { %>
+        <li class="list-item">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <% if (s.resolved) { %>
+              <img src="<%= s.avatarURL %>" alt="" class="contact-avatar">
+            <% } else { %>
+              <span class="contact-avatar" style="display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted);">?</span>
+            <% } %>
+            <div style="min-width:0;">
+              <div class="list-item-title"><%= s.resolved ? s.tag : 'Unknown user' %></div>
+              <div class="list-item-meta">
+                <span class="contact-id" style="display:inline;"><%= s.discord_user_id %></span> ·
+                <%= s.tierName || 'no tier' %> · <%= s.status %> · <%= s.updated_at %>
+              </div>
+            </div>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <hr class="card-divider">
+
+  <h3>Recent events</h3>
+  <p class="hint" style="margin-bottom:12px;">
+    Every webhook Tebex has sent, whether or not it matched anything -- useful for confirming the actual
+    payload shape (field names can vary by store/platform type) once real deliveries start arriving.
+  </p>
+  <% if (tebexEvents.length === 0) { %>
+    <p class="empty">Nothing received yet.</p>
+  <% } else { %>
+    <ul class="list">
+      <% tebexEvents.forEach(e => { %>
+        <li class="list-item" style="align-items:flex-start;">
+          <div style="min-width:0; flex:1;">
+            <div class="list-item-title">
+              <%= e.type || '(no type)' %>
+              <span class="badge <%= e.processed ? 'badge-open' : 'badge-closed' %>"><%= e.processed ? 'processed' : 'skipped' %></span>
+            </div>
+            <div class="list-item-meta"><%= e.note %> · <%= e.received_at %></div>
+            <details style="margin-top:6px;">
+              <summary style="cursor:pointer; color:var(--text-muted); font-size:12.5px;">Raw payload</summary>
+              <pre style="white-space:pre-wrap; word-break:break-all; font-size:12px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:7px; padding:10px;"><%= e.raw_json %></pre>
+            </details>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
 </div>
 <% } %>
 

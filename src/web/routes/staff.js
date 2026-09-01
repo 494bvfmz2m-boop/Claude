@@ -9,6 +9,7 @@ const {
   AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook,
   DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
   Warnings, ModActions, GuildSettings, Hierarchies, TicketTypes, StaffNotes,
+  TebexTiers, TebexSubscribers, TebexEvents,
 } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
@@ -126,6 +127,22 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
     return { ...role, members };
   })) : [];
 
+  // Tebex subscriptions -- owner-only, same reasoning as staffRoles above:
+  // it's business/payment configuration, not something a delegated staff
+  // role should ever see or touch.
+  const tebexTiers = req.session.isOwner ? TebexTiers.list() : [];
+  const tebexEvents = req.session.isOwner ? TebexEvents.recent(30) : [];
+  const tebexSubscribers = req.session.isOwner ? await Promise.all(TebexSubscribers.list().map(async (s) => {
+    const tier = s.tier_id ? tebexTiers.find((t) => t.id === s.tier_id) : null;
+    try {
+      const user = await client.users.fetch(s.discord_user_id);
+      return { ...s, tierName: tier?.name || null, tag: user.tag, avatarURL: user.displayAvatarURL({ size: 64 }), resolved: true };
+    } catch {
+      return { ...s, tierName: tier?.name || null, tag: null, avatarURL: null, resolved: false };
+    }
+  })) : [];
+  const tebexWebhookUrl = config.dashboardUrl ? `${config.dashboardUrl.replace(/\/+$/, '')}/webhooks/tebex` : '(set DASHBOARD_URL first)';
+
   const overview = {
     ...Stats.overview(),
     servers: guilds.length,
@@ -199,6 +216,11 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
     staffRoles,
     staffAreaDefs: STAFF_AREAS,
     canSee,
+    tebexTiers,
+    tebexEvents,
+    tebexSubscribers,
+    tebexWebhookUrl,
+    tebexWebhookSecret: AppSettings.get().tebexWebhookSecret,
   });
 });
 
@@ -316,6 +338,56 @@ router.post('/staff-roles/:id/members/remove', requireOwner, (req, res) => {
     logAudit(req, 'Removed a staff role member', `${req.body.discordUserId} ← ${role.name}`);
   }
   return redirectWithNotice(res, true, 'Removed. They\'ll lose that access next time their session refreshes.', 'staff-roles');
+});
+
+// A tier's package IDs and feature keys are entered as free text (one per
+// line or comma-separated) rather than a dynamic add/remove widget --
+// package IDs are numeric Tebex IDs the owner copies from their store,
+// features are arbitrary keys with no fixed list (see subscriptionGate.js),
+// so a plain textarea is both simpler and more honest about there being no
+// validation against a real catalog here.
+function splitList(raw) {
+  return (raw || '').split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+}
+
+router.post('/tebex/settings', requireOwner, (req, res) => {
+  const secret = (req.body.webhookSecret || '').trim();
+  AppSettings.setTebexWebhookSecret(secret || null);
+  logAudit(req, 'Updated Tebex webhook secret', secret ? '(set)' : '(cleared)');
+  return redirectWithNotice(res, true, secret ? 'Webhook secret saved.' : 'Webhook secret cleared -- incoming webhooks will be rejected until it\'s set again.', 'subscriptions');
+});
+
+router.post('/tebex/tiers/create', requireOwner, (req, res) => {
+  const name = (req.body.name || '').trim().slice(0, 100);
+  if (!name) return redirectWithNotice(res, false, 'Give the tier a name.', 'subscriptions');
+  const level = parseInt(req.body.level, 10) || 0;
+  const packageIds = splitList(req.body.packageIds);
+  const features = splitList(req.body.features);
+  TebexTiers.create(name, level, packageIds, features);
+  logAudit(req, 'Created a Tebex tier', name);
+  return redirectWithNotice(res, true, `"${name}" created.`, 'subscriptions');
+});
+
+router.post('/tebex/tiers/:id/save', requireOwner, (req, res) => {
+  const tier = TebexTiers.get(Number(req.params.id));
+  if (!tier) return redirectWithNotice(res, false, 'That tier doesn\'t exist anymore.', 'subscriptions');
+  const name = (req.body.name || '').trim().slice(0, 100);
+  if (!name) return redirectWithNotice(res, false, 'Give the tier a name.', 'subscriptions');
+  const level = parseInt(req.body.level, 10) || 0;
+  const packageIds = splitList(req.body.packageIds);
+  const features = splitList(req.body.features);
+  TebexTiers.update(tier.id, name, level, packageIds, features);
+  logAudit(req, 'Updated a Tebex tier', name);
+  return redirectWithNotice(res, true, `"${name}" saved.`, 'subscriptions');
+});
+
+router.post('/tebex/tiers/:id/delete', requireOwner, (req, res) => {
+  const tier = TebexTiers.get(Number(req.params.id));
+  if (tier) {
+    TebexTiers.delete(tier.id);
+    logAudit(req, 'Deleted a Tebex tier', tier.name);
+  }
+  return redirectWithNotice(res, true, tier ? `"${tier.name}" deleted.` : 'Already gone.', 'subscriptions');
 });
 
 router.post('/send-dm', requireStaffArea('send_dm'), async (req, res) => {
