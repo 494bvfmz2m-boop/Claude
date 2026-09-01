@@ -391,6 +391,35 @@ router.post('/tebex/tiers/:id/delete', requireOwner, (req, res) => {
   return redirectWithNotice(res, true, tier ? `"${tier.name}" deleted.` : 'Already gone.', 'subscriptions');
 });
 
+// Grants a tier to a Discord user directly, bypassing Tebex entirely --
+// for comps, manual/offline payments, or fixing a webhook mismatch by
+// hand. guildId is optional: leaving it blank grants the tier with no
+// server applied yet, same as a fresh webhook grant, so the buyer (or the
+// owner, on their behalf) still picks one from /subscription before any
+// guild-scoped feature unlocks anywhere.
+router.post('/tebex/subscribers/grant', requireOwner, (req, res) => {
+  const discordUserId = (req.body.discordUserId || '').trim();
+  const tierId = req.body.tierId ? Number(req.body.tierId) : null;
+  const guildId = (req.body.guildId || '').trim();
+  if (!DISCORD_ID.test(discordUserId)) return redirectWithNotice(res, false, 'That doesn\'t look like a Discord user ID.', 'subscriptions');
+  const tier = tierId ? TebexTiers.get(tierId) : null;
+  if (!tier) return redirectWithNotice(res, false, 'Pick a tier.', 'subscriptions');
+
+  TebexSubscribers.upsert(discordUserId, tier.id, 'active', 'manual');
+  if (guildId) TebexSubscribers.setGuild(discordUserId, guildId);
+  logAudit(req, 'Manually granted a Tebex tier', `${discordUserId} -> ${tier.name}${guildId ? ` (${guildId})` : ''}`);
+  return redirectWithNotice(res, true, `Granted "${tier.name}" to ${discordUserId}.`, 'subscriptions');
+});
+
+router.post('/tebex/subscribers/:discordUserId/revoke', requireOwner, (req, res) => {
+  const discordUserId = req.params.discordUserId;
+  const existing = TebexSubscribers.get(discordUserId);
+  if (!existing) return redirectWithNotice(res, false, 'No subscriber record for that ID.', 'subscriptions');
+  TebexSubscribers.upsert(discordUserId, null, 'cancelled', existing.tebex_reference);
+  logAudit(req, 'Manually revoked a Tebex subscription', discordUserId);
+  return redirectWithNotice(res, true, `Revoked ${discordUserId}'s subscription.`, 'subscriptions');
+});
+
 // Lets the owner see the dashboard exactly as a given tier would -- which
 // nav links/features show up -- without actually needing to hold that
 // tier. Session-only (see web/lib/subscriptionGate.js's getActiveTier),

@@ -454,6 +454,38 @@
   <hr class="card-divider">
 
   <h3>Subscribers</h3>
+
+  <form action="/staff/tebex/subscribers/grant" method="post" style="margin-bottom:16px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Manually grant a tier</label>
+    <p class="hint" style="margin:2px 0 8px;">
+      Bypasses Tebex entirely -- for comps, an offline payment, or fixing a mismatch by hand. Leaving
+      the server blank grants it unapplied, same as a fresh webhook (they'll be prompted to pick one
+      on their Subscription page).
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+      <div>
+        <label style="margin-top:0;">Discord user ID</label>
+        <input type="text" name="discordUserId" placeholder="123456789012345678" required>
+      </div>
+      <div>
+        <label style="margin-top:0;">Tier</label>
+        <select name="tierId" required>
+          <option value="" disabled selected>Choose a tier…</option>
+          <% tebexTiers.forEach(t => { %><option value="<%= t.id %>"><%= t.name %></option><% }) %>
+        </select>
+      </div>
+      <div>
+        <label style="margin-top:0;">Server (optional)</label>
+        <select name="guildId">
+          <option value="">Leave unapplied</option>
+          <% guilds.forEach(g => { %><option value="<%= g.id %>"><%= g.name %></option><% }) %>
+        </select>
+      </div>
+      <button class="btn" type="submit">Grant</button>
+    </div>
+  </form>
+
   <% if (tebexSubscribers.length === 0) { %>
     <p class="empty">No one's matched a webhook yet.</p>
   <% } else { %>
@@ -470,10 +502,20 @@
               <div class="list-item-title"><%= s.resolved ? s.tag : 'Unknown user' %></div>
               <div class="list-item-meta">
                 <span class="contact-id" style="display:inline;"><%= s.discord_user_id %></span> ·
-                <%= s.tierName || 'no tier' %> · <%= s.status %> · <%= s.updated_at %>
+                <%= s.tierName || 'no tier' %> · <%= s.status %>
+                <%= s.guild_id ? `· applied to ${guilds.find(g => g.id === s.guild_id)?.name || s.guild_id}` : (s.status === 'active' ? '· not applied to a server yet' : '') %>
+                · <%= s.updated_at %>
               </div>
             </div>
           </div>
+          <% if (s.status === 'active') { %>
+            <div class="actions">
+              <form action="/staff/tebex/subscribers/<%= s.discord_user_id %>/revoke" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-danger" type="submit">Revoke</button>
+              </form>
+            </div>
+          <% } %>
         </li>
       <% }) %>
     </ul>
