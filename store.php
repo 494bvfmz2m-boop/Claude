@@ -36,11 +36,11 @@ require __DIR__ . '/includes/header.php';
         <h1>Support Xyphros, unlock perks</h1>
         <p class="lede lede--center">Purchases connect straight to Discord at checkout &mdash; your role shows up automatically once payment goes through.</p>
         <?php if ($user): ?>
-            <p style="text-align:center;margin-top:-10px;">
+            <div style="text-align:center;margin-top:8px;">
                 <a href="/account?tab=connections" class="btn btn--ghost btn--sm" style="display:inline-flex;">
                     <?php echo xs_icon_discord(15); ?> <span>Your linked Discord account</span>
                 </a>
-            </p>
+            </div>
         <?php endif; ?>
     </div>
 </section>
@@ -88,21 +88,42 @@ require __DIR__ . '/includes/header.php';
                             $onSale = $basePrice > $price;
                             $isSub = ($package['type'] ?? 'single') === 'subscription';
                             $isFeatured = $pi === 0 && count($category['packages']) > 2;
-                            $desc = trim(strip_tags($package['description'] ?? ''));
+                            $hasImage = !empty($package['image']);
+                            $descLines = xs_store_description_lines($package['description'] ?? '', 5);
+                            // First line reads as the intro sentence ("Buying this
+                            // package gives you the X role!"); anything after it is
+                            // the actual perk list, shown as bullets instead of run
+                            // -on truncated text.
+                            $descIntro = $descLines[0] ?? '';
+                            $descBullets = array_slice($descLines, 1, 4);
                         ?>
                         <div class="shop-card<?php echo $isFeatured ? ' shop-card--featured' : ''; ?>">
-                            <?php if ($isFeatured): ?><span class="shop-card__ribbon">Best value</span><?php endif; ?>
+                            <?php if ($isFeatured && $hasImage): ?><span class="shop-card__ribbon">Best value</span><?php endif; ?>
+                            <?php if ($hasImage): ?>
                             <div class="shop-card__media">
-                                <?php if (!empty($package['image'])): ?>
-                                    <img src="<?php echo e($package['image']); ?>" class="shop-card__image" alt="" loading="lazy">
-                                <?php else: ?>
-                                    <div class="shop-card__image shop-card__image--fallback"><?php echo xs_icon_discord(30); ?></div>
-                                <?php endif; ?>
+                                <img src="<?php echo e($package['image']); ?>" class="shop-card__image" alt="" loading="lazy">
                                 <?php if ($isSub): ?><span class="shop-card__tag">Subscription</span><?php endif; ?>
                             </div>
+                            <?php endif; ?>
                             <div class="shop-card__body">
-                                <h3><?php echo e($package['name']); ?></h3>
-                                <?php if ($desc !== ''): ?><p><?php echo e(str_length($desc) > 140 ? str_sub($desc, 0, 137) . '…' : $desc); ?></p><?php endif; ?>
+                                <div class="shop-card__head">
+                                    <?php if (!$hasImage): ?>
+                                        <div class="shop-card__icon"><?php echo xs_icon_discord(18); ?></div>
+                                    <?php endif; ?>
+                                    <h3><?php echo e($package['name']); ?></h3>
+                                    <?php if (!$hasImage && $isFeatured): ?><span class="shop-card__tag shop-card__tag--inline shop-card__tag--best">Best value</span>
+                                    <?php elseif (!$hasImage && $isSub): ?><span class="shop-card__tag shop-card__tag--inline">Subscription</span><?php endif; ?>
+                                </div>
+                                <?php if ($descIntro !== ''): ?>
+                                    <p class="shop-card__intro"><?php echo e(str_length($descIntro) > 110 ? str_sub($descIntro, 0, 107) . '…' : $descIntro); ?></p>
+                                <?php endif; ?>
+                                <?php if ($descBullets): ?>
+                                    <ul class="shop-card__perks">
+                                        <?php foreach ($descBullets as $bullet): ?>
+                                            <li><?php echo xs_icon('check', 13); ?><span><?php echo e(str_length($bullet) > 64 ? str_sub($bullet, 0, 61) . '…' : $bullet); ?></span></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
                                 <div class="shop-card__foot">
                                     <div class="shop-card__price-wrap">
                                         <?php if ($onSale): ?><span class="shop-card__price-was"><?php echo e($package['currency'] ?? 'USD'); ?> <?php echo number_format($basePrice, 2); ?></span><?php endif; ?>

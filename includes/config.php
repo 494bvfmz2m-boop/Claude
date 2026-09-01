@@ -53,7 +53,7 @@ define('SENT_EMAILS_FILE', DATA_DIR . '/sent_emails.json');
 // includes/functions.php). Bump this number any time you manually
 // replace a file in assets/ over FTP so visitors' browsers are forced
 // to fetch the new version instead of an old cached copy.
-define('ASSET_VERSION', '46');
+define('ASSET_VERSION', '47');
 
 // ---- Staff login (shared account system) -------------------------------
 // Staff no longer log in here directly. There is one login page for the

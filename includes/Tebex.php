@@ -125,16 +125,28 @@ class Tebex
     {
         $url = TEBEX_API_BASE . '/accounts/' . TEBEX_PUBLIC_TOKEN . '/baskets/' . $basketIdent . '/auth?returnUrl=' . rawurlencode($returnUrl);
         [$ok, $data, $err] = self::request('GET', $url);
+
+        // Logged unconditionally (not just on failure) while this is
+        // actively being debugged — a store showing "Couldn't start
+        // login" needs to see exactly what Tebex sent back, since the
+        // documented response shape (a list of {name,url} objects) isn't
+        // what every account/platform type appears to actually return.
+        error_log('Tebex basket auth response for ' . $basketIdent . ': ok=' . ($ok ? '1' : '0') . ' data=' . json_encode($data) . ($err ? " err={$err}" : ''));
+
         if (!$ok) {
-            // Distinguish a real API failure from "this store doesn't
-            // need basket auth" (which is a normal, successful empty
-            // response) — silently returning [] for both used to make a
-            // genuine Tebex/network failure indistinguishable from "no
-            // auth needed" in the logs.
-            error_log("Tebex getBasketAuthOptions failed for basket {$basketIdent}: " . ($err ?? 'unknown error'));
             return [];
         }
-        return is_array($data) ? $data : [];
+        if (!is_array($data)) {
+            return [];
+        }
+        // Normalize: the documented shape is a list of {name,url}
+        // objects, but a single-provider response has been observed
+        // coming back as one bare object instead of a one-item list —
+        // wrap it so callers can always just foreach() the result.
+        if (!array_is_list($data) && isset($data['url'])) {
+            return [$data];
+        }
+        return $data;
     }
 
     public static function getBasket(string $basketIdent): ?array

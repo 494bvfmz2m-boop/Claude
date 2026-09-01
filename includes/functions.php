@@ -519,6 +519,35 @@ function render_post_body(string $body): string
     return $html;
 }
 
+/**
+ * Turns a Tebex package's (HTML) description into plain text lines,
+ * one per bullet/paragraph/line-break in the source — used to render
+ * store package cards as a short intro + a real feature list instead
+ * of strip_tags()'d HTML mashed into one run-on, mid-sentence-truncated
+ * paragraph (block tags carry no whitespace of their own once removed,
+ * so "<li>A</li><li>B</li>" became "AB" instead of two lines).
+ * Each returned line has any leading "-"/"•"/"*" bullet marker and
+ * extra whitespace stripped, and HTML entities decoded, but is NOT
+ * escaped — the caller still needs to e() it before output.
+ */
+function xs_store_description_lines(string $html, int $max = 4): array
+{
+    $withBreaks = preg_replace('/<\s*(br|\/li|\/p|\/div)[^>]*>/i', "\n", $html);
+    $text = html_entity_decode(strip_tags($withBreaks ?? $html), ENT_QUOTES, 'UTF-8');
+
+    $lines = [];
+    foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+        $line = trim(preg_replace('/^[\-\*•\x{2022}]+\s*/u', '', trim($line)));
+        if ($line !== '') {
+            $lines[] = $line;
+        }
+        if (count($lines) >= $max) {
+            break;
+        }
+    }
+    return $lines;
+}
+
 /** A short label + dot color for a product status value. */
 function product_status_meta(string $status): array
 {
