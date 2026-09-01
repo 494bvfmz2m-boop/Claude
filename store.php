@@ -25,6 +25,7 @@ $categories = array_values(array_filter($categories, fn($c) => !empty($c['packag
 $totalPackages = array_sum(array_map(fn($c) => count($c['packages']), $categories));
 
 $error = $_GET['error'] ?? null;
+$justLinkedDiscord = isset($_GET['discord_linked']);
 $csrfToken = xs_csrf_token();
 
 require __DIR__ . '/includes/header.php';
@@ -49,6 +50,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
 
         <?php if ($error): ?><div class="alert alert--error" style="max-width:560px;margin:0 auto 28px;"><?php echo e($error); ?></div><?php endif; ?>
+        <?php if ($justLinkedDiscord): ?><div class="alert alert--success" style="max-width:560px;margin:0 auto 28px;text-align:center;">Discord linked — you can buy that item now.</div><?php endif; ?>
 
         <?php if (!$user): ?>
             <div class="store-gate">

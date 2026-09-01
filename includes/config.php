@@ -122,19 +122,22 @@ define('CONTACT_FROM_NAME', SITE_NAME);
 
 // ---- Discord (bot + OAuth) ----------------------------------------------
 // The bot token is used only for the staff "fetch avatar from Discord"
-// button. Store-purchase role granting is handled entirely by Tebex's
-// own Discord integration (configured in the Tebex creator dashboard,
-// not here) — see store-buy.php's required-auth redirect.
+// button. Store-purchase ROLE GRANTING itself is handled entirely by
+// Tebex's own Discord Servers integration (configured in the Tebex
+// creator dashboard, not here).
 xs_define('DISCORD_BOT_TOKEN', '');
 xs_define('DISCORD_INVITE_URL', 'https://discord.gg/Y6rdEBwsMr');
 
 // OAuth2 app credentials, from a Discord application's "OAuth2" tab
 // (can be the same application as the bot above, or a separate one).
 // Used by /discord-link (account.php's "Connections" tab) so a customer
-// can show which Discord account is theirs on their Xyphros profile —
-// purely informational, not used for checkout. Redirect URI must be
-// added in the Discord developer portal EXACTLY as below (including
-// https://).
+// can prove which Discord account is theirs. Confirmed load-bearing
+// for checkout, not just cosmetic: for a package with Tebex's built-in
+// "discord_id" required option, store-buy.php supplies this linked ID
+// directly as that option's value, which works around Tebex's own
+// basket-auth login endpoint being broken for this account (see
+// store-buy.php for the full story). Redirect URI must be added in
+// the Discord developer portal EXACTLY as below (including https://).
 xs_define('DISCORD_CLIENT_ID', '');
 xs_define('DISCORD_CLIENT_SECRET', '');
 xs_define('DISCORD_OAUTH_REDIRECT_URI', SITE_URL . '/discord-callback');

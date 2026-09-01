@@ -64,23 +64,24 @@ foreach ($package['options'] ?? [] as $opt) {
 }
 
 if ($needsDiscordId) {
-    // Experiment: if this customer already linked Discord to their
-    // Xyphros account (Account > Connections), try supplying that
-    // Discord ID directly as the package's "discord_id" option instead
-    // of going through Tebex's own (currently broken) basket-auth login
-    // flow. Not confirmed to work — Tebex may reject a client-supplied
-    // value for this option type since it's normally only ever filled
-    // in through their verified OAuth session — but it's cheap to try,
-    // and logs clearly either way so we know for certain after one
-    // attempt instead of guessing.
+    // Confirmed working: supplying the customer's already-linked Discord
+    // ID directly as the package's "discord_id" option lets Tebex accept
+    // the purchase and grant the role via their Discord Servers
+    // integration, sidestepping Tebex's own basket-auth login endpoint
+    // (which stays broken for this account — see the fallback below).
     if (!empty($user['discord_id'])) {
         [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1, ['discord_id' => $user['discord_id']]);
         if ($addOk) {
-            error_log("Tebex ACCEPTED client-supplied discord_id for basket {$ident} (package {$packageId}, user {$user['id']}) — the workaround works, this package no longer needs Tebex's own auth flow.");
             xs_store_record_order($ident, $packageId, $user);
             exit;
         }
-        error_log("Tebex REJECTED client-supplied discord_id for basket {$ident} (package {$packageId}, user {$user['id']}): " . ($addErr ?? 'unknown error') . ' — falling back to the normal (currently broken) auth flow.');
+        error_log("Tebex rejected client-supplied discord_id for basket {$ident} (package {$packageId}, user {$user['id']}): " . ($addErr ?? 'unknown error') . ' — falling back to the (broken) auth-redirect flow.');
+    } else {
+        // Nothing to supply yet — send them to link Discord first rather
+        // than falling through to Tebex's broken auth flow below, since
+        // linking then retrying is the path that's actually known to work.
+        header('Location: /discord-link?return_to=' . rawurlencode('/store'));
+        exit;
     }
 
     $returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
