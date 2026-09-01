@@ -473,6 +473,13 @@ require __DIR__ . '/includes/header.php';
                     <div class="acct-card__head"><div class="acct-card__icon"><?php echo xs_icon('grid'); ?></div></div>
                     <h2>Order history</h2>
                     <p class="hint">Purchases made through the <a href="/store" style="color:var(--magenta);">store</a>.</p>
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 18px;margin-bottom:22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:220px;">
+                            <strong style="font-size:13.5px;">Manage or cancel a subscription</strong>
+                            <p class="hint" style="margin:2px 0 0;">Handled by our payment processor, not here. Cancelling stops future charges — you keep access until the period you already paid for ends.</p>
+                        </div>
+                        <a href="https://checkout.tebex.io/payment-history" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Manage subscriptions <?php echo xs_icon('external', 14); ?></a>
+                    </div>
                     <?php
                     $myOrders = array_filter(Content::all('shop_orders'), fn($o) => (string) ($o['xyphros_user_id'] ?? '') === (string) $user['id']);
                     usort($myOrders, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
