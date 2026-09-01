@@ -6,7 +6,7 @@ const { mainClient: client, allKnownGuilds } = require('../bot/clientRegistry');
 const { BetaAllowlist, AppSettings } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { verifyAndHandleTebexWebhook } = require('./lib/tebexWebhook');
-const { hasFeature, getActiveTier } = require('./lib/subscriptionGate');
+const { getActiveTier, hasFeatureForGuild } = require('./lib/subscriptionGate');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -144,7 +144,7 @@ function createApp() {
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
     res.locals.dashboardAccess = req.dashboardAccess; // so header.ejs can hide nav links the user can't reach
     res.locals.currentArea = req.path.split('/')[1] || null; // sidebar active-link highlight
-    res.locals.hasCustomBotFeature = hasFeature(req.session?.discordUser?.id, 'custom_bot', req.session);
+    res.locals.hasCustomBotFeature = hasFeatureForGuild(req.session?.discordUser?.id, 'custom_bot', req.params.guildId, req.session);
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);

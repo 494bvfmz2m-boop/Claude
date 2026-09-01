@@ -2,13 +2,13 @@ const express = require('express');
 const config = require('../../config');
 const { CustomBots } = require('../../db/repo');
 const { getGuildOr404 } = require('../lib/getGuild');
-const { requirePremiumFeature } = require('../lib/subscriptionGate');
+const { requirePremiumFeatureForGuild } = require('../lib/subscriptionGate');
 const { isConfigured, encrypt, decrypt } = require('../lib/tokenCrypto');
 const { buildCustomBotInviteUrl } = require('../lib/discordOAuth');
 const { startCustomBot, stopCustomBot, fetchApplicationInfo } = require('../../bot/customBots');
 
 const router = express.Router({ mergeParams: true });
-router.use(requirePremiumFeature('custom_bot'));
+router.use(requirePremiumFeatureForGuild('custom_bot'));
 
 function redirectUriFor(guildId) {
   if (!config.dashboardUrl) return null;

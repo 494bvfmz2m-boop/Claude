@@ -1,9 +1,27 @@
 <%- include('partials/header', { title: 'Upgrade required' }) %>
-<h1>This needs a subscription</h1>
-<p class="subtitle">
-  This feature is part of a paid tier<% if (typeof featureKey !== 'undefined' && featureKey) { %> (<code><%= featureKey %></code>)<% } %>.
-  Subscribe on the store and it unlocks automatically once your Discord account is linked.
-</p>
-<a class="btn" href="https://xyphros.net/store" target="_blank" rel="noopener">Go to the store</a>
-<a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<% if (typeof reason !== 'undefined' && reason === 'not_applied') { %>
+  <h1>Your subscription isn't applied to a server yet</h1>
+  <p class="subtitle">
+    You have an active subscription that includes this feature, but it hasn't been applied to a server yet.
+    Pick which server it's for on the Subscription page, then come back here.
+  </p>
+  <a class="btn" href="/subscription">Choose a server</a>
+  <a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<% } else if (typeof reason !== 'undefined' && reason === 'wrong_guild') { %>
+  <h1>Your subscription is applied to a different server</h1>
+  <p class="subtitle">
+    This feature is unlocked on the server your subscription is currently applied to, not this one.
+    You can move it from the Subscription page.
+  </p>
+  <a class="btn" href="/subscription">Manage subscription</a>
+  <a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<% } else { %>
+  <h1>This needs a subscription</h1>
+  <p class="subtitle">
+    This feature is part of a paid tier<% if (typeof featureKey !== 'undefined' && featureKey) { %> (<code><%= featureKey %></code>)<% } %>.
+    Subscribe on the store and it unlocks automatically once your Discord account is linked.
+  </p>
+  <a class="btn" href="https://xyphros.net/store" target="_blank" rel="noopener">Go to the store</a>
+  <a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<% } %>
 <%- include('partials/footer') %>

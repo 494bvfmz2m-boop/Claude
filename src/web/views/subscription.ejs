@@ -42,6 +42,53 @@
   </p>
 </div>
 
+<% if (needsGuildChoice) { %>
+  <div class="card" style="border-color: var(--accent);">
+    <h2>Which server is this for?</h2>
+    <p class="subtitle" style="margin-top:0;">
+      Pick the server your subscription applies to. Everything it unlocks — like uploading your own
+      bot on the Custom tier — only shows up on this one server, so choose the one you actually meant
+      to buy it for.
+    </p>
+    <% if (guildOptions.length === 0) { %>
+      <p class="empty">
+        None of the servers you manage have XyphrosMod in them yet. Invite the bot to the server first,
+        then come back here to apply your subscription.
+      </p>
+    <% } else { %>
+      <form action="/subscription/apply-guild" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <select name="guildId" required>
+          <option value="" disabled selected>Choose a server…</option>
+          <% guildOptions.forEach(g => { %>
+            <option value="<%= g.id %>"><%= g.name %></option>
+          <% }) %>
+        </select>
+        <button type="submit" class="btn">Apply subscription here</button>
+      </form>
+    <% } %>
+  </div>
+<% } else if (activeTier && appliedGuild) { %>
+  <div class="card">
+    <h2>Applied to</h2>
+    <p class="subtitle" style="margin-top:0;">
+      Your subscription's server-specific features (like the custom bot) are unlocked on
+      <strong><%= appliedGuild.name %></strong>.
+    </p>
+    <% if (guildOptions.length > 1) { %>
+      <form action="/subscription/apply-guild" method="post" class="btn-row">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <select name="guildId" required>
+          <% guildOptions.forEach(g => { %>
+            <option value="<%= g.id %>" <%= g.id === appliedGuild.id ? 'selected' : '' %>><%= g.name %></option>
+          <% }) %>
+        </select>
+        <button type="submit" class="btn btn-ghost">Move to a different server</button>
+      </form>
+    <% } %>
+  </div>
+<% } %>
+
 <div class="card">
   <h2>All tiers</h2>
   <% if (tiers.length === 0) { %>

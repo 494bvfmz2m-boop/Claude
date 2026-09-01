@@ -375,6 +375,7 @@ CREATE TABLE IF NOT EXISTS tebex_subscribers (
   tier_id INTEGER,
   status TEXT NOT NULL DEFAULT 'active',
   tebex_reference TEXT,
+  guild_id TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -489,6 +490,11 @@ addColumnIfMissing('reaction_role_panels', 'exclusive', 'INTEGER NOT NULL DEFAUL
 addColumnIfMissing('app_settings', 'maintenance_enabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('app_settings', 'maintenance_message', 'TEXT');
 addColumnIfMissing('app_settings', 'tebex_webhook_secret', 'TEXT');
+// Which server a subscriber's tier actually applies to. NULL means "active
+// but not yet applied anywhere" -- a fresh purchase lands here first, and
+// the dashboard prompts the buyer to pick a server before any guild-scoped
+// premium feature (e.g. the custom bot) is unlocked for them.
+addColumnIfMissing('tebex_subscribers', 'guild_id', 'TEXT');
 
 // staff_ranks pre-dates the multi-hierarchy feature -- rebuild it onto the
 // new schema (adds hierarchy_id, and a role can now belong to more than one

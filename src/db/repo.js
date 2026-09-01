@@ -1131,6 +1131,14 @@ const TebexSubscribers = {
     if (!row) return null;
     return { ...row, package_ids: parseJSON(row.package_ids, []), features: parseJSON(row.features, []) };
   },
+  // Applies an active subscription to a specific server -- the buyer picks
+  // this from the dashboard once, after purchase (see routes/subscription.js).
+  // A no-op if they no longer have an active row (e.g. it lapsed in the
+  // gap between page load and submit).
+  setGuild(discordUserId, guildId) {
+    db.prepare(`UPDATE tebex_subscribers SET guild_id = ?, updated_at = datetime('now') WHERE discord_user_id = ? AND status = 'active'`)
+      .run(guildId, discordUserId);
+  },
 };
 
 const TebexEvents = {

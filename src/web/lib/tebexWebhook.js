@@ -64,19 +64,41 @@ function matchAnyKeyEncoding(secret, bodyStr, signatureHex) {
   return null;
 }
 
-// Tebex's webhook payload carries the buyer's platform account ID under a
-// shape that varies by store/platform type and event -- this tries every
-// candidate path rather than assuming one. Every event is logged in full
-// via TebexEvents regardless of whether this finds anything, so an
-// unrecognized shape is visible/debuggable (Recent events, in the
-// Subscriptions admin page) instead of silently dropped.
+// Where the purchased product list lives depends on the event: a one-off
+// or first-payment event (payment.completed/declined/refunded) has it
+// directly under subject.products[]; a recurring-payment.* event nests it
+// one level deeper, under subject.last_payment.products[] (falling back to
+// subject.initial_payment.products[] for the very first payment.webhook,
+// where there's no last_payment yet). Confirmed against a real payload --
+// see the commit that introduced this.
+function productsFromPayload(payload) {
+  const subject = payload?.subject || {};
+  if (Array.isArray(subject.products)) return subject.products;
+  if (Array.isArray(subject.last_payment?.products)) return subject.last_payment.products;
+  if (Array.isArray(subject.initial_payment?.products)) return subject.initial_payment.products;
+  return [];
+}
+
+// The buyer's Discord ID is collected as a checkout variable on the
+// purchased product (subject.products[].variables[], identifier
+// "discord_id") -- this is how our store's Tebex products are actually
+// configured. A couple of alternate shapes are tried as a fallback in case
+// a differently-configured product ever sends it another way.
 function extractDiscordId(payload) {
+  for (const product of productsFromPayload(payload)) {
+    for (const v of Array.isArray(product?.variables) ? product.variables : []) {
+      if (String(v?.identifier || '').toLowerCase() !== 'discord_id') continue;
+      const id = v?.option != null ? String(v.option) : null;
+      if (id && DISCORD_SNOWFLAKE.test(id)) return id;
+    }
+  }
+
   const subject = payload?.subject || {};
   const candidates = [
     subject?.customer?.username?.id,
     subject?.player?.id,
     subject?.player?.uuid,
-    subject?.fields?.discord_id, // a custom checkout field, if the store collects one instead
+    subject?.fields?.discord_id,
   ];
   for (const c of candidates) {
     const id = c != null ? String(c) : null;
@@ -85,31 +107,43 @@ function extractDiscordId(payload) {
   return null;
 }
 
-// The Tebex package ID(s) a payment/recurring-payment event is for -- a
-// one-off payment lists packages under subject.packages[], a recurring
-// payment has one package directly under subject.package.
+// The Tebex package ID(s) a payment/recurring-payment event is for --
+// subject.products[] (or the last_payment/initial_payment-nested version
+// for recurring events, see productsFromPayload above), one entry per
+// purchased product/package.
 function extractPackageIds(payload) {
-  const subject = payload?.subject || {};
   const ids = [];
-  if (Array.isArray(subject.packages)) {
-    for (const p of subject.packages) if (p?.id != null) ids.push(String(p.id));
+  for (const product of productsFromPayload(payload)) {
+    if (product?.id != null) ids.push(String(product.id));
   }
-  if (subject.package?.id != null) ids.push(String(subject.package.id));
   return ids;
 }
 
-// A cancellation/refund clears the tier rather than trying to match a
-// package -- there may be no package info on a refund event at all.
-// payment.declined is deliberately NOT here: nothing was ever granted for
-// a declined attempt, so there's nothing to revoke (and revoking would
-// wrongly clobber an unrelated existing subscription for the same buyer).
-function isRevocation(type, payload) {
-  if (type === 'payment.refunded') return true;
-  if (type === 'recurring-payment.status-changed') {
-    const desc = payload?.subject?.status?.description || '';
-    return /cancel|end|expire/i.test(desc);
-  }
-  return false;
+// Per Tebex's documented webhook types (Developers > Webhooks > Overview),
+// only these actually grant or revoke a tier -- everything else (declines,
+// disputes, a cancellation that's merely scheduled for period-end, an
+// aborted cancellation, validation pings) is left alone: nothing was
+// granted for a declined/disputed payment so there's nothing to revoke,
+// and recurring-payment.cancellation.requested/aborted don't change what
+// the customer currently has access to (the sub keeps running until the
+// period-end recurring-payment.ended actually fires).
+const GRANT_TYPES = new Set(['payment.completed', 'recurring-payment.started', 'recurring-payment.renewed']);
+const REVOKE_TYPES = new Set(['payment.refunded', 'recurring-payment.ended']);
+
+function isRevocation(type) {
+  return REVOKE_TYPES.has(type);
+}
+
+// The recurring payment's own reference lives under a different key
+// depending on which event family sent it: a recurring-payment.* event has
+// it directly as subject.reference, while a payment.* event (completed/
+// refunded) carries it as subject.recurring_payment_reference instead
+// (with subject.transaction_id being that one payment's own id, not the
+// subscription's). Falls back to the transaction id for a one-off, non-
+// recurring purchase that has no recurring reference at all.
+function extractReference(payload) {
+  const subject = payload?.subject || {};
+  return subject.reference || subject.recurring_payment_reference || subject.transaction_id || null;
 }
 
 // The exact header name Tebex uses isn't fully pinned down (their docs
@@ -188,9 +222,14 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
     return { status: 200, message: 'OK' }; // still 2XX -- an extraction gap on our end shouldn't make Tebex retry forever
   }
 
-  if (isRevocation(type, payload)) {
-    TebexSubscribers.upsert(discordId, null, 'cancelled', payload?.subject?.reference || null);
+  if (isRevocation(type)) {
+    TebexSubscribers.upsert(discordId, null, 'cancelled', extractReference(payload));
     TebexEvents.log(type, bodyStr, 1, `Cleared subscription for Discord user ${discordId}`);
+    return { status: 200, message: 'OK' };
+  }
+
+  if (!GRANT_TYPES.has(type)) {
+    TebexEvents.log(type, bodyStr, 1, `Event type doesn't grant or revoke a tier -- no action taken`);
     return { status: 200, message: 'OK' };
   }
 
@@ -204,9 +243,9 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   // Highest level wins if more than one tier matches (a misconfigured
   // overlap, or a bundle spanning packages from two tiers).
   const tier = matchedTiers.reduce((best, t) => (t.level > best.level ? t : best));
-  TebexSubscribers.upsert(discordId, tier.id, 'active', payload?.subject?.reference || null);
+  TebexSubscribers.upsert(discordId, tier.id, 'active', extractReference(payload));
   TebexEvents.log(type, bodyStr, 1, `Granted tier "${tier.name}" to Discord user ${discordId}`);
   return { status: 200, message: 'OK' };
 }
 
-module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix, candidateKeys, matchAnyKeyEncoding, bodyHashHex };
+module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, extractReference, isRevocation, findSignatureHeader, stripAlgoPrefix, candidateKeys, matchAnyKeyEncoding, bodyHashHex, productsFromPayload, GRANT_TYPES, REVOKE_TYPES };
