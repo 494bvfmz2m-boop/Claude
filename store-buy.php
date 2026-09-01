@@ -76,8 +76,16 @@ if ($authOptions) {
     }
 
     if (!$authUrl) {
-        error_log('Tebex basket auth required but no usable auth option returned for basket ' . $ident . ': ' . json_encode($authOptions));
-        header('Location: /store?error=' . rawurlencode("Couldn't start login for this item — please try again in a moment."));
+        // Confirmed (not a guess): Tebex has returned ok=1 with an entry
+        // in the list that has no name/url on it at all — it's telling
+        // us an auth step is pending but not giving anything to send the
+        // customer to. That's a Tebex-side thing, not this code: check
+        // the Discord connection under this webstore's settings in the
+        // Tebex creator dashboard (creator.tebex.io) — it likely needs
+        // to be (re)authorized. Retrying here can't fix that, so the
+        // message doesn't pretend it might.
+        error_log('Tebex basket auth required but returned no usable provider for basket ' . $ident . ': ' . json_encode($authOptions));
+        header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
         exit;
     }
 

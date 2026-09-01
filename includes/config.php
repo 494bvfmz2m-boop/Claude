@@ -17,15 +17,24 @@
 // define() below can fall back to a value that was set there.
 $xsLocalConfig = __DIR__ . '/config.local.php';
 if (is_file($xsLocalConfig)) {
-    require $xsLocalConfig;
+    require_once $xsLocalConfig;
 }
 
-/** Read a config value: explicit local override -> environment variable -> default. */
-function xs_env(string $constName, $default = '')
+/**
+ * Defines a constant unless it's already defined — config.local.php
+ * defines its constants directly (real define() calls, not through
+ * this function), so by the time execution reaches here every secret
+ * it set is already defined. Calling define() again on an
+ * already-defined constant is a PHP warning (not just a no-op), so
+ * every one of these has to check first rather than unconditionally
+ * redefining with the same value read back out via constant().
+ * Falls back to an environment variable, then the given default.
+ */
+function xs_define(string $constName, $default = ''): void
 {
-    if (defined($constName)) return constant($constName);
+    if (defined($constName)) return;
     $env = getenv($constName);
-    return $env !== false ? $env : $default;
+    define($constName, $env !== false ? $env : $default);
 }
 
 // ---- Identity -------------------------------------------------------------
@@ -64,10 +73,10 @@ define('ASSET_VERSION', '47');
 //
 // Same database as XyphrosPortal's config/config.php — this is what makes
 // one account work on both sites.
-define('DB_HOST', xs_env('DB_HOST', 'localhost'));
-define('DB_NAME', xs_env('DB_NAME', 'xyphros'));
-define('DB_USER', xs_env('DB_USER', 'xyphros'));
-define('DB_PASS', xs_env('DB_PASS', ''));
+xs_define('DB_HOST', 'localhost');
+xs_define('DB_NAME', 'xyphros');
+xs_define('DB_USER', 'xyphros');
+xs_define('DB_PASS', '');
 
 // Cookie shared across xyphros.net and portal.xyphros.net. Must be
 // byte-for-byte identical to XyphrosPortal's config/config.php.
@@ -96,19 +105,19 @@ define('LOGIN_THROTTLE_WINDOW', 15 * 60); // 15 minutes
 // Used for 2FA codes and contact-form notifications. Keep config.local.php
 // permissions tight on the server (e.g. 640) since this holds a real
 // mailbox password.
-define('SMTP_HOST', xs_env('SMTP_HOST', 'xyphros.net'));
-define('SMTP_PORT', (int) xs_env('SMTP_PORT', 465)); // implicit TLS
-define('SMTP_USERNAME', xs_env('SMTP_USERNAME', 'no-reply@xyphros.net'));
-define('SMTP_PASSWORD', xs_env('SMTP_PASSWORD', ''));
-define('SMTP_FROM_EMAIL', xs_env('SMTP_FROM_EMAIL', 'no-reply@xyphros.net'));
+xs_define('SMTP_HOST', 'xyphros.net');
+xs_define('SMTP_PORT', 465); // implicit TLS
+xs_define('SMTP_USERNAME', 'no-reply@xyphros.net');
+xs_define('SMTP_PASSWORD', '');
+xs_define('SMTP_FROM_EMAIL', 'no-reply@xyphros.net');
 define('SMTP_FROM_NAME', SITE_NAME);
 
 // A second mailbox used only for replying to contact-form messages from
 // the staff Messages panel, so replies come from a human-looking address
 // instead of no-reply@.
-define('CONTACT_SMTP_USERNAME', xs_env('CONTACT_SMTP_USERNAME', 'contact@xyphros.net'));
-define('CONTACT_SMTP_PASSWORD', xs_env('CONTACT_SMTP_PASSWORD', ''));
-define('CONTACT_FROM_EMAIL', xs_env('CONTACT_FROM_EMAIL', 'contact@xyphros.net'));
+xs_define('CONTACT_SMTP_USERNAME', 'contact@xyphros.net');
+xs_define('CONTACT_SMTP_PASSWORD', '');
+xs_define('CONTACT_FROM_EMAIL', 'contact@xyphros.net');
 define('CONTACT_FROM_NAME', SITE_NAME);
 
 // ---- Discord (bot + OAuth) ----------------------------------------------
@@ -116,8 +125,8 @@ define('CONTACT_FROM_NAME', SITE_NAME);
 // button. Store-purchase role granting is handled entirely by Tebex's
 // own Discord integration (configured in the Tebex creator dashboard,
 // not here) — see store-buy.php's required-auth redirect.
-define('DISCORD_BOT_TOKEN', xs_env('DISCORD_BOT_TOKEN', ''));
-define('DISCORD_INVITE_URL', xs_env('DISCORD_INVITE_URL', 'https://discord.gg/Y6rdEBwsMr'));
+xs_define('DISCORD_BOT_TOKEN', '');
+xs_define('DISCORD_INVITE_URL', 'https://discord.gg/Y6rdEBwsMr');
 
 // OAuth2 app credentials, from a Discord application's "OAuth2" tab
 // (can be the same application as the bot above, or a separate one).
@@ -126,16 +135,16 @@ define('DISCORD_INVITE_URL', xs_env('DISCORD_INVITE_URL', 'https://discord.gg/Y6
 // purely informational, not used for checkout. Redirect URI must be
 // added in the Discord developer portal EXACTLY as below (including
 // https://).
-define('DISCORD_CLIENT_ID', xs_env('DISCORD_CLIENT_ID', ''));
-define('DISCORD_CLIENT_SECRET', xs_env('DISCORD_CLIENT_SECRET', ''));
-define('DISCORD_OAUTH_REDIRECT_URI', xs_env('DISCORD_OAUTH_REDIRECT_URI', SITE_URL . '/discord-callback'));
+xs_define('DISCORD_CLIENT_ID', '');
+xs_define('DISCORD_CLIENT_SECRET', '');
+xs_define('DISCORD_OAUTH_REDIRECT_URI', SITE_URL . '/discord-callback');
 
 // Posts a message to this Discord channel every time someone creates a
 // Xyphros account. Anyone with this URL can post to that channel, so
 // treat it like a password — if it ever leaks, regenerate it from
 // Discord (channel settings -> Integrations -> Webhooks) and swap in
 // the new one here.
-define('DISCORD_SIGNUP_WEBHOOK_URL', xs_env('DISCORD_SIGNUP_WEBHOOK_URL', ''));
+xs_define('DISCORD_SIGNUP_WEBHOOK_URL', '');
 
 // ---- Shop (Tebex) --------------------------------------------------------
 // Public token: safe in front-end requests (listing categories/packages).
@@ -144,9 +153,9 @@ define('DISCORD_SIGNUP_WEBHOOK_URL', xs_env('DISCORD_SIGNUP_WEBHOOK_URL', ''));
 // creator.tebex.io/developers/api-keys once your project exists.
 // Webhook secret: filled in once /webhook-tebex is registered in the
 // Tebex control panel and a secret is issued for it.
-define('TEBEX_PUBLIC_TOKEN', xs_env('TEBEX_PUBLIC_TOKEN', ''));
-define('TEBEX_PRIVATE_KEY', xs_env('TEBEX_PRIVATE_KEY', ''));
-define('TEBEX_WEBHOOK_SECRET', xs_env('TEBEX_WEBHOOK_SECRET', ''));
+xs_define('TEBEX_PUBLIC_TOKEN', '');
+xs_define('TEBEX_PRIVATE_KEY', '');
+xs_define('TEBEX_WEBHOOK_SECRET', '');
 define('TEBEX_API_BASE', 'https://headless.tebex.io/api');
 
 // ---- Portal workspace-boost license keys ----------------------------------
@@ -168,4 +177,4 @@ define('TEBEX_LICENSE_PACKAGES', [
 // every 1-2 minutes:
 //   https://xyphros.net/send-pending-emails.php?key=THIS_VALUE
 // Treat this like any other credential — rotate if it's ever exposed.
-define('CRON_SECRET', xs_env('CRON_SECRET', ''));
+xs_define('CRON_SECRET', '');
