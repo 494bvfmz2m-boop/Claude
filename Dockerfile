@@ -5,6 +5,7 @@ RUN apk add --no-cache \
     imap-dev \
     openssl-dev \
     c-client \
+    oniguruma-dev \
     && docker-php-ext-configure imap --with-imap --with-imap-ssl \
     && docker-php-ext-install imap mbstring
 
