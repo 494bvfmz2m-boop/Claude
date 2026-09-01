@@ -503,37 +503,6 @@ p { margin: 0 0 1em; color: var(--text-muted); }
    Store
    ========================================================================= */
 
-/* Sign-in gate, shown instead of the grid until satisfied */
-.store-gate {
-    max-width: 480px;
-    margin: 0 auto;
-    text-align: center;
-    padding: 48px 40px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    position: relative;
-    overflow: hidden;
-}
-.store-gate::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: radial-gradient(480px 200px at 50% 0%, rgba(109,40,249,.16), transparent 65%);
-    pointer-events: none;
-}
-.store-gate__icon {
-    width: 60px; height: 60px; margin: 0 auto 20px;
-    border-radius: 16px;
-    background: var(--gradient-soft);
-    display: flex; align-items: center; justify-content: center;
-    position: relative; z-index: 1;
-}
-.store-gate__icon svg { color: var(--magenta); }
-.store-gate h2 { font-size: 21px; position: relative; z-index: 1; }
-.store-gate p { max-width: 380px; margin: 0 auto 22px; position: relative; z-index: 1; }
-.store-gate .btn { position: relative; z-index: 1; }
-.store-gate__note { margin-top: 16px; font-size: 12.5px; color: var(--text-faint); max-width: 340px; }
-
 /* Category tabs */
 .store-tabs {
     display: flex; gap: 8px; flex-wrap: wrap;
@@ -573,6 +542,9 @@ p { margin: 0 0 1em; color: var(--text-muted); }
     position: relative;
 }
 .shop-card:hover { border-color: var(--border-strong); transform: translateY(-3px); box-shadow: 0 18px 40px rgba(0,0,0,.32); }
+.shop-card[data-pkg] { cursor: pointer; }
+.shop-card[data-pkg]:focus-visible { outline: 2px solid var(--magenta); outline-offset: 3px; }
+.shop-card[data-pkg] form { cursor: default; }
 .shop-card--featured { border-color: rgba(192,38,232,.4); box-shadow: 0 0 0 1px rgba(192,38,232,.15), var(--shadow-glow); }
 .shop-card__ribbon {
     position: absolute; top: 14px; right: 14px; z-index: 2;
@@ -617,6 +589,56 @@ p { margin: 0 0 1em; color: var(--text-muted); }
 .shop-card__price { font-family: var(--font-display); font-weight: 700; font-size: 17px; }
 .shop-card__price-period { font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--text-faint); }
 .shop-card__price-was { font-size: 12px; color: var(--text-faint); text-decoration: line-through; }
+
+/* Quick-view modal, opened by clicking a package card */
+.store-modal { position: fixed; inset: 0; z-index: 200; }
+.store-modal__overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 4, 9, 0.72);
+    backdrop-filter: blur(4px);
+    animation: xmodal-fade 0.18s ease both;
+}
+@keyframes xmodal-fade { from { opacity: 0; } to { opacity: 1; } }
+.store-modal__panel {
+    position: relative;
+    max-width: 520px;
+    width: calc(100% - 32px);
+    max-height: calc(100vh - 64px);
+    margin: 32px auto;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    animation: xmodal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes xmodal-pop { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+.store-modal__close {
+    position: absolute; top: 16px; right: 16px;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 20px; line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+}
+.store-modal__close:hover { background: var(--bg-card-hover); color: var(--text); }
+.store-modal__image { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 18px; background: var(--bg-elevated); }
+.store-modal__badges { display: flex; gap: 8px; margin-bottom: 10px; padding-right: 46px; flex-wrap: wrap; }
+.store-modal__badges .shop-card__tag--inline { margin-left: 0; }
+.store-modal__badges:empty { display: none; }
+.store-modal__title { font-size: 24px; margin: 0 0 12px; padding-right: 34px; }
+.store-modal__intro { font-size: 14.5px; color: var(--text-muted); line-height: 1.65; margin-bottom: 18px; }
+.store-modal__perks { margin-bottom: 22px; }
+.store-modal__perks li { font-size: 13.5px; }
+.store-modal__foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 20px; border-top: 1px solid var(--border); }
+.store-modal__foot .shop-card__price { font-size: 22px; }
+@media (max-width: 560px) { .store-modal__panel { padding: 24px 20px; } }
+
 .product-card__head {
     display: flex;
     align-items: center;
