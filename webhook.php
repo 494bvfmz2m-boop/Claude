@@ -2,12 +2,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Log raw input for debugging
+$rawPayload = file_get_contents('php://input');
+file_put_contents('webhook_debug.log', date('Y-m-d H:i:s') . " - " . $rawPayload . PHP_EOL, FILE_APPEND);
+
 $discordWebhookUrl = getenv('DISCORD_WEBHOOK_URL');
 
-// Read the incoming JSON payload from Coolify
-$rawPayload = file_get_contents('php://input');
 $data = json_decode($rawPayload, true);
-
 if (!$data) {
     http_response_code(400);
     exit('Invalid payload');
