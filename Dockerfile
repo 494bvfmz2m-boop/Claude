@@ -11,5 +11,4 @@ RUN apk add --no-cache \
 WORKDIR /app
 COPY check_mail.php /app/check_mail.php
 
-# The '|| true' ensures that even if the script crashes, the loop stays alive
-CMD ["sh", "-c", "while true; do php /app/check_mail.php || true; sleep 300; done"]
+CMD ["php", "/app/check_mail.php"]
