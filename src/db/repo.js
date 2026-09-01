@@ -1139,6 +1139,13 @@ const TebexSubscribers = {
     db.prepare(`UPDATE tebex_subscribers SET guild_id = ?, updated_at = datetime('now') WHERE discord_user_id = ? AND status = 'active'`)
       .run(guildId, discordUserId);
   },
+  // Whichever active subscription (if any) is currently applied to this
+  // server -- what lib/tierLimits.js checks. A limit belongs to the
+  // server, not to whoever's viewing the dashboard, so this looks up by
+  // guild_id rather than by the logged-in Discord user.
+  forGuild(guildId) {
+    return db.prepare(`SELECT * FROM tebex_subscribers WHERE guild_id = ? AND status = 'active'`).get(guildId) || null;
+  },
 };
 
 const TebexEvents = {

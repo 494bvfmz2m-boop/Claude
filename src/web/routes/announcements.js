@@ -2,6 +2,7 @@ const express = require('express');
 const { ScheduledAnnouncements } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
+const { limitReached, limitFor } = require('../lib/tierLimits');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('announcements'));
@@ -21,6 +22,9 @@ router.get('/announcements/new', async (req, res) => {
 router.post('/announcements', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
+  if (limitReached('max_scheduled_announcements', guild.id, ScheduledAnnouncements.listForGuild(guild.id).length, req.session)) {
+    return res.status(402).render('upgrade', { reason: 'limit_reached', featureKey: 'max_scheduled_announcements', limit: limitFor('max_scheduled_announcements', guild.id, req.session) });
+  }
   const channelId = req.body.channelId;
   const message = req.body.message?.trim();
   const when = req.body.sendAt; // datetime-local, no timezone -- interpreted as server-local time

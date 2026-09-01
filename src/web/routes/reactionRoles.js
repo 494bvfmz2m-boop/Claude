@@ -3,6 +3,7 @@ const { ReactionRolePanels } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { postPanel, buildReactionRoleMessage, parseEmojiInput } = require('../../bot/reactionRoles');
 const { requireArea } = require('../middleware/auth');
+const { limitReached, limitFor } = require('../lib/tierLimits');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('reaction_roles'));
@@ -36,6 +37,9 @@ router.get('/reaction-roles/new', async (req, res) => {
 router.post('/reaction-roles', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
+  if (limitReached('max_reaction_role_panels', guild.id, ReactionRolePanels.listForGuild(guild.id).length, req.session)) {
+    return res.status(402).render('upgrade', { reason: 'limit_reached', featureKey: 'max_reaction_role_panels', limit: limitFor('max_reaction_role_panels', guild.id, req.session) });
+  }
   ReactionRolePanels.create(guild.id, {
     title: req.body.title?.trim() || 'Reaction Roles',
     description: req.body.description?.trim() || 'React to get a role!',

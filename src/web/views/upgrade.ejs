@@ -15,6 +15,15 @@
   </p>
   <a class="btn" href="/subscription">Manage subscription</a>
   <a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
+<% } else if (typeof reason !== 'undefined' && reason === 'limit_reached') { %>
+  <h1>This server has hit its limit</h1>
+  <p class="subtitle">
+    This server's current plan allows up to
+    <strong><%= (typeof limit !== 'undefined' && limit === Infinity) ? 'unlimited' : limit %></strong> of this.
+    Delete one to make room, or apply a higher tier to this server.
+  </p>
+  <a class="btn" href="/subscription">Manage subscription</a>
+  <a class="btn btn-ghost" href="javascript:history.back()">Go back</a>
 <% } else { %>
   <h1>This needs a subscription</h1>
   <p class="subtitle">

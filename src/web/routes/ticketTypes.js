@@ -2,6 +2,7 @@ const express = require('express');
 const { TicketTypes, Panels, Tickets, GuildSettings, Hierarchies } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
+const { limitReached, limitFor } = require('../lib/tierLimits');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('tickets'));
@@ -65,6 +66,9 @@ router.get('/ticket-types/new', async (req, res) => {
 router.post('/ticket-types', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
+  if (limitReached('max_ticket_types', guild.id, TicketTypes.listForGuild(guild.id).length, req.session)) {
+    return res.status(402).render('upgrade', { reason: 'limit_reached', featureKey: 'max_ticket_types', limit: limitFor('max_ticket_types', guild.id, req.session) });
+  }
   const supportRoleIds = [].concat(req.body.supportRoleIds || []).filter(Boolean);
   TicketTypes.create(guild.id, {
     name: req.body.name?.trim() || 'Support',

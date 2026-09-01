@@ -2,6 +2,7 @@ const express = require('express');
 const { Tags } = require('../../db/repo');
 const { getGuildOr404 } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
+const { limitReached, limitFor } = require('../lib/tierLimits');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('tags'));
@@ -18,6 +19,9 @@ router.post('/tags', async (req, res) => {
   const name = req.body.name?.trim().toLowerCase();
   const content = req.body.content?.trim();
   if (name && content && !Tags.get(guild.id, name)) {
+    if (limitReached('max_tags', guild.id, Tags.listForGuild(guild.id).length, req.session)) {
+      return res.status(402).render('upgrade', { reason: 'limit_reached', featureKey: 'max_tags', limit: limitFor('max_tags', guild.id, req.session) });
+    }
     Tags.create(guild.id, name, content, req.session.discordUser?.id);
   }
   res.redirect(`/dashboard/${guild.id}/tags`);
