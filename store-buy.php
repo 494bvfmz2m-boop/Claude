@@ -46,24 +46,27 @@ if (!$ok || empty($basket['ident'])) {
 
 $ident = $basket['ident'];
 
-// Whether this basket needs the customer to authorize an identity
-// (e.g. Discord) before checkout is a property of the STORE, not of the
-// package — Tebex's own docs: "for most stores, authorizing the user
-// against the basket is required before checkout ... by directing the
-// user to the link provided by the /baskets/auth endpoint." There's no
-// reliable way to predict this from the package itself, so just always
-// ask; a store that doesn't need it simply returns an empty list here
-// and this falls straight through to checkout.
-//
-// (This used to be gated on the package's own "options" array having a
-// required:true entry — but that field is the package's customer-facing
-// variables, e.g. a dropdown or text field, and has nothing to do with
-// identity auth. That mismatch was causing "Couldn't start login for
-// this item" on packages that simply had an unrelated required option.)
-$returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
-$authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
+// Only packages that actually declare Tebex's built-in "discord_id"
+// option need the basket-auth/login dance below at all. This used to
+// run unconditionally for every purchase — but Tebex's auth check
+// looks to be evaluated per-STORE rather than per-package (it's asked
+// before the basket even has anything in it), so its current broken
+// response was blocking every package's checkout, including ones that
+// never required Discord in the first place. Scoping this to packages
+// that actually need it fixes that: everything else skips straight to
+// checkout, same as before Discord packages existed on this store.
+$needsDiscordId = false;
+foreach ($package['options'] ?? [] as $opt) {
+    if (($opt['type'] ?? '') === 'discord_id') {
+        $needsDiscordId = true;
+        break;
+    }
+}
 
-if ($authOptions) {
+if ($needsDiscordId) {
+    $returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
+    $authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
+
     // Each entry looks like {"name": "Discord", "url": "..."}. Take the
     // first usable one — in practice a basket only has one provider it's
     // waiting on at a time.
@@ -75,7 +78,12 @@ if ($authOptions) {
         }
     }
 
-    if (!$authUrl) {
+    if ($authUrl) {
+        header('Location: ' . $authUrl);
+        exit;
+    }
+
+    if ($authOptions) {
         // Confirmed via Tebex's own error response (not a guess): this
         // package has a required option of Tebex's built-in type
         // "discord_id", which only ever gets filled in by completing
@@ -91,9 +99,8 @@ if ($authOptions) {
         header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
         exit;
     }
-
-    header('Location: ' . $authUrl);
-    exit;
+    // $authOptions came back empty — no auth actually pending, fall
+    // through to a normal checkout below.
 }
 
 xs_store_finalize_purchase($ident, $packageId, $user);
