@@ -41,11 +41,24 @@ function candidateKeys(secret) {
   return keys;
 }
 
+// Per Tebex's docs (Developers > Webhooks > Overview), the signature is NOT
+// a plain HMAC over the raw body. It's built in two steps: first SHA256-hash
+// the raw JSON body to a hex string, then HMAC-SHA256 *that hex string* (as
+// the message/data) using the webhook secret as the key. Their PHP example:
+//   $signature = hash_hmac('sha256', hash('sha256', $json), $secret);
+// -- the inner hash('sha256', $json) is the body's hex digest, which becomes
+// the data for the outer hmac. Signing the raw body directly (what earlier
+// rounds of this code did) never matches.
+function bodyHashHex(bodyStr) {
+  return crypto.createHash('sha256').update(bodyStr).digest('hex');
+}
+
 // Tries every candidate key interpretation against the signature found in
 // the request; returns the label of whichever matched, or null.
 function matchAnyKeyEncoding(secret, bodyStr, signatureHex) {
+  const hashedBody = bodyHashHex(bodyStr);
   for (const { label, buf } of candidateKeys(secret)) {
-    const digest = crypto.createHmac('sha256', buf).update(bodyStr).digest('hex');
+    const digest = crypto.createHmac('sha256', buf).update(hashedBody).digest('hex');
     if (timingSafeEqualHex(digest, signatureHex)) return label;
   }
   return null;
@@ -141,12 +154,12 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   const found = findSignatureHeader(headers);
   const matchedEncoding = found ? matchAnyKeyEncoding(secret, bodyStr, stripAlgoPrefix(found.value)) : null;
   if (!matchedEncoding) {
-    const literalDigest = crypto.createHmac('sha256', secret).update(bodyStr).digest('hex');
+    const literalDigest = crypto.createHmac('sha256', secret).update(bodyHashHex(bodyStr)).digest('hex');
     const headerList = Object.keys(headers).join(', ') || '(none)';
     const receivedNote = found
       ? `header "${found.name}" = "${found.value}"`
       : `no signature header found (checked: ${SIGNATURE_HEADER_CANDIDATES.join(', ')})`;
-    TebexEvents.log(null, bodyStr, 0, `Signature did not match under any key encoding (literal/base64/hex) -- rejected. Computed (literal utf8) "${literalDigest}" over a ${bodyStr.length}-byte body, received ${receivedNote}. All headers present: ${headerList}.`);
+    TebexEvents.log(null, bodyStr, 0, `Signature did not match under any key encoding (literal/base64/hex) -- rejected. Computed (literal utf8, hmac over sha256(body)) "${literalDigest}" over a ${bodyStr.length}-byte body, received ${receivedNote}. All headers present: ${headerList}.`);
     return { status: 401, message: 'Invalid signature' };
   }
 
@@ -194,4 +207,4 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   return { status: 200, message: 'OK' };
 }
 
-module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix, candidateKeys, matchAnyKeyEncoding };
+module.exports = { verifyAndHandleTebexWebhook, extractDiscordId, extractPackageIds, isRevocation, findSignatureHeader, stripAlgoPrefix, candidateKeys, matchAnyKeyEncoding, bodyHashHex };
