@@ -35,6 +35,13 @@ require __DIR__ . '/includes/header.php';
         <span class="eyebrow">Store</span>
         <h1>Support Xyphros, unlock perks</h1>
         <p class="lede lede--center">Purchases connect straight to Discord at checkout &mdash; your role shows up automatically once payment goes through.</p>
+        <?php if ($user): ?>
+            <p style="text-align:center;margin-top:-10px;">
+                <a href="/account?tab=connections" class="btn btn--ghost btn--sm" style="display:inline-flex;">
+                    <?php echo xs_icon_discord(15); ?> <span>Your linked Discord account</span>
+                </a>
+            </p>
+        <?php endif; ?>
     </div>
 </section>
 

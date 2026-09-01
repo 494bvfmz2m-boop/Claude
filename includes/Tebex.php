@@ -124,8 +124,17 @@ class Tebex
     public static function getBasketAuthOptions(string $basketIdent, string $returnUrl): array
     {
         $url = TEBEX_API_BASE . '/accounts/' . TEBEX_PUBLIC_TOKEN . '/baskets/' . $basketIdent . '/auth?returnUrl=' . rawurlencode($returnUrl);
-        [$ok, $data] = self::request('GET', $url);
-        return $ok && is_array($data) ? $data : [];
+        [$ok, $data, $err] = self::request('GET', $url);
+        if (!$ok) {
+            // Distinguish a real API failure from "this store doesn't
+            // need basket auth" (which is a normal, successful empty
+            // response) — silently returning [] for both used to make a
+            // genuine Tebex/network failure indistinguishable from "no
+            // auth needed" in the logs.
+            error_log("Tebex getBasketAuthOptions failed for basket {$basketIdent}: " . ($err ?? 'unknown error'));
+            return [];
+        }
+        return is_array($data) ? $data : [];
     }
 
     public static function getBasket(string $basketIdent): ?array

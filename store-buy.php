@@ -46,19 +46,24 @@ if (!$ok || empty($basket['ident'])) {
 
 $ident = $basket['ident'];
 
-// Some packages require the customer to authenticate with a provider
-// (e.g. Discord) before they can be added to a basket — Tebex declares
-// this on the package itself via "options", and grants the matching
-// role itself through its own Discord integration (configured in the
-// Tebex creator dashboard) once payment completes. If any are required,
-// send the customer through Tebex's auth flow first instead of adding
-// the package directly.
-$requiredOptions = array_filter($package['options'] ?? [], fn($opt) => !empty($opt['required']));
+// Whether this basket needs the customer to authorize an identity
+// (e.g. Discord) before checkout is a property of the STORE, not of the
+// package — Tebex's own docs: "for most stores, authorizing the user
+// against the basket is required before checkout ... by directing the
+// user to the link provided by the /baskets/auth endpoint." There's no
+// reliable way to predict this from the package itself, so just always
+// ask; a store that doesn't need it simply returns an empty list here
+// and this falls straight through to checkout.
+//
+// (This used to be gated on the package's own "options" array having a
+// required:true entry — but that field is the package's customer-facing
+// variables, e.g. a dropdown or text field, and has nothing to do with
+// identity auth. That mismatch was causing "Couldn't start login for
+// this item" on packages that simply had an unrelated required option.)
+$returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
+$authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
 
-if ($requiredOptions) {
-    $returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
-    $authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
-
+if ($authOptions) {
     // Each entry looks like {"name": "Discord", "url": "..."}. Take the
     // first usable one — in practice a basket only has one provider it's
     // waiting on at a time.
@@ -71,7 +76,7 @@ if ($requiredOptions) {
     }
 
     if (!$authUrl) {
-        error_log('Tebex basket auth required but no usable auth option returned for basket ' . $ident);
+        error_log('Tebex basket auth required but no usable auth option returned for basket ' . $ident . ': ' . json_encode($authOptions));
         header('Location: /store?error=' . rawurlencode("Couldn't start login for this item — please try again in a moment."));
         exit;
     }
