@@ -391,6 +391,27 @@ CREATE TABLE IF NOT EXISTS tebex_events (
   received_at TEXT DEFAULT (datetime('now'))
 );
 
+-- One custom bot per server -- a Custom-tier subscriber's own Discord bot
+-- token, replacing the shared bot for that guild. encrypted_token is
+-- opaque ciphertext (see web/lib/tokenCrypto.js); never stored in
+-- plaintext. status/last_error reflect the live connection state, kept in
+-- sync by bot/customBots.js rather than trusted as ground truth on their
+-- own.
+CREATE TABLE IF NOT EXISTS custom_bots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL UNIQUE,
+  owner_discord_id TEXT NOT NULL,
+  encrypted_token TEXT NOT NULL,
+  application_id TEXT,
+  bot_user_id TEXT,
+  bot_username TEXT,
+  bot_avatar TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  last_error TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);

@@ -1,8 +1,13 @@
-const client = require('../../bot/client');
+const { resolveGuild } = require('../../bot/clientRegistry');
 const { ChannelType } = require('discord.js');
 
 async function getGuildOr404(req, res) {
-  const guild = client.guilds.cache.get(req.params.guildId);
+  // Resolves through whichever bot actually serves this guild -- the main
+  // bot, or a Custom-tier subscriber's own bot once one is connected (see
+  // bot/clientRegistry.js) -- everything downstream (channels, roles,
+  // sending messages) then naturally goes through that same client, since
+  // a discord.js Guild object carries its owning client with it.
+  const guild = resolveGuild(req.params.guildId);
   if (!guild) {
     res.status(404).render('error', { message: 'The bot is not in that server (or it has not finished starting up yet).' });
     return null;

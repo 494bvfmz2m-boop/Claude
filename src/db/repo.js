@@ -1144,4 +1144,54 @@ const TebexEvents = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders, TebexTiers, TebexSubscribers, TebexEvents };
+const CustomBots = {
+  get(guildId) {
+    return db.prepare('SELECT * FROM custom_bots WHERE guild_id = ?').get(guildId) || null;
+  },
+  list() {
+    return db.prepare('SELECT * FROM custom_bots ORDER BY created_at DESC').all();
+  },
+  // Only ever called with an already-encrypted token -- see
+  // web/lib/tokenCrypto.js. Re-uploading for the same guild replaces the
+  // row outright (new token, reset status/identity) rather than merging.
+  upsert(guildId, ownerDiscordId, encryptedToken) {
+    db.prepare(`
+      INSERT INTO custom_bots (guild_id, owner_discord_id, encrypted_token, status, updated_at)
+      VALUES (?, ?, ?, 'pending', datetime('now'))
+      ON CONFLICT(guild_id) DO UPDATE SET
+        owner_discord_id = excluded.owner_discord_id, encrypted_token = excluded.encrypted_token,
+        application_id = NULL, bot_user_id = NULL, bot_username = NULL, bot_avatar = NULL,
+        status = 'pending', last_error = NULL, updated_at = datetime('now')
+    `).run(guildId, ownerDiscordId, encryptedToken);
+  },
+  setConnected(guildId, { applicationId, botUserId, botUsername, botAvatar }) {
+    db.prepare(`
+      UPDATE custom_bots SET status = 'connected', last_error = NULL,
+        application_id = ?, bot_user_id = ?, bot_username = ?, bot_avatar = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(applicationId || null, botUserId || null, botUsername || null, botAvatar || null, guildId);
+  },
+  // Identity info fetched via a plain REST call (no gateway login needed)
+  // right after a token is uploaded -- lets the invite link show up
+  // immediately, before a live connection has ever been attempted.
+  // Doesn't touch status, since "known who this bot is" isn't the same as
+  // "confirmed it's actually in the server."
+  setIdentity(guildId, { applicationId, botUsername, botAvatar }) {
+    db.prepare(`
+      UPDATE custom_bots SET application_id = ?, bot_username = ?, bot_avatar = ?, updated_at = datetime('now')
+      WHERE guild_id = ?
+    `).run(applicationId || null, botUsername || null, botAvatar || null, guildId);
+  },
+  setError(guildId, message) {
+    db.prepare("UPDATE custom_bots SET status = 'error', last_error = ?, updated_at = datetime('now') WHERE guild_id = ?")
+      .run(message || null, guildId);
+  },
+  setStopped(guildId) {
+    db.prepare("UPDATE custom_bots SET status = 'stopped', updated_at = datetime('now') WHERE guild_id = ?").run(guildId);
+  },
+  remove(guildId) {
+    db.prepare('DELETE FROM custom_bots WHERE guild_id = ?').run(guildId);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders, TebexTiers, TebexSubscribers, TebexEvents, CustomBots };

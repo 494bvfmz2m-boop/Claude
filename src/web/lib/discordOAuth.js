@@ -45,6 +45,25 @@ function buildGenericInviteUrl() {
   return `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
 
+// Same permission set as the main bot's own invite links, but for a
+// Custom-tier subscriber's own Discord application -- their bot needs to
+// do the exact same things (tickets, moderation, etc.), just under their
+// own identity. redirect_uri must exactly match one already registered in
+// that application's own OAuth2 > Redirects list, or Discord rejects the
+// whole authorize request outright.
+function buildCustomBotInviteUrl(applicationId, guildId, redirectUri) {
+  const params = new URLSearchParams({
+    client_id: applicationId,
+    scope: 'bot applications.commands',
+    permissions: BOT_INVITE_PERMISSIONS,
+    guild_id: guildId,
+    disable_guild_select: 'true',
+    response_type: 'code',
+    redirect_uri: redirectUri,
+  });
+  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
 function buildAuthorizeUrl(state) {
   const params = new URLSearchParams({
     client_id: config.discordClientId,
@@ -106,4 +125,4 @@ async function fetchManageableGuilds(accessToken) {
     }));
 }
 
-module.exports = { buildAuthorizeUrl, buildBotInviteUrl, buildGenericInviteUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds };
+module.exports = { buildAuthorizeUrl, buildBotInviteUrl, buildGenericInviteUrl, buildCustomBotInviteUrl, exchangeCode, fetchDiscordUser, fetchManageableGuilds };

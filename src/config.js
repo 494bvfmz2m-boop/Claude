@@ -32,4 +32,7 @@ module.exports = {
   port: Number.isNaN(parsedPort) ? 3000 : parsedPort,
   cookieSecure: required('COOKIE_SECURE', 'false') === 'true',
   dbPath: required('DB_PATH', path.join(__dirname, '..', 'data', 'bot.sqlite')),
+  // Encrypts custom-bot tokens at rest (see bot/customBots.js). Feature is
+  // simply unavailable if this is unset -- never a reason to crash the app.
+  tokenEncryptionKey: required('TOKEN_ENCRYPTION_KEY', null),
 };

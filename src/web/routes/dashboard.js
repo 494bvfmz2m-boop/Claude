@@ -1,5 +1,5 @@
 const express = require('express');
-const client = require('../../bot/client');
+const { mainClient, resolveGuild, allKnownGuilds } = require('../../bot/clientRegistry');
 const { buildGenericInviteUrl } = require('../lib/discordOAuth');
 const { getMemberAccess } = require('../lib/dashboardAccess');
 const { Tickets, Warnings } = require('../../db/repo');
@@ -7,7 +7,10 @@ const { Tickets, Warnings } = require('../../db/repo');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const botGuilds = [...client.guilds.cache.values()];
+  // Every guild reachable through ANY connected bot, not just the main
+  // one -- a Custom-tier subscriber's server may no longer have the main
+  // bot as a member at all once their own bot has replaced it.
+  const botGuilds = allKnownGuilds();
   const manageable = req.session.manageableGuilds || [];
   const manageableIds = new Set(manageable.map((g) => g.id));
 
@@ -27,7 +30,7 @@ router.get('/', async (req, res) => {
   const guilds = [...owned, ...granted]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((g) => {
-      const live = client.guilds.cache.get(g.id);
+      const live = resolveGuild(g.id);
       return {
         ...g,
         memberCount: live ? live.memberCount : null,
@@ -36,7 +39,7 @@ router.get('/', async (req, res) => {
       };
     });
 
-  res.render('dashboard', { guilds, inviteUrl: buildGenericInviteUrl(), botReady: client.isReady() });
+  res.render('dashboard', { guilds, inviteUrl: buildGenericInviteUrl(), botReady: mainClient.isReady() });
 });
 
 module.exports = router;

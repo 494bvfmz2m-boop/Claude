@@ -1,0 +1,98 @@
+<%- include('partials/header', { title: 'Custom bot', guild }) %>
+<h1>Custom bot</h1>
+<p class="subtitle">
+  Run your own Discord bot, under your own name and avatar, with the exact same features as
+  XyphrosMod — tickets, moderation, embeds, everything. Once connected, your bot replaces the
+  shared XyphrosMod bot for this server.
+</p>
+
+<% if (notice) { %>
+  <div class="<%= notice.ok ? 'card' : 'error' %>" style="<%= notice.ok ? 'border-color:var(--success); margin-bottom:20px;' : 'margin-bottom:20px;' %>">
+    <%= notice.text %>
+  </div>
+<% } %>
+
+<% if (!tokenCryptoConfigured) { %>
+  <div class="card">
+    <p class="empty">
+      This isn't set up on this install yet — the server owner needs to set
+      <code>TOKEN_ENCRYPTION_KEY</code> and restart before any bot token can be stored.
+    </p>
+  </div>
+<% } else { %>
+
+<div class="card">
+  <h2>Status</h2>
+  <% if (!record) { %>
+    <p class="empty">No bot connected yet — upload a token below to get started.</p>
+  <% } else { %>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+      <% if (record.bot_avatar) { %>
+        <img src="<%= record.bot_avatar %>" alt="" class="contact-avatar">
+      <% } %>
+      <div>
+        <div class="list-item-title"><%= record.bot_username || 'Unknown bot' %></div>
+        <div class="list-item-meta">
+          <span class="badge <%= record.status === 'connected' ? 'badge-open' : record.status === 'error' ? 'badge-closed' : '' %>">
+            <%= record.status %>
+          </span>
+          <% if (record.last_error) { %> · <%= record.last_error %><% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <% if (record.status !== 'connected') { %>
+        <form method="post" action="/dashboard/<%= guild.id %>/custom-bot/reconnect" style="display:inline;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn btn-sm" type="submit">Try connecting</button>
+        </form>
+      <% } %>
+      <form method="post" action="/dashboard/<%= guild.id %>/custom-bot/remove" onsubmit="return confirm('Remove this custom bot? This server goes back to the shared XyphrosMod bot.');" style="display:inline;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+      </form>
+    </div>
+  <% } %>
+</div>
+
+<% if (record && record.status !== 'connected' && inviteUrl) { %>
+<div class="card">
+  <h2>Invite it</h2>
+  <p class="hint" style="margin-bottom:12px;">
+    First, paste this exact URL into your bot's page in the
+    <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a>
+    → OAuth2 → Redirects → Add Redirect, and save. Discord rejects the invite below until it matches exactly.
+  </p>
+  <label style="margin-top:0;">Redirect URI</label>
+  <input type="text" value="<%= redirectUri %>" readonly onclick="this.select()">
+  <div class="btn-row">
+    <a class="btn" href="<%= inviteUrl %>" target="_blank" rel="noopener">Invite <%= record.bot_username || 'your bot' %></a>
+  </div>
+  <p class="hint" style="margin-top:10px;">
+    After you authorize it, Discord sends you back here and it connects automatically.
+  </p>
+</div>
+<% } %>
+
+<div class="card">
+  <h2><%= record ? 'Replace the token' : 'Upload your bot token' %></h2>
+  <p class="hint" style="margin-bottom:14px;">
+    From the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a>
+    → your application → Bot → Reset Token. Make sure <strong>Message Content Intent</strong>,
+    <strong>Server Members Intent</strong>, and <strong>Presence Intent</strong> are all enabled there first
+    (Bot → Privileged Gateway Intents) or the bot will fail to connect. Stored encrypted — nobody, including
+    XyphrosMod staff, can read it back out.
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/custom-bot/token">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label style="margin-top:0;">Bot token</label>
+    <input type="text" name="token" placeholder="paste it here" autocomplete="off" required>
+    <div class="btn-row">
+      <button class="btn" type="submit">Save token</button>
+    </div>
+  </form>
+</div>
+
+<% } %>
+<%- include('partials/footer') %>

@@ -100,6 +100,7 @@
       <% if (canSee('moderation')) { %><a class="sidebar-nav-link <%= isActive('moderation') %>" href="/dashboard/<%= guild.id %>/moderation" id="tourNavModeration">Moderation</a><% } %>
       <% if (canSee('settings')) { %><a class="sidebar-nav-link <%= isActive('settings') %>" href="/dashboard/<%= guild.id %>/settings" id="tourNavSettings">Settings</a><% } %>
       <% if (isFullAccess) { %><a class="sidebar-nav-link <%= isActive('permissions') %>" href="/dashboard/<%= guild.id %>/permissions" id="tourNavPermissions">Permissions</a><% } %>
+      <% if (typeof hasCustomBotFeature !== 'undefined' && hasCustomBotFeature) { %><a class="sidebar-nav-link <%= isActive('custom-bot') %>" href="/dashboard/<%= guild.id %>/custom-bot">Custom bot</a><% } %>
 
       <% if (canSee('embeds') || canSee('reaction_roles') || canSee('tags') || canSee('announcements')) { %>
         <div class="sidebar-nav-group-label">Content</div>

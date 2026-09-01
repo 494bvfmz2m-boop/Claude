@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const client = require('../../bot/client');
+const { resolveGuild } = require('../../bot/clientRegistry');
 const { getMemberAccess } = require('../lib/dashboardAccess');
 
 function requireAuth(req, res, next) {
@@ -25,7 +25,7 @@ async function requireGuildAccess(req, res, next) {
     return next();
   }
 
-  const guild = client.guilds.cache.get(guildId);
+  const guild = resolveGuild(guildId);
   const access = await getMemberAccess(guild, req.session.discordUser?.id);
   if (access.level !== 'none') {
     req.dashboardAccess = access;

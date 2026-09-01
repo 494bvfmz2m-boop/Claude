@@ -2,10 +2,11 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const config = require('../config');
-const client = require('../bot/client');
+const { mainClient: client, allKnownGuilds } = require('../bot/clientRegistry');
 const { BetaAllowlist, AppSettings } = require('../db/repo');
 const { buildGenericInviteUrl } = require('./lib/discordOAuth');
 const { verifyAndHandleTebexWebhook } = require('./lib/tebexWebhook');
+const { hasFeature } = require('./lib/subscriptionGate');
 const { requireAuth, requireGuildAccess, attachCsrf, verifyCsrf } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -24,6 +25,7 @@ const announcementRoutes = require('./routes/announcements');
 const giveawayRoutes = require('./routes/giveaways');
 const eventRoutes = require('./routes/events');
 const overviewRoutes = require('./routes/overview');
+const customBotRoutes = require('./routes/customBot');
 
 function createApp() {
   const app = express();
@@ -69,7 +71,8 @@ function createApp() {
     // (that list requires an async per-guild membership check, too slow to
     // do on every request) -- the home page's full list still covers those.
     const manageable = req.session?.manageableGuilds || [];
-    res.locals.switcherGuilds = manageable.filter((g) => client.guilds.cache.has(g.id));
+    const knownGuildIds = new Set(allKnownGuilds().map((g) => g.id));
+    res.locals.switcherGuilds = manageable.filter((g) => knownGuildIds.has(g.id));
     next();
   });
 
@@ -123,11 +126,13 @@ function createApp() {
   guildRouter.use(announcementRoutes);
   guildRouter.use(giveawayRoutes);
   guildRouter.use(eventRoutes);
+  guildRouter.use(customBotRoutes);
 
   // CSRF check on every state-changing POST under the dashboard
   app.use('/dashboard/:guildId', requireGuildAccess, (req, res, next) => {
     res.locals.dashboardAccess = req.dashboardAccess; // so header.ejs can hide nav links the user can't reach
     res.locals.currentArea = req.path.split('/')[1] || null; // sidebar active-link highlight
+    res.locals.hasCustomBotFeature = hasFeature(req.session?.discordUser?.id, 'custom_bot');
     if (req.method === 'POST') return verifyCsrf(req, res, next);
     next();
   }, guildRouter);
