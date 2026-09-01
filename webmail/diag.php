@@ -89,6 +89,37 @@ if ($sock) {
 </div>
 
 <div class="card">
+<h3>3b. Which outbound ports are actually blocked (for your host's support ticket)</h3>
+<p>Run once you know step 3 fails, so you can tell your host exactly what to unblock.</p>
+<?php
+function portCheck(string $label, string $host, int $port, bool $tls): void {
+    $start = microtime(true);
+    $errno = 0; $errstr = '';
+    $target = ($tls ? 'ssl://' : 'tcp://') . $host . ':' . $port;
+    $sock = @stream_socket_client(
+        $target, $errno, $errstr, 5,
+        STREAM_CLIENT_CONNECT,
+        $tls ? stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]) : null
+    );
+    $elapsed = round((microtime(true) - $start) * 1000);
+    if ($sock) {
+        fclose($sock);
+        chk(true, "$label ($host:$port) — reachable in {$elapsed}ms");
+    } else {
+        chk(false, "$label ($host:$port) — BLOCKED (\"$errstr\", after {$elapsed}ms)");
+    }
+}
+portCheck('General HTTPS baseline', 'www.google.com', 443, true);
+portCheck('IMAP SSL (imap.purelymail.com)', 'imap.purelymail.com', 993, true);
+portCheck('SMTP SSL (smtp.purelymail.com)', 'smtp.purelymail.com', 465, true);
+portCheck('SMTP submission (smtp.purelymail.com)', 'smtp.purelymail.com', 587, false);
+?>
+<p>If the HTTPS baseline succeeds but the Purelymail ports fail, that's conclusive: your
+host allows normal web traffic out but is specifically blocking mail ports. Give your host
+this exact list of what's blocked when you ask them to open it up.</p>
+</div>
+
+<div class="card">
 <h3>4. Actual IMAP login test</h3>
 <?php if (!$ran): ?>
 <form method="post">
