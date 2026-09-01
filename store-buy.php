@@ -64,6 +64,25 @@ foreach ($package['options'] ?? [] as $opt) {
 }
 
 if ($needsDiscordId) {
+    // Experiment: if this customer already linked Discord to their
+    // Xyphros account (Account > Connections), try supplying that
+    // Discord ID directly as the package's "discord_id" option instead
+    // of going through Tebex's own (currently broken) basket-auth login
+    // flow. Not confirmed to work — Tebex may reject a client-supplied
+    // value for this option type since it's normally only ever filled
+    // in through their verified OAuth session — but it's cheap to try,
+    // and logs clearly either way so we know for certain after one
+    // attempt instead of guessing.
+    if (!empty($user['discord_id'])) {
+        [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1, ['discord_id' => $user['discord_id']]);
+        if ($addOk) {
+            error_log("Tebex ACCEPTED client-supplied discord_id for basket {$ident} (package {$packageId}, user {$user['id']}) — the workaround works, this package no longer needs Tebex's own auth flow.");
+            xs_store_record_order($ident, $packageId, $user);
+            exit;
+        }
+        error_log("Tebex REJECTED client-supplied discord_id for basket {$ident} (package {$packageId}, user {$user['id']}): " . ($addErr ?? 'unknown error') . ' — falling back to the normal (currently broken) auth flow.');
+    }
+
     $returnUrl = SITE_URL . '/store-auth-return?ident=' . rawurlencode($ident) . '&package_id=' . $packageId;
     $authOptions = Tebex::getBasketAuthOptions($ident, $returnUrl);
 
@@ -89,12 +108,11 @@ if ($needsDiscordId) {
         // "discord_id", which only ever gets filled in by completing
         // the Discord login this auth endpoint is supposed to hand us a
         // URL for. Since it isn't giving us one, that option can never
-        // be satisfied, and Tebex rejects addPackage() server-side with
-        // "One of the options provided is invalid" no matter what we
-        // send — there is no way to add this package to a basket from
-        // our side while Tebex's login step stays broken. Don't bother
-        // attempting it; block with an honest message instead of
-        // trading this for a more confusing failure two steps later.
+        // be satisfied through Tebex's own login step while it's
+        // broken (and — see above — a client-supplied discord_id
+        // either wasn't available to try or was rejected). Block with
+        // an honest message instead of trading this for a more
+        // confusing failure two steps later.
         error_log('Tebex basket auth required but returned no usable provider for basket ' . $ident . ' (package ' . $packageId . ', user ' . $user['id'] . '): ' . json_encode($authOptions));
         header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
         exit;

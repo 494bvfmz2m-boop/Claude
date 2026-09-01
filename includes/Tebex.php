@@ -107,13 +107,26 @@ class Tebex
         return self::request('POST', $url, $body, true);
     }
 
-    public static function addPackage(string $basketIdent, int $packageId, int $qty = 1): array
+    /**
+     * $variableData: option name => value, for packages with customer-
+     * facing custom options (e.g. a required "discord_id" option) —
+     * sent as-is in the request body's variable_data object. Untested
+     * against Tebex's built-in "discord_id" option type specifically
+     * (that's normally filled in by their own OAuth session, not a
+     * client-supplied value) — this is an experiment, not a confirmed
+     * working path. Check the response/error if you're relying on it.
+     */
+    public static function addPackage(string $basketIdent, int $packageId, int $qty = 1, array $variableData = []): array
     {
         $url = TEBEX_API_BASE . '/baskets/' . $basketIdent . '/packages';
         // Tebex's own docs show package_id as a quoted string in the JSON
         // body (e.g. "package_id": "6276316"), not a bare number — send it
         // that way explicitly rather than trusting json_encode on an int.
-        return self::request('POST', $url, ['package_id' => (string) $packageId, 'quantity' => $qty]);
+        $body = ['package_id' => (string) $packageId, 'quantity' => $qty];
+        if ($variableData) {
+            $body['variable_data'] = $variableData;
+        }
+        return self::request('POST', $url, $body);
     }
 
     /**

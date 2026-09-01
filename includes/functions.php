@@ -792,9 +792,9 @@ function xs_next_order_number(): int
     return (int) $db->lastInsertId();
 }
 
-function xs_store_finalize_purchase(string $ident, int $packageId, array $user): void
+function xs_store_finalize_purchase(string $ident, int $packageId, array $user, array $variableData = []): void
 {
-    [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1);
+    [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1, $variableData);
     if (!$addOk) {
         // Logging the package's own "options" here too — a rejection
         // like "One of the options provided is invalid" means the
@@ -803,11 +803,19 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user):
         // box) that addPackage() never sends any variable_data for.
         // Seeing the real options array is what tells us what's needed.
         $failedPackage = Tebex::getPackage($packageId);
-        error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error') . ' — package options: ' . json_encode($failedPackage['options'] ?? null));
+        error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error') . ' — package options: ' . json_encode($failedPackage['options'] ?? null) . ($variableData ? ' — variable_data sent: ' . json_encode($variableData) : ''));
         header('Location: /store?error=' . rawurlencode("Couldn't add that item to checkout — please try again."));
         exit;
     }
 
+    xs_store_record_order($ident, $packageId, $user);
+}
+
+/** Split out of xs_store_finalize_purchase() so store-buy.php can add the
+ * package itself (e.g. with experimental variable_data) and only record
+ * the order once that's confirmed to have actually worked. */
+function xs_store_record_order(string $ident, int $packageId, array $user): void
+{
     $package = Tebex::getPackage($packageId);
 
     // Our own record of the pending order — this is what actually ties a
