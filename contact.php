@@ -21,7 +21,7 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<section class="section">
+<section class="section section--glow-r">
     <div class="container two-col">
         <div>
             <?php if ($sent): ?>

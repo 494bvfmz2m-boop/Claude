@@ -43,7 +43,7 @@ require __DIR__ . '/includes/header.php';
 </section>
 
 <?php if ($featuredProduct): ?>
-<section class="section section--border-top">
+<section class="section section--border-top section--glow-r">
     <div class="container">
         <span class="eyebrow">Featured product</span>
         <div class="product-card" style="margin-top:6px;">
@@ -72,7 +72,7 @@ require __DIR__ . '/includes/header.php';
 </section>
 <?php endif; ?>
 
-<section class="section section--border-top">
+<section class="section section--border-top section--tint">
     <div class="container">
         <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:24px; flex-wrap:wrap; margin-bottom:36px;">
             <div>
@@ -109,11 +109,13 @@ require __DIR__ . '/includes/header.php';
 
 <section class="section section--border-top text-center">
     <div class="container">
-        <span class="eyebrow">Let's talk</span>
-        <h2 style="font-size:30px;">Have a project, a question, or feedback?</h2>
-        <p class="lede lede--center">We read every message that comes through. Tell us what you're working on.</p>
-        <div class="btn-row" style="justify-content:center;">
-            <a href="/contact" class="btn btn--primary">Get in touch</a>
+        <div class="cta-panel">
+            <span class="eyebrow">Let's talk</span>
+            <h2 style="font-size:30px;">Have a project, a question, or feedback?</h2>
+            <p class="lede lede--center">We read every message that comes through. Tell us what you're working on.</p>
+            <div class="btn-row" style="justify-content:center;">
+                <a href="/contact" class="btn btn--primary">Get in touch</a>
+            </div>
         </div>
     </div>
 </section>

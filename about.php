@@ -19,7 +19,7 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<section class="section section--border-top">
+<section class="section section--border-top section--glow-l">
     <div class="container two-col">
         <div>
             <span class="eyebrow">Why we exist</span>
@@ -36,7 +36,7 @@ require __DIR__ . '/includes/header.php';
 </section>
 
 <?php if (!empty($team)): ?>
-<section class="section section--border-top">
+<section class="section section--border-top section--tint">
     <div class="container">
         <span class="eyebrow">The team</span>
         <h2 style="font-size:28px; margin-bottom:36px;">Who's behind this</h2>
