@@ -136,6 +136,27 @@ function navigate(hash) {
   location.hash = hash;
 }
 
+/* Tab inserts indentation in any code editor textarea instead of moving focus. */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || !e.target.classList || !e.target.classList.contains('code-input')) return;
+  e.preventDefault();
+  const el = e.target;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const value = el.value;
+  if (e.shiftKey) {
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const leading = value.slice(lineStart, start).match(/^ {1,2}/);
+    if (leading) {
+      el.value = value.slice(0, lineStart) + value.slice(lineStart + leading[0].length);
+      el.selectionStart = el.selectionEnd = start - leading[0].length;
+    }
+  } else {
+    el.value = value.slice(0, start) + '  ' + value.slice(end);
+    el.selectionStart = el.selectionEnd = start + 2;
+  }
+});
+
 function initApp() {
   renderSidebar();
   render();
@@ -198,7 +219,10 @@ function markActiveNav(topic, idx) {
     return;
   }
   const el = document.querySelector(`.nav-lesson[data-topic="${topic}"][data-idx="${idx}"]`);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+    el.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 /* -------------------------------- render -------------------------------- */
@@ -209,8 +233,7 @@ function render() {
     renderHome();
     markActiveNav(null);
   } else {
-    renderLesson(route.topic, route.idx);
-    markActiveNav(route.topic, route.idx);
+    renderLessonGated(route.topic, route.idx);
   }
   window.scrollTo(0, 0);
 }
@@ -744,12 +767,9 @@ function renderJsonTool(block) {
 
 /* -------------------------------- quiz ---------------------------------- */
 
-function renderQuiz(lesson) {
-  const section = document.createElement('div');
-  section.className = 'quiz';
-  section.innerHTML = `<h2>Quick Quiz</h2>`;
-
-  lesson.quiz.forEach((q, qi) => {
+function buildQuizQuestions(quizArr, namePrefix) {
+  const container = document.createElement('div');
+  quizArr.forEach((q, qi) => {
     const qDiv = document.createElement('div');
     qDiv.className = 'quiz-question';
     qDiv.innerHTML = `
@@ -757,13 +777,44 @@ function renderQuiz(lesson) {
       <div class="quiz-choices">
         ${q.choices.map((c, ci) => `
           <label class="quiz-choice">
-            <input type="radio" name="q-${lesson.id}-${qi}" value="${ci}">
+            <input type="radio" name="${namePrefix}-${qi}" value="${ci}">
             <span>${escapeHtml(c)}</span>
           </label>`).join('')}
       </div>
       <div class="quiz-explain" hidden></div>`;
-    section.appendChild(qDiv);
+    container.appendChild(qDiv);
   });
+  return container;
+}
+
+function gradeQuiz(quizArr, containerEl) {
+  let correct = 0;
+  const questionDivs = containerEl.querySelectorAll('.quiz-question');
+  quizArr.forEach((q, qi) => {
+    const qDiv = questionDivs[qi];
+    const chosen = qDiv.querySelector('input:checked');
+    const explainEl = qDiv.querySelector('.quiz-explain');
+    qDiv.querySelectorAll('.quiz-choice').forEach((label, ci) => {
+      label.classList.remove('correct', 'incorrect');
+      if (ci === q.answer) label.classList.add('correct');
+      else if (chosen && parseInt(chosen.value, 10) === ci) label.classList.add('incorrect');
+    });
+    const isCorrect = chosen && parseInt(chosen.value, 10) === q.answer;
+    if (isCorrect) correct += 1;
+    explainEl.hidden = false;
+    explainEl.innerHTML = `${isCorrect ? '✅' : (chosen ? '❌' : '⚠️ No answer selected.')} ${escapeHtml(q.explain)}`;
+  });
+  const pct = quizArr.length ? Math.round((correct / quizArr.length) * 100) : 100;
+  return { correct, total: quizArr.length, pct };
+}
+
+function renderQuiz(lesson) {
+  const section = document.createElement('div');
+  section.className = 'quiz';
+  section.innerHTML = `<h2>Quick Quiz</h2>`;
+
+  const questionsEl = buildQuizQuestions(lesson.quiz, `q-${lesson.id}`);
+  section.appendChild(questionsEl);
 
   const checkBtn = document.createElement('button');
   checkBtn.type = 'button';
@@ -775,24 +826,8 @@ function renderQuiz(lesson) {
   section.appendChild(scoreEl);
 
   checkBtn.addEventListener('click', () => {
-    let correct = 0;
-    const questionDivs = section.querySelectorAll('.quiz-question');
-    lesson.quiz.forEach((q, qi) => {
-      const qDiv = questionDivs[qi];
-      const chosen = qDiv.querySelector('input:checked');
-      const explainEl = qDiv.querySelector('.quiz-explain');
-      qDiv.querySelectorAll('.quiz-choice').forEach((label, ci) => {
-        label.classList.remove('correct', 'incorrect');
-        if (ci === q.answer) label.classList.add('correct');
-        else if (chosen && parseInt(chosen.value, 10) === ci) label.classList.add('incorrect');
-      });
-      const isCorrect = chosen && parseInt(chosen.value, 10) === q.answer;
-      if (isCorrect) correct += 1;
-      explainEl.hidden = false;
-      explainEl.innerHTML = `${isCorrect ? '✅' : (chosen ? '❌' : '⚠️ No answer selected.')} ${escapeHtml(q.explain)}`;
-    });
-    const pct = Math.round((correct / lesson.quiz.length) * 100);
-    scoreEl.innerHTML = `Score: ${correct}/${lesson.quiz.length} (${pct}%)`;
+    const { correct, total, pct } = gradeQuiz(lesson.quiz, questionsEl);
+    scoreEl.innerHTML = `Score: ${correct}/${total} (${pct}%)`;
     if (pct >= 70 && !isComplete(lesson.id)) {
       setComplete(lesson.id, true);
       renderSidebar();
@@ -808,4 +843,112 @@ function renderQuiz(lesson) {
   });
 
   return section;
+}
+
+/* ------------------------------ lesson gate ------------------------------
+   Progressing to a lesson you haven't unlocked yet requires passing a recap
+   quiz on the lesson right before it. Fail, and that previous lesson resets
+   to incomplete and you're sent back to redo it. Already-completed lessons
+   are grandfathered in so this never retroactively locks out real progress.
+--------------------------------------------------------------------------- */
+
+const GATE_KEY = 'wds-gate-passed-v1';
+
+function hasPassedGate(lessonId) {
+  try { return !!(JSON.parse(localStorage.getItem(GATE_KEY)) || {})[lessonId]; } catch { return false; }
+}
+function markGatePassed(lessonId) {
+  let g;
+  try { g = JSON.parse(localStorage.getItem(GATE_KEY)) || {}; } catch { g = {}; }
+  g[lessonId] = true;
+  localStorage.setItem(GATE_KEY, JSON.stringify(g));
+}
+
+function renderLessonGated(topicId, idx) {
+  const topic = window.COURSE[topicId];
+  const lesson = topic.lessons[idx];
+
+  if (idx === 0 || hasPassedGate(lesson.id) || isComplete(lesson.id)) {
+    renderLesson(topicId, idx);
+    markActiveNav(topicId, idx);
+    return;
+  }
+
+  const prevLesson = topic.lessons[idx - 1];
+  if (!isComplete(prevLesson.id)) {
+    renderLockScreen(topicId, idx, prevLesson);
+    markActiveNav(topicId, idx - 1);
+    return;
+  }
+
+  renderRecapGate(topicId, idx, prevLesson);
+  markActiveNav(topicId, idx - 1);
+}
+
+function renderLockScreen(topicId, idx, prevLesson) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'gate-screen';
+  wrapper.innerHTML = `
+    <div class="gate-icon">🔒</div>
+    <div class="gate-eyebrow">Locked</div>
+    <h1>Finish the previous lesson first</h1>
+    <p>Complete "<strong>${escapeHtml(prevLesson.title)}</strong>" before moving on.</p>
+    <button type="button" class="btn btn-primary" id="gate-go-btn">Go to "${escapeHtml(prevLesson.title)}" &rarr;</button>
+  `;
+  app.innerHTML = '';
+  app.appendChild(wrapper);
+  document.getElementById('gate-go-btn').addEventListener('click', () => navigate(`#/${topicId}/${idx - 1}`));
+}
+
+function renderRecapGate(topicId, idx, prevLesson) {
+  const topic = window.COURSE[topicId];
+  const nextLesson = topic.lessons[idx];
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'gate-screen recap';
+  wrapper.innerHTML = `
+    <div class="gate-icon">🧠</div>
+    <div class="gate-eyebrow">Recap Check</div>
+    <h1>Prove you've got it</h1>
+    <p>Before starting "<strong>${escapeHtml(nextLesson.title)}</strong>", quickly show you remember
+       "<strong>${escapeHtml(prevLesson.title)}</strong>". Get it wrong and you'll redo that lesson
+       from the start.</p>
+  `;
+  const questionsEl = buildQuizQuestions(prevLesson.quiz, `recap-${prevLesson.id}`);
+  wrapper.appendChild(questionsEl);
+
+  const checkBtn = document.createElement('button');
+  checkBtn.type = 'button';
+  checkBtn.className = 'btn btn-primary';
+  checkBtn.textContent = 'Check Recap';
+  const resultEl = document.createElement('div');
+  resultEl.className = 'gate-result';
+  wrapper.appendChild(checkBtn);
+  wrapper.appendChild(resultEl);
+
+  checkBtn.addEventListener('click', () => {
+    const { correct, total, pct } = gradeQuiz(prevLesson.quiz, questionsEl);
+    checkBtn.disabled = true;
+    if (pct >= 70) {
+      markGatePassed(nextLesson.id);
+      resultEl.innerHTML = `
+        <div class="verify-outcome pass">✅ ${correct}/${total} — nice, you remember it.</div>
+        <button type="button" class="btn btn-primary" id="gate-continue-btn">Start "${escapeHtml(nextLesson.title)}" &rarr;</button>`;
+      document.getElementById('gate-continue-btn').addEventListener('click', () => {
+        renderLesson(topicId, idx);
+        markActiveNav(topicId, idx);
+      });
+    } else {
+      setComplete(prevLesson.id, false);
+      renderSidebar();
+      markActiveNav(topicId, idx - 1);
+      resultEl.innerHTML = `
+        <div class="verify-outcome fail">❌ ${correct}/${total} — not quite. Let's redo "${escapeHtml(prevLesson.title)}" from the start.</div>
+        <button type="button" class="btn btn-secondary" id="gate-redo-btn">Redo "${escapeHtml(prevLesson.title)}" &rarr;</button>`;
+      document.getElementById('gate-redo-btn').addEventListener('click', () => navigate(`#/${topicId}/${idx - 1}`));
+    }
+  });
+
+  app.innerHTML = '';
+  app.appendChild(wrapper);
 }
