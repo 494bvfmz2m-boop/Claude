@@ -1,0 +1,231 @@
+window.COURSE = window.COURSE || {};
+
+window.COURSE.javascript = {
+  id: 'javascript',
+  title: 'JavaScript',
+  icon: '⚡',
+  description: 'The language that makes pages interactive — logic, events, and dynamic content.',
+  lessons: [
+    {
+      id: 'js-1',
+      title: 'Variables & Data Types',
+      blocks: [
+        { type: 'text', html: `
+          <p>JavaScript stores values in variables declared with <code>let</code> (can change),
+          <code>const</code> (can't be reassigned), or the older <code>var</code> (avoid it).
+          Core types: <strong>string</strong>, <strong>number</strong>, <strong>boolean</strong>,
+          <strong>array</strong>, <strong>object</strong>, <code>null</code>, and <code>undefined</code>.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`let name = "Ada";
+const age = 30;
+let isLearning = true;
+let hobbies = ["reading", "chess"];
+let person = { name: "Ada", age: 30 };
+
+console.log(typeof name, typeof age, typeof isLearning);` },
+        { type: 'note', kind: 'tip', html: 'Use <code>console.log()</code> to inspect values while developing. Open your browser\'s DevTools console to see it (in these playgrounds, output also appears if you log to the page — try <code>document.body.innerHTML += ...</code>, or just trust the console).' },
+        { type: 'web', task: 'Declare a const for your name and a let for a counter number, then display them on the page using document.write or by setting an element\'s textContent.', starter: {
+          html: `<div id="output">Open the JS tab and edit the script, then hit Run.</div>`,
+          js: `const myName = "Ada";\nlet counter = 0;\n\ndocument.getElementById('output').textContent = myName + ' — counter: ' + counter;`,
+        }},
+      ],
+      quiz: [
+        { q: 'Which keyword declares a variable that cannot be reassigned?', choices: ['let', 'const', 'var'], answer: 1, explain: 'const creates a binding that can\'t be reassigned (though objects/arrays it holds can still be mutated).' },
+        { q: 'What does typeof [] return?', choices: ['"array"', '"object"', '"list"'], answer: 1, explain: 'Arrays are technically objects in JavaScript, so typeof [] is "object".' },
+      ],
+    },
+
+    {
+      id: 'js-2',
+      title: 'Operators & Control Flow',
+      blocks: [
+        { type: 'text', html: `
+          <p>Comparisons (<code>===</code>, <code>!==</code>, <code>&lt;</code>, <code>&gt;</code>) and
+          logic (<code>&&</code>, <code>||</code>, <code>!</code>) drive <code>if/else</code> statements
+          and loops. Always prefer <code>===</code> (strict equality) over <code>==</code>, which does
+          confusing type conversions.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`let score = 72;
+
+if (score >= 90) {
+  console.log("A");
+} else if (score >= 70) {
+  console.log("B");
+} else {
+  console.log("Needs improvement");
+}
+
+for (let i = 0; i < 3; i++) {
+  console.log("Loop iteration", i);
+}` },
+        { type: 'predict', lang: 'javascript', code: `console.log(5 === "5");\nconsole.log(5 == "5");`, options: ['true then true', 'false then true', 'true then false'], answer: 1, explain: '=== checks type and value (number vs string → false). == converts types first, so 5 == "5" is true. This is exactly why === is preferred.' },
+        { type: 'web', task: 'Write an if/else chain that logs whether a "temperature" variable is "hot", "warm", or "cold", and show the result on the page.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const temperature = 15;\nlet result;\n\nif (temperature > 25) {\n  result = "hot";\n} else if (temperature > 10) {\n  result = "warm";\n} else {\n  result = "cold";\n}\n\ndocument.getElementById('output').textContent = 'It is ' + result;`,
+        }},
+      ],
+      quiz: [
+        { q: 'What is the difference between == and ===?', choices: ['No difference', '=== also checks the type; == converts types first', '== is faster'], answer: 1, explain: '=== is "strict equality" (no type conversion); == will coerce types before comparing.' },
+        { q: 'How many times does "for (let i = 0; i < 3; i++)" run its body?', choices: ['2', '3', '4'], answer: 1, explain: 'i starts at 0 and runs while i < 3, so i = 0, 1, 2 — three iterations.' },
+      ],
+    },
+
+    {
+      id: 'js-3',
+      title: 'Functions',
+      blocks: [
+        { type: 'text', html: `
+          <p>Functions package up reusable logic. You can declare them, or write them as
+          <strong>arrow functions</strong> — very common in modern JavaScript.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`function add(a, b) {
+  return a + b;
+}
+
+const multiply = (a, b) => a * b;
+
+console.log(add(2, 3));      // 5
+console.log(multiply(2, 3)); // 6` },
+        { type: 'web', task: 'Write a function called greet(name) that returns a greeting string, then call it and display the result.', starter: {
+          html: `<div id="output"></div>`,
+          js: `function greet(name) {\n  return "Hello, " + name + "!";\n}\n\ndocument.getElementById('output').textContent = greet("world");`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does a function that has no return statement return?', choices: ['0', 'undefined', 'An error is thrown'], answer: 1, explain: 'A function without an explicit return implicitly returns undefined.' },
+        { q: 'Which is a valid arrow function that doubles a number?', choices: ['const double = (n) => n * 2;', 'const double = n -> n * 2;', 'function double => n * 2;'], answer: 0, explain: 'Arrow function syntax: (params) => expression.' },
+      ],
+    },
+
+    {
+      id: 'js-4',
+      title: 'Arrays & Objects',
+      blocks: [
+        { type: 'text', html: `
+          <p><strong>Arrays</strong> are ordered lists; <strong>objects</strong> are key-value pairs.
+          Array methods like <code>.map()</code>, <code>.filter()</code>, and <code>.forEach()</code>
+          are extremely common for working with lists of data (including data that came from JSON!).</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const books = [
+  { title: "Kindred", year: 1979 },
+  { title: "Americanah", year: 2013 },
+];
+
+const titles = books.map(b => b.title);
+const recent = books.filter(b => b.year > 2000);
+
+console.log(titles);   // ["Kindred", "Americanah"]
+console.log(recent);   // [{ title: "Americanah", year: 2013 }]` },
+        { type: 'web', task: 'Add a third book object to the array, then use .filter() to find books published before 2000, and display the titles joined with commas.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const books = [\n  { title: "Kindred", year: 1979 },\n  { title: "Americanah", year: 2013 },\n];\n\nconst old = books.filter(b => b.year < 2000);\nconst titles = old.map(b => b.title);\n\ndocument.getElementById('output').textContent = titles.join(', ');`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does array.map() return?', choices: ['A single value', 'A new array with each item transformed', 'The original array mutated'], answer: 1, explain: '.map() creates a brand-new array by applying a function to every element.' },
+        { q: 'How do you access the "title" property of an object called book?', choices: ['book->title', 'book.title', 'book[title]'], answer: 1, explain: 'Dot notation (book.title) is the standard way; book["title"] also works.' },
+      ],
+    },
+
+    {
+      id: 'js-5',
+      title: 'The DOM & Events',
+      blocks: [
+        { type: 'text', html: `
+          <p>The <strong>DOM</strong> (Document Object Model) is the browser's live representation of
+          your HTML. JavaScript can select elements (<code>document.querySelector</code>), change them,
+          and react to <strong>events</strong> like clicks.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const button = document.querySelector('#myButton');
+const output = document.querySelector('#output');
+let clicks = 0;
+
+button.addEventListener('click', () => {
+  clicks++;
+  output.textContent = "Clicked " + clicks + " times";
+});` },
+        { type: 'web', task: 'Build a tiny counter: a button that increases a number shown on the page each time it\'s clicked. Try adding a second button that resets it to 0.', starter: {
+          html: `<button id="myButton">Click me</button>\n<p id="output">Clicked 0 times</p>`,
+          js: `const button = document.querySelector('#myButton');\nconst output = document.querySelector('#output');\nlet clicks = 0;\n\nbutton.addEventListener('click', () => {\n  clicks++;\n  output.textContent = "Clicked " + clicks + " times";\n});`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does document.querySelector(\'#myButton\') do?', choices: ['Creates a new button', 'Finds the first element with id="myButton"', 'Deletes the button'], answer: 1, explain: 'querySelector finds the first matching element using a CSS-style selector.' },
+        { q: 'What runs when addEventListener(\'click\', fn) fires?', choices: ['fn runs immediately once', 'fn runs every time the element is clicked', 'The page reloads'], answer: 1, explain: 'The listener function runs each time the specified event occurs on that element.' },
+      ],
+    },
+
+    {
+      id: 'js-6',
+      title: 'JavaScript & JSON',
+      blocks: [
+        { type: 'text', html: `
+          <p>JSON is text; JavaScript objects are live values. <code>JSON.parse()</code> converts a
+          JSON string into a JavaScript value; <code>JSON.stringify()</code> does the reverse. This is
+          exactly what happens when your browser fetches data from a server.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const jsonText = '{"name":"Ada","skills":["HTML","CSS"]}';
+const data = JSON.parse(jsonText);
+console.log(data.name);      // "Ada"
+console.log(data.skills[0]); // "HTML"
+
+const backToText = JSON.stringify(data);
+console.log(backToText);` },
+        { type: 'note', kind: 'info', html: 'In a real app you\'d get JSON text over the network with <code>fetch(url).then(r => r.json())</code>, which parses it for you automatically.' },
+        { type: 'web', task: 'Parse the JSON string, add a new skill to the array, then stringify it back and display the result.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const jsonText = '{"name":"Ada","skills":["HTML","CSS"]}';\nconst data = JSON.parse(jsonText);\n\ndata.skills.push("JavaScript");\n\ndocument.getElementById('output').textContent = JSON.stringify(data);`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does JSON.parse() do?', choices: ['Converts a JS object into a JSON string', 'Converts a JSON string into a JS value', 'Deletes invalid JSON'], answer: 1, explain: 'parse: text → JS value. stringify: JS value → text.' },
+      ],
+    },
+
+    {
+      id: 'js-7',
+      title: 'Async Basics: Promises & fetch',
+      blocks: [
+        { type: 'text', html: `
+          <p>Some operations (loading data from a server, waiting on a timer) take time and shouldn't
+          freeze the page. JavaScript handles this with <strong>Promises</strong> and the
+          <code>async</code>/<code>await</code> syntax built on top of them.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function run() {
+  console.log("Starting…");
+  await delay(1000);
+  console.log("...1 second later");
+}
+
+run();
+
+// Fetching real data from a server looks like:
+// async function loadUsers() {
+//   const response = await fetch("/api/users");
+//   const users = await response.json(); // parses JSON automatically
+//   console.log(users);
+// }` },
+        { type: 'note', kind: 'tip', html: '<code>await</code> can only be used inside an <code>async</code> function. It pauses that function (not the whole page) until the promise finishes.' },
+        { type: 'web', task: 'Run this and watch the output update after a delay — it proves the page stays responsive while waiting.', starter: {
+          html: `<div id="output">Waiting…</div>`,
+          js: `function delay(ms) {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n\nasync function run() {\n  await delay(1500);\n  document.getElementById('output').textContent = 'Done after 1.5 seconds!';\n}\n\nrun();`,
+        }},
+      ],
+      quiz: [
+        { q: 'Where can you use the await keyword?', choices: ['Anywhere in any function', 'Only inside a function declared async', 'Only at the very top of a file'], answer: 1, explain: 'await is only valid inside async functions (or, in modern environments, at a module\'s top level).' },
+        { q: 'What does fetch(url).then(r => r.json()) do?', choices: ['Sends a form', 'Requests a URL and parses the response body as JSON', 'Deletes a file on the server'], answer: 1, explain: 'fetch() makes an HTTP request; .json() reads and parses the JSON response body.' },
+      ],
+    },
+  ],
+};
