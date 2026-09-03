@@ -99,6 +99,40 @@ $jsonText2 = json_encode($data);` },
     },
 
     {
+      id: 'json-vs-objects',
+      title: 'JSON vs JavaScript Objects',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>JSON and JavaScript objects look almost identical, but they're not the same thing — JSON
+          is a strict <em>text format</em>, while a JS object is a live in-memory value with far more
+          capability. <code>JSON.stringify()</code> quietly drops or transforms anything JSON can't
+          represent.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const obj = {
+  name: "Ada",
+  greet: function() { return "hi"; },  // a function
+  missing: undefined,                   // undefined
+  found: null,                          // null
+};
+
+console.log(JSON.stringify(obj));
+// {"name":"Ada","found":null}
+// — the function and the undefined property both vanished!` },
+        { type: 'note', kind: 'warning', html: 'JSON has no concept of functions, undefined, Dates, or Maps/Sets. <code>JSON.stringify</code> silently drops functions and undefined values, and turns a Date into a plain ISO string — it doesn\'t come back as a Date when parsed again. Always double-check what actually survives a round trip through JSON if your data has these types.' },
+        { type: 'web', task: 'Create an object with a string, a function property, and an undefined property. Stringify it and see exactly what survives.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const obj = {\n  name: "Ada",\n  greet: function() { return "hi"; },\n  missing: undefined,\n};\n\ndocument.getElementById('output').textContent = JSON.stringify(obj);`,
+        }},
+      ],
+      quiz: [
+        { q: 'What happens to a function property when you JSON.stringify an object containing one?', choices: ['It throws an error', 'It is silently dropped from the result', 'It becomes the string "function"'], answer: 1, explain: 'JSON has no way to represent functions, so JSON.stringify simply omits them.' },
+        { q: 'What does a JavaScript Date become after JSON.stringify then JSON.parse?', choices: ['It stays a Date object', 'It becomes a plain string — you\'d need to convert it back manually', 'It becomes a number'], answer: 1, explain: 'JSON.stringify converts a Date to an ISO string; JSON.parse does not automatically convert it back to a Date.' },
+      ],
+    },
+
+    {
       id: 'json-4',
       title: 'Validating JSON',
       difficulty: 'pro',
@@ -118,6 +152,41 @@ $jsonText2 = json_encode($data);` },
       ],
       quiz: [
         { q: 'Which of these commonly breaks JSON?', choices: ['A trailing comma after the last array item', 'A number value', 'A nested object'], answer: 0, explain: 'Trailing commas are not allowed in JSON, unlike in JavaScript object/array literals.' },
+      ],
+    },
+
+    {
+      id: 'json-array-methods',
+      title: 'Filtering, Mapping & Sorting Real Data',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p>Once JSON is parsed, you're working with a plain JS array of objects — exactly where
+          <code>.filter()</code>, <code>.map()</code>, and <code>.sort()</code> earn their keep. This
+          is the everyday pattern behind "show me the books published after 2000, cheapest first."</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const books = JSON.parse(\`[
+  {"title":"Kindred","year":1979,"price":12.99},
+  {"title":"Americanah","year":2013,"price":15.00},
+  {"title":"Parable of the Sower","year":1993,"price":14.50}
+]\`);
+
+const recentCheap = books
+  .filter(b => b.year > 1990)
+  .sort((a, b) => a.price - b.price)
+  .map(b => b.title);
+
+console.log(recentCheap); // ["Parable of the Sower", "Americanah"]` },
+        { type: 'note', kind: 'tip', html: '<code>.sort((a, b) => a.price - b.price)</code> is the standard way to sort numbers ascending — the comparator returns negative when a should come first, positive when b should. Sorting strings/dates uses the same pattern with a different comparison.' },
+        { type: 'web', task: 'From the parsed array, get the titles of books cheaper than $15, sorted alphabetically by title.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const books = JSON.parse(\`[\n  {"title":"Kindred","year":1979,"price":12.99},\n  {"title":"Americanah","year":2013,"price":15.00},\n  {"title":"Parable of the Sower","year":1993,"price":14.50}\n]\`);\n\nconst result = books\n  .filter(b => b.price < 15)\n  .sort((a, b) => a.title.localeCompare(b.title))\n  .map(b => b.title);\n\ndocument.getElementById('output').textContent = JSON.stringify(result);`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does a.price - b.price as a sort comparator produce?', choices: ['Descending order by price', 'Ascending order by price', 'A random order'], answer: 1, explain: 'A negative result means a sorts before b — subtracting gives ascending numeric order.' },
+        { q: 'In the chain .filter(...).sort(...).map(...), what does each step do?', choices: ['filter transforms, sort removes, map filters', 'filter narrows down which items remain, sort reorders them, map transforms each into something new', 'They all do the same thing'], answer: 1, explain: 'filter keeps only matching items, sort reorders them, and map produces a new array of transformed values.' },
       ],
     },
 

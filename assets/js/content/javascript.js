@@ -136,6 +136,46 @@ console.log(recent);   // [{ title: "Americanah", year: 2013 }]` },
     },
 
     {
+      id: 'js-template-strings',
+      title: 'Template Literals & String Methods',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p><strong>Template literals</strong> (backtick strings) let you embed expressions directly
+          with <code>\${...}</code>, and span multiple lines without special escaping — much cleaner
+          than <code>+</code> concatenation. Common string methods:
+          <code>.includes()</code>, <code>.trim()</code>, <code>.split()</code>,
+          <code>.padStart()</code>/<code>.padEnd()</code>, <code>.replace()</code>.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`const name = "Ada";
+const score = 92;
+
+// Old way:
+console.log("Hi " + name + ", you scored " + score + "%.");
+
+// Template literal:
+console.log(\`Hi \${name}, you scored \${score}%.\`);
+
+const multiline = \`Line one
+Line two\`;
+
+console.log("  hello  ".trim());          // "hello"
+console.log("a,b,c".split(","));          // ["a", "b", "c"]
+console.log("5".padStart(3, "0"));        // "005"
+console.log("cat".includes("a"));         // true` },
+        { type: 'web', task: 'Use a template literal to build a sentence from a name and age variable, and use .padStart() to zero-pad a number to 4 digits.', starter: {
+          html: `<div id="output"></div>`,
+          js: `const name = "Ada";\nconst age = 30;\n\nconst sentence = \`\${name} is \${age} years old.\`;\nconst padded = String(7).padStart(4, "0");\n\ndocument.getElementById('output').textContent = sentence + ' / ' + padded;`,
+        }},
+      ],
+      quiz: [
+        { q: 'How do you embed a variable inside a template literal?', choices: ['{variable}', '${variable}', '%variable%'], answer: 1, explain: 'Template literals use ${expression} inside backtick strings.' },
+        { q: 'What does "  hi  ".trim() return?', choices: ['"  hi  "', '"hi"', 'undefined'], answer: 1, explain: 'trim() removes whitespace from both ends of a string.' },
+      ],
+    },
+
+    {
       id: 'js-5',
       title: 'The DOM & Events',
       difficulty: 'medium',
@@ -195,6 +235,48 @@ console.log(backToText);` },
     },
 
     {
+      id: 'js-try-catch',
+      title: 'Error Handling: try/catch',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>When code might fail — parsing bad JSON, a network request, a bug in user input — wrap
+          it in <code>try { ... } catch (error) { ... }</code>. Code in <code>try</code> runs
+          normally; if it throws, execution jumps straight to <code>catch</code> instead of crashing
+          the whole script. <code>finally</code> (optional) always runs afterward, success or not.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`function parseAge(input) {
+  try {
+    const data = JSON.parse(input);
+    if (typeof data.age !== "number") {
+      throw new Error("age must be a number");
+    }
+    return data.age;
+  } catch (error) {
+    console.log("Failed to parse:", error.message);
+    return null;
+  } finally {
+    console.log("Done trying.");
+  }
+}
+
+parseAge('{"age": 30}');   // 30
+parseAge('not json');       // null, logs the JSON syntax error
+parseAge('{"age": "old"}'); // null, logs "age must be a number"` },
+        { type: 'note', kind: 'tip', html: '<code>throw new Error("message")</code> raises your own error — you\'re not limited to catching errors JavaScript generates itself. This is the same idea as PHP\'s exceptions or Lua\'s error()/pcall().' },
+        { type: 'web', task: 'Write a safeParse(jsonText) function that returns the parsed value, or the string "invalid JSON" if JSON.parse throws. Test it with both valid and invalid JSON.', starter: {
+          html: `<div id="output"></div>`,
+          js: `function safeParse(jsonText) {\n  try {\n    return JSON.parse(jsonText);\n  } catch (error) {\n    return "invalid JSON";\n  }\n}\n\nconst a = safeParse('{"ok": true}');\nconst b = safeParse('not json');\n\ndocument.getElementById('output').textContent = JSON.stringify(a) + ' / ' + b;`,
+        }},
+      ],
+      quiz: [
+        { q: 'What happens to code after a throw inside a try block?', choices: ['It keeps running normally', 'Execution jumps immediately to the catch block', 'The page reloads'], answer: 1, explain: 'Throwing immediately stops the try block and hands control to catch.' },
+        { q: 'When does a finally block run?', choices: ['Only if there was no error', 'Only if there was an error', 'Always, whether or not an error occurred'], answer: 2, explain: 'finally runs regardless of the outcome — commonly used for cleanup.' },
+      ],
+    },
+
+    {
       id: 'js-7',
       title: 'Async Basics: Promises & fetch',
       difficulty: 'pro',
@@ -232,6 +314,50 @@ run();
       quiz: [
         { q: 'Where can you use the await keyword?', choices: ['Anywhere in any function', 'Only inside a function declared async', 'Only at the very top of a file'], answer: 1, explain: 'await is only valid inside async functions (or, in modern environments, at a module\'s top level).' },
         { q: 'What does fetch(url).then(r => r.json()) do?', choices: ['Sends a form', 'Requests a URL and parses the response body as JSON', 'Deletes a file on the server'], answer: 1, explain: 'fetch() makes an HTTP request; .json() reads and parses the JSON response body.' },
+      ],
+    },
+
+    {
+      id: 'js-classes',
+      title: 'Classes in JavaScript',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p>A <code>class</code> is a blueprint for creating objects that bundle data and behavior
+          together — the same idea as PHP's classes or Lua's metatable pattern, with cleaner syntax.
+          <code>constructor</code> runs when you create an instance with <code>new</code>;
+          <code>this</code> refers to that specific instance. <code>extends</code> lets one class
+          inherit from another.</p>
+        `},
+        { type: 'code', lang: 'javascript', code:
+`class Animal {
+  constructor(name) {
+    this.name = name;
+  }
+  speak() {
+    return \`\${this.name} makes a sound\`;
+  }
+}
+
+class Dog extends Animal {
+  speak() {
+    return \`\${this.name} barks\`;   // overrides Animal's speak()
+  }
+}
+
+const a = new Animal("Generic Animal");
+const d = new Dog("Rex");
+console.log(a.speak());  // "Generic Animal makes a sound"
+console.log(d.speak());  // "Rex barks"` },
+        { type: 'note', kind: 'tip', html: 'Under the hood, JavaScript classes are still based on prototypes (similar in spirit to how a Lua metatable\'s __index provides fallback methods) — class syntax is a cleaner way to write the same pattern.' },
+        { type: 'web', task: 'Build a Counter class with a constructor that sets count to 0, and an increment() method that adds 1 and returns the new count. Create one and call increment() twice.', starter: {
+          html: `<div id="output"></div>`,
+          js: `class Counter {\n  constructor() {\n    this.count = 0;\n  }\n  increment() {\n    this.count += 1;\n    return this.count;\n  }\n}\n\nconst c = new Counter();\nc.increment();\nconst result = c.increment();\n\ndocument.getElementById('output').textContent = 'Count: ' + result;`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does the constructor method do?', choices: ['Deletes an object', 'Runs automatically when a new instance is created with new', 'Converts the class to JSON'], answer: 1, explain: 'constructor sets up a new instance\'s initial state when you call new ClassName(...).' },
+        { q: 'What does extends do?', choices: ['Makes a class longer', 'Lets one class inherit properties and methods from another', 'Deletes a class'], answer: 1, explain: 'extends sets up inheritance — the subclass gets everything from the parent class unless it overrides it.' },
       ],
     },
 

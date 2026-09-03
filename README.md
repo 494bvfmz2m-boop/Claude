@@ -1,11 +1,12 @@
 # Learn to Build a Website
 
 A self-paced, interactive course covering the core technologies behind almost
-every website: **HTML**, **CSS**, **JavaScript**, **JSON**, **SQL**, and **PHP**
-— plus a final lesson tying them all together.
+every website — **HTML**, **CSS**, **JavaScript**, **JSON**, **SQL**, and
+**PHP** — plus **Lua** as a bonus language, and a final lesson tying the web
+stack together.
 
-It's a static site (no build step, no server required to view it) with 51
-lessons across 7 topics. Every lesson is tagged **Basic → Medium → Pro → Hell**
+It's a static site (no build step, no server required to view it) with 75
+lessons across 8 topics. Every lesson is tagged **Basic → Medium → Pro → Hell**
 so difficulty is always visible in the sidebar and on the lesson page, and the
 HTML track is built as a full 2-week, day-by-day plan (see its first lesson)
 to take you from zero to confidently building a complete page. Every lesson
@@ -18,6 +19,9 @@ try:
   [sql.js](https://sql.js.org)), seeded with a small bookstore dataset. Write
   and run actual queries, including `INSERT`/`UPDATE`/`DELETE`/`CREATE TABLE`,
   with instant feedback on whether your query did the right thing.
+- **Lua** — a real Lua VM running in your browser (via
+  [Fengari](https://fengari.io)), covering everything from variables through
+  metatables, closures, coroutines, and pcall — genuinely executed, not simulated.
 - **JSON** — a validator/formatter to practice spotting and fixing broken JSON.
 - **PHP** — since PHP only runs on a server (not in a browser), these lessons
   use "predict the output" exercises instead of a live editor.
@@ -91,6 +95,7 @@ assets/js/content/
   json.js
   sql.js
   php.js
+  lua.js
   capstone.js                # "how it all fits together"
 ```
 

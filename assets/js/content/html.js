@@ -385,6 +385,40 @@ Day 14 — Capstone: Build a Complete Page         (Hell)` },
     },
 
     {
+      id: 'html-anchors',
+      title: 'Links, Anchors & Special URLs',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>Links can do more than jump to other pages. Give any element an <code>id</code>, then
+          link to <code>#that-id</code> to jump straight to it on the <em>same</em> page — the
+          backbone of "back to top" links and a table of contents. A few special URL schemes trigger
+          the visitor's other apps instead of navigating: <code>mailto:</code> opens their email
+          client, <code>tel:</code> starts a phone call (mainly useful on mobile).</p>
+        `},
+        { type: 'code', lang: 'html', code:
+`<nav>
+  <a href="#section-2">Jump to Section 2</a>
+</nav>
+
+<h2 id="section-2">Section 2</h2>
+<p>...</p>
+
+<a href="mailto:hello@example.com">Email us</a>
+<a href="tel:+15551234567">Call us</a>
+<a href="report.pdf" download>Download the report</a>` },
+        { type: 'note', kind: 'tip', html: 'The <code>download</code> attribute tells the browser to download the linked file instead of navigating to it — useful for PDFs, images, or any file you want visitors to save rather than view inline.' },
+        { type: 'web', task: 'Add an id to the second section below, then add a link at the top that jumps to it using #the-id.', starter: {
+          html: `<a href="#">Jump to Section B</a>\n\n<h2>Section A</h2>\n<p>Some content...</p>\n\n<h2>Section B</h2>\n<p>The section you want to jump to.</p>`,
+        }},
+      ],
+      quiz: [
+        { q: 'How do you link to an element with id="pricing" on the same page?', choices: ['<a href="pricing">', '<a href="#pricing">', '<a href="id:pricing">'], answer: 1, explain: 'A hash followed by the id jumps to that element on the current page.' },
+        { q: 'What does the download attribute on a link do?', choices: ['Makes the link open faster', 'Tells the browser to download the file instead of navigating to it', 'Compresses the linked file'], answer: 1, explain: 'download prompts a file save instead of an in-browser navigation.' },
+      ],
+    },
+
+    {
       id: 'html-10',
       title: 'Accessible & Well-Validated Forms',
       difficulty: 'pro',
@@ -493,6 +527,64 @@ btn.addEventListener('click', () => {
       quiz: [
         { q: 'What does loading="lazy" do on an image?', choices: ['Makes the image load blurry on purpose', 'Delays downloading the image until it\'s about to scroll into view', 'Compresses the image automatically'], answer: 1, explain: 'Lazy loading defers offscreen images, saving bandwidth and speeding up initial page load.' },
         { q: 'What does the "w" unit in a srcset value describe?', choices: ['The image\'s file weight in kilobytes', 'The image\'s actual intrinsic width in pixels', 'The number of times to repeat the image'], answer: 1, explain: '480w means that candidate image is 480 pixels wide — the browser uses this with sizes to choose the best match.' },
+      ],
+    },
+
+    {
+      id: 'html-details-dialog',
+      title: 'Native Interactive Elements',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p>Two HTML elements give you common UI patterns with zero JavaScript.
+          <code>&lt;details&gt;</code>/<code>&lt;summary&gt;</code> is a built-in collapsible
+          disclosure widget — click the summary to expand or collapse. <code>&lt;dialog&gt;</code> is
+          a native modal element, shown/hidden via a tiny bit of JavaScript but requiring none of the
+          positioning/overlay CSS a hand-built modal needs.</p>
+        `},
+        { type: 'code', lang: 'html', code:
+`<details>
+  <summary>What's your refund policy?</summary>
+  <p>Full refunds within 30 days, no questions asked.</p>
+</details>
+
+<dialog id="confirmDialog">
+  <p>Are you sure you want to delete this?</p>
+  <button id="closeDialog">Cancel</button>
+</dialog>
+<button id="openDialog">Delete item</button>` },
+        { type: 'code', lang: 'javascript', caption: 'Opening/closing the dialog', code:
+`document.getElementById('openDialog').addEventListener('click', () => {
+  document.getElementById('confirmDialog').showModal();
+});
+document.getElementById('closeDialog').addEventListener('click', () => {
+  document.getElementById('confirmDialog').close();
+});` },
+        { type: 'note', kind: 'tip', html: '<code>&lt;details&gt;</code> needs no JavaScript at all — the expand/collapse behavior is built into the browser. It\'s a great fit for FAQs and "show more" sections.' },
+        { type: 'web', task: 'Build a small FAQ using two <details> elements, and wire up the dialog example so clicking "Delete item" opens it and "Cancel" closes it.', starter: {
+          html:
+`<details>
+  <summary>What's your refund policy?</summary>
+  <p>Full refunds within 30 days.</p>
+</details>
+
+<dialog id="confirmDialog">
+  <p>Are you sure?</p>
+  <button id="closeDialog">Cancel</button>
+</dialog>
+<button id="openDialog">Delete item</button>`,
+          js:
+`document.getElementById('openDialog').addEventListener('click', () => {
+  document.getElementById('confirmDialog').showModal();
+});
+document.getElementById('closeDialog').addEventListener('click', () => {
+  document.getElementById('confirmDialog').close();
+});`,
+        }},
+      ],
+      quiz: [
+        { q: 'What does <details>/<summary> give you without any JavaScript?', choices: ['A collapsible/expandable disclosure widget', 'A popup notification', 'A form validation message'], answer: 0, explain: 'The browser handles the open/close toggle natively — click the summary to expand or collapse.' },
+        { q: 'What method opens a <dialog> as a modal (with a background overlay, blocking interaction behind it)?', choices: ['dialog.open()', 'dialog.showModal()', 'dialog.show()'], answer: 1, explain: 'showModal() opens it as a true modal; show() (non-modal) opens it without blocking the rest of the page.' },
       ],
     },
 

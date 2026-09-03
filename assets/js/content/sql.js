@@ -143,6 +143,38 @@ JOIN books ON loans.book_id = books.id;`, verify: (db, execResult) => {
     },
 
     {
+      id: 'sql-null',
+      title: 'Handling NULL',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p><code>NULL</code> means "no value" — not zero, not an empty string, genuinely unknown or
+          absent. In the sample data, a loan that hasn't been returned yet has <code>return_date =
+          NULL</code>. You can't compare against NULL with <code>=</code> — <code>WHERE return_date =
+          NULL</code> matches nothing, ever. Use <code>IS NULL</code> / <code>IS NOT NULL</code>
+          instead. <code>COALESCE(value, fallback)</code> substitutes a fallback when a value is NULL.</p>
+        `},
+        { type: 'code', lang: 'sql', code:
+`SELECT * FROM loans WHERE return_date IS NULL;      -- currently borrowed
+SELECT * FROM loans WHERE return_date IS NOT NULL;   -- already returned
+
+SELECT title, COALESCE(genre, 'Uncategorized') AS genre
+FROM books;` },
+        { type: 'note', kind: 'warning', html: 'This is one of SQL\'s most common gotchas: <code>NULL = NULL</code> evaluates to NULL (neither true nor false), not true — that\'s exactly why <code>WHERE x = NULL</code> silently matches zero rows instead of erroring.' },
+        { type: 'sql', task: 'Find every loan that has NOT been returned yet (return_date IS NULL) — select book_id and member_id.', starter: 'SELECT book_id, member_id FROM loans;', verify: (db, execResult) => {
+          const pass = window.rowsMatch(execResult, db, 'SELECT book_id, member_id FROM loans WHERE return_date IS NULL;');
+          return pass
+            ? { pass: true, message: 'Correct — these loans have no return_date recorded yet.' }
+            : { pass: false, message: 'Use WHERE return_date IS NULL (not = NULL).' };
+        }},
+      ],
+      quiz: [
+        { q: 'Why does WHERE return_date = NULL never match any rows?', choices: ['It\'s a syntax error', 'Comparing anything to NULL with = yields NULL (not true), not a match', 'return_date can never actually be NULL'], answer: 1, explain: 'NULL represents "unknown" — even NULL = NULL is not considered true in SQL. Use IS NULL instead.' },
+        { q: 'What does COALESCE(genre, \'Uncategorized\') do?', choices: ['Deletes the genre column', 'Returns genre if it\'s not NULL, otherwise "Uncategorized"', 'Always returns "Uncategorized"'], answer: 1, explain: 'COALESCE returns the first non-NULL value from its arguments — a common way to supply a fallback/default.' },
+      ],
+    },
+
+    {
       id: 'sql-5',
       title: 'Aggregates & GROUP BY',
       difficulty: 'pro',
@@ -210,6 +242,37 @@ GROUP BY genre;` },
       ],
       quiz: [
         { q: 'What does PRIMARY KEY do for a column?', choices: ['Makes it required to be text', 'Uniquely identifies each row in the table', 'Automatically sorts the table'], answer: 1, explain: 'A primary key uniquely identifies each row — no two rows can share the same value.' },
+      ],
+    },
+
+    {
+      id: 'sql-indexes',
+      title: 'Indexes & Query Performance',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p>Without help, finding a row means scanning the whole table — fine for 9 books, painfully
+          slow for 9 million. An <strong>index</strong> is a separate, sorted structure the database
+          maintains for one or more columns, letting it jump straight to matching rows instead of
+          scanning everything — the same idea as a book's index letting you skip straight to a page
+          instead of reading cover to cover.</p>
+        `},
+        { type: 'code', lang: 'sql', code:
+`CREATE INDEX idx_books_genre ON books(genre);
+
+-- Queries filtering or joining on genre can now use the index
+SELECT * FROM books WHERE genre = 'Sci-Fi';` },
+        { type: 'note', kind: 'warning', html: 'Indexes aren\'t free — they speed up reads but slow down writes slightly (every INSERT/UPDATE has to update the index too) and take extra storage. Index the columns you actually filter, join, or sort by often — not every column "just in case."' },
+        { type: 'sql', task: 'Create an index named idx_books_author on books(author_id) — a natural choice since you join on it often.', starter: 'CREATE INDEX idx_books_author ON books(author_id);', verify: (db) => {
+          const res = db.exec("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_books_author';");
+          return res.length && res[0].values.length
+            ? { pass: true, message: 'Index created on books(author_id).' }
+            : { pass: false, message: 'No index named idx_books_author was found — check the CREATE INDEX syntax above.' };
+        }},
+      ],
+      quiz: [
+        { q: 'What is the main benefit of an index?', choices: ['It makes INSERTs faster', 'It lets the database find matching rows without scanning the whole table', 'It automatically fixes bad data'], answer: 1, explain: 'Indexes trade a little write overhead and storage for much faster lookups on the indexed column(s).' },
+        { q: 'Why not just index every column?', choices: ['SQLite doesn\'t allow more than one index', 'Each index adds storage and slightly slows down writes, so index only what you actually query often', 'Indexes are purely cosmetic'], answer: 1, explain: 'Indexes have real costs — apply them deliberately to columns your queries actually filter/join/sort by.' },
       ],
     },
 

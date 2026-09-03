@@ -183,6 +183,91 @@ h1 {
     },
 
     {
+      id: 'css-positioning',
+      title: 'Positioning',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>The <code>position</code> property changes how an element is placed:</p>
+          <ul>
+            <li><code>static</code> — the default; normal document flow, top/left/etc. do nothing.</li>
+            <li><code>relative</code> — stays in normal flow, but top/left/right/bottom nudge it
+                relative to where it would otherwise be.</li>
+            <li><code>absolute</code> — removed from normal flow, positioned relative to its nearest
+                <em>positioned</em> ancestor (any ancestor that isn't static) — or the page if none.</li>
+            <li><code>fixed</code> — positioned relative to the browser window, stays put when scrolling.</li>
+            <li><code>sticky</code> — normal flow until a scroll threshold, then sticks in place.</li>
+          </ul>
+        `},
+        { type: 'code', lang: 'css', code:
+`.card {
+  position: relative;   /* becomes the "positioned ancestor" */
+}
+.badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;           /* positioned relative to .card, not the page */
+}
+.site-header {
+  position: sticky;
+  top: 0;                /* sticks to the top once you scroll past it */
+}` },
+        { type: 'note', kind: 'warning', html: 'This is the single most common positioning bug: <code>position: absolute</code> positions relative to the nearest ANCESTOR with a non-static position — if no ancestor has one, it jumps all the way up to the page itself. Add <code>position: relative</code> to the parent you actually want it contained by.' },
+        { type: 'web', task: 'Add a small absolutely-positioned "NEW" badge to the top-right corner of the card. Then try removing position:relative from .card and watch the badge escape to the page corner instead.', starter: {
+          html: `<div class="card">\n  <span class="badge">NEW</span>\n  <h3>Product Name</h3>\n  <p>A short description of the product.</p>\n</div>`,
+          css: `.card {\n  position: relative;\n  width: 240px;\n  padding: 16px;\n  border: 1px solid #ccc;\n  border-radius: 8px;\n}\n.badge {\n  position: absolute;\n  top: 8px;\n  right: 8px;\n  background: crimson;\n  color: white;\n  padding: 2px 8px;\n  border-radius: 4px;\n  font-size: 0.75rem;\n}`,
+        }},
+      ],
+      quiz: [
+        { q: 'An absolutely positioned element with no positioned ancestor is placed relative to what?', choices: ['Its immediate parent, always', 'The page itself', 'Nothing — it disappears'], answer: 1, explain: 'absolute positioning looks for the nearest ancestor with position other than static; finding none, it falls back to the page.' },
+        { q: 'What makes position: sticky different from fixed?', choices: ['They are identical', 'sticky stays in normal flow until a scroll threshold, then sticks; fixed is always positioned relative to the window', 'sticky only works on images'], answer: 1, explain: 'sticky is a hybrid: normal until scrolled past a point, then behaves like fixed within its container.' },
+      ],
+    },
+
+    {
+      id: 'css-pseudo',
+      title: 'Pseudo-classes & Pseudo-elements',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p><strong>Pseudo-classes</strong> (one colon) select elements based on state or position:
+          <code>:hover</code>, <code>:focus</code>, <code>:first-child</code>,
+          <code>:nth-child(2)</code>, <code>:nth-child(odd)</code>. <strong>Pseudo-elements</strong>
+          (two colons) target a sub-part of an element that doesn't otherwise exist in the HTML:
+          <code>::before</code>, <code>::after</code>, <code>::first-letter</code> — often used with
+          <code>content</code> to insert decorative text or icons purely in CSS.</p>
+        `},
+        { type: 'code', lang: 'css', code:
+`li:nth-child(odd) {
+  background: #f4f4f4;    /* zebra-striped list */
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.required::after {
+  content: " *";
+  color: red;
+}
+
+blockquote::before {
+  content: "“";
+  font-size: 2em;
+}` },
+        { type: 'note', kind: 'tip', html: '<code>::before</code>/<code>::after</code> need a <code>content</code> property (even <code>content: "";</code>) or they won\'t render at all — this trips up almost everyone the first time.' },
+        { type: 'web', task: 'Zebra-stripe the list items using nth-child(even), and add a red asterisk after the label with class "required" using ::after.', starter: {
+          html: `<ul>\n  <li>Item one</li>\n  <li>Item two</li>\n  <li>Item three</li>\n  <li>Item four</li>\n</ul>\n<p><span class="required">Email</span></p>`,
+          css: `li { padding: 4px 8px; }`,
+        }},
+      ],
+      quiz: [
+        { q: 'How many colons does a pseudo-element use, versus a pseudo-class?', choices: ['Pseudo-elements use two colons (::), pseudo-classes use one (:)', 'They both use exactly one colon', 'Pseudo-elements use three colons'], answer: 0, explain: '::before/::after (pseudo-elements) use two colons; :hover/:nth-child (pseudo-classes) use one.' },
+        { q: 'What is required for ::before or ::after to actually render?', choices: ['A color property', 'A content property, even if empty', 'A width and height'], answer: 1, explain: 'Without content, the pseudo-element is never generated at all.' },
+      ],
+    },
+
+    {
       id: 'css-7',
       title: 'Transitions, Transforms & Animation',
       difficulty: 'pro',
@@ -221,6 +306,47 @@ h1 {
         { q: 'What does the transition property animate?', choices: ['A property\'s change from its old value to its new value, over time', 'Only colors', 'The page\'s scroll position'], answer: 0, explain: 'transition smooths out any change to the listed properties, whatever triggers that change (hover, a class toggle, etc.).' },
         { q: 'Why prefer animating transform/opacity over width/height/margin?', choices: ['They\'re the only properties CSS allows animating', 'They\'re cheap for the browser to animate — no layout recalculation needed', 'There is no real difference'], answer: 1, explain: 'transform and opacity can be handled without recalculating the page\'s layout, keeping animations smooth.' },
         { q: 'What lets an animation run automatically and loop, unlike a plain transition?', choices: ['transition-delay', '@keyframes with the animation property', 'The :hover pseudo-class'], answer: 1, explain: '@keyframes defines a multi-step animation sequence that animation can run on its own and repeat with infinite.' },
+      ],
+    },
+
+    {
+      id: 'css-custom-properties',
+      title: 'CSS Custom Properties (Variables)',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p><strong>Custom properties</strong> (CSS variables) store a value once and reuse it
+          everywhere, using <code>--name: value;</code> to define and <code>var(--name)</code> to use.
+          Defined on <code>:root</code>, a variable is available to the whole page — this is the
+          foundation of real-world theming (including dark mode).</p>
+        `},
+        { type: 'code', lang: 'css', code:
+`:root {
+  --primary: #6c5ce7;
+  --spacing: 16px;
+}
+
+.button {
+  background: var(--primary);
+  padding: var(--spacing);
+}
+.link {
+  color: var(--primary);   /* same value, defined once */
+}
+
+/* Variables can even be overridden for one section: */
+.dark-section {
+  --primary: #a29bfe;
+}` },
+        { type: 'note', kind: 'tip', html: 'Unlike a Sass/Less variable, a CSS custom property is a real runtime value the browser can change — you can update it with JavaScript (<code>element.style.setProperty(\'--primary\', \'red\')</code>) and everything using <code>var(--primary)</code> updates instantly, no re-render logic needed.' },
+        { type: 'web', task: 'Define --primary and --radius on :root, use them for the button\'s background and border-radius, then override --primary inside .alt-theme to see the same button change color there.', starter: {
+          html: `<button class="button">Normal</button>\n<div class="alt-theme">\n  <button class="button">Themed</button>\n</div>`,
+          css: `:root {\n  --primary: #6c5ce7;\n  --radius: 6px;\n}\n.button {\n  background: var(--primary);\n  border-radius: var(--radius);\n  color: white;\n  border: none;\n  padding: 10px 20px;\n  margin: 8px;\n}\n.alt-theme {\n  --primary: #00b894;\n}`,
+        }},
+      ],
+      quiz: [
+        { q: 'How do you define a custom property on the whole page?', choices: ['$primary: blue; at the top of the file', '--primary: blue; on the :root selector', 'var primary = blue;'], answer: 1, explain: 'Custom properties are declared with a -- prefix, typically on :root for page-wide scope.' },
+        { q: 'What is a key difference between a CSS custom property and a Sass variable?', choices: ['There is no difference', 'A CSS custom property is a live runtime value that can be read/changed via JavaScript and cascades/can be overridden per element', 'CSS custom properties can only hold numbers'], answer: 1, explain: 'CSS variables are resolved live in the browser and respect the cascade — Sass variables are compiled away before the browser ever sees them.' },
       ],
     },
 

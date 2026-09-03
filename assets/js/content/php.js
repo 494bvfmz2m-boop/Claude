@@ -158,6 +158,44 @@ window.COURSE.php = {
     },
 
     {
+      id: 'php-strings',
+      title: 'String Functions',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>PHP has a large built-in library of string functions:
+          <code>strlen()</code>, <code>strtoupper()</code>/<code>strtolower()</code>,
+          <code>str_replace()</code>, <code>trim()</code>, <code>explode()</code>/<code>implode()</code>
+          (split/join, the same idea as JavaScript's split/join), and <code>sprintf()</code> for
+          building formatted strings.</p>
+        `},
+        { type: 'code', lang: 'php', code:
+`<?php
+  $name = "  Ada Lovelace  ";
+  echo strlen($name) . "\\n";           // 16 (includes the spaces)
+  echo trim($name) . "\\n";              // "Ada Lovelace"
+  echo strtoupper(trim($name)) . "\\n";  // "ADA LOVELACE"
+
+  $csv = "html,css,js";
+  $parts = explode(",", $csv);           // ["html", "css", "js"]
+  echo implode(" + ", $parts) . "\\n";   // "html + css + js"
+
+  echo sprintf("%s scored %d%%", "Ada", 92) . "\\n";
+?>` },
+        { type: 'predict', lang: 'php', code:
+`<?php
+  $sentence = "the quick brown fox";
+  $words = explode(" ", $sentence);
+  echo count($words) . ": " . strtoupper($words[1]);
+?>`, options: ['4: QUICK', '3: THE', '4: the'], answer: 0, explain: 'explode(" ", ...) splits into 4 words; $words[1] is "quick" (index 1, second word), uppercased to "QUICK".' },
+      ],
+      quiz: [
+        { q: 'What does explode(",", "a,b,c") return?', choices: ['The string "a,b,c" unchanged', 'An array: ["a", "b", "c"]', 'The number 3'], answer: 1, explain: 'explode splits a string into an array by a delimiter — the reverse of implode.' },
+        { q: 'What does trim() remove?', choices: ['All spaces anywhere in the string', 'Whitespace from the start and end of the string only', 'Every vowel'], answer: 1, explain: 'trim() strips leading and trailing whitespace, leaving internal spaces untouched.' },
+      ],
+    },
+
+    {
       id: 'php-5',
       title: 'Arrays & JSON in PHP',
       difficulty: 'pro',
@@ -234,6 +272,55 @@ window.COURSE.php = {
       quiz: [
         { q: 'What does $_POST[\'email\'] contain?', choices: ['The database column named email', 'The value submitted by a form input named "email"', 'The visitor\'s email inferred automatically'], answer: 1, explain: '$_POST (and $_GET) holds submitted form values, keyed by each input\'s name attribute.' },
         { q: 'Why use a prepared statement (with ? placeholders) instead of concatenating user input into SQL?', choices: ['It runs faster in every case', 'It prevents SQL injection attacks', 'It is required by PHP syntax'], answer: 1, explain: 'Prepared statements keep user input as data, never as executable SQL — this is the standard defense against SQL injection.' },
+      ],
+    },
+
+    {
+      id: 'php-sessions',
+      title: 'Sessions & Cookies',
+      difficulty: 'pro',
+      blocks: [
+        { type: 'text', html: `
+          <p>HTTP is <strong>stateless</strong> — every request is independent, and by default a
+          server has no idea if two requests came from the same visitor. <strong>Sessions</strong>
+          solve this: <code>session_start()</code> gives each visitor a unique id (stored in a cookie
+          automatically), and <code>$_SESSION</code> is a server-side array that persists across
+          requests for that visitor — this is how "logged in" state works.</p>
+        `},
+        { type: 'code', lang: 'php', caption: 'login.php', code:
+`<?php
+  session_start();  // must be called before any output, on every page that uses sessions
+
+  if ($_POST['username'] === 'ada' && $_POST['password'] === 'correct-horse') {
+    $_SESSION['user_id'] = 42;
+    $_SESSION['username'] = 'ada';
+    echo "Logged in!";
+  }
+?>` },
+        { type: 'code', lang: 'php', caption: 'dashboard.php — a later request, same visitor', code:
+`<?php
+  session_start();
+
+  if (!isset($_SESSION['user_id'])) {
+    echo "Please log in first.";
+  } else {
+    echo "Welcome back, " . htmlspecialchars($_SESSION['username']);
+  }
+?>` },
+        { type: 'note', kind: 'info', html: 'A <strong>cookie</strong> is just a small piece of data the browser stores and sends back with every request to that site. Sessions use a cookie behind the scenes (usually just a random session id) — the actual data lives on the server, not in the cookie itself, which is more secure than storing sensitive data directly in a cookie.' },
+        { type: 'predict', lang: 'php', question: 'What does dashboard.php print if the visitor never logged in this session?', code:
+`<?php
+  session_start();
+  if (!isset($_SESSION['user_id'])) {
+    echo "Please log in first.";
+  } else {
+    echo "Welcome back";
+  }
+?>`, options: ['Welcome back', 'Please log in first.', 'A fatal error'], answer: 1, explain: 'Without ever setting $_SESSION[\'user_id\'], isset() returns false, so the else branch never runs.' },
+      ],
+      quiz: [
+        { q: 'Why does a server need sessions at all?', choices: ['HTTP requests are stateless — without something like a session, the server can\'t tell two requests came from the same visitor', 'PHP requires them to run at all', 'To make pages load faster'], answer: 0, explain: 'Sessions bridge the gap created by HTTP\'s stateless nature, letting the server recognize a returning visitor across requests.' },
+        { q: 'Where does session data actually live?', choices: ['Entirely inside the cookie itself', 'On the server, referenced by an id the cookie stores', 'In the URL'], answer: 1, explain: 'The cookie typically just holds a session id; the actual $_SESSION data is stored server-side.' },
       ],
     },
 

@@ -4,7 +4,7 @@
    Content itself lives in assets/js/content/*.js (window.COURSE.<topic>).
 --------------------------------------------------------------------- */
 
-const TOPIC_ORDER = ['html', 'css', 'javascript', 'json', 'sql', 'php', 'capstone'];
+const TOPIC_ORDER = ['html', 'css', 'javascript', 'json', 'sql', 'php', 'lua', 'capstone'];
 const PROGRESS_KEY = 'wds-progress-v1';
 
 const DIFFICULTY_META = {
@@ -370,6 +370,7 @@ function renderBlock(block, lessonId) {
     case 'code': return renderCode(block);
     case 'web': return renderWebPlayground(block);
     case 'sql': return renderSqlPlayground(block, lessonId);
+    case 'lua': return renderLuaPlayground(block, lessonId);
     case 'predict': return renderPredict(block);
     case 'jsontool': return renderJsonTool(block);
     default: {
@@ -677,6 +678,112 @@ function renderSqlPlayground(block, lessonId) {
         const execResult = runQueryOnDb(db, input.value);
         resultEl.innerHTML = execResult.ok ? resultsToHtml(execResult.result) : `<div class="sql-error">Error: ${escapeHtml(execResult.error)}</div>`;
         const outcome = block.verify(db, execResult);
+        verifyEl.innerHTML = `<div class="verify-outcome ${outcome.pass ? 'pass' : 'fail'}">
+          ${outcome.pass ? '✅' : '❌'} ${outcome.message}
+        </div>`;
+        if (outcome.pass) setComplete(lessonId, true);
+      });
+    });
+  }
+
+  return div;
+}
+
+/* -------------------------------- lua ------------------------------------ */
+
+let fengariPromise = null;
+function loadFengari() {
+  if (fengariPromise) return fengariPromise;
+  fengariPromise = new Promise((resolve, reject) => {
+    if (window.fengari) { resolve(window.fengari); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js';
+    script.onload = () => resolve(window.fengari);
+    script.onerror = () => reject(new Error('Could not load the Lua engine from CDN. Check your internet connection.'));
+    document.head.appendChild(script);
+  });
+  return fengariPromise;
+}
+
+function runLua(fengari, code) {
+  const { lua, lauxlib, lualib, to_luastring, to_jsstring } = fengari;
+  const L = lauxlib.luaL_newstate();
+  lualib.luaL_openlibs(L);
+
+  const output = [];
+  lua.lua_pushcfunction(L, (L) => {
+    const n = lua.lua_gettop(L);
+    const parts = [];
+    for (let i = 1; i <= n; i++) {
+      parts.push(to_jsstring(lauxlib.luaL_tolstring(L, i)));
+      lua.lua_pop(L, 1);
+    }
+    output.push(parts.join('\t'));
+    return 0;
+  });
+  lua.lua_setglobal(L, to_luastring('print'));
+
+  const status = lauxlib.luaL_dostring(L, to_luastring(code));
+  if (status !== lua.LUA_OK) {
+    return { ok: false, error: lua.lua_tojsstring(L, -1), output: output.join('\n') };
+  }
+  return { ok: true, output: output.join('\n') };
+}
+
+function renderLuaPlayground(block, lessonId) {
+  const id = uid('lua');
+  const div = document.createElement('div');
+  div.className = 'block playground lua-playground';
+  div.innerHTML = `
+    ${block.task ? `<div class="playground-task"><strong>Try it:</strong> ${block.task}</div>` : ''}
+    <div id="${id}">
+      <textarea class="code-input lua-input" spellcheck="false">${escapeHtml(block.starter || '')}</textarea>
+      <div class="playground-actions">
+        <button type="button" class="btn btn-primary run-btn">▶ Run</button>
+        ${block.verify ? '<button type="button" class="btn btn-primary verify-btn">✔ Check My Work</button>' : ''}
+        <button type="button" class="btn btn-secondary reset-lua-btn">↺ Reset</button>
+        <span class="sql-status">Loading Lua engine…</span>
+      </div>
+      <div class="lua-result"></div>
+      <div class="sql-verify-result"></div>
+    </div>`;
+
+  const root = div.querySelector(`#${id}`);
+  const status = root.querySelector('.sql-status');
+  const resultEl = root.querySelector('.lua-result');
+  const verifyEl = root.querySelector('.sql-verify-result');
+  const input = root.querySelector('.lua-input');
+
+  loadFengari().then(() => { status.textContent = 'Ready'; status.classList.add('ready'); })
+    .catch((e) => { status.textContent = 'Failed to load: ' + e.message; });
+
+  function showResult(target, res) {
+    if (!res.ok) {
+      target.innerHTML = `<div class="sql-error">Error: ${escapeHtml(res.error)}</div>`;
+    } else if (!res.output) {
+      target.innerHTML = '<div class="sql-empty">Ran successfully — nothing was printed. Use print(...) to see output.</div>';
+    } else {
+      target.innerHTML = `<pre class="code-block lua-output"><code>${escapeHtml(res.output)}</code></pre>`;
+    }
+  }
+
+  root.querySelector('.run-btn').addEventListener('click', () => {
+    resultEl.innerHTML = '<div class="sql-loading">Running…</div>';
+    loadFengari().then((fengari) => showResult(resultEl, runLua(fengari, input.value)));
+  });
+
+  root.querySelector('.reset-lua-btn').addEventListener('click', () => {
+    input.value = block.starter || '';
+    resultEl.innerHTML = '';
+    verifyEl.innerHTML = '';
+  });
+
+  if (block.verify) {
+    root.querySelector('.verify-btn').addEventListener('click', () => {
+      loadFengari().then((fengari) => {
+        const res = runLua(fengari, input.value);
+        showResult(resultEl, res);
+        const outcome = block.verify(res.output, res.ok);
         verifyEl.innerHTML = `<div class="verify-outcome ${outcome.pass ? 'pass' : 'fail'}">
           ${outcome.pass ? '✅' : '❌'} ${outcome.message}
         </div>`;
