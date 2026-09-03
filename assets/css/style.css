@@ -32,6 +32,54 @@ a { color: var(--accent-dark); }
   min-height: 100vh;
 }
 
+/* ------------------------------ lock screen ------------------------------ */
+
+#lock-screen[hidden] { display: none; }
+#lock-screen {
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: var(--sidebar-bg);
+  padding: 20px;
+}
+
+.lock-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 36px 32px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.lock-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.lock-card h1 { font-size: 1.3rem; margin: 0 0 8px; }
+.lock-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 20px; }
+.lock-card input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.lock-card .btn { width: 100%; }
+.lock-error { color: var(--danger); font-size: 0.85rem; margin-top: 12px; }
+
+.sidebar-lock-btn {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 20px 10px 0;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #9a9ab8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.sidebar-lock-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+
 /* ------------------------------- sidebar -------------------------------- */
 
 .sidebar {
@@ -88,6 +136,38 @@ a { color: var(--accent-dark); }
 
 .nav-lessons { display: flex; flex-direction: column; }
 
+.nav-tier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #8888a8;
+}
+.nav-tier:first-child { padding-top: 2px; }
+.tier-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid;
+  vertical-align: middle;
+}
+
 .nav-lesson {
   display: flex;
   gap: 8px;
@@ -130,6 +210,26 @@ a { color: var(--accent-dark); }
   border-radius: 999px;
   transition: width 0.3s ease;
 }
+
+.tier-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0 0 32px;
+}
+.tier-legend-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.tier-legend-item .tier-dot { align-self: center; }
+.tier-legend-item strong { color: var(--text); }
 
 .topic-grid {
   display: grid;

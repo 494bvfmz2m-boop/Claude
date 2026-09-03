@@ -7,12 +7,24 @@
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+  <div id="lock-screen" hidden>
+    <form id="lock-form" class="lock-card">
+      <div class="lock-icon">🔒</div>
+      <h1>Learn to Code</h1>
+      <p>This site is private. Enter the password to continue.</p>
+      <input type="password" id="lock-password" placeholder="Password" autocomplete="current-password" autofocus>
+      <button type="submit" class="btn btn-primary">Unlock</button>
+      <div id="lock-error" class="lock-error" hidden>Wrong password — try again.</div>
+    </form>
+  </div>
+
   <div class="layout">
     <aside class="sidebar">
       <div class="sidebar-title">
         <a href="#/home">💻 Learn to Code</a>
       </div>
       <nav id="sidebar-nav"></nav>
+      <button type="button" id="lock-btn" class="sidebar-lock-btn">🔒 Lock this site</button>
     </aside>
     <main id="app" class="content"></main>
   </div>

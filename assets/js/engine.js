@@ -7,7 +7,66 @@
 const TOPIC_ORDER = ['html', 'css', 'javascript', 'json', 'sql', 'php', 'capstone'];
 const PROGRESS_KEY = 'wds-progress-v1';
 
+const DIFFICULTY_META = {
+  basic: { label: 'Basic', dot: '#00b894' },
+  medium: { label: 'Medium', dot: '#0984e3' },
+  pro: { label: 'Pro', dot: '#6c5ce7' },
+  hell: { label: 'Hell', dot: '#d63031' },
+};
+function difficultyMeta(tier) {
+  return DIFFICULTY_META[tier] || null;
+}
+const TIER_DESCRIPTIONS = {
+  basic: 'foundations — new concepts, gentle pace.',
+  medium: 'builds on basics — you should be comfortable, not necessarily fast.',
+  pro: 'real-world technique — the stuff that separates "knows the tags" from "can build things".',
+  hell: 'genuinely hard, edge-case-heavy, or a big synthesis challenge. Expect to re-read.',
+};
+
 const app = document.getElementById('app');
+
+/* -------------------------------- auth --------------------------------
+   Client-side only "keep casual visitors out" gate — the password lives in
+   this file, so it's not real security, just a soft lock on a personal site.
+------------------------------------------------------------------------- */
+
+const SITE_PASSWORD = 'Pippa2025!';
+const UNLOCK_KEY = 'wds-unlocked';
+
+function isUnlocked() {
+  return localStorage.getItem(UNLOCK_KEY) === 'yes';
+}
+
+function showLockScreen() {
+  document.querySelector('.layout').style.display = 'none';
+  const lockScreen = document.getElementById('lock-screen');
+  lockScreen.style.display = 'flex';
+
+  const form = document.getElementById('lock-form');
+  const input = document.getElementById('lock-password');
+  const error = document.getElementById('lock-error');
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (input.value === SITE_PASSWORD) {
+      localStorage.setItem(UNLOCK_KEY, 'yes');
+      lockScreen.style.display = 'none';
+      document.querySelector('.layout').style.display = '';
+      initApp();
+    } else {
+      error.hidden = false;
+      input.value = '';
+      input.focus();
+    }
+  });
+}
+
+function lockSite() {
+  localStorage.removeItem(UNLOCK_KEY);
+  location.reload();
+}
+
+document.getElementById('lock-btn').addEventListener('click', lockSite);
 
 /* ----------------------------- progress ------------------------------ */
 
@@ -64,14 +123,22 @@ function parseHash() {
   return { view: 'lesson', topic, idx };
 }
 
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => { if (isUnlocked()) render(); });
 window.addEventListener('DOMContentLoaded', () => {
-  renderSidebar();
-  render();
+  if (isUnlocked()) {
+    initApp();
+  } else {
+    showLockScreen();
+  }
 });
 
 function navigate(hash) {
   location.hash = hash;
+}
+
+function initApp() {
+  renderSidebar();
+  render();
 }
 
 /* ------------------------------ sidebar -------------------------------- */
@@ -96,18 +163,27 @@ function renderSidebar() {
 
     const heading = document.createElement('div');
     heading.className = 'nav-group-title';
-    heading.innerHTML = `<span>${topic.icon} ${topic.title}</span><span class="nav-count">${done}/${total}</span>`;
+    heading.innerHTML = `<span>${topic.icon} ${escapeHtml(topic.title)}</span><span class="nav-count">${done}/${total}</span>`;
     group.appendChild(heading);
 
     const list = document.createElement('div');
     list.className = 'nav-lessons';
+    let lastTier = null;
     topic.lessons.forEach((lesson, i) => {
+      if (lesson.difficulty && lesson.difficulty !== lastTier) {
+        lastTier = lesson.difficulty;
+        const meta = difficultyMeta(lastTier);
+        const tierHeader = document.createElement('div');
+        tierHeader.className = 'nav-tier';
+        tierHeader.innerHTML = `<span class="tier-dot" style="background:${meta.dot}"></span>${meta.label}`;
+        list.appendChild(tierHeader);
+      }
       const a = document.createElement('a');
       a.href = `#/${topicId}/${i}`;
       a.className = 'nav-lesson';
       a.dataset.topic = topicId;
       a.dataset.idx = i;
-      a.innerHTML = `<span class="tick">${isComplete(lesson.id) ? '✅' : '⬜'}</span> ${lesson.title}`;
+      a.innerHTML = `<span class="tick">${isComplete(lesson.id) ? '✅' : '⬜'}</span> ${escapeHtml(lesson.title)}`;
       list.appendChild(a);
     });
     group.appendChild(list);
@@ -152,8 +228,8 @@ function renderHome() {
     return `
       <a class="topic-card" href="#/${topicId}/${firstIdx}">
         <div class="topic-card-icon">${topic.icon}</div>
-        <h3>${topic.title}</h3>
-        <p>${topic.description}</p>
+        <h3>${escapeHtml(topic.title)}</h3>
+        <p>${escapeHtml(topic.description)}</p>
         <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
         <div class="topic-card-meta">${done}/${total} lessons · ${p}%</div>
       </a>`;
@@ -172,6 +248,14 @@ function renderHome() {
       <div class="overall-progress">
         <div class="overall-progress-text">Overall progress: ${done}/${total} lessons (${pct}%)</div>
         <div class="progress-bar large"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+
+      <div class="tier-legend">
+        ${Object.entries(DIFFICULTY_META).map(([key, meta]) => `
+          <div class="tier-legend-item">
+            <span class="tier-dot" style="background:${meta.dot}"></span>
+            <strong>${meta.label}</strong> — ${TIER_DESCRIPTIONS[key]}
+          </div>`).join('')}
       </div>
 
       <div class="topic-grid">${cards}</div>
@@ -199,10 +283,13 @@ function renderLesson(topicId, idx) {
   const wrapper = document.createElement('div');
   wrapper.className = 'lesson';
 
+  const tierMeta = difficultyMeta(lesson.difficulty);
+  const badge = tierMeta ? `<span class="badge" style="background:${tierMeta.dot}22;color:${tierMeta.dot};border-color:${tierMeta.dot}55">${tierMeta.label}</span>` : '';
+
   wrapper.innerHTML = `
     <div class="lesson-header">
-      <div class="crumb">${topic.icon} ${topic.title} &nbsp;/&nbsp; Lesson ${idx + 1} of ${total}</div>
-      <h1>${lesson.title}</h1>
+      <div class="crumb">${topic.icon} ${escapeHtml(topic.title)} &nbsp;/&nbsp; Lesson ${idx + 1} of ${total} ${badge}</div>
+      <h1>${escapeHtml(lesson.title)}</h1>
     </div>
     <div class="lesson-body" id="lesson-body"></div>
     <div class="quiz-section" id="quiz-section"></div>
@@ -294,7 +381,7 @@ function escapeHtml(str) {
 function renderCode(block) {
   const div = document.createElement('div');
   div.className = 'block block-code';
-  div.innerHTML = `${block.caption ? `<div class="code-caption">${block.caption}</div>` : ''}
+  div.innerHTML = `${block.caption ? `<div class="code-caption">${escapeHtml(block.caption)}</div>` : ''}
     <pre class="code-block"><code class="lang-${block.lang}">${escapeHtml(block.code)}</code></pre>`;
   return div;
 }
@@ -320,7 +407,7 @@ function renderWebPlayground(block) {
         <button type="button" class="btn btn-primary run-btn">▶ Run</button>
         <button type="button" class="btn btn-secondary reset-btn">↺ Reset</button>
       </div>
-      <iframe class="playground-preview" sandbox="allow-scripts" title="preview"></iframe>
+      <iframe class="playground-preview" sandbox="allow-scripts allow-forms" title="preview"></iframe>
     </div>`;
 
   const root = div.querySelector(`#${id}`);
@@ -347,6 +434,13 @@ function renderWebPlayground(block) {
     const srcdoc = `<!doctype html><html><head><style>${css}</style></head><body>${html}
       <script>
         window.onerror = function(msg){ document.body.insertAdjacentHTML('beforeend', '<pre style="color:#c0392b;background:#fdecea;padding:8px;border-radius:6px;margin-top:8px;">JS error: ' + msg + '</pre>'); };
+        document.addEventListener('submit', function(ev){
+          ev.preventDefault();
+          var note = document.createElement('div');
+          note.style.cssText = 'margin-top:8px;padding:8px 12px;background:#eef7ff;border-radius:6px;font-family:sans-serif;font-size:13px;color:#0984e3;';
+          note.textContent = '✅ Form submitted! (Actually sending it is disabled in this playground — in a real app this would go to a server.)';
+          ev.target.insertAdjacentElement('afterend', note);
+        });
       <\/script>
       <script>${js}<\/script>
       </body></html>`;
@@ -578,7 +672,7 @@ function renderPredict(block) {
   const div = document.createElement('div');
   div.className = 'block predict';
   div.innerHTML = `
-    <div class="predict-question"><strong>What will this code output?</strong></div>
+    <div class="predict-question"><strong>${block.question ? escapeHtml(block.question) : 'What will this code output?'}</strong></div>
     <pre class="code-block"><code class="lang-${block.lang}">${escapeHtml(block.code)}</code></pre>
     <div class="predict-options" id="${id}">
       ${block.options.map((opt, i) => `

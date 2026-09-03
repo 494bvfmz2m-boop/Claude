@@ -9,6 +9,7 @@ window.COURSE.capstone = {
     {
       id: 'capstone-1',
       title: 'Anatomy of a Web Request',
+      difficulty: 'hell',
       blocks: [
         { type: 'text', html: `
           <p>Let's trace exactly what happens when someone submits a "Add a book review" form on a

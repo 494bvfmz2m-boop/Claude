@@ -9,6 +9,7 @@ window.COURSE.javascript = {
     {
       id: 'js-1',
       title: 'Variables & Data Types',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p>JavaScript stores values in variables declared with <code>let</code> (can change),
@@ -39,6 +40,7 @@ console.log(typeof name, typeof age, typeof isLearning);` },
     {
       id: 'js-2',
       title: 'Operators & Control Flow',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p>Comparisons (<code>===</code>, <code>!==</code>, <code>&lt;</code>, <code>&gt;</code>) and
@@ -75,6 +77,7 @@ for (let i = 0; i < 3; i++) {
     {
       id: 'js-3',
       title: 'Functions',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p>Functions package up reusable logic. You can declare them, or write them as
@@ -103,6 +106,7 @@ console.log(multiply(2, 3)); // 6` },
     {
       id: 'js-4',
       title: 'Arrays & Objects',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p><strong>Arrays</strong> are ordered lists; <strong>objects</strong> are key-value pairs.
@@ -134,6 +138,7 @@ console.log(recent);   // [{ title: "Americanah", year: 2013 }]` },
     {
       id: 'js-5',
       title: 'The DOM & Events',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>The <strong>DOM</strong> (Document Object Model) is the browser's live representation of
@@ -163,6 +168,7 @@ button.addEventListener('click', () => {
     {
       id: 'js-6',
       title: 'JavaScript & JSON',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>JSON is text; JavaScript objects are live values. <code>JSON.parse()</code> converts a
@@ -191,6 +197,7 @@ console.log(backToText);` },
     {
       id: 'js-7',
       title: 'Async Basics: Promises & fetch',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p>Some operations (loading data from a server, waiting on a timer) take time and shouldn't
@@ -225,6 +232,96 @@ run();
       quiz: [
         { q: 'Where can you use the await keyword?', choices: ['Anywhere in any function', 'Only inside a function declared async', 'Only at the very top of a file'], answer: 1, explain: 'await is only valid inside async functions (or, in modern environments, at a module\'s top level).' },
         { q: 'What does fetch(url).then(r => r.json()) do?', choices: ['Sends a form', 'Requests a URL and parses the response body as JSON', 'Deletes a file on the server'], answer: 1, explain: 'fetch() makes an HTTP request; .json() reads and parses the JSON response body.' },
+      ],
+    },
+
+    {
+      id: 'js-8',
+      title: 'Mouse Tracking & Magnetic Buttons',
+      difficulty: 'hell',
+      blocks: [
+        { type: 'text', html: `
+          <p>Time to build the effect from the end of the CSS button lesson: a button that reacts to
+          exactly where your cursor is. The core idea is always the same three steps:</p>
+          <ol>
+            <li>Listen for <code>mousemove</code> on the element (or a container around it).</li>
+            <li><code>element.getBoundingClientRect()</code> gives you the element's current position
+                and size on screen, so you can work out the cursor's position <em>relative to the
+                element</em> instead of the whole page.</li>
+            <li>Turn that relative position into a <code>transform</code> (or <code>left</code>/
+                <code>top</code>) that moves the element — with a CSS <code>transition</code> so it
+                doesn't feel jerky.</li>
+          </ol>
+        `},
+        { type: 'code', lang: 'javascript', caption: 'The "magnetic button" effect — nudges toward the cursor', code:
+`const btn = document.querySelector('.magnetic-btn');
+
+btn.addEventListener('mousemove', (e) => {
+  const rect = btn.getBoundingClientRect();
+  const offsetX = e.clientX - rect.left - rect.width / 2;
+  const offsetY = e.clientY - rect.top - rect.height / 2;
+  // Move only a fraction of the offset so it feels "magnetic", not glued to the cursor
+  btn.style.transform = \`translate(\${offsetX * 0.3}px, \${offsetY * 0.3}px)\`;
+});
+
+btn.addEventListener('mouseleave', () => {
+  btn.style.transform = 'translate(0, 0)'; // snap back
+});` },
+        { type: 'note', kind: 'tip', html: 'The <code>* 0.3</code> is the whole trick — it moves the button only 30% of the way toward the cursor\'s offset from center, which reads as "attracted to" the cursor rather than "stuck to" it. Try changing it in the playground below and feel the difference.' },
+        { type: 'web', task: 'Move your mouse over the button and watch it nudge toward your cursor. Try changing the 0.3 multiplier (try 0.1, then 0.8) and the transition duration in the CSS.', starter: {
+          html: `<div style="display:flex; justify-content:center; padding:40px;">\n  <button class="magnetic-btn">Hover me</button>\n</div>`,
+          css:
+`.magnetic-btn {
+  padding: 18px 36px;
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #6c5ce7, #00b894);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease-out;
+}`,
+          js:
+`const btn = document.querySelector('.magnetic-btn');
+
+btn.addEventListener('mousemove', (e) => {
+  const rect = btn.getBoundingClientRect();
+  const offsetX = e.clientX - rect.left - rect.width / 2;
+  const offsetY = e.clientY - rect.top - rect.height / 2;
+  btn.style.transform = \`translate(\${offsetX * 0.3}px, \${offsetY * 0.3}px)\`;
+});
+
+btn.addEventListener('mouseleave', () => {
+  btn.style.transform = 'translate(0, 0)';
+});`,
+        }},
+
+        { type: 'text', html: `
+          <p>The same technique, taken further, gives you a button that <strong>literally follows
+          your cursor</strong> around a whole area — instead of a fraction of the offset, you track
+          the cursor's absolute position inside a container.</p>
+        `},
+        { type: 'web', task: 'Move your mouse anywhere inside the gray box — the button follows it directly. This one uses left/top positioning instead of transform, since the button needs to move around a large area, not just nudge slightly.', starter: {
+          html: `<div id="chaseArea" style="position:relative; width:100%; height:220px; background:#eee; border-radius:12px; overflow:hidden;">\n  <button id="chaseBtn" style="position:absolute; padding:12px 22px; border:none; border-radius:999px; background:#d63031; color:white; font-weight:700; cursor:pointer;">Catch me!</button>\n</div>`,
+          js:
+`const area = document.getElementById('chaseArea');
+const btn = document.getElementById('chaseBtn');
+
+area.addEventListener('mousemove', (e) => {
+  const rect = area.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  btn.style.left = (x - btn.offsetWidth / 2) + 'px';
+  btn.style.top = (y - btn.offsetHeight / 2) + 'px';
+});`,
+        }},
+        { type: 'note', kind: 'warning', html: 'Effects like this are fun and can make a hero section or a call-to-action button memorable — but overusing them (or attaching them to buttons people need to click precisely, like "Submit") hurts usability. Save it for decorative or playful elements.' },
+      ],
+      quiz: [
+        { q: 'What does element.getBoundingClientRect() give you?', choices: ['The element\'s CSS class names', 'The element\'s current size and position relative to the viewport', 'The element\'s HTML content'], answer: 1, explain: 'getBoundingClientRect() returns { top, left, width, height, ... } describing where the element currently is on screen.' },
+        { q: 'In the magnetic button, why multiply the offset by 0.3 instead of using it directly?', choices: ['To make the math run faster', 'So the button moves only partway toward the cursor, feeling "attracted" rather than glued to it', 'It has no visible effect'], answer: 1, explain: 'Scaling down the offset is what creates the "magnetic pull" feel instead of the button snapping exactly to the cursor.' },
+        { q: 'Why does the "chase" demo use left/top instead of transform like the magnetic button?', choices: ['left/top and transform are identical, no real reason', 'The button needs to move across a whole area rather than nudge slightly around its own position', 'transform doesn\'t work with mousemove'], answer: 1, explain: 'transform is ideal for small nudges around an element\'s natural position; positioning across a larger area is naturally expressed with absolute left/top coordinates.' },
       ],
     },
   ],

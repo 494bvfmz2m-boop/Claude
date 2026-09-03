@@ -9,6 +9,7 @@ window.COURSE.json = {
     {
       id: 'json-1',
       title: 'What is JSON?',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p><strong>JSON</strong> (JavaScript Object Notation) is a text format for representing
@@ -42,6 +43,7 @@ window.COURSE.json = {
     {
       id: 'json-2',
       title: 'Objects, Arrays & Nesting',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>Real data is rarely flat. JSON lets you nest objects inside arrays inside objects, as
@@ -73,6 +75,7 @@ window.COURSE.json = {
     {
       id: 'json-3',
       title: 'JSON Across Languages',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>Every language has its own functions to convert between JSON text and native data:</p>
@@ -98,6 +101,7 @@ $jsonText2 = json_encode($data);` },
     {
       id: 'json-4',
       title: 'Validating JSON',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p>A single misplaced comma or quote breaks an entire JSON document. Being able to spot
@@ -114,6 +118,57 @@ $jsonText2 = json_encode($data);` },
       ],
       quiz: [
         { q: 'Which of these commonly breaks JSON?', choices: ['A trailing comma after the last array item', 'A number value', 'A nested object'], answer: 0, explain: 'Trailing commas are not allowed in JSON, unlike in JavaScript object/array literals.' },
+      ],
+    },
+
+    {
+      id: 'json-5',
+      title: 'Real-World API Shapes',
+      difficulty: 'hell',
+      blocks: [
+        { type: 'text', html: `
+          <p>Textbook JSON examples are tidy. Real APIs are messier — wrapped in envelope objects,
+          paginated, and full of fields you don't need. Being able to read an unfamiliar, nested
+          real-world shape and pick out exactly the value you want is the actual skill.</p>
+        `},
+        { type: 'code', lang: 'json', caption: 'A realistic paginated API response', code:
+`{
+  "status": "ok",
+  "page": 2,
+  "per_page": 2,
+  "total_results": 9,
+  "data": [
+    {
+      "id": 101,
+      "title": "Kindred",
+      "author": { "name": "Octavia Butler" },
+      "tags": ["sci-fi", "historical"],
+      "in_stock": true
+    },
+    {
+      "id": 104,
+      "title": "Americanah",
+      "author": { "name": "Chimamanda Ngozi Adichie" },
+      "tags": ["fiction"],
+      "in_stock": false
+    }
+  ],
+  "errors": null
+}` },
+        { type: 'text', html: `
+          <p>To get the first book's author name here in JavaScript:
+          <code>response.data[0].author.name</code> — notice you have to go <em>through</em> the
+          envelope (<code>status</code>, <code>page</code>, <code>data</code>) to reach the actual
+          content. Real code almost always checks <code>status</code> or <code>errors</code> first,
+          before trusting <code>data</code>.</p>
+        `},
+        { type: 'predict', lang: 'javascript', question: 'Given the JSON above, what does this expression evaluate to?', code:
+`response.data[1].tags[0]`, options: ['"sci-fi"', '"fiction"', 'undefined'], answer: 1, explain: 'data[1] is the Americanah object; its tags array\'s first (only) item is "fiction".' },
+        { type: 'note', kind: 'warning', html: 'Never assume a field exists just because it did in your last test. A missing or null field (like errors above) is exactly why real code checks before accessing deeply nested values — accessing .name on something that turned out to be null throws an error and can crash your page.' },
+      ],
+      quiz: [
+        { q: 'Why do real APIs often wrap the actual data in an envelope object (status, page, data, ...)?', choices: ['It\'s a mistake API designers make', 'To carry metadata (pagination, success/error state) alongside the actual content', 'JSON requires an envelope by specification'], answer: 1, explain: 'The envelope carries information about the response itself — how many results, what page, whether it succeeded — separate from the actual content in "data".' },
+        { q: 'Before trusting and using response.data, what should real code check first?', choices: ['Nothing, data is always safe to use', 'That the request actually succeeded (e.g. status/errors fields)', 'The current date'], answer: 1, explain: 'Checking for success/errors first avoids crashing on missing or malformed data from a failed request.' },
       ],
     },
   ],

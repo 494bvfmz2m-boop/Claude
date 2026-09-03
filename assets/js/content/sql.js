@@ -14,6 +14,7 @@ window.COURSE.sql = {
     {
       id: 'sql-1',
       title: 'SELECT Basics',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p><strong>SQL</strong> (Structured Query Language) talks to a relational database — data
@@ -39,6 +40,7 @@ window.COURSE.sql = {
     {
       id: 'sql-2',
       title: 'Filtering & Sorting',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p><code>WHERE</code> filters rows by a condition; <code>ORDER BY</code> sorts the results
@@ -64,6 +66,7 @@ ORDER BY price DESC;` },
     {
       id: 'sql-3',
       title: 'INSERT, UPDATE & DELETE',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>These three statements change data instead of just reading it. They're what a real
@@ -111,6 +114,7 @@ DELETE FROM loans WHERE id = 6;` },
     {
       id: 'sql-4',
       title: 'JOINs',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>Data is often split across tables to avoid repetition — <code>books</code> only stores an
@@ -141,6 +145,7 @@ JOIN books ON loans.book_id = books.id;`, verify: (db, execResult) => {
     {
       id: 'sql-5',
       title: 'Aggregates & GROUP BY',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p>Aggregate functions summarize many rows into one value: <code>COUNT()</code>,
@@ -167,6 +172,7 @@ GROUP BY genre;` },
     {
       id: 'sql-6',
       title: 'Creating Tables',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p><code>CREATE TABLE</code> defines a new table's structure: column names, their data types
@@ -204,6 +210,51 @@ GROUP BY genre;` },
       ],
       quiz: [
         { q: 'What does PRIMARY KEY do for a column?', choices: ['Makes it required to be text', 'Uniquely identifies each row in the table', 'Automatically sorts the table'], answer: 1, explain: 'A primary key uniquely identifies each row — no two rows can share the same value.' },
+      ],
+    },
+
+    {
+      id: 'sql-7',
+      title: 'Subqueries & Multi-Step Challenges',
+      difficulty: 'hell',
+      blocks: [
+        { type: 'text', html: `
+          <p>A <strong>subquery</strong> is a query nested inside another one — it runs first, and its
+          result gets used by the outer query. This is how you answer questions that depend on a
+          computed value ("above average") or on absence ("books nobody has ever borrowed"), which a
+          single flat <code>WHERE</code> condition can't express.</p>
+        `},
+        { type: 'code', lang: 'sql', caption: 'A subquery in WHERE', code:
+`SELECT title, price
+FROM books
+WHERE price > (SELECT AVG(price) FROM books);` },
+        { type: 'note', kind: 'tip', html: 'The inner query runs once, produces a single value (the average price), and the outer query compares every row against it — as if that value had been typed in by hand.' },
+        { type: 'sql', task: 'Find every book priced above the average price of all books (title and price).', starter: 'SELECT title, price FROM books;', verify: (db, execResult) => {
+          const pass = window.rowsMatch(execResult, db, 'SELECT title, price FROM books WHERE price > (SELECT AVG(price) FROM books);');
+          return pass
+            ? { pass: true, message: 'Correct — every book priced above the current average.' }
+            : { pass: false, message: 'Use WHERE price > (SELECT AVG(price) FROM books).' };
+        }},
+
+        { type: 'text', html: `
+          <p>A subquery can also check <strong>membership</strong> with <code>IN</code> or
+          <code>NOT IN</code> — useful for finding rows that have <em>no</em> matching row in another
+          table, something a JOIN alone can't cleanly express.</p>
+        `},
+        { type: 'code', lang: 'sql', code:
+`SELECT title FROM books
+WHERE id NOT IN (SELECT book_id FROM loans);` },
+        { type: 'sql', task: 'Find the titles of every book that has never appeared in the loans table.', starter: 'SELECT title FROM books;', verify: (db, execResult) => {
+          const pass = window.rowsMatch(execResult, db, 'SELECT title FROM books WHERE id NOT IN (SELECT book_id FROM loans);');
+          return pass
+            ? { pass: true, message: 'Correct — these books have never been borrowed (based on the loans table\'s current state).' }
+            : { pass: false, message: 'Use WHERE id NOT IN (SELECT book_id FROM loans).' };
+        }},
+        { type: 'note', kind: 'info', html: 'Because this database persists your earlier edits, if you\'ve inserted, updated, or deleted rows in previous lessons, both answers above are checked against the database\'s current state — not the original seed data. That\'s intentional: it\'s exactly how a real database behaves.' },
+      ],
+      quiz: [
+        { q: 'What runs first: the outer query or the subquery inside it?', choices: ['The outer query', 'The subquery — its result feeds into the outer query', 'They run at the exact same time, always'], answer: 1, explain: 'The subquery is evaluated first (conceptually), and its result is used by the query around it.' },
+        { q: 'Why is NOT IN (SELECT ...) useful for "books never loaned"?', choices: ['It\'s the only way to filter text in SQL', 'It lets you exclude rows whose id appears anywhere in another table\'s results — expressing absence, which a plain JOIN struggles with', 'NOT IN only works with numbers'], answer: 1, explain: 'NOT IN with a subquery is a direct way to express "has no matching row elsewhere" — a common real-world question.' },
       ],
     },
   ],

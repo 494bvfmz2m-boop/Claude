@@ -12,6 +12,7 @@ window.COURSE.php = {
     {
       id: 'php-1',
       title: 'What is PHP & How It Runs',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p>Everything so far (HTML, CSS, JavaScript) runs in the visitor's <strong>browser</strong>.
@@ -51,6 +52,7 @@ window.COURSE.php = {
     {
       id: 'php-2',
       title: 'Variables & Data Types',
+      difficulty: 'basic',
       blocks: [
         { type: 'text', html: `
           <p>PHP variables start with <code>$</code> and don't need a declared type — very similar to
@@ -88,6 +90,7 @@ window.COURSE.php = {
     {
       id: 'php-3',
       title: 'Control Structures & Loops',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>PHP's <code>if/elseif/else</code>, <code>for</code>, <code>while</code>, and
@@ -125,6 +128,7 @@ window.COURSE.php = {
     {
       id: 'php-4',
       title: 'Functions',
+      difficulty: 'medium',
       blocks: [
         { type: 'text', html: `
           <p>PHP functions use the <code>function</code> keyword and can take default parameter
@@ -156,6 +160,7 @@ window.COURSE.php = {
     {
       id: 'php-5',
       title: 'Arrays & JSON in PHP',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p>PHP arrays can be <strong>indexed</strong> (numbered, like JS arrays) or
@@ -192,6 +197,7 @@ window.COURSE.php = {
     {
       id: 'php-6',
       title: 'Forms, Databases & the Full Picture',
+      difficulty: 'pro',
       blocks: [
         { type: 'text', html: `
           <p>PHP's superglobals <code>$_GET</code> and <code>$_POST</code> hold form data submitted by
@@ -228,6 +234,80 @@ window.COURSE.php = {
       quiz: [
         { q: 'What does $_POST[\'email\'] contain?', choices: ['The database column named email', 'The value submitted by a form input named "email"', 'The visitor\'s email inferred automatically'], answer: 1, explain: '$_POST (and $_GET) holds submitted form values, keyed by each input\'s name attribute.' },
         { q: 'Why use a prepared statement (with ? placeholders) instead of concatenating user input into SQL?', choices: ['It runs faster in every case', 'It prevents SQL injection attacks', 'It is required by PHP syntax'], answer: 1, explain: 'Prepared statements keep user input as data, never as executable SQL — this is the standard defense against SQL injection.' },
+      ],
+    },
+
+    {
+      id: 'php-7',
+      title: 'Intro to Classes & OOP',
+      difficulty: 'hell',
+      blocks: [
+        { type: 'text', html: `
+          <p>So far every example has been standalone variables and functions. Real PHP applications
+          (and the frameworks built on top of PHP) are organized around <strong>classes</strong> — a
+          blueprint for creating objects that bundle related data (<strong>properties</strong>) and
+          behavior (<strong>methods</strong>) together.</p>
+        `},
+        { type: 'code', lang: 'php', code:
+`<?php
+  class Book {
+    public string $title;
+    public float $price;
+
+    public function __construct(string $title, float $price) {
+      $this->title = $title;
+      $this->price = $price;
+    }
+
+    public function describe(): string {
+      return $this->title . " costs $" . $this->price;
+    }
+  }
+
+  $book = new Book("Kindred", 12.99);
+  echo $book->describe(); // Kindred costs $12.99
+?>` },
+        { type: 'text', html: `
+          <ul>
+            <li><code>class Book { ... }</code> defines the blueprint.</li>
+            <li><code>__construct()</code> is a special method that runs automatically when you create
+                a new object with <code>new Book(...)</code> — it's where you set up initial values.</li>
+            <li><code>$this</code> refers to "the specific object this code is currently running on" —
+                inside a method, <code>$this-&gt;title</code> means "this particular book's title".</li>
+            <li><code>-&gt;</code> (not a dot!) accesses a property or method on an object.</li>
+          </ul>
+        `},
+        { type: 'note', kind: 'tip', html: 'If this feels similar to JavaScript objects with methods, that instinct is right — classes are how most languages formalize the same "bundle data with the functions that act on it" idea you\'ve already used informally with PHP associative arrays and JS objects.' },
+        { type: 'predict', lang: 'php', code:
+`<?php
+  class Counter {
+    public int $count = 0;
+
+    public function increment(): void {
+      $this->count++;
+    }
+  }
+
+  $c = new Counter();
+  $c->increment();
+  $c->increment();
+  echo $c->count;
+?>`, options: ['0', '1', '2'], answer: 2, explain: 'increment() is called twice, each adding 1 to $this->count, starting from 0 — so the final value is 2.' },
+        { type: 'predict', lang: 'php', code:
+`<?php
+  class Book {
+    public function __construct(public string $title) {}
+  }
+
+  $a = new Book("Kindred");
+  $b = new Book("Americanah");
+  echo $a->title . " / " . $b->title;
+?>`, options: ['Kindred / Kindred', 'Kindred / Americanah', 'Americanah / Americanah'], answer: 1, explain: 'Each call to "new Book(...)" creates a completely separate object with its own $title — $a and $b don\'t share state.' },
+      ],
+      quiz: [
+        { q: 'What does __construct() do?', choices: ['Deletes an object', 'Runs automatically when a new object is created, to set up initial values', 'Converts an object to JSON'], answer: 1, explain: '__construct() is the constructor — PHP calls it automatically whenever you write new ClassName(...).' },
+        { q: 'What does $this refer to inside a class method?', choices: ['The global scope', 'The specific object the method is currently running on', 'The class definition itself, shared by all objects'], answer: 1, explain: '$this always refers to the particular instance (object) the method was called on.' },
+        { q: 'If you create two separate objects from the same class, do they share their property values?', choices: ['Yes, always', 'No — each object (instance) has its own independent copy of its properties', 'Only if you use the static keyword'], answer: 1, explain: 'Each "new" call creates an independent object with its own property values, unless you specifically opt into shared (static) state.' },
       ],
     },
   ],
