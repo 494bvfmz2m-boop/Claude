@@ -3,6 +3,7 @@ const { TicketTypes, Panels, Tickets, GuildSettings, Hierarchies } = require('..
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
 const { limitReached, limitFor } = require('../lib/tierLimits');
+const { pruneTicketTypesFromPanels } = require('../../bot/tierEnforcement');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('tickets'));
@@ -119,7 +120,12 @@ router.post('/ticket-types/:id/delete', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
   const ticketType = TicketTypes.get(req.params.id);
-  if (ticketType && ticketType.guild_id === guild.id) TicketTypes.delete(req.params.id);
+  if (ticketType && ticketType.guild_id === guild.id) {
+    TicketTypes.delete(req.params.id);
+    // A panel that's already posted in Discord would otherwise keep a
+    // dead button/option pointing at a type that no longer exists.
+    await pruneTicketTypesFromPanels(guild.id, [ticketType.id]);
+  }
   res.redirect(`/dashboard/${guild.id}/tickets`);
 });
 

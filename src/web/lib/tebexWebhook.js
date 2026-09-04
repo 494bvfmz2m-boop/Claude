@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { AppSettings, TebexTiers, TebexSubscribers, TebexEvents } = require('../../db/repo');
+const { enforceGuildLimits } = require('../../bot/tierEnforcement');
 
 const DISCORD_SNOWFLAKE = /^\d{17,20}$/;
 
@@ -223,8 +224,13 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   }
 
   if (isRevocation(type)) {
+    const priorGuildId = TebexSubscribers.get(discordId)?.guild_id || null;
     TebexSubscribers.upsert(discordId, null, 'cancelled', extractReference(payload));
     TebexEvents.log(type, bodyStr, 1, `Cleared subscription for Discord user ${discordId}`);
+    // Whatever this guild had beyond the free tier (ticket types, custom
+    // bot, etc) doesn't just quietly stay unlocked now that the
+    // subscription behind it is gone -- trim it back for real.
+    if (priorGuildId) await enforceGuildLimits(priorGuildId);
     return { status: 200, message: 'OK' };
   }
 
@@ -245,6 +251,12 @@ async function verifyAndHandleTebexWebhook(rawBody, headers = {}) {
   const tier = matchedTiers.reduce((best, t) => (t.level > best.level ? t : best));
   TebexSubscribers.upsert(discordId, tier.id, 'active', extractReference(payload));
   TebexEvents.log(type, bodyStr, 1, `Granted tier "${tier.name}" to Discord user ${discordId}`);
+  // A grant is usually an upgrade (nothing to trim), but a renewal onto a
+  // lower tier than they were previously applying is possible too --
+  // enforceGuildLimits is a no-op when nothing's over the new limit, so
+  // this is safe to just always run rather than trying to detect direction.
+  const appliedGuildId = TebexSubscribers.get(discordId)?.guild_id || null;
+  if (appliedGuildId) await enforceGuildLimits(appliedGuildId);
   return { status: 200, message: 'OK' };
 }
 

@@ -2,6 +2,7 @@ const express = require('express');
 const { TebexTiers, TebexSubscribers } = require('../../db/repo');
 const { getActiveTier, tierHasFeature } = require('../lib/subscriptionGate');
 const { allKnownGuilds } = require('../../bot/clientRegistry');
+const { enforceGuildLimits } = require('../../bot/tierEnforcement');
 
 const router = express.Router();
 
@@ -51,12 +52,18 @@ router.get('/subscription', (req, res) => {
   });
 });
 
-router.post('/subscription/apply-guild', (req, res) => {
+router.post('/subscription/apply-guild', async (req, res) => {
   const discordId = req.session.discordUser?.id;
   const guildId = (req.body.guildId || '').trim();
   const valid = guildOptionsFor(req.session).some((g) => g.id === guildId);
   if (discordId && valid) {
+    // Moving to a different server leaves the OLD one with nothing applied
+    // -- it falls back to free-tier limits, so whatever it had beyond that
+    // (extra ticket types, a custom bot, ...) needs trimming for real, not
+    // just re-locked on the dashboard while still fully live in Discord.
+    const priorGuildId = TebexSubscribers.get(discordId)?.guild_id || null;
     TebexSubscribers.setGuild(discordId, guildId);
+    if (priorGuildId && priorGuildId !== guildId) await enforceGuildLimits(priorGuildId);
   }
   res.redirect('/subscription');
 });

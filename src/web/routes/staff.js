@@ -19,6 +19,7 @@ const { buildResultEmbed } = require('../../bot/betaRequests');
 const { STAFF_AREAS, STAFF_AREA_KEYS } = require('../lib/staffAreas');
 const { tierHasFeature } = require('../lib/subscriptionGate');
 const { allKnownGuilds } = require('../../bot/clientRegistry');
+const { enforceGuildLimits } = require('../../bot/tierEnforcement');
 
 // Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
 // parseEmojiInput, but this needs the name and ID as separate fields (for
@@ -422,7 +423,7 @@ router.post('/tebex/tiers/:id/delete', requireOwner, (req, res) => {
 // server applied yet, same as a fresh webhook grant, so the buyer (or the
 // owner, on their behalf) still picks one from /subscription before any
 // guild-scoped feature unlocks anywhere.
-router.post('/tebex/subscribers/grant', requireOwner, (req, res) => {
+router.post('/tebex/subscribers/grant', requireOwner, async (req, res) => {
   const discordUserId = (req.body.discordUserId || '').trim();
   const tierId = req.body.tierId ? Number(req.body.tierId) : null;
   const guildId = (req.body.guildId || '').trim();
@@ -432,15 +433,21 @@ router.post('/tebex/subscribers/grant', requireOwner, (req, res) => {
 
   TebexSubscribers.upsert(discordUserId, tier.id, 'active', 'manual');
   if (guildId) TebexSubscribers.setGuild(discordUserId, guildId);
+  // A manual grant can just as easily be a downgrade (fixing someone who
+  // was over-tiered by mistake) as an upgrade -- enforceGuildLimits is a
+  // no-op when there's nothing to trim, so it's safe to always run.
+  const appliedGuildId = guildId || TebexSubscribers.get(discordUserId)?.guild_id || null;
+  if (appliedGuildId) await enforceGuildLimits(appliedGuildId);
   logAudit(req, 'Manually granted a Tebex tier', `${discordUserId} -> ${tier.name}${guildId ? ` (${guildId})` : ''}`);
   return redirectWithNotice(res, true, `Granted "${tier.name}" to ${discordUserId}.`, 'subscriptions');
 });
 
-router.post('/tebex/subscribers/:discordUserId/revoke', requireOwner, (req, res) => {
+router.post('/tebex/subscribers/:discordUserId/revoke', requireOwner, async (req, res) => {
   const discordUserId = req.params.discordUserId;
   const existing = TebexSubscribers.get(discordUserId);
   if (!existing) return redirectWithNotice(res, false, 'No subscriber record for that ID.', 'subscriptions');
   TebexSubscribers.upsert(discordUserId, null, 'cancelled', existing.tebex_reference);
+  if (existing.guild_id) await enforceGuildLimits(existing.guild_id);
   logAudit(req, 'Manually revoked a Tebex subscription', discordUserId);
   return redirectWithNotice(res, true, `Revoked ${discordUserId}'s subscription.`, 'subscriptions');
 });
