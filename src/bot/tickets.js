@@ -33,6 +33,12 @@ async function openTicket(interaction, ticketTypeId) {
   if (!ticketType) {
     return interaction.reply({ content: 'This ticket type no longer exists. Ask an admin to check the dashboard.', ephemeral: true });
   }
+  // Disabled by a subscription downgrade (not deleted -- see
+  // bot/tierEnforcement.js). Panels get their buttons refreshed when this
+  // happens, but a stale click on an un-refreshed message is still possible.
+  if (ticketType.tier_disabled) {
+    return interaction.reply({ content: "This ticket type isn't available right now.", ephemeral: true });
+  }
 
   if (GlobalBlocklist.has(interaction.user.id)) {
     return interaction.reply({ content: "You're not able to use XyphrosMod.", ephemeral: true });

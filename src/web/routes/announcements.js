@@ -10,7 +10,8 @@ router.use(requireArea('announcements'));
 router.get('/announcements', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('announcements', { guild, announcements: ScheduledAnnouncements.listForGuild(guild.id) });
+  const disabledAnnouncements = ScheduledAnnouncements.listAllForGuild(guild.id).filter((a) => a.tier_disabled);
+  res.render('announcements', { guild, announcements: ScheduledAnnouncements.listForGuild(guild.id), disabledAnnouncements });
 });
 
 router.get('/announcements/new', async (req, res) => {

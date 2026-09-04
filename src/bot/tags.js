@@ -18,7 +18,10 @@ async function handleTagCreate(interaction) {
   }
   const name = interaction.options.getString('name').trim().toLowerCase();
   const content = interaction.options.getString('content');
-  if (Tags.get(interaction.guildId, name)) {
+  // getAny, not get -- a name collision with a currently-DISABLED tag still
+  // needs to block creating a duplicate (tags have no db-level uniqueness
+  // constraint to fall back on).
+  if (Tags.getAny(interaction.guildId, name)) {
     return interaction.reply({ content: `A tag called \`${name}\` already exists.`, ephemeral: true });
   }
   Tags.create(interaction.guildId, name, content, interaction.user.id);
@@ -30,7 +33,8 @@ async function handleTagDelete(interaction) {
     return interaction.reply({ content: "You need Manage Messages to delete tags.", ephemeral: true });
   }
   const name = interaction.options.getString('name');
-  const tag = Tags.get(interaction.guildId, name);
+  // getAny -- deleting a currently-disabled tag for good should still work.
+  const tag = Tags.getAny(interaction.guildId, name);
   if (!tag) return interaction.reply({ content: `No tag called \`${name}\`.`, ephemeral: true });
   Tags.delete(tag.id);
   return interaction.reply({ content: `Deleted tag \`${name}\`.`, ephemeral: true });

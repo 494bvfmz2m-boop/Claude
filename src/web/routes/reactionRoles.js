@@ -25,7 +25,8 @@ router.get('/reaction-roles', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
   const panels = ReactionRolePanels.listForGuild(guild.id);
-  res.render('reactionRoles', { guild, panels, options: guildChannelOptions(guild) });
+  const disabledPanels = ReactionRolePanels.listAllForGuild(guild.id).filter((p) => p.tier_disabled);
+  res.render('reactionRoles', { guild, panels, disabledPanels, options: guildChannelOptions(guild) });
 });
 
 router.get('/reaction-roles/new', async (req, res) => {

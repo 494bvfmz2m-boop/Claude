@@ -36,11 +36,11 @@ async function notifyIfMainBotMissing(guildId, subscriber) {
 }
 
 // Re-renders a panel's live posted message (if it has one) so its buttons/
-// dropdown match whatever's currently in ticket_type_ids -- called whenever
-// a ticket type a posted panel references disappears out from under it
-// (deleted directly, or trimmed by enforceGuildLimits below), so a
-// still-live panel message never keeps a dead button pointing at a type
-// that no longer exists.
+// dropdown match whichever of its ticket types are currently enabled --
+// called whenever a type a posted panel references changes tier_disabled
+// state, or is permanently deleted, so a still-live panel message is never
+// stale in either direction (a dead button left behind, or a type that
+// came back not reappearing).
 async function refreshPostedPanel(guildId, panel) {
   if (!panel.channel_id || !panel.message_id) return;
   const guild = resolveGuild(guildId);
@@ -54,9 +54,24 @@ async function refreshPostedPanel(guildId, panel) {
   } catch { /* best-effort -- a stale/deleted channel or message shouldn't block enforcement */ }
 }
 
-// Drops the given ticket type IDs out of every panel in the guild that
-// references them, and refreshes each affected panel's live posted
-// message to match.
+// Refreshes every posted panel in the guild that references any of the
+// given ticket type IDs -- for when those types' enabled/disabled state
+// just changed (their buttons need to show/hide accordingly) but the
+// panel's own ticket_type_ids list isn't being touched.
+async function refreshPanelsReferencingTypes(guildId, typeIds) {
+  if (typeIds.length === 0) return;
+  const affected = new Set(typeIds);
+  for (const panel of Panels.listForGuild(guildId)) {
+    if (panel.ticket_type_ids.some((id) => affected.has(id))) {
+      await refreshPostedPanel(guildId, panel);
+    }
+  }
+}
+
+// Permanently deletes a ticket type (a real, deliberate delete -- e.g. the
+// dashboard's own "Delete ticket type" button) and strips it out of every
+// panel that referenced it, refreshing each affected panel's live message.
+// Unlike tier-driven disabling below, there's no coming back from this one.
 async function pruneTicketTypesFromPanels(guildId, deletedIds) {
   if (deletedIds.length === 0) return;
   const deleted = new Set(deletedIds);
@@ -68,51 +83,54 @@ async function pruneTicketTypesFromPanels(guildId, deletedIds) {
   }
 }
 
-// Trims a guild's ticket types, reaction-role panels, tags, and scheduled
-// announcements down to whatever its CURRENT subscription state allows,
-// and disconnects a custom bot the guild's current tier no longer
-// includes -- call this any time that state might have gone DOWN for a
-// guild: a subscription is revoked/cancelled, downgraded to a lower tier,
-// or moved off this guild onto another one. A no-op wherever the guild is
-// still under its limits. Deletes the newest entries first, keeping
-// whichever were created earliest -- what they had before a subscription
-// gave them extra room is what survives a downgrade.
+// Reconciles one resource type's enabled/disabled state against a guild's
+// CURRENT limit -- the oldest `limit` rows (by id) end up enabled, anything
+// beyond that ends up disabled, regardless of which direction this moves
+// existing rows (a downgrade disables the newest excess; an upgrade or a
+// fresh subscription re-enables whatever there's now room for, oldest
+// first). Only actually writes rows whose state needs to change. Returns
+// the list of ticket type IDs that flipped either way, so the caller can
+// refresh any panels referencing them.
+function reconcileResource(repo, guildId, limitKey) {
+  const all = repo.listAllForGuild(guildId);
+  const limit = limitFor(limitKey, guildId, {});
+  const changedIds = [];
+  all.forEach((row, index) => {
+    const shouldBeEnabled = index < limit;
+    const isEnabled = !row.tier_disabled;
+    if (shouldBeEnabled !== isEnabled) {
+      repo.setTierDisabled(row.id, !shouldBeEnabled);
+      changedIds.push(row.id);
+    }
+  });
+  return changedIds;
+}
+
+// Brings a guild's ticket types, reaction-role panels, tags, and scheduled
+// announcements in line with whatever its CURRENT subscription state
+// allows, and starts/stops its custom bot to match -- call this any time
+// that state might have changed for a guild, in EITHER direction:
+// subscription revoked/cancelled/downgraded (disables the newest excess),
+// or upgraded/newly applied/moved onto this guild (re-enables whatever
+// there's now room for). Nothing is ever deleted here -- a customer's
+// actual configuration survives a subscription change either way, they
+// just temporarily can't use more than their current plan allows.
 async function enforceGuildLimits(guildId) {
-  const ticketTypes = TicketTypes.listForGuild(guildId);
-  const ticketLimit = limitFor('max_ticket_types', guildId, {});
-  if (ticketTypes.length > ticketLimit) {
-    const toDelete = ticketTypes.slice(ticketLimit);
-    for (const t of toDelete) TicketTypes.delete(t.id);
-    await pruneTicketTypesFromPanels(guildId, toDelete.map((t) => t.id));
-  }
+  const changedTicketTypeIds = reconcileResource(TicketTypes, guildId, 'max_ticket_types');
+  await refreshPanelsReferencingTypes(guildId, changedTicketTypeIds);
 
-  const rrPanels = ReactionRolePanels.listForGuild(guildId);
-  const rrLimit = limitFor('max_reaction_role_panels', guildId, {});
-  if (rrPanels.length > rrLimit) {
-    for (const p of rrPanels.slice(rrLimit)) ReactionRolePanels.delete(p.id);
-  }
-
-  const tags = Tags.listForGuild(guildId);
-  const tagLimit = limitFor('max_tags', guildId, {});
-  if (tags.length > tagLimit) {
-    for (const t of tags.slice(tagLimit)) Tags.delete(t.id);
-  }
-
-  const announcements = ScheduledAnnouncements.listForGuild(guildId);
-  const annLimit = limitFor('max_scheduled_announcements', guildId, {});
-  if (announcements.length > annLimit) {
-    for (const a of announcements.slice(annLimit)) ScheduledAnnouncements.delete(a.id);
-  }
+  reconcileResource(ReactionRolePanels, guildId, 'max_reaction_role_panels');
+  reconcileResource(Tags, guildId, 'max_tags');
+  reconcileResource(ScheduledAnnouncements, guildId, 'max_scheduled_announcements');
 
   // The custom bot isn't capped by count -- it's a live gateway connection
   // that, once started, keeps running indefinitely on its own regardless
-  // of subscription state unless explicitly stopped. So the moment this
-  // guild's current tier doesn't include custom_bot, cut it off for real
-  // (falls straight back to the shared bot) rather than just leaving the
-  // dashboard page locked while the bot itself keeps running.
+  // of subscription state unless explicitly stopped/restarted. So this
+  // handles it directly rather than through reconcileResource.
   const subscriber = TebexSubscribers.forGuild(guildId);
   const tier = subscriber ? TebexTiers.get(subscriber.tier_id) : null;
-  if (!tierHasFeature(tier, 'custom_bot') && CustomBots.get(guildId)) {
+  const custom = CustomBots.get(guildId);
+  if (!tierHasFeature(tier, 'custom_bot') && custom && custom.status !== 'stopped') {
     await stopCustomBot(guildId);
     // stopCustomBot only tears down the live connection -- it deliberately
     // doesn't touch the row (the token stays stored so resubscribing just

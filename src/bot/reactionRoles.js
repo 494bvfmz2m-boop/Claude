@@ -50,6 +50,11 @@ async function handleReaction(reaction, user, adding) {
 
   const panel = ReactionRolePanels.getByMessage(message.id);
   if (!panel) return;
+  // Disabled by a subscription downgrade (not deleted -- see
+  // bot/tierEnforcement.js) -- the message and its reactions stay live
+  // rather than being torn down, so this just quietly stops granting
+  // roles from it instead.
+  if (panel.tier_disabled) return;
 
   const key = reaction.emoji.id || reaction.emoji.name;
   const mapping = panel.mappings.find((m) => m.matchKey === key);

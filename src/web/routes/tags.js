@@ -10,7 +10,8 @@ router.use(requireArea('tags'));
 router.get('/tags', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('tags', { guild, tags: Tags.listForGuild(guild.id) });
+  const disabledTags = Tags.listAllForGuild(guild.id).filter((t) => t.tier_disabled);
+  res.render('tags', { guild, tags: Tags.listForGuild(guild.id), disabledTags });
 });
 
 router.post('/tags', async (req, res) => {
@@ -18,7 +19,9 @@ router.post('/tags', async (req, res) => {
   if (!guild) return;
   const name = req.body.name?.trim().toLowerCase();
   const content = req.body.content?.trim();
-  if (name && content && !Tags.get(guild.id, name)) {
+  // getAny -- a name collision with a currently-disabled tag still blocks
+  // creating a duplicate (no db-level uniqueness constraint to fall back on).
+  if (name && content && !Tags.getAny(guild.id, name)) {
     if (limitReached('max_tags', guild.id, Tags.listForGuild(guild.id).length, req.session)) {
       return res.status(402).render('upgrade', { reason: 'limit_reached', featureKey: 'max_tags', limit: limitFor('max_tags', guild.id, req.session) });
     }

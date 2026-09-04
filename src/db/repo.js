@@ -476,14 +476,32 @@ const ModActions = {
 };
 
 const TicketTypes = {
+  // Only ones currently usable -- excludes anything a tier downgrade
+  // disabled (see bot/tierEnforcement.js). Used everywhere a fresh list of
+  // "your ticket types" is needed: the dashboard, panel building, the
+  // create-panel picker, limit counting.
   listForGuild(guildId) {
+    return db.prepare('SELECT * FROM ticket_types WHERE guild_id = ? AND tier_disabled = 0 ORDER BY id').all(guildId)
+      .map(t => ({ ...t, support_role_ids: parseJSON(t.support_role_ids, []), generate_transcript: !!t.generate_transcript }));
+  },
+  // Every ticket type regardless of tier_disabled -- for tierEnforcement's
+  // own reconciliation (it needs to see what's disabled to re-enable it)
+  // and for showing the owner what's temporarily unavailable.
+  listAllForGuild(guildId) {
     return db.prepare('SELECT * FROM ticket_types WHERE guild_id = ? ORDER BY id').all(guildId)
       .map(t => ({ ...t, support_role_ids: parseJSON(t.support_role_ids, []), generate_transcript: !!t.generate_transcript }));
   },
+  // Deliberately NOT filtered by tier_disabled -- an already-open ticket
+  // still needs to resolve its type's welcome color/support roles/etc even
+  // after the type itself gets disabled, and openTicket (bot/tickets.js)
+  // checks tier_disabled explicitly before letting anyone open a NEW one.
   get(id) {
     const t = db.prepare('SELECT * FROM ticket_types WHERE id = ?').get(id);
     if (!t) return null;
     return { ...t, support_role_ids: parseJSON(t.support_role_ids, []), generate_transcript: !!t.generate_transcript };
+  },
+  setTierDisabled(id, disabled) {
+    db.prepare('UPDATE ticket_types SET tier_disabled = ? WHERE id = ?').run(disabled ? 1 : 0, id);
   },
   create(guildId, data) {
     const info = db.prepare(`
@@ -623,7 +641,12 @@ const Tickets = {
 };
 
 const ReactionRolePanels = {
+  // Only ones currently usable -- see TicketTypes.listForGuild's comment.
   listForGuild(guildId) {
+    return db.prepare('SELECT * FROM reaction_role_panels WHERE guild_id = ? AND tier_disabled = 0 ORDER BY id').all(guildId)
+      .map((p) => ({ ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive }));
+  },
+  listAllForGuild(guildId) {
     return db.prepare('SELECT * FROM reaction_role_panels WHERE guild_id = ? ORDER BY id').all(guildId)
       .map((p) => ({ ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive }));
   },
@@ -632,10 +655,17 @@ const ReactionRolePanels = {
     if (!p) return null;
     return { ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive };
   },
+  // Not filtered by tier_disabled -- bot/reactionRoles.js's reaction
+  // handler needs to find a disabled panel too, specifically so it can
+  // recognize the reaction belongs to one and silently ignore it (see that
+  // file) rather than falling through as if no panel matched at all.
   getByMessage(messageId) {
     const p = db.prepare('SELECT * FROM reaction_role_panels WHERE message_id = ?').get(messageId);
     if (!p) return null;
     return { ...p, mappings: parseJSON(p.mappings, []), exclusive: !!p.exclusive };
+  },
+  setTierDisabled(id, disabled) {
+    db.prepare('UPDATE reaction_role_panels SET tier_disabled = ? WHERE id = ?').run(disabled ? 1 : 0, id);
   },
   create(guildId, data) {
     const info = db.prepare(`
@@ -885,11 +915,24 @@ const Polls = {
 };
 
 const Tags = {
+  // Only ones currently usable -- see TicketTypes.listForGuild's comment.
   listForGuild(guildId) {
+    return db.prepare('SELECT * FROM tags WHERE guild_id = ? AND tier_disabled = 0 ORDER BY name COLLATE NOCASE').all(guildId);
+  },
+  listAllForGuild(guildId) {
     return db.prepare('SELECT * FROM tags WHERE guild_id = ? ORDER BY name COLLATE NOCASE').all(guildId);
   },
+  // Excludes a disabled tag -- used by /tag get, so a disabled one doesn't
+  // still respond. getAny below is for callers that need to find it
+  // regardless (duplicate-name checks, /tag delete).
   get(guildId, name) {
+    return db.prepare('SELECT * FROM tags WHERE guild_id = ? AND name = ? COLLATE NOCASE AND tier_disabled = 0').get(guildId, name);
+  },
+  getAny(guildId, name) {
     return db.prepare('SELECT * FROM tags WHERE guild_id = ? AND name = ? COLLATE NOCASE').get(guildId, name);
+  },
+  setTierDisabled(id, disabled) {
+    db.prepare('UPDATE tags SET tier_disabled = ? WHERE id = ?').run(disabled ? 1 : 0, id);
   },
   create(guildId, name, content, createdBy) {
     const info = db.prepare('INSERT INTO tags (guild_id, name, content, created_by) VALUES (?, ?, ?, ?)')
@@ -1012,7 +1055,14 @@ const Events = {
 };
 
 const ScheduledAnnouncements = {
+  // Only ones currently usable -- see TicketTypes.listForGuild's comment.
+  // Deliberately NOT also filtered by `active` here (unrelated column --
+  // "already fired, one-off is done" -- the dashboard list has always
+  // shown those too).
   listForGuild(guildId) {
+    return db.prepare('SELECT * FROM scheduled_announcements WHERE guild_id = ? AND tier_disabled = 0 ORDER BY next_run').all(guildId);
+  },
+  listAllForGuild(guildId) {
     return db.prepare('SELECT * FROM scheduled_announcements WHERE guild_id = ? ORDER BY next_run').all(guildId);
   },
   get(id) {
@@ -1026,13 +1076,16 @@ const ScheduledAnnouncements = {
     return info.lastInsertRowid;
   },
   listDue(nowIso) {
-    return db.prepare('SELECT * FROM scheduled_announcements WHERE active = 1 AND next_run <= ?').all(nowIso);
+    return db.prepare('SELECT * FROM scheduled_announcements WHERE active = 1 AND tier_disabled = 0 AND next_run <= ?').all(nowIso);
   },
   reschedule(id, nextRun) {
     db.prepare('UPDATE scheduled_announcements SET next_run = ? WHERE id = ?').run(nextRun, id);
   },
   deactivate(id) {
     db.prepare('UPDATE scheduled_announcements SET active = 0 WHERE id = ?').run(id);
+  },
+  setTierDisabled(id, disabled) {
+    db.prepare('UPDATE scheduled_announcements SET tier_disabled = ? WHERE id = ?').run(disabled ? 1 : 0, id);
   },
   delete(id) {
     db.prepare('DELETE FROM scheduled_announcements WHERE id = ?').run(id);

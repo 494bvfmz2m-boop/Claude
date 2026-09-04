@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS ticket_types (
   welcome_title TEXT,
   welcome_description TEXT,
   welcome_color TEXT DEFAULT '#a32ee2',
+  tier_disabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -135,6 +136,7 @@ CREATE TABLE IF NOT EXISTS reaction_role_panels (
   description TEXT NOT NULL DEFAULT 'React to get a role!',
   color TEXT DEFAULT '#a32ee2',
   mappings TEXT NOT NULL DEFAULT '[]',
+  tier_disabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -191,6 +193,7 @@ CREATE TABLE IF NOT EXISTS tags (
   name TEXT NOT NULL,
   content TEXT NOT NULL,
   created_by TEXT,
+  tier_disabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -232,6 +235,7 @@ CREATE TABLE IF NOT EXISTS scheduled_announcements (
   recurrence TEXT NOT NULL DEFAULT 'none',
   next_run TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
+  tier_disabled INTEGER NOT NULL DEFAULT 0,
   created_by TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
@@ -495,6 +499,19 @@ addColumnIfMissing('app_settings', 'tebex_webhook_secret', 'TEXT');
 // the dashboard prompts the buyer to pick a server before any guild-scoped
 // premium feature (e.g. the custom bot) is unlocked for them.
 addColumnIfMissing('tebex_subscribers', 'guild_id', 'TEXT');
+// Soft-disable flag for the four tier-limited resources -- when a
+// subscription is downgraded/cancelled/moved and a guild ends up over its
+// new limit, the excess is DISABLED (hidden, non-functional) rather than
+// deleted, and automatically re-enabled if the guild ever has room again
+// (upgrade, resubscribe, or a new subscription applied there). Keeps a
+// customer's actual configuration intact across subscription changes
+// instead of destroying it. Distinct from scheduled_announcements' existing
+// `active` column, which tracks "still pending to fire" for an unrelated
+// reason (a one-off that already sent) -- see bot/tierEnforcement.js.
+addColumnIfMissing('ticket_types', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('reaction_role_panels', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('tags', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('scheduled_announcements', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
 
 // staff_ranks pre-dates the multi-hierarchy feature -- rebuild it onto the
 // new schema (adds hierarchy_id, and a role can now belong to more than one

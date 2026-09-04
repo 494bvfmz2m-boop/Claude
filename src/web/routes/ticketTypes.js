@@ -45,10 +45,11 @@ router.get('/tickets', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
   const ticketTypes = TicketTypes.listForGuild(guild.id);
+  const disabledTicketTypes = TicketTypes.listAllForGuild(guild.id).filter((t) => t.tier_disabled);
   const panels = Panels.listForGuild(guild.id);
   const recentTickets = Tickets.listForGuild(guild.id, 25);
   const setupChecklist = buildSetupChecklist(guild, { ticketTypes, panels });
-  res.render('tickets', { guild, ticketTypes, panels, recentTickets, setupChecklist });
+  res.render('tickets', { guild, ticketTypes, disabledTicketTypes, panels, recentTickets, setupChecklist });
 });
 
 router.post('/tickets/clear-history', async (req, res) => {

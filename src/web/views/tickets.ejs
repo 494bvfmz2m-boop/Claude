@@ -63,6 +63,21 @@
       <% }) %>
     </ul>
   <% } %>
+  <% if (typeof disabledTicketTypes !== 'undefined' && disabledTicketTypes.length > 0) { %>
+    <hr class="card-divider">
+    <h3>Disabled by your current plan (<%= disabledTicketTypes.length %>)</h3>
+    <p class="hint" style="margin-bottom:12px;">
+      Still configured, not lost — just over what your current plan allows. They'll come back
+      automatically (and reappear on any panel they're part of) the moment there's room.
+    </p>
+    <ul class="list">
+      <% disabledTicketTypes.forEach(t => { %>
+        <li class="list-item">
+          <div class="list-item-title"><%= t.emoji ? t.emoji + ' ' : '' %><%= t.name %></div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
 </div>
 
 <div class="card" id="panels">

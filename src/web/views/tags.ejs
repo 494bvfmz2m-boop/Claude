@@ -41,4 +41,21 @@
     </ul>
   <% } %>
 </div>
+
+<% if (disabledTags && disabledTags.length > 0) { %>
+  <div class="card">
+    <h2>Disabled by your current plan (<%= disabledTags.length %>)</h2>
+    <p class="hint" style="margin-bottom:12px;">
+      These still exist and aren't lost — they're just over what your current plan allows. They'll
+      automatically come back the moment there's room (an upgrade, or a subscription applied here).
+    </p>
+    <ul class="list">
+      <% disabledTags.forEach(t => { %>
+        <li class="list-item">
+          <div class="list-item-title"><code><%= t.name %></code></div>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
 <%- include('partials/footer') %>

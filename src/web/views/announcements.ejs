@@ -34,5 +34,21 @@
       <% }) %>
     </ul>
   <% } %>
+  <% if (typeof disabledAnnouncements !== 'undefined' && disabledAnnouncements.length > 0) { %>
+    <hr class="card-divider">
+    <h3>Disabled by your current plan (<%= disabledAnnouncements.length %>)</h3>
+    <p class="hint" style="margin-bottom:12px;">
+      Still scheduled, not lost -- they just won't send while disabled. They'll come back
+      automatically the moment there's room.
+    </p>
+    <ul class="list">
+      <% disabledAnnouncements.forEach(a => { %>
+        <li class="list-item">
+          <div class="list-item-title">#<%= (guild.channels.cache.get(a.channel_id) || {}).name || 'unknown-channel' %></div>
+          <div class="list-item-meta"><%= a.message.length > 80 ? a.message.slice(0, 80) + '…' : a.message %></div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
 </div>
 <%- include('partials/footer') %>

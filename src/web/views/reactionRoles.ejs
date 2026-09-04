@@ -31,5 +31,20 @@
       <% }) %>
     </ul>
   <% } %>
+  <% if (typeof disabledPanels !== 'undefined' && disabledPanels.length > 0) { %>
+    <hr class="card-divider">
+    <h3>Disabled by your current plan (<%= disabledPanels.length %>)</h3>
+    <p class="hint" style="margin-bottom:12px;">
+      Still configured, not lost. If one of these was already posted, the message stays up but stops
+      granting roles while disabled — both come back automatically the moment there's room.
+    </p>
+    <ul class="list">
+      <% disabledPanels.forEach(p => { %>
+        <li class="list-item">
+          <div class="list-item-title"><%= p.title %></div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
 </div>
 <%- include('partials/footer') %>
