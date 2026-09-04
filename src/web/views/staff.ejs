@@ -1035,6 +1035,39 @@
           <%= (!lookup.isContact && !lookup.isAllowlisted && !lookup.isBlocklisted && !lookup.isAdmin) ? 'No flags on this user.' : '' %>
         </p>
 
+        <h3>Tebex subscription</h3>
+        <% if (!lookup.tebex.subscriber) { %>
+          <p class="empty" style="margin-bottom:14px;">
+            No subscriber row for this exact Discord ID. If they say they bought something, check
+            whether the Discord ID they typed at Tebex checkout actually matches this one -- that
+            mismatch alone would explain everything looking "not applied."
+          </p>
+        <% } else { %>
+          <p class="list-item-meta" style="margin-bottom:6px;">
+            Tier: <strong><%= lookup.tebex.tier?.name || '(none -- tier was deleted)' %></strong>
+            · Status: <strong><%= lookup.tebex.subscriber.status %></strong>
+            · Reference: <span class="mono"><%= lookup.tebex.subscriber.tebex_reference || '(none)' %></span>
+            · Updated: <%= lookup.tebex.subscriber.updated_at %>
+          </p>
+          <p class="list-item-meta" style="margin-bottom:6px;">
+            <% if (!lookup.tebex.subscriber.guild_id) { %>
+              ⚠️ Not applied to any server yet -- they need to pick one on their Subscription page
+              (or grant it with a server pre-selected using the form above).
+            <% } else { %>
+              Applied to: <strong><%= lookup.tebex.appliedGuildName %></strong>
+              (<span class="mono"><%= lookup.tebex.subscriber.guild_id %></span>)
+              <% if (lookup.tebex.appliedGuildKnownToBot === false) { %>
+                <br>⚠️ No bot (main or custom) currently knows about that server ID -- it may be
+                stale, mistyped, or the bot was removed from it.
+              <% } %>
+            <% } %>
+          </p>
+          <p class="list-item-meta" style="margin-bottom:14px;">
+            Tier's raw Features box: <span class="mono"><%= (lookup.tebex.tier?.features || []).join(', ') || '(empty)' %></span>
+            · Has "custom_bot": <strong><%= lookup.tebex.hasCustomBot ? 'Yes' : 'No' %></strong>
+          </p>
+        <% } %>
+
         <h3>In <%= lookup.inGuilds.length %> server<%= lookup.inGuilds.length === 1 ? '' : 's' %></h3>
         <% if (lookup.inGuilds.length === 0) { %>
           <p class="empty">Not currently in any server XyphrosMod manages.</p>

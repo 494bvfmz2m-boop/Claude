@@ -17,6 +17,8 @@ const { formatUptime } = require('../../bot/ownerKeywords');
 const dmForm = require('../../bot/dmForm');
 const { buildResultEmbed } = require('../../bot/betaRequests');
 const { STAFF_AREAS, STAFF_AREA_KEYS } = require('../lib/staffAreas');
+const { tierHasFeature } = require('../lib/subscriptionGate');
+const { allKnownGuilds } = require('../../bot/clientRegistry');
 
 // Same "paste the raw <:name:id> markup" convention as reactionRoles.js's
 // parseEmojiInput, but this needs the name and ID as separate fields (for
@@ -181,7 +183,29 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
         const member = await guildObj.members.fetch(id).catch(() => null);
         return member ? { id: g.id, name: g.name } : null;
       }))).filter(Boolean);
-      const guildName = (gid) => client.guilds.cache.get(gid)?.name || gid;
+      const guildName = (gid) => allKnownGuilds().find((g) => g.id === gid)?.name || client.guilds.cache.get(gid)?.name || gid;
+
+      // Tebex diagnostics -- everything a "why doesn't their subscription
+      // work" question actually depends on, in one place, instead of
+      // guessing blind: is there a row at all for this exact ID (the
+      // buyer's Discord ID comes from what they typed at Tebex checkout,
+      // which is NOT guaranteed to be the same account they log into this
+      // dashboard with -- that mismatch alone explains a lot of "it's not
+      // applying" reports), what tier/status/guild it resolves to, whether
+      // that tier's Features box actually contains custom_bot (spelled
+      // exactly how the code expects, once case/whitespace differences are
+      // ignored), and whether the applied guild is even one the bot knows
+      // about (a stale/mistyped ID would otherwise fail completely silently).
+      const tebexSub = TebexSubscribers.get(id);
+      const tebexTier = tebexSub?.tier_id ? TebexTiers.get(tebexSub.tier_id) : null;
+      const tebex = {
+        subscriber: tebexSub,
+        tier: tebexTier,
+        appliedGuildName: tebexSub?.guild_id ? guildName(tebexSub.guild_id) : null,
+        appliedGuildKnownToBot: tebexSub?.guild_id ? allKnownGuilds().some((g) => g.id === tebexSub.guild_id) : null,
+        hasCustomBot: tierHasFeature(tebexTier, 'custom_bot'),
+      };
+
       lookup = {
         id,
         user: user ? { tag: user.tag, avatarURL: user.displayAvatarURL({ size: 64 }) } : null,
@@ -192,6 +216,7 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
         isAllowlisted: BetaAllowlist.has(id),
         isBlocklisted: GlobalBlocklist.has(id),
         isAdmin: DashboardAdmins.has(id) || id === config.ownerDiscordId,
+        tebex,
       };
     }
   }
