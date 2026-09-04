@@ -1,5 +1,16 @@
 const { TebexSubscribers, TebexTiers } = require('../../db/repo');
 
+// A tier's "Features" box is free text an owner types by hand -- comparing
+// it to a feature key with a plain, case-sensitive Array.includes means a
+// stray capital letter or trailing space silently breaks the match with no
+// error anywhere (a tier that LOOKS like it has "custom_bot" just quietly
+// never unlocks it). Trim + lowercase both sides instead, same tolerance
+// lib/tierLimits.js already gives the numeric limit keys.
+function tierHasFeature(tier, featureKey) {
+  const want = String(featureKey).trim().toLowerCase();
+  return Boolean(tier?.features?.some((f) => String(f).trim().toLowerCase() === want));
+}
+
 // The tier a Discord user currently has active, or null. See
 // db/repo.js's TebexSubscribers.activeTierFor -- a cancelled/expired
 // subscription stops resolving here even though its history row remains.
@@ -21,8 +32,7 @@ function getActiveTier(discordUserId, session) {
 }
 
 function hasFeature(discordUserId, featureKey, session) {
-  const tier = getActiveTier(discordUserId, session);
-  return Boolean(tier && tier.features.includes(featureKey));
+  return tierHasFeature(getActiveTier(discordUserId, session), featureKey);
 }
 
 // Express middleware -- gates a route behind a premium feature key (one of
@@ -62,13 +72,13 @@ function checkFeatureForGuild(discordUserId, featureKey, guildId, session) {
   if (guildId) {
     const guildSubscriber = TebexSubscribers.forGuild(guildId);
     const guildTier = guildSubscriber ? TebexTiers.get(guildSubscriber.tier_id) : null;
-    if (guildTier?.features.includes(featureKey)) return { ok: true };
+    if (tierHasFeature(guildTier, featureKey)) return { ok: true };
   }
 
   if (!discordUserId) return { ok: false };
   const mySub = TebexSubscribers.get(discordUserId);
   const myTier = mySub?.status === 'active' ? TebexTiers.get(mySub.tier_id) : null;
-  if (!myTier || !myTier.features.includes(featureKey)) return { ok: false };
+  if (!tierHasFeature(myTier, featureKey)) return { ok: false };
   if (!mySub.guild_id) return { ok: false, reason: 'not_applied' };
   return { ok: false, reason: 'wrong_guild', appliedGuildId: mySub.guild_id };
 }
@@ -89,4 +99,4 @@ function requirePremiumFeatureForGuild(featureKey) {
   };
 }
 
-module.exports = { getActiveTier, hasFeature, hasFeatureForGuild, requirePremiumFeature, requirePremiumFeatureForGuild };
+module.exports = { getActiveTier, hasFeature, hasFeatureForGuild, requirePremiumFeature, requirePremiumFeatureForGuild, tierHasFeature };

@@ -1,6 +1,6 @@
 const express = require('express');
 const { TebexTiers, TebexSubscribers } = require('../../db/repo');
-const { getActiveTier } = require('../lib/subscriptionGate');
+const { getActiveTier, tierHasFeature } = require('../lib/subscriptionGate');
 const { allKnownGuilds } = require('../../bot/clientRegistry');
 
 const router = express.Router();
@@ -47,6 +47,7 @@ router.get('/subscription', (req, res) => {
     needsGuildChoice,
     appliedGuild,
     guildOptions: subscriber?.status === 'active' ? guildOptionsFor(req.session) : [],
+    hasCustomBotFeature: tierHasFeature(activeTier, 'custom_bot'),
   });
 });
 

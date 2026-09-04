@@ -75,6 +75,11 @@
       Your subscription's server-specific features (like the custom bot) are unlocked on
       <strong><%= appliedGuild.name %></strong>.
     </p>
+    <% if (hasCustomBotFeature) { %>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <a class="btn" href="/dashboard/<%= appliedGuild.id %>/custom-bot">Manage your custom bot</a>
+      </div>
+    <% } %>
     <% if (guildOptions.length > 1) { %>
       <form action="/subscription/apply-guild" method="post" class="btn-row">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
