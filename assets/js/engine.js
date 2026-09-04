@@ -4,7 +4,7 @@
    Content itself lives in assets/js/content/*.js (window.COURSE.<topic>).
 --------------------------------------------------------------------- */
 
-const TOPIC_ORDER = ['html', 'css', 'javascript', 'json', 'sql', 'php', 'lua', 'capstone'];
+const TOPIC_ORDER = ['html', 'css', 'javascript', 'json', 'sql', 'php', 'lua', 'shell', 'python', 'capstone'];
 const PROGRESS_KEY = 'wds-progress-v1';
 
 const DIFFICULTY_META = {
@@ -51,7 +51,10 @@ function showLockScreen() {
     if (input.value === SITE_PASSWORD) {
       localStorage.setItem(UNLOCK_KEY, 'yes');
       lockScreen.style.display = 'none';
-      document.querySelector('.layout').style.display = '';
+      const layout = document.querySelector('.layout');
+      layout.style.display = '';
+      layout.classList.add('power-on');
+      layout.addEventListener('animationend', () => layout.classList.remove('power-on'), { once: true });
       initApp();
     } else {
       error.hidden = false;
@@ -114,6 +117,12 @@ function overallProgress() {
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, '');
   if (!hash || hash === 'home') return { view: 'home' };
+  if (hash === 'codebook') return { view: 'codebook-index' };
+  if (hash.startsWith('codebook/')) {
+    const id = hash.slice('codebook/'.length);
+    if (window.CODEBOOK[id]) return { view: 'codebook-article', id };
+    return { view: 'codebook-index' };
+  }
   const [topic, idxStr] = hash.split('/');
   if (!window.COURSE[topic]) return { view: 'home' };
   const idx = parseInt(idxStr, 10);
@@ -212,8 +221,13 @@ function renderSidebar() {
   });
 }
 
-function markActiveNav(topic, idx) {
-  document.querySelectorAll('.nav-lesson, .nav-home').forEach((el) => el.classList.remove('active'));
+function markActiveNav(topic, idx, section) {
+  document.querySelectorAll('.nav-lesson, .nav-home, .nav-codebook').forEach((el) => el.classList.remove('active'));
+  if (section === 'codebook') {
+    const link = document.querySelector('.nav-codebook');
+    if (link) link.classList.add('active');
+    return;
+  }
   if (!topic) {
     document.querySelector('.nav-home').classList.add('active');
     return;
@@ -232,6 +246,12 @@ function render() {
   if (route.view === 'home') {
     renderHome();
     markActiveNav(null);
+  } else if (route.view === 'codebook-index') {
+    renderCodebookIndex();
+    markActiveNav(null, null, 'codebook');
+  } else if (route.view === 'codebook-article') {
+    renderCodebookArticle(route.id);
+    markActiveNav(null, null, 'codebook');
   } else {
     renderLessonGated(route.topic, route.idx);
   }
@@ -262,10 +282,12 @@ function renderHome() {
     <div class="home">
       <h1>Learn to Build a Website 🚀</h1>
       <p class="lede">
-        A hands-on course covering the six things that power almost every website:
-        <strong>HTML</strong>, <strong>CSS</strong>, <strong>JavaScript</strong>, <strong>JSON</strong>,
-        <strong>SQL</strong>, and <strong>PHP</strong>. Every lesson has a short explanation, a real
-        example, and something for you to try &mdash; right in the browser.
+        A hands-on course covering the languages that power almost every website — plus two genuinely
+        useful bonus languages: <strong>HTML</strong>, <strong>CSS</strong>, <strong>JavaScript</strong>,
+        <strong>JSON</strong>, <strong>SQL</strong>, <strong>PHP</strong>, <strong>Lua</strong>,
+        <strong>Shell</strong>, and <strong>Python</strong>. Every lesson has a short explanation, a
+        real example, and something for you to try &mdash; right in the browser. Curious what each
+        language is actually <em>like</em>? Check <a href="#/codebook">The Codebook</a>.
       </p>
 
       <div class="overall-progress">
@@ -295,6 +317,72 @@ function renderHome() {
         </p>
       </div>
     </div>`;
+}
+
+/* ------------------------------ codebook -------------------------------- */
+
+function renderCodebookIndex() {
+  const cards = window.CODEBOOK.order.map((id) => {
+    const entry = window.CODEBOOK[id];
+    return `
+      <a class="codex-card" href="#/codebook/${id}">
+        <div class="codex-card-icon">${entry.icon}</div>
+        <h3>${escapeHtml(entry.title)}</h3>
+        <div class="codex-card-subtitle">${escapeHtml(entry.subtitle)}</div>
+        <p>${escapeHtml(entry.teaser)}</p>
+      </a>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="home codex-index">
+      <div class="gate-eyebrow">Archive</div>
+      <h1>📖 The Codebook</h1>
+      <p class="lede">
+        Nine languages, nine case files. Not lessons — just the story of each one: where it came
+        from, what it's like to work with, and where you'll actually run into it in the wild.
+      </p>
+      <div class="codex-grid">${cards}</div>
+    </div>`;
+}
+
+function renderCodebookArticle(id) {
+  const entry = window.CODEBOOK[id];
+  const meta = entry.meta || {};
+  const metaRows = Object.entries({
+    'Born': meta.born,
+    'Created by': meta.creator,
+    'Kind': meta.kind,
+    'Not for': meta.notFor,
+  }).filter(([, v]) => v);
+
+  const sections = (entry.sections || []).map((s) => `
+    <section class="codex-section">
+      <h2>${escapeHtml(s.heading)}</h2>
+      <div class="codex-prose">${s.html}</div>
+    </section>`).join('');
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'codex-article';
+  wrapper.innerHTML = `
+    <div class="crumb"><a href="#/codebook">📖 The Codebook</a> &nbsp;/&nbsp; ${escapeHtml(entry.title)}</div>
+    <div class="codex-header">
+      <div class="codex-header-icon">${entry.icon}</div>
+      <div>
+        <h1>${escapeHtml(entry.title)}</h1>
+        <div class="codex-subtitle">${escapeHtml(entry.subtitle)}</div>
+      </div>
+    </div>
+    <div class="codex-meta">
+      ${metaRows.map(([k, v]) => `<div class="codex-meta-row"><span class="codex-meta-key">${escapeHtml(k)}</span><span class="codex-meta-val">${escapeHtml(v)}</span></div>`).join('')}
+    </div>
+    <div class="codex-teaser">${escapeHtml(entry.teaser)}</div>
+    ${sections}
+    <div class="lesson-footer">
+      <a class="btn btn-secondary" href="#/codebook">&larr; Back to the Codebook</a>
+    </div>
+  `;
+  app.innerHTML = '';
+  app.appendChild(wrapper);
 }
 
 function renderLesson(topicId, idx) {
@@ -371,6 +459,8 @@ function renderBlock(block, lessonId) {
     case 'web': return renderWebPlayground(block);
     case 'sql': return renderSqlPlayground(block, lessonId);
     case 'lua': return renderLuaPlayground(block, lessonId);
+    case 'python': return renderPythonPlayground(block, lessonId);
+    case 'shell': return renderShellPlayground(block, lessonId);
     case 'predict': return renderPredict(block);
     case 'jsontool': return renderJsonTool(block);
     default: {
@@ -789,6 +879,175 @@ function renderLuaPlayground(block, lessonId) {
         </div>`;
         if (outcome.pass) setComplete(lessonId, true);
       });
+    });
+  }
+
+  return div;
+}
+
+/* ------------------------------ python ------------------------------------ */
+
+let skulptPromise = null;
+function loadSkulpt() {
+  if (skulptPromise) return skulptPromise;
+  skulptPromise = new Promise((resolve, reject) => {
+    if (window.Sk && window.Sk.builtinFiles) { resolve(window.Sk); return; }
+    const base = 'https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/';
+    const coreScript = document.createElement('script');
+    coreScript.src = base + 'skulpt.min.js';
+    coreScript.onload = () => {
+      const stdlibScript = document.createElement('script');
+      stdlibScript.src = base + 'skulpt-stdlib.js';
+      stdlibScript.onload = () => resolve(window.Sk);
+      stdlibScript.onerror = () => reject(new Error('Could not load the Python standard library from CDN.'));
+      document.head.appendChild(stdlibScript);
+    };
+    coreScript.onerror = () => reject(new Error('Could not load the Python engine from CDN. Check your internet connection.'));
+    document.head.appendChild(coreScript);
+  });
+  return skulptPromise;
+}
+
+function runPython(Sk, code) {
+  return new Promise((resolve) => {
+    let output = '';
+    Sk.configure({
+      output: (text) => { output += text; },
+      read: (filename) => {
+        if (Sk.builtinFiles === undefined || Sk.builtinFiles.files[filename] === undefined) {
+          throw new Error("File not found: '" + filename + "'");
+        }
+        return Sk.builtinFiles.files[filename];
+      },
+      __future__: Sk.python3,
+    });
+    Sk.misceval.asyncToPromise(() => Sk.importMainWithBody('<stdin>', false, code, true))
+      .then(() => resolve({ ok: true, output }))
+      .catch((err) => resolve({ ok: false, output, error: err.toString() }));
+  });
+}
+
+function renderPythonPlayground(block, lessonId) {
+  const id = uid('py');
+  const div = document.createElement('div');
+  div.className = 'block playground python-playground';
+  div.innerHTML = `
+    ${block.task ? `<div class="playground-task"><strong>Try it:</strong> ${block.task}</div>` : ''}
+    <div id="${id}">
+      <textarea class="code-input python-input" spellcheck="false">${escapeHtml(block.starter || '')}</textarea>
+      <div class="playground-actions">
+        <button type="button" class="btn btn-primary run-btn">▶ Run</button>
+        ${block.verify ? '<button type="button" class="btn btn-primary verify-btn">✔ Check My Work</button>' : ''}
+        <button type="button" class="btn btn-secondary reset-py-btn">↺ Reset</button>
+        <span class="sql-status">Loading Python engine…</span>
+      </div>
+      <div class="lua-result"></div>
+      <div class="sql-verify-result"></div>
+    </div>`;
+
+  const root = div.querySelector(`#${id}`);
+  const status = root.querySelector('.sql-status');
+  const resultEl = root.querySelector('.lua-result');
+  const verifyEl = root.querySelector('.sql-verify-result');
+  const input = root.querySelector('.python-input');
+
+  loadSkulpt().then(() => { status.textContent = 'Ready'; status.classList.add('ready'); })
+    .catch((e) => { status.textContent = 'Failed to load: ' + e.message; });
+
+  function showResult(target, res) {
+    if (!res.ok) {
+      target.innerHTML = `<div class="sql-error">Error: ${escapeHtml(res.error)}</div>`;
+    } else if (!res.output) {
+      target.innerHTML = '<div class="sql-empty">Ran successfully — nothing was printed. Use print(...) to see output.</div>';
+    } else {
+      target.innerHTML = `<pre class="code-block lua-output"><code>${escapeHtml(res.output.replace(/\n$/, ''))}</code></pre>`;
+    }
+  }
+
+  root.querySelector('.run-btn').addEventListener('click', () => {
+    resultEl.innerHTML = '<div class="sql-loading">Running…</div>';
+    loadSkulpt().then((Sk) => runPython(Sk, input.value)).then((res) => showResult(resultEl, res));
+  });
+
+  root.querySelector('.reset-py-btn').addEventListener('click', () => {
+    input.value = block.starter || '';
+    resultEl.innerHTML = '';
+    verifyEl.innerHTML = '';
+  });
+
+  if (block.verify) {
+    root.querySelector('.verify-btn').addEventListener('click', () => {
+      loadSkulpt().then((Sk) => runPython(Sk, input.value)).then((res) => {
+        showResult(resultEl, res);
+        const outcome = block.verify(res.output, res.ok);
+        verifyEl.innerHTML = `<div class="verify-outcome ${outcome.pass ? 'pass' : 'fail'}">
+          ${outcome.pass ? '✅' : '❌'} ${outcome.message}
+        </div>`;
+        if (outcome.pass) setComplete(lessonId, true);
+      });
+    });
+  }
+
+  return div;
+}
+
+/* -------------------------------- shell ------------------------------------ */
+
+function renderShellTranscript(transcript) {
+  if (!transcript.length) return '<div class="sql-empty">No commands ran.</div>';
+  const lines = transcript.map((t) => {
+    const out = t.stdout ? `<span class="shell-stdout">${escapeHtml(t.stdout).replace(/\n$/, '')}</span>\n` : '';
+    const err = t.stderr ? `<span class="shell-stderr">${escapeHtml(t.stderr).replace(/\n$/, '')}</span>\n` : '';
+    return `<span class="shell-prompt">$</span> <span class="shell-cmd">${escapeHtml(t.command)}</span>\n${out}${err}`;
+  });
+  return `<pre class="code-block shell-output"><code>${lines.join('')}</code></pre>`;
+}
+
+function renderShellPlayground(block, lessonId) {
+  const id = uid('shell');
+  const div = document.createElement('div');
+  div.className = 'block playground shell-playground';
+  div.innerHTML = `
+    ${block.task ? `<div class="playground-task"><strong>Try it:</strong> ${block.task}</div>` : ''}
+    <div id="${id}">
+      <textarea class="code-input shell-input" spellcheck="false">${escapeHtml(block.starter || '')}</textarea>
+      <div class="playground-actions">
+        <button type="button" class="btn btn-primary run-btn">▶ Run</button>
+        ${block.verify ? '<button type="button" class="btn btn-primary verify-btn">✔ Check My Work</button>' : ''}
+        <button type="button" class="btn btn-secondary reset-shell-btn">↺ Reset Terminal</button>
+      </div>
+      <div class="shell-result"></div>
+      <div class="sql-verify-result"></div>
+    </div>`;
+
+  const root = div.querySelector(`#${id}`);
+  const resultEl = root.querySelector('.shell-result');
+  const verifyEl = root.querySelector('.sql-verify-result');
+  const input = root.querySelector('.shell-input');
+
+  let state = window.ShellSim.newState();
+
+  root.querySelector('.run-btn').addEventListener('click', () => {
+    const transcript = window.ShellSim.runScript(input.value, state);
+    resultEl.innerHTML = renderShellTranscript(transcript);
+  });
+
+  root.querySelector('.reset-shell-btn').addEventListener('click', () => {
+    state = window.ShellSim.newState();
+    input.value = block.starter || '';
+    resultEl.innerHTML = '';
+    verifyEl.innerHTML = '';
+  });
+
+  if (block.verify) {
+    root.querySelector('.verify-btn').addEventListener('click', () => {
+      const transcript = window.ShellSim.runScript(input.value, state);
+      resultEl.innerHTML = renderShellTranscript(transcript);
+      const outcome = block.verify(state, transcript);
+      verifyEl.innerHTML = `<div class="verify-outcome ${outcome.pass ? 'pass' : 'fail'}">
+        ${outcome.pass ? '✅' : '❌'} ${outcome.message}
+      </div>`;
+      if (outcome.pass) setComplete(lessonId, true);
     });
   }
 

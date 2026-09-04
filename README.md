@@ -2,11 +2,11 @@
 
 A self-paced, interactive course covering the core technologies behind almost
 every website — **HTML**, **CSS**, **JavaScript**, **JSON**, **SQL**, and
-**PHP** — plus **Lua** as a bonus language, and a final lesson tying the web
-stack together.
+**PHP** — plus three bonus languages, **Lua**, **Shell/Bash**, and **Python**
+— and a final lesson tying the web stack together.
 
-It's a static site (no build step, no server required to view it) with 75
-lessons across 8 topics. Every lesson is tagged **Basic → Medium → Pro → Hell**
+It's a static site (no build step, no server required to view it) with 94
+lessons across 10 topics. Every lesson is tagged **Basic → Medium → Pro → Hell**
 so difficulty is always visible in the sidebar and on the lesson page, and the
 HTML track is built as a full 2-week, day-by-day plan (see its first lesson)
 to take you from zero to confidently building a complete page. Every lesson
@@ -21,7 +21,16 @@ try:
   with instant feedback on whether your query did the right thing.
 - **Lua** — a real Lua VM running in your browser (via
   [Fengari](https://fengari.io)), covering everything from variables through
-  metatables, closures, coroutines, and pcall — genuinely executed, not simulated.
+  metatables, closures, coroutines, and pcall, plus a dedicated lesson
+  connecting it to Roblox/Luau scripting — genuinely executed, not simulated.
+- **Python** — a real Python interpreter running in your browser (via
+  [Skulpt](https://skulpt.org)), from variables through comprehensions,
+  classes, and try/except.
+- **Shell** — a real (if compact) command interpreter with its own in-memory
+  filesystem, built from scratch for this course (`assets/js/shell.js`, zero
+  external dependencies) — navigation, files, pipes, redirects, variables,
+  grep, and `&&`/`||`/`;` chaining all genuinely execute against simulated
+  state, terminal-transcript style.
 - **JSON** — a validator/formatter to practice spotting and fixing broken JSON.
 - **PHP** — since PHP only runs on a server (not in a browser), these lessons
   use "predict the output" exercises instead of a live editor.
@@ -30,9 +39,22 @@ A "Hell" tier highlight: the JavaScript track's cursor-tracking lesson builds
 real magnetic/cursor-following buttons (and the CSS track builds glow, ripple,
 and gradient-border buttons) — live and editable in the playground.
 
+## The Codebook
+
+A separate reading-only section (linked from the sidebar) — nine narrative
+"case files," one per language, covering where it came from, what it's
+actually like to work with, and where you'll run into it in the wild. No
+quizzes, no exercises — just something to read, styled with a warm serif font
+(Lora) to feel distinct from the lesson chrome.
+
+## Look & feel
+
 The whole UI is styled as a dark HUD/command-console theme (Orbitron +
 Rajdhani, glowing cyan accents, animated grid background, HUD corner brackets
 on panels) — built to feel like a JARVIS-style interface, not a plain doc site.
+Pulsing status indicators, a button shimmer sweep on hover, a quiz-answer
+flash-reveal, and a brief "power-on" flash on unlock round out the animation
+work; everything respects `prefers-reduced-motion`.
 
 Code editor textareas support **Tab to indent** (and Shift+Tab to outdent)
 instead of Tab jumping focus to the next control, like a real code editor.

@@ -30,6 +30,15 @@ local age = 30
 
 print("Hello, " .. name)
 print(age)` },
+        { type: 'note', kind: 'info', html: `
+          <strong>If you're here for Roblox:</strong> Roblox scripts are written in
+          <strong>Luau</strong>, Roblox's own dialect of Lua — same core language you're learning
+          right here (variables, functions, tables, loops, all identical), plus extra stuff Roblox
+          adds on top (optional type annotations, and game-specific globals like <code>game</code>,
+          <code>script</code>, and Roblox's own library of Instances and Services). Everything in
+          this course transfers directly; a dedicated lesson after Tables connects the dots to
+          actual Roblox scripting patterns.
+        `},
         { type: 'note', kind: 'warning', html: 'Lua\'s most famous quirk: sequences are <strong>1-indexed</strong>, not 0-indexed. The first item of a list is at position 1, not 0. This trips up almost everyone coming from JavaScript or PHP at first.' },
         { type: 'lua', task: 'Change the name and age, and add a third print() line of your own.', starter:
 `local name = "Ada"
@@ -212,6 +221,87 @@ end`, verify: (output) => {
       quiz: [
         { q: 'What does the # operator do on a table?', choices: ['Comments it out', 'Returns its (array-part) length', 'Deletes it'], answer: 1, explain: '#t gives the length of the sequence/array part of a table.' },
         { q: 'Which is correct for iterating a dictionary-style table with string keys?', choices: ['ipairs', 'pairs', 'forEach'], answer: 1, explain: 'pairs() iterates every key (string or numeric); ipairs() is specifically for the 1..n array part.' },
+      ],
+    },
+
+    {
+      id: 'lua-roblox',
+      title: 'Lua in Roblox',
+      difficulty: 'medium',
+      blocks: [
+        { type: 'text', html: `
+          <p>Roblox is almost certainly the biggest reason anyone learns Lua today. A Roblox game
+          ("experience") is scripted with three script types — a <strong>Script</strong> runs on the
+          server, a <strong>LocalScript</strong> runs on one player's device, and a
+          <strong>ModuleScript</strong> is reusable code other scripts can require. Every script has
+          access to <code>game</code>, the root of everything in the experience (parts, players,
+          services), and reacts to things happening via <strong>events</strong>.</p>
+        `},
+        { type: 'code', lang: 'lua', caption: 'A Roblox Script: detecting when a part is touched', code:
+`local part = script.Parent  -- the Part this script is attached to
+
+local function onTouch(hit)
+  local character = hit.Parent
+  local player = game.Players:GetPlayerFromCharacter(character)
+  if player then
+    print(player.Name .. " touched the part!")
+  end
+end
+
+part.Touched:Connect(onTouch)` },
+        { type: 'note', kind: 'info', html: `
+          Notice the shape: <code>something.Event:Connect(function(...) ... end)</code>. That's
+          exactly the same "pass a function as a value" idea from the Functions lesson — Roblox just
+          calls your function automatically whenever that event happens, instead of you calling it
+          yourself. <code>:Connect</code> uses the same colon method-call sugar you'll meet properly
+          in the Metatables &amp; OOP lesson.
+        `},
+        { type: 'code', lang: 'lua', caption: 'A simple leaderboard using an ordinary table', code:
+`local playerScores = {}   -- just a plain Lua table, keyed by player name
+
+local function addScore(name, points)
+  playerScores[name] = (playerScores[name] or 0) + points
+end
+
+local function printLeaderboard()
+  for name, score in pairs(playerScores) do
+    print(name .. ": " .. score)
+  end
+end
+
+addScore("Ada", 10)
+addScore("Grace", 25)
+addScore("Ada", 5)
+printLeaderboard()` },
+        { type: 'note', kind: 'tip', html: 'That leaderboard is exactly how a real Roblox leaderboard script works under the hood — a table mapping player names (or player objects) to their stats. Roblox adds a specific "leaderstats" folder convention on top so the values also show in the in-game UI, but the underlying data structure is the same table you already know.' },
+        { type: 'lua', task: 'The leaderboard code above is plain, portable Lua — run it here and confirm Ada ends up with 15 points total.', starter:
+`local playerScores = {}
+
+local function addScore(name, points)
+  playerScores[name] = (playerScores[name] or 0) + points
+end
+
+addScore("Ada", 10)
+addScore("Ada", 5)
+print(playerScores["Ada"])`, verify: (output) => {
+          return output.trim() === '15'
+            ? { pass: true, message: 'Correct — 10 + 5 = 15, accumulated in the table.' }
+            : { pass: false, message: 'Expected the single line: 15' };
+        }},
+        { type: 'note', kind: 'warning', html: `
+          One real Roblox-specific concept worth knowing by name: since a Script (server) and a
+          LocalScript (one player's device) can't directly call each other's functions, Roblox uses
+          <strong>RemoteEvents</strong> to pass messages between them — e.g. a client fires a
+          RemoteEvent to ask the server "let me buy this item", and the server listens and validates
+          it. This client/server split (never trust the client!) is the same principle you'll meet
+          again in the PHP and capstone lessons for regular websites — the browser is the client,
+          your server code is the source of truth.
+        `},
+      ],
+      quiz: [
+        { q: 'In Roblox, what is the key difference between a Script and a LocalScript?', choices: ['No difference, they\'re interchangeable names', 'A Script runs on the server; a LocalScript runs on one player\'s device', 'LocalScript is an older, deprecated version of Script'], answer: 1, explain: 'Scripts run server-side (affecting everyone); LocalScripts run only on that one client.' },
+        { q: 'What does part.Touched:Connect(onTouch) do?', choices: ['Immediately calls onTouch once', 'Registers onTouch to run automatically every time the part is touched', 'Deletes the part when touched'], answer: 1, explain: ':Connect subscribes a function to an event, to be called whenever that event fires.' },
+        { q: 'Why do Roblox games use RemoteEvents between client and server instead of letting the client just directly change game state?', choices: ['RemoteEvents are faster than direct changes', 'The server must validate everything — a client could be modified to cheat, so it should never be trusted directly', 'It\'s only a stylistic convention with no real reason'], answer: 1, explain: 'The client can be tampered with, so the server (which the player doesn\'t control) must be the authority on anything that matters, like currency or inventory.' },
       ],
     },
 
