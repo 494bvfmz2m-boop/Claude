@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 // Discord rate-limits channel renames to about 2 per 10 minutes per channel,
 // so this runs on a slow interval rather than reacting to every join/leave --
@@ -34,7 +35,12 @@ async function updateGuildStats(guild) {
 }
 
 async function updateAllGuilds(client) {
+  // Both the main bot and a guild's own custom bot are simultaneously
+  // members and would otherwise both try to rename the same stats
+  // channels -- besides being pointless duplicate work, that burns through
+  // Discord's tight per-channel rename rate limit twice as fast.
   for (const guild of client.guilds.cache.values()) {
+    if (!ownsGuild(client, guild.id)) continue;
     await updateGuildStats(guild).catch((err) => console.error(`Stats channel update failed for ${guild.id}:`, err.message));
   }
 }
@@ -44,6 +50,7 @@ async function updateAllGuilds(client) {
 // count would silently read ~0 forever without this.
 async function warmPresences(client) {
   for (const guild of client.guilds.cache.values()) {
+    if (!ownsGuild(client, guild.id)) continue;
     const settings = GuildSettings.get(guild.id);
     if (!settings.stats_online_channel_id) continue;
     await guild.members.fetch({ withPresences: true }).catch(() => {});

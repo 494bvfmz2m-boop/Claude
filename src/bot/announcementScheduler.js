@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const { ScheduledAnnouncements } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 const CHECK_INTERVAL_MS = 30000;
 const RECURRENCE_MS = { daily: 24 * 60 * 60 * 1000, weekly: 7 * 24 * 60 * 60 * 1000 };
@@ -27,7 +28,9 @@ async function sendAnnouncement(client, announcement) {
 }
 
 async function checkDueAnnouncements(client) {
-  const due = ScheduledAnnouncements.listDue(new Date().toISOString());
+  // See pollScheduler.js's identical filter -- otherwise a guild with its
+  // own custom bot would get every scheduled announcement posted twice.
+  const due = ScheduledAnnouncements.listDue(new Date().toISOString()).filter((a) => ownsGuild(client, a.guild_id));
   for (const announcement of due) {
     await sendAnnouncement(client, announcement);
   }

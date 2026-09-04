@@ -1,5 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Giveaways } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 const GIVEAWAY_COLOR = '#a32ee2';
 const CHECK_INTERVAL_MS = 30000;
@@ -45,7 +46,11 @@ async function endGiveaway(client, giveaway) {
 }
 
 async function checkDueGiveaways(client) {
-  const due = Giveaways.listDue(new Date().toISOString());
+  // See pollScheduler.js's identical filter -- without it, a guild with
+  // its own custom bot would end (and double-announce winners for) every
+  // giveaway twice, once from that bot and once from the still-present
+  // main bot.
+  const due = Giveaways.listDue(new Date().toISOString()).filter((g) => ownsGuild(client, g.guild_id));
   for (const giveaway of due) {
     await endGiveaway(client, giveaway);
   }

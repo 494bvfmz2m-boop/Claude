@@ -41,4 +41,53 @@ function allKnownGuilds() {
   return [...seen.values()];
 }
 
-module.exports = { mainClient, registerCustomClient, unregisterCustomClient, clientForGuild, resolveGuild, allKnownGuilds };
+// Best-effort guild ID out of a raw gateway event's first argument --
+// covers every shape our feature listeners actually receive (a Message,
+// Interaction, GuildMember, Channel, Role, VoiceState, a [oldX, newX] pair
+// for *Update events, ...). Returns null for anything guild-less (a DM, a
+// client-level Ready event) -- those never need guarding since there's no
+// guild for two clients to disagree about owning.
+function guildIdOf(arg) {
+  if (!arg) return null;
+  if (typeof arg.guildId === 'string') return arg.guildId;
+  if (arg.guild && typeof arg.guild.id === 'string') return arg.guild.id;
+  return null;
+}
+
+// The main bot is deliberately never kicked from a guild once a Custom-tier
+// subscriber's own bot takes over for it (so it's ready to resume instantly
+// if their subscription lapses -- see bot/tierEnforcement.js) -- but that
+// means BOTH clients are simultaneously members of that guild, and each one
+// independently runs the exact same registerAllFeatures() listeners. Without
+// this, every guild-scoped feature (welcome messages, the swear filter,
+// message logging, ...) would double-fire, once from each bot, the whole
+// time a custom bot is connected.
+//
+// Wraps client.on/once so any listener whose event resolves to a guild ID
+// only actually runs if THIS client is the one clientForGuild says owns
+// that guild right now -- the other client's identical listener silently
+// no-ops instead. A guild-less event (DMs, Ready, ...) is never filtered.
+// Call once per client, before registering any feature listeners on it.
+function guardClientEvents(client) {
+  const originalOn = client.on.bind(client);
+  const originalOnce = client.once.bind(client);
+  const guard = (listener) => (...args) => {
+    const guildId = guildIdOf(args[0]) ?? guildIdOf(args[1]);
+    if (guildId && clientForGuild(guildId) !== client) return;
+    return listener(...args);
+  };
+  client.on = (event, listener) => originalOn(event, guard(listener));
+  client.once = (event, listener) => originalOnce(event, guard(listener));
+}
+
+// True if `client` is the one clientForGuild says should currently be
+// handling this guild. For the timer-driven schedulers (polls, giveaways,
+// reminders, scheduled announcements, stats channels) -- these don't go
+// through client.on/once at all (they run on a plain setInterval sweeping
+// every due row or every cached guild globally), so guardClientEvents
+// above can't cover them; each one filters its own work with this instead.
+function ownsGuild(client, guildId) {
+  return Boolean(guildId) && clientForGuild(guildId) === client;
+}
+
+module.exports = { mainClient, registerCustomClient, unregisterCustomClient, clientForGuild, resolveGuild, allKnownGuilds, guardClientEvents, ownsGuild };

@@ -1,6 +1,7 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { getStaffRanks } = require('./cache');
 const { Hierarchies } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 const DEBOUNCE_MS = 3000;
 const timers = new Map(); // guildId -> Timeout
@@ -103,8 +104,13 @@ function register(client) {
 
 // Only warms the member cache (needed for role.members to be accurate) for
 // guilds that actually use this feature — no point paying that cost otherwise.
+// Called once per client at boot (main bot in index.js, each custom bot in
+// customBots.js) -- skips any guild THIS client doesn't currently own, or a
+// guild with its own custom bot would get its staff list message refreshed
+// twice (once from each bot) every time either one starts up.
 async function warmUpAndRefreshAll(client) {
   for (const guild of client.guilds.cache.values()) {
+    if (!ownsGuild(client, guild.id)) continue;
     const hierarchies = Hierarchies.listForGuild(guild.id);
     if (!hierarchies.some((h) => h.channel_id)) continue;
     await guild.members.fetch().catch(() => {});

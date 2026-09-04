@@ -1,5 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Polls } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 const POLL_COLOR = '#a32ee2';
 const NUMBER_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
@@ -50,7 +51,11 @@ async function closePoll(client, poll) {
 }
 
 async function checkDuePolls(client) {
-  const due = Polls.listDue(new Date().toISOString());
+  // Both the main bot and a guild's own custom bot run this same sweep --
+  // only the one clientRegistry says currently owns a given poll's guild
+  // should actually close it, or a still-present main bot would double up
+  // on every poll a custom-bot guild schedules.
+  const due = Polls.listDue(new Date().toISOString()).filter((p) => ownsGuild(client, p.guild_id));
   for (const poll of due) {
     await closePoll(client, poll);
   }

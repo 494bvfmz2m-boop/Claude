@@ -20,6 +20,7 @@ const { register: registerStatsChannels } = require('./statsChannels');
 const { register: registerAfk } = require('./afk');
 const { register: registerReminderScheduler } = require('./reminderScheduler');
 const { register: registerRoleTriggers } = require('./roleTriggers');
+const { guardClientEvents } = require('./clientRegistry');
 const { Events } = require('discord.js');
 
 // onReady runs after the client logs in and its guild cache is populated --
@@ -27,6 +28,13 @@ const { Events } = require('discord.js');
 // (see customBots.js) instead only ever targets its one guild and handles
 // that itself, so it's an optional hook rather than baked in here.
 function registerAllFeatures(client, { onReady } = {}) {
+  // Must come first -- every register*(client) call below attaches its
+  // listeners through client.on/once, so they only take effect once this
+  // has patched them to skip guilds a DIFFERENT client currently owns (see
+  // clientRegistry.js's guardClientEvents for why that matters: the main
+  // bot deliberately stays in a guild even after a custom bot takes over).
+  guardClientEvents(client);
+
   registerInteractions(client);
   registerSwearFilter(client);
   registerLinkFilter(client);

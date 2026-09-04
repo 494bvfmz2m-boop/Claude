@@ -1,5 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Reminders } = require('../db/repo');
+const { ownsGuild } = require('./clientRegistry');
 
 const CHECK_INTERVAL_MS = 20000;
 const COLOR = '#a32ee2';
@@ -35,7 +36,10 @@ async function deliverReminder(client, reminder) {
 }
 
 async function checkDueReminders(client) {
-  const due = Reminders.listDue(new Date().toISOString());
+  // See pollScheduler.js's identical filter -- otherwise a guild with its
+  // own custom bot would have every reminder delivered (DM'd) twice, once
+  // by each bot.
+  const due = Reminders.listDue(new Date().toISOString()).filter((r) => ownsGuild(client, r.guild_id));
   for (const reminder of due) {
     await deliverReminder(client, reminder);
   }

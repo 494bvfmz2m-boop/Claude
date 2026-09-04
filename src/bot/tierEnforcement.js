@@ -1,12 +1,39 @@
+const { EmbedBuilder } = require('discord.js');
 const {
   TicketTypes, Panels, ReactionRolePanels, Tags, ScheduledAnnouncements,
   TebexSubscribers, TebexTiers, CustomBots,
 } = require('../db/repo');
 const { limitFor } = require('../web/lib/tierLimits');
 const { tierHasFeature } = require('../web/lib/subscriptionGate');
-const { resolveGuild } = require('./clientRegistry');
+const { resolveGuild, mainClient } = require('./clientRegistry');
 const { buildPanelMessage } = require('./panelMessage');
 const { stopCustomBot } = require('./customBots');
+const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
+
+// Discord gives bots no way to add themselves to a server -- only a human
+// clicking an OAuth invite link can do that. The main bot is deliberately
+// never kicked when a custom bot takes over (see clientRegistry.js's
+// guardClientEvents), so it's normally still sitting there ready to resume
+// the instant a custom bot disconnects -- but if the server owner removed
+// it themselves at some point, there's genuinely nothing left running
+// there and no way to fix that automatically. Best we can do is tell them.
+async function notifyIfMainBotMissing(guildId, subscriber) {
+  if (mainClient.guilds.cache.has(guildId)) return;
+  if (!subscriber?.discord_user_id) return;
+  try {
+    const user = await mainClient.users.fetch(subscriber.discord_user_id);
+    const embed = new EmbedBuilder()
+      .setTitle('Your custom bot was disconnected')
+      .setDescription(
+        "Your Custom subscription is no longer active, so your own bot has been disconnected. "
+        + "Normally the shared XyphrosMod bot would automatically take back over so your server "
+        + "isn't left with nothing -- but it looks like it's not in that server anymore. "
+        + `[Click here to re-invite it](${buildGenericInviteUrl()}) to restore basic functionality.`,
+      )
+      .setColor('#a32ee2');
+    await user.send({ embeds: [embed] }).catch(() => {});
+  } catch { /* can't reach them by DM -- nothing more we can do automatically */ }
+}
 
 // Re-renders a panel's live posted message (if it has one) so its buttons/
 // dropdown match whatever's currently in ticket_type_ids -- called whenever
@@ -93,6 +120,7 @@ async function enforceGuildLimits(guildId) {
     // needs updating too or the Custom Bot page would keep showing
     // "connected" for a bot that's actually been disconnected.
     CustomBots.setStopped(guildId);
+    await notifyIfMainBotMissing(guildId, subscriber);
   }
 }
 
