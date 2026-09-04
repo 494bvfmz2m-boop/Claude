@@ -1,0 +1,241 @@
+:root {
+  --bg: #f5f4f0;
+  --paper: #ffffff;
+  --text: #2b2b2b;
+  --muted: #5a5a5a;
+  --accent: #2f5d8a;
+  --accent-dark: #1f3f5c;
+  --border: #d8d4cb;
+  --steel: #b9c2c9;
+  --steel-dark: #7c8790;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Verdana, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.site-header {
+  background: var(--accent-dark);
+  color: #fff;
+  padding: 2rem 1rem;
+  border-bottom: 4px solid var(--accent);
+}
+
+.header-inner {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.site-header h1 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.9rem;
+}
+
+.subtitle {
+  margin: 0;
+  color: #d7e2ec;
+  font-size: 1rem;
+}
+
+.site-nav {
+  background: var(--paper);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.site-nav ul {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0.6rem 1rem;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+}
+
+.site-nav a {
+  color: var(--accent-dark);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem 1rem;
+}
+
+.section {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.section h2 {
+  margin-top: 0;
+  color: var(--accent-dark);
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.5rem;
+  font-size: 1.3rem;
+}
+
+.section p {
+  margin: 0.9rem 0;
+}
+
+.section a {
+  color: var(--accent);
+}
+
+/* --- Animation section --- */
+
+.animation-section {
+  text-align: center;
+}
+
+.car-stage {
+  max-width: 480px;
+  margin: 1rem auto;
+}
+
+#carSvg {
+  width: 100%;
+  height: auto;
+}
+
+#carSvg .shadow {
+  fill: #000;
+  opacity: 0.08;
+}
+
+#part-chassis rect {
+  fill: var(--steel-dark);
+}
+
+#part-engine rect {
+  fill: #3a3a3a;
+}
+#part-engine line {
+  stroke: #6b6b6b;
+  stroke-width: 2;
+}
+
+#part-wheel-left circle,
+#part-wheel-right circle {
+  fill: #262626;
+}
+#part-wheel-left .hub,
+#part-wheel-right .hub {
+  fill: var(--steel);
+}
+
+#part-body path {
+  fill: var(--accent);
+}
+
+#part-windows path {
+  fill: #dbe7f0;
+}
+
+/* start state: pieces hidden / offset, JS adds .in class to animate in */
+#part-chassis,
+#part-engine,
+#part-wheel-left,
+#part-wheel-right,
+#part-body,
+#part-windows {
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+#part-chassis {
+  transform: translateY(20px);
+}
+#part-engine {
+  transform: translateY(-16px);
+}
+#part-wheel-left {
+  transform: translate(-40px, -10px);
+}
+#part-wheel-right {
+  transform: translate(40px, -10px);
+}
+#part-body {
+  transform: translateY(-24px);
+}
+#part-windows {
+  transform: translateY(-8px);
+}
+
+#carSvg.play #part-chassis.in,
+#carSvg.play #part-engine.in,
+#carSvg.play #part-wheel-left.in,
+#carSvg.play #part-wheel-right.in,
+#carSvg.play #part-body.in,
+#carSvg.play #part-windows.in {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+.replay-btn {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.replay-btn:hover {
+  background: var(--accent-dark);
+}
+
+/* --- Bronnenlijst --- */
+
+.bronlijst {
+  padding-left: 1.2rem;
+}
+
+.bronlijst li {
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.bronlijst em {
+  color: var(--text);
+}
+
+.site-footer {
+  text-align: center;
+  padding: 1.2rem 1rem 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .site-header h1 {
+    font-size: 1.4rem;
+  }
+  .section {
+    padding: 1.1rem 1.1rem;
+  }
+}
