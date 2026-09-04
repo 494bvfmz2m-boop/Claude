@@ -42,26 +42,35 @@ function requirePremiumFeature(featureKey) {
   };
 }
 
-// A tier's features only unlock on the ONE server the subscriber picked
-// (see routes/subscription.js's "choose a server" flow) -- holding the
-// right tier isn't enough on its own, it has to be applied to *this*
-// guild. Returns a reason alongside the boolean so callers (the upgrade
-// page, the sidebar) can explain *why* it's locked: not subscribed at all,
-// subscribed but never applied anywhere yet, or applied to a different
-// server. The owner's "preview as" override is exempt from the guild
-// check entirely (it's a debug tool, not a real subscription tied to any
-// server) and just falls back to the plain feature check.
+// A tier's guild-scoped features (e.g. the custom bot) belong to the
+// SERVER they're applied to, not to whoever happens to be logged into the
+// dashboard right now -- multiple staff can manage the same guild, and the
+// person clicking around isn't necessarily the Tebex buyer. So the real
+// check is "does whatever's applied to THIS guild include the feature"
+// (TebexSubscribers.forGuild, same lookup lib/tierLimits.js uses), not
+// "does the current user personally hold it". Falls back to the current
+// user's own subscription only to explain *why* it's locked for them
+// specifically (not subscribed, subscribed but unapplied, or applied to a
+// different server) when the server-level check comes up empty. The
+// owner's "preview as" override is exempt from all of this -- it's a
+// debug tool, not a real subscription tied to any server.
 function checkFeatureForGuild(discordUserId, featureKey, guildId, session) {
   if (session?.isOwner && session?.previewTierId) {
     return { ok: hasFeature(discordUserId, featureKey, session) };
   }
+
+  if (guildId) {
+    const guildSubscriber = TebexSubscribers.forGuild(guildId);
+    const guildTier = guildSubscriber ? TebexTiers.get(guildSubscriber.tier_id) : null;
+    if (guildTier?.features.includes(featureKey)) return { ok: true };
+  }
+
   if (!discordUserId) return { ok: false };
-  const subscriber = TebexSubscribers.get(discordUserId);
-  const tier = subscriber?.status === 'active' ? TebexTiers.get(subscriber.tier_id) : null;
-  if (!tier || !tier.features.includes(featureKey)) return { ok: false };
-  if (!subscriber.guild_id) return { ok: false, reason: 'not_applied' };
-  if (subscriber.guild_id !== guildId) return { ok: false, reason: 'wrong_guild', appliedGuildId: subscriber.guild_id };
-  return { ok: true };
+  const mySub = TebexSubscribers.get(discordUserId);
+  const myTier = mySub?.status === 'active' ? TebexTiers.get(mySub.tier_id) : null;
+  if (!myTier || !myTier.features.includes(featureKey)) return { ok: false };
+  if (!mySub.guild_id) return { ok: false, reason: 'not_applied' };
+  return { ok: false, reason: 'wrong_guild', appliedGuildId: mySub.guild_id };
 }
 
 function hasFeatureForGuild(discordUserId, featureKey, guildId, session) {
