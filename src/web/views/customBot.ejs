@@ -17,6 +17,25 @@
   </div>
 <% } %>
 
+<div class="card">
+  <h2>OAuth2 redirect URI</h2>
+  <% if (redirectUri) { %>
+    <p class="hint" style="margin-bottom:12px;">
+      Add this to your bot's own Discord application before inviting it: in the
+      <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a>
+      → your application → OAuth2 → Redirects → Add Redirect → paste this exact URL → Save.
+      You can set this up now, before even uploading a token.
+    </p>
+    <label style="margin-top:0;">Redirect URI</label>
+    <input type="text" value="<%= redirectUri %>" readonly onclick="this.select()">
+  <% } else { %>
+    <p class="empty">
+      This isn't available yet — the server owner needs to set <code>DASHBOARD_URL</code> before a
+      redirect URI can be generated.
+    </p>
+  <% } %>
+</div>
+
 <% if (!tokenCryptoConfigured) { %>
   <div class="card">
     <p class="empty">
@@ -65,12 +84,9 @@
 <div class="card">
   <h2>Invite it</h2>
   <p class="hint" style="margin-bottom:12px;">
-    First, paste this exact URL into your bot's page in the
-    <a href="https://discord.com/developers/applications" target="_blank" rel="noopener">Discord Developer Portal</a>
-    → OAuth2 → Redirects → Add Redirect, and save. Discord rejects the invite below until it matches exactly.
+    Make sure you've already added the redirect URI above to this bot's Discord application (OAuth2
+    → Redirects) — Discord rejects the invite below until it matches exactly.
   </p>
-  <label style="margin-top:0;">Redirect URI</label>
-  <input type="text" value="<%= redirectUri %>" readonly onclick="this.select()">
   <div class="btn-row">
     <a class="btn" href="<%= inviteUrl %>" target="_blank" rel="noopener">Invite <%= record.bot_username || 'your bot' %></a>
   </div>
