@@ -4,18 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hoe wordt een auto gemaakt?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <header class="site-header">
   <div class="header-inner">
+    <p class="eyebrow">Schoolproject &bull; Techniek</p>
     <h1>Hoe wordt een auto gemaakt?</h1>
-    <p class="subtitle">Schoolproject &mdash; onderzoek naar het ontwerp- en productieproces van een auto</p>
+    <p class="subtitle">Een onderzoek naar het ontwerp- en productieproces van een auto, van eerste schets tot rijdend voertuig.</p>
+  </div>
+  <div class="road" aria-hidden="true">
+    <svg viewBox="0 0 400 40" preserveAspectRatio="none">
+      <rect x="0" y="0" width="400" height="40"/>
+      <line x1="0" y1="20" x2="400" y2="20"/>
+    </svg>
   </div>
 </header>
 
-<nav class="site-nav">
+<nav class="site-nav" id="siteNav">
   <ul>
     <li><a href="#animatie">Animatie</a></li>
     <li><a href="#ontwerp">1. Ontwerp</a></li>
@@ -31,12 +41,23 @@
 <main>
 
   <section id="animatie" class="section animation-section">
-    <h2>Van los onderdeel tot auto</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 16l1.5-5A2 2 0 0 1 6.4 9.5h11.2a2 2 0 0 1 1.9 1.5L21 16"/><path d="M3 16h18v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1V17H6.5v1.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V16z"/><circle cx="7" cy="16.5" r="1.4"/><circle cx="17" cy="16.5" r="1.4"/></svg></span>
+      <h2>Van los onderdeel tot auto</h2>
+    </div>
     <p>Deze korte animatie laat in het klein zien hoe een auto stap voor stap wordt opgebouwd: eerst het chassis, dan het motorblok en de wielen, daarna de carrosserie en als laatste de ramen.</p>
 
     <div class="car-stage" id="carStage">
       <svg id="carSvg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animatie van een auto die in elkaar wordt gezet">
-        <ellipse class="shadow" cx="200" cy="172" rx="150" ry="10"/>
+        <defs>
+          <linearGradient id="bodyGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4372a3"/>
+            <stop offset="1" stop-color="#2f5d8a"/>
+          </linearGradient>
+        </defs>
+
+        <line class="lane" x1="0" y1="172" x2="400" y2="172"/>
+        <ellipse class="shadow" cx="200" cy="176" rx="150" ry="8"/>
 
         <g id="part-chassis">
           <rect x="55" y="120" width="290" height="18" rx="4"/>
@@ -48,17 +69,19 @@
           <line x1="86" y1="114" x2="120" y2="114"/>
         </g>
 
-        <g id="part-wheel-left">
+        <g id="part-wheel-left" class="wheel">
           <circle cx="115" cy="140" r="26"/>
           <circle class="hub" cx="115" cy="140" r="9"/>
+          <g class="spokes"><line x1="115" y1="123" x2="115" y2="157"/><line x1="98" y1="140" x2="132" y2="140"/></g>
         </g>
-        <g id="part-wheel-right">
+        <g id="part-wheel-right" class="wheel">
           <circle cx="285" cy="140" r="26"/>
           <circle class="hub" cx="285" cy="140" r="9"/>
+          <g class="spokes"><line x1="285" y1="123" x2="285" y2="157"/><line x1="268" y1="140" x2="302" y2="140"/></g>
         </g>
 
         <g id="part-body">
-          <path d="M60,120 L75,90 Q95,68 130,68 L270,68 Q300,68 320,90 L340,120 Z"/>
+          <path d="M60,120 L75,90 Q95,68 130,68 L270,68 Q300,68 320,90 L340,120 Z" fill="url(#bodyGradient)"/>
         </g>
 
         <g id="part-windows">
@@ -68,7 +91,10 @@
       </svg>
     </div>
 
-    <button type="button" id="replayBtn" class="replay-btn">Animatie opnieuw afspelen</button>
+    <button type="button" id="replayBtn" class="replay-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M5.5 15a7 7 0 0 0 12.4 2.5M18.5 9a7 7 0 0 0-12.4-2.5"/></svg>
+      Animatie opnieuw afspelen
+    </button>
   </section>
 
   <section id="intro" class="section">
@@ -77,14 +103,20 @@
   </section>
 
   <section id="ontwerp" class="section">
-    <h2>1. Hoe wordt een auto ontworpen?</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a1.5 1.5 0 0 1 2 0l1 1a1.5 1.5 0 0 1 0 2L8 19l-4 1z"/><line x1="14.5" y1="6.5" x2="17.5" y2="9.5"/></svg></span>
+      <h2><span class="step">1</span>Hoe wordt een auto ontworpen?</h2>
+    </div>
     <p>Het ontwerpen van een auto begint bij ontwerpers en ingenieurs die schetsen maken en daarna digitale modellen van de auto opbouwen: de carrosserie, het interieur en de techniek erachter <a href="#bron-studeersnel1">[1]</a>.</p>
     <p>Bij het ontwerpen wordt rekening gehouden met veel factoren tegelijk: de marktpositie van de auto, de concurrentie, de doelgroep, de verwachtingen van klanten en de functies die de auto moet hebben. Autodesign is dan ook geen kwestie van &ldquo;iets moois tekenen&rdquo;, maar een proces met veel regels en variabelen waar rekening mee gehouden moet worden <a href="#bron-hansgroenhuijsen">[2]</a>.</p>
     <p>In de NPO-uitzending &ldquo;Auto-ontwerp&rdquo; (Het Klokhuis) wordt dit ontwerpproces in de praktijk laten zien: een presentator krijgt een kijkje bij de ontwerpafdeling van een autofabriek, waar te zien is hoe een ontwerp stap voor stap gaat van een eerste schets naar een rijdend digitaal 3D-model <a href="#bron-npo">[3]</a>.</p>
   </section>
 
   <section id="carrosserie" class="section">
-    <h2>2. Hoe komt de vorm in de carrosserie?</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2.5 16l1.3-4.8A2 2 0 0 1 5.7 9.7h2.6l2.4-3a2 2 0 0 1 1.6-.8h3.4a2 2 0 0 1 1.7 1l2 3.3 2.2.6a1.5 1.5 0 0 1 1.1 1.5V16"/><path d="M2.5 16h19"/><circle cx="7" cy="16.5" r="1.6"/><circle cx="17" cy="16.5" r="1.6"/></svg></span>
+      <h2><span class="step">2</span>Hoe komt de vorm in de carrosserie?</h2>
+    </div>
     <p>Onder de carrosserie zit eerst het chassis: het frame dat als een soort geraamte alle onderdelen van de auto draagt en daarom ook wel &ldquo;de ruggengraat van de auto&rdquo; wordt genoemd <a href="#bron-autoblog">[4]</a>.</p>
     <p>Er bestaan verschillende soorten frames, zoals het buizenframe en het ladderframe. Sinds de Lancia Lambda uit 1922 &mdash; de eerste auto met een zelfdragende carrosserie &mdash; wordt bij veel personenauto's ook de monocoque gebruikt. Bij een monocoque (van het Griekse &ldquo;mono&rdquo; en het Franse woord voor schelp) is de buitenkant van de auto zelf het dragende deel, in plaats van een los frame eronder. Deze techniek komt oorspronkelijk uit de luchtvaart en werd in 1962 door Lotus voor het eerst toegepast in de Formule 1 <a href="#bron-autoblog">[4]</a>.</p>
     <p>De carrosserie zelf is de bovenbouw van de auto: het buitenwerk, zonder de portieren, motorkap, wielen, motor, aandrijflijn en het interieur mee te rekenen. Het woord &ldquo;carrosserie&rdquo; komt van het Franse &ldquo;carrosse&rdquo;, wat koets betekent. De carrosserie beschermt de inzittenden bij een ongeluk, en de vorm ervan bepaalt ook hoeveel luchtweerstand de auto heeft, wat weer invloed heeft op het brandstofverbruik. Als materiaal wordt meestal plaatstaal gebruikt, maar ook aluminium, magnesium en verschillende kunststoffen komen voor <a href="#bron-verzekeren">[5]</a>.</p>
@@ -92,7 +124,10 @@
   </section>
 
   <section id="motorblok" class="section">
-    <h2>3. Hoe zit een motorblok in elkaar?</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.1 5.9l-1.6 1.6M7.5 16.5l-1.6 1.6M18.1 18.1l-1.6-1.6M7.5 7.5 5.9 5.9"/></svg></span>
+      <h2><span class="step">3</span>Hoe zit een motorblok in elkaar?</h2>
+    </div>
     <p>De basis van elke motor is het motorblok: een soort frame dat meestal gemaakt is van gietijzer of aluminium <a href="#bron-klaasboer1">[7]</a>.</p>
     <p>In het motorblok bevinden zich de cilinders, waarin de zuigers op en neer bewegen, en kanalen waar olie en koelvloeistof doorheen stromen. Aan het motorblok zitten ook andere onderdelen vast, zoals de startmotor, de dynamo, de waterpomp, de brandstofpomp en de pomp van de stuurbekrachtiging <a href="#bron-actualidadmotor">[8]</a>.</p>
     <p>Er zijn verschillende typen motorblokken. Bij een lijnmotor staan de cilinders achter elkaar in één rij; dit type wordt vooral gebruikt in de midden- en kleinere klasse auto's. Bij een V-motor staan de cilinders in twee rijen die samen op één krukas aangesloten zijn &mdash; in feite zijn dit twee lijnmotoren die aan elkaar zijn gekoppeld. Bij een boxermotor (een plat motorblok) liggen de cilinders in twee rijen tegenover elkaar, ook aangesloten op één krukas <a href="#bron-actualidadmotor">[8]</a>.</p>
@@ -100,7 +135,10 @@
   </section>
 
   <section id="materialen" class="section">
-    <h2>4. Welke materialen worden gebruikt?</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l9 4.8-9 4.8-9-4.8L12 3z"/><path d="M3 12.2l9 4.8 9-4.8"/><path d="M3 16.6l9 4.8 9-4.8"/></svg></span>
+      <h2><span class="step">4</span>Welke materialen worden gebruikt?</h2>
+    </div>
     <p>Een gemiddelde auto weegt zo'n 1300 tot 1600 kilogram. Het grootste deel daarvan, ongeveer 60 tot 65%, bestaat uit metaal: vooral staal en ijzer <a href="#bron-klaasboer2">[10]</a>.</p>
     <p>Staal is het metaal dat het meest gebruikt wordt bij het bouwen van een auto: bijna 65% van het materiaal van een gemiddelde auto is een staalproduct. Onderdelen van de stuurinrichting en ophanging zijn meestal van staal gemaakt, net als delen van de carrosserie, de wielen, het chassis en het frame <a href="#bron-metaalnieuws">[11]</a>. Staal wordt vaak gekozen vanwege de combinatie van sterkte en relatief lage kosten <a href="#bron-klaasboer2">[10]</a>.</p>
     <p>Aluminium wordt steeds vaker gebruikt om auto's lichter en zuiniger te maken. Het vervangt op steeds meer plekken zwaardere metalen zoals ijzer, bijvoorbeeld bij de motor en de wielen, omdat het dezelfde sterkte kan bieden met minder gewicht <a href="#bron-metaalnieuws">[11]</a>. Roestvaststaal wordt gebruikt op plekken waar roestbestendigheid belangrijk is, zoals bij bouten, beugels en onderdelen van de uitlaat <a href="#bron-metaalnieuws">[11]</a>.</p>
@@ -109,19 +147,28 @@
   </section>
 
   <section id="tijd" class="section">
-    <h2>5. Wat is de totale tijd die je nodig hebt om een auto te maken?</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></svg></span>
+      <h2><span class="step">5</span>Wat is de totale tijd die je nodig hebt om een auto te maken?</h2>
+    </div>
     <p>Het maken van een auto verloopt in meerdere stappen: eerst het ontwerp (schetsen en digitale modellen), dan het kiezen van de juiste materialen, daarna het produceren van de losse onderdelen (bijvoorbeeld door gieten, persen en lassen), vervolgens het samenbouwen van al die onderdelen op een lopende band in de fabriek, en tot slot uitgebreid testen om te controleren of alles goed werkt en veilig is. Bij het ontwerpen van de techniek achter een auto wordt vaak de zogenoemde V-cyclus als basis gebruikt <a href="#bron-studeersnel2">[13]</a>.</p>
     <p>Het laatste onderdeel &mdash; het echte in elkaar zetten op de productielijn &mdash; gaat verrassend snel: dat kost ongeveer 18 tot 35 uur per auto, verdeeld over 3 tot 4 diensten, waarbij honderden werknemers tegelijk aan verschillende onderdelen van het proces werken <a href="#bron-jvis">[14]</a>.</p>
     <p>Die snelheid is alleen mogelijk omdat alle onderdelen daarvoor al klaar moeten liggen. Een gemiddelde auto bestaat uit zo'n 30.000 onderdelen, die eerst allemaal gemaakt en naar de fabriek gebracht moeten worden, vaak door externe toeleveranciers. Hoe nieuwer en vernieuwender een ontwerp is, hoe meer tijd er nodig is voor ontwikkeling en techniek voordat er ook maar één onderdeel geperst kan worden <a href="#bron-jvis">[14]</a>. Geteld vanaf het allereerste ontwerp tot de auto van de band rolt, duurt het hele proces dus veel langer dan die 18 tot 35 uur assemblagetijd alleen <a href="#bron-youtube2">[15]</a>.</p>
   </section>
 
-  <section id="conclusie" class="section">
-    <h2>Conclusie</h2>
+  <section id="conclusie" class="section conclusie-section">
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13.5l4.5 4.5L20 6.5"/></svg></span>
+      <h2>Conclusie</h2>
+    </div>
     <p>Een auto maken is dus geen kwestie van &eacute;&eacute;n stap, maar van een heel traject: eerst wordt de auto ontworpen op de tekentafel en in 3D-software, dan krijgt de carrosserie via een chassis of monocoque zijn vorm, wordt het motorblok gegoten en opgebouwd uit tientallen onderdelen, worden overal de juiste materialen gekozen (vooral staal, aluminium, rubber en kunststof) en wordt alles tot slot in een fabriek samengebouwd en getest. De uiteindelijke assemblage in de fabriek duurt maar 18 tot 35 uur, maar het volledige traject van ontwerp tot een rijdende, geteste auto kost veel meer tijd, omdat eerst duizenden onderdelen ontworpen, gemaakt en aangeleverd moeten worden.</p>
   </section>
 
   <section id="bronnen" class="section bronnen">
-    <h2>Bronnenlijst</h2>
+    <div class="section-head">
+      <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 3.5h9.5V19H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h9.5"/><line x1="8" y1="7.5" x2="12.5" y2="7.5"/><line x1="8" y1="10.5" x2="12.5" y2="10.5"/></svg></span>
+      <h2>Bronnenlijst</h2>
+    </div>
     <ol class="bronlijst">
       <li id="bron-studeersnel1">Studeersnel. (z.d.). <em>Auto Maken: Stappen in het Ontwerp- en Productieproces.</em> Geraadpleegd via <a href="https://www.studeersnel.nl/nl/document/hogeschool-utrecht/autonomy-by-design/auto-makn-automaken/107627375" target="_blank" rel="noopener">studeersnel.nl</a></li>
       <li id="bron-hansgroenhuijsen">Groenhuijsen, H. (z.d.). <em>Blog over auto-ontwerp.</em> Geraadpleegd via <a href="https://www.hansgroenhuijsen.nl" target="_blank" rel="noopener">hansgroenhuijsen.nl</a></li>
@@ -144,8 +191,10 @@
 </main>
 
 <footer class="site-footer">
-  <p>Schoolproject &mdash; Hoe wordt een auto gemaakt? Alle informatie op deze pagina is gebaseerd op de bronnen hierboven.</p>
+  <p>Schoolproject &mdash; Hoe wordt een auto gemaakt?<br>Alle informatie op deze pagina is gebaseerd op de bronnen hierboven.</p>
 </footer>
+
+<button type="button" id="toTop" class="to-top" aria-label="Naar boven">&uarr;</button>
 
 <script src="js/script.js"></script>
 </body>

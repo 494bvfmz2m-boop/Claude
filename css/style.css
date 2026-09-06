@@ -1,52 +1,103 @@
 :root {
-  --bg: #f5f4f0;
+  --bg: #f3f2ee;
   --paper: #ffffff;
   --text: #2b2b2b;
-  --muted: #5a5a5a;
+  --muted: #63625c;
   --accent: #2f5d8a;
+  --accent-light: #4372a3;
   --accent-dark: #1f3f5c;
-  --border: #d8d4cb;
+  --border: #dedad0;
   --steel: #b9c2c9;
   --steel-dark: #7c8790;
+  --font-head: "Poppins", "Segoe UI", Verdana, Arial, sans-serif;
+  --font-body: "Inter", "Segoe UI", Verdana, Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  font-family: "Segoe UI", Verdana, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
+html {
+  scroll-behavior: smooth;
 }
 
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+}
+
+/* --- Header --- */
+
 .site-header {
-  background: var(--accent-dark);
+  background: linear-gradient(155deg, var(--accent-dark) 0%, #294f74 60%, var(--accent) 100%);
   color: #fff;
-  padding: 2rem 1rem;
-  border-bottom: 4px solid var(--accent);
+  padding: 3rem 1rem 0 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .header-inner {
   max-width: 900px;
   margin: 0 auto;
+  padding-bottom: 2.4rem;
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  margin: 0 0 0.6rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  color: #b9d0e4;
+  font-weight: 600;
 }
 
 .site-header h1 {
-  margin: 0 0 0.4rem 0;
-  font-size: 1.9rem;
+  margin: 0 0 0.7rem 0;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 2.1rem;
+  max-width: 22ch;
 }
 
 .subtitle {
   margin: 0;
   color: #d7e2ec;
-  font-size: 1rem;
+  font-size: 1.02rem;
+  max-width: 52ch;
 }
 
+.road {
+  position: relative;
+  z-index: 1;
+  line-height: 0;
+}
+
+.road svg {
+  width: 100%;
+  height: 26px;
+  display: block;
+}
+
+.road rect {
+  fill: #1a2f43;
+}
+
+.road line {
+  stroke: #e8b93c;
+  stroke-width: 3;
+  stroke-dasharray: 14 12;
+}
+
+/* --- Nav --- */
+
 .site-nav {
-  background: var(--paper);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -56,51 +107,138 @@ body {
 .site-nav ul {
   max-width: 900px;
   margin: 0 auto;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 1rem;
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 1rem;
+  gap: 0.2rem 0.3rem;
 }
 
 .site-nav a {
   color: var(--accent-dark);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  display: inline-block;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .site-nav a:hover {
-  text-decoration: underline;
+  background: #eaf0f6;
 }
+
+.site-nav a.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- Layout --- */
 
 main {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 3rem 1rem;
+  padding: 2rem 1rem 3rem 1rem;
 }
 
 .section {
   background: var(--paper);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1.5rem 1.75rem;
-  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 1.75rem 2rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 1px 3px rgba(31, 63, 92, 0.06);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.section.reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#intro.section {
+  border-left-color: var(--steel-dark);
+  background: #fafaf7;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.7rem;
+  margin-bottom: 0.3rem;
+}
+
+.section-head .icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eaf0f6;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-head .icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .section h2 {
-  margin-top: 0;
+  margin: 0;
   color: var(--accent-dark);
-  border-bottom: 2px solid var(--border);
-  padding-bottom: 0.5rem;
-  font-size: 1.3rem;
+  font-family: var(--font-head);
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.step {
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  width: 1.6em;
+  height: 1.6em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
 
 .section p {
-  margin: 0.9rem 0;
+  margin: 0.95rem 0 0 0;
 }
 
 .section a {
   color: var(--accent);
+  font-weight: 500;
+}
+
+.conclusie-section {
+  background: #f4f8fb;
+  border-left-color: #2f8a5d;
+}
+
+.conclusie-section .icon {
+  background: #e1f0e7;
+  color: #2f8a5d;
 }
 
 /* --- Animation section --- */
@@ -109,19 +247,34 @@ main {
   text-align: center;
 }
 
+.animation-section p {
+  text-align: left;
+}
+
 .car-stage {
   max-width: 480px;
-  margin: 1rem auto;
+  margin: 1.2rem auto 0.5rem auto;
+  background: linear-gradient(180deg, #eef2f5 0%, #e4e9ed 100%);
+  border-radius: 10px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
 }
 
 #carSvg {
   width: 100%;
   height: auto;
+  display: block;
+}
+
+#carSvg .lane {
+  stroke: #c7cdd2;
+  stroke-width: 2;
+  stroke-dasharray: 10 8;
 }
 
 #carSvg .shadow {
   fill: #000;
-  opacity: 0.08;
+  opacity: 0.1;
 }
 
 #part-chassis rect {
@@ -144,9 +297,9 @@ main {
 #part-wheel-right .hub {
   fill: var(--steel);
 }
-
-#part-body path {
-  fill: var(--accent);
+.wheel .spokes line {
+  stroke: #4a4a4a;
+  stroke-width: 1.4;
 }
 
 #part-windows path {
@@ -161,7 +314,7 @@ main {
 #part-body,
 #part-windows {
   opacity: 0;
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.6s cubic-bezier(.2, .7, .3, 1), transform 0.6s cubic-bezier(.2, .7, .3, 1);
 }
 
 #part-chassis {
@@ -171,10 +324,12 @@ main {
   transform: translateY(-16px);
 }
 #part-wheel-left {
-  transform: translate(-40px, -10px);
+  transform: translate(-40px, -10px) rotate(-90deg);
+  transform-origin: 115px 140px;
 }
 #part-wheel-right {
-  transform: translate(40px, -10px);
+  transform: translate(40px, -10px) rotate(90deg);
+  transform-origin: 285px 140px;
 }
 #part-body {
   transform: translateY(-24px);
@@ -185,57 +340,127 @@ main {
 
 #carSvg.play #part-chassis.in,
 #carSvg.play #part-engine.in,
-#carSvg.play #part-wheel-left.in,
-#carSvg.play #part-wheel-right.in,
 #carSvg.play #part-body.in,
 #carSvg.play #part-windows.in {
   opacity: 1;
   transform: translate(0, 0);
 }
 
+#carSvg.play #part-wheel-left.in,
+#carSvg.play #part-wheel-right.in {
+  opacity: 1;
+  transform: translate(0, 0) rotate(0deg);
+}
+
+#carSvg.done .wheel {
+  animation: roll 2.6s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes roll {
+  0%, 70% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .replay-btn {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1.1rem;
+  margin-top: 0.7rem;
+  padding: 0.6rem 1.3rem;
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 999px;
   font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.replay-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .replay-btn:hover {
   background: var(--accent-dark);
 }
 
+.replay-btn:active {
+  transform: scale(0.97);
+}
+
 /* --- Bronnenlijst --- */
 
 .bronlijst {
   padding-left: 1.2rem;
+  margin-top: 0.9rem;
 }
 
 .bronlijst li {
-  margin-bottom: 0.6rem;
-  font-size: 0.95rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.93rem;
   color: var(--muted);
 }
 
 .bronlijst em {
   color: var(--text);
+  font-style: normal;
+  font-weight: 600;
 }
+
+/* --- Footer --- */
 
 .site-footer {
   text-align: center;
-  padding: 1.2rem 1rem 2rem 1rem;
+  padding: 1.4rem 1rem 2.4rem 1rem;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
+.to-top {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(31, 63, 92, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, background 0.15s ease;
+}
+
+.to-top.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.to-top:hover {
+  background: var(--accent-dark);
+}
+
 @media (max-width: 600px) {
   .site-header h1 {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
   }
   .section {
-    padding: 1.1rem 1.1rem;
+    padding: 1.25rem 1.25rem;
+  }
+  .section-head .icon {
+    width: 34px;
+    height: 34px;
   }
 }
