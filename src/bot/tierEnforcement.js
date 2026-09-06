@@ -1,10 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
 const {
   TicketTypes, Panels, ReactionRolePanels, Tags, ScheduledAnnouncements,
-  TebexSubscribers, TebexTiers, CustomBots,
+  TebexSubscribers, CustomBots,
 } = require('../db/repo');
 const { limitFor } = require('../web/lib/tierLimits');
 const { tierHasFeature } = require('../web/lib/subscriptionGate');
+const { effectiveTierForGuild } = require('../web/lib/effectiveTier');
 const { resolveGuild, mainClient } = require('./clientRegistry');
 const { buildPanelMessage } = require('./panelMessage');
 const { stopCustomBot } = require('./customBots');
@@ -126,9 +127,13 @@ async function enforceGuildLimits(guildId) {
   // The custom bot isn't capped by count -- it's a live gateway connection
   // that, once started, keeps running indefinitely on its own regardless
   // of subscription state unless explicitly stopped/restarted. So this
-  // handles it directly rather than through reconcileResource.
+  // handles it directly rather than through reconcileResource. Uses the
+  // guild's effective tier (a manual grant if one's set, else whatever
+  // real subscription is applied here) to decide, but the DM notification
+  // below is specifically about a real Tebex buyer -- a manual grant has
+  // no Discord user attached to notify.
+  const tier = effectiveTierForGuild(guildId);
   const subscriber = TebexSubscribers.forGuild(guildId);
-  const tier = subscriber ? TebexTiers.get(subscriber.tier_id) : null;
   const custom = CustomBots.get(guildId);
   if (!tierHasFeature(tier, 'custom_bot') && custom && custom.status !== 'stopped') {
     await stopCustomBot(guildId);

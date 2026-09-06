@@ -1,4 +1,5 @@
 const { TebexSubscribers, TebexTiers } = require('../../db/repo');
+const { effectiveTierForGuild } = require('./effectiveTier');
 
 // A tier's "Features" box is free text an owner types by hand -- comparing
 // it to a feature key with a plain, case-sensitive Array.includes means a
@@ -57,22 +58,21 @@ function requirePremiumFeature(featureKey) {
 // dashboard right now -- multiple staff can manage the same guild, and the
 // person clicking around isn't necessarily the Tebex buyer. So the real
 // check is "does whatever's applied to THIS guild include the feature"
-// (TebexSubscribers.forGuild, same lookup lib/tierLimits.js uses), not
-// "does the current user personally hold it". Falls back to the current
-// user's own subscription only to explain *why* it's locked for them
-// specifically (not subscribed, subscribed but unapplied, or applied to a
-// different server) when the server-level check comes up empty. The
-// owner's "preview as" override is exempt from all of this -- it's a
-// debug tool, not a real subscription tied to any server.
+// (effectiveTierForGuild -- a manual owner grant if one's set, otherwise
+// whichever real subscription is applied here), not "does the current
+// user personally hold it". Falls back to the current user's own
+// subscription only to explain *why* it's locked for them specifically
+// (not subscribed, subscribed but unapplied, or applied to a different
+// server) when the server-level check comes up empty. The owner's
+// "preview as" override is exempt from all of this -- it's a debug tool,
+// not a real subscription tied to any server.
 function checkFeatureForGuild(discordUserId, featureKey, guildId, session) {
   if (session?.isOwner && session?.previewTierId) {
     return { ok: hasFeature(discordUserId, featureKey, session) };
   }
 
-  if (guildId) {
-    const guildSubscriber = TebexSubscribers.forGuild(guildId);
-    const guildTier = guildSubscriber ? TebexTiers.get(guildSubscriber.tier_id) : null;
-    if (tierHasFeature(guildTier, featureKey)) return { ok: true };
+  if (guildId && tierHasFeature(effectiveTierForGuild(guildId), featureKey)) {
+    return { ok: true };
   }
 
   if (!discordUserId) return { ok: false };

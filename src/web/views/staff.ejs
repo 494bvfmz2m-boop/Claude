@@ -1069,10 +1069,48 @@
         <% } %>
 
         <h3>In <%= lookup.inGuilds.length %> server<%= lookup.inGuilds.length === 1 ? '' : 's' %></h3>
+        <p class="hint" style="margin-bottom:12px;">
+          Apply a tier directly to one of their servers below -- a manual grant like this never
+          touches this person's (or anyone else's) real Tebex subscription, even if they're
+          separately paying for a different server.
+        </p>
         <% if (lookup.inGuilds.length === 0) { %>
           <p class="empty">Not currently in any server XyphrosMod manages.</p>
         <% } else { %>
-          <p class="list-item-meta" style="margin-bottom:14px;"><%= lookup.inGuilds.map(g => g.name).join(', ') %></p>
+          <ul class="list" style="margin-bottom:14px;">
+            <% lookup.inGuilds.forEach(g => { %>
+              <li class="list-item" style="align-items:flex-start;">
+                <div style="flex:1;">
+                  <div class="list-item-title"><%= g.name %></div>
+                  <div class="list-item-meta">
+                    <% if (g.manualGrant) { %>
+                      Manually applied: <strong><%= g.manualGrant.tierName %></strong>
+                    <% } else if (g.effectiveTierName) { %>
+                      Currently: <%= g.effectiveTierName %> (real subscription)
+                    <% } else { %>
+                      Currently: Free
+                    <% } %>
+                  </div>
+                  <form action="/staff/tebex/manual-grants/<%= g.id %>" method="post" style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="lookupId" value="<%= lookup.id %>">
+                    <select name="tierId" required>
+                      <option value="" disabled selected>Apply a tier…</option>
+                      <% tebexTiers.forEach(t => { %><option value="<%= t.id %>"><%= t.name %></option><% }) %>
+                    </select>
+                    <button class="btn btn-sm" type="submit">Apply</button>
+                  </form>
+                </div>
+                <% if (g.manualGrant) { %>
+                  <form action="/staff/tebex/manual-grants/<%= g.id %>/remove" method="post">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="lookupId" value="<%= lookup.id %>">
+                    <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+                  </form>
+                <% } %>
+              </li>
+            <% }) %>
+          </ul>
         <% } %>
 
         <h3>Warnings (<%= lookup.warnings.length %>)</h3>

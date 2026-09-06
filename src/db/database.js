@@ -417,6 +417,20 @@ CREATE TABLE IF NOT EXISTS custom_bots (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- A deliberate owner override: "this server has tier X" with no Discord
+-- user involved at all. Completely independent of tebex_subscribers --
+-- applying one here never touches (or even looks at) any buyer's real
+-- subscription, including the SAME person's, if they're separately paying
+-- for a different server. See web/lib/effectiveTier.js, which checks this
+-- FIRST before falling back to a real Tebex-driven subscription applied to
+-- the guild. One row per guild -- applying again just replaces it.
+CREATE TABLE IF NOT EXISTS manual_tier_grants (
+  guild_id TEXT PRIMARY KEY,
+  tier_id INTEGER NOT NULL,
+  granted_by TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_ticket_types_guild ON ticket_types(guild_id);
 CREATE INDEX IF NOT EXISTS idx_dashboard_role_access_guild ON dashboard_role_access(guild_id);
 CREATE INDEX IF NOT EXISTS idx_command_permissions_guild ON command_permissions(guild_id);

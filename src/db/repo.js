@@ -1262,4 +1262,26 @@ const CustomBots = {
   },
 };
 
-module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders, TebexTiers, TebexSubscribers, TebexEvents, CustomBots };
+// A deliberate owner override -- "this server has tier X", independent of
+// any Discord user or real Tebex subscription. See web/lib/effectiveTier.js
+// for how this combines with tebex_subscribers (this always wins).
+const ManualTierGrants = {
+  get(guildId) {
+    return db.prepare('SELECT * FROM manual_tier_grants WHERE guild_id = ?').get(guildId) || null;
+  },
+  listAll() {
+    return db.prepare('SELECT * FROM manual_tier_grants ORDER BY updated_at DESC').all();
+  },
+  upsert(guildId, tierId, grantedBy) {
+    db.prepare(`
+      INSERT INTO manual_tier_grants (guild_id, tier_id, granted_by, updated_at)
+      VALUES (?, ?, ?, datetime('now'))
+      ON CONFLICT(guild_id) DO UPDATE SET tier_id = excluded.tier_id, granted_by = excluded.granted_by, updated_at = datetime('now')
+    `).run(guildId, tierId, grantedBy || null);
+  },
+  remove(guildId) {
+    db.prepare('DELETE FROM manual_tier_grants WHERE guild_id = ?').run(guildId);
+  },
+};
+
+module.exports = { GuildSettings, TicketTypes, Panels, Tickets, EmbedTemplates, Warnings, StaffRanks, Hierarchies, AppSettings, BetaAllowlist, BetaRequests, ModActions, ReactionRolePanels, DashboardRoleAccess, CommandPermissions, DmFormSends, DmFormTemplates, Contacts, Polls, Tags, RoleTriggers, Giveaways, Events, ScheduledAnnouncements, EmojiBook, DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats, StaffNotes, AfkStatus, Reminders, TebexTiers, TebexSubscribers, TebexEvents, CustomBots, ManualTierGrants };

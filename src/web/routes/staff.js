@@ -9,7 +9,7 @@ const {
   AppSettings, BetaAllowlist, DmFormTemplates, Contacts, EmojiBook,
   DashboardAdmins, StaffRoles, AdminAuditLog, ServerNotes, GlobalBlocklist, Stats,
   Warnings, ModActions, GuildSettings, Hierarchies, TicketTypes, StaffNotes,
-  TebexTiers, TebexSubscribers, TebexEvents,
+  TebexTiers, TebexSubscribers, TebexEvents, ManualTierGrants,
 } = require('../../db/repo');
 const client = require('../../bot/client');
 const { DISCORD_ID } = require('../lib/resolveMember');
@@ -18,6 +18,7 @@ const dmForm = require('../../bot/dmForm');
 const { buildResultEmbed } = require('../../bot/betaRequests');
 const { STAFF_AREAS, STAFF_AREA_KEYS } = require('../lib/staffAreas');
 const { tierHasFeature } = require('../lib/subscriptionGate');
+const { effectiveTierForGuild } = require('../lib/effectiveTier');
 const { allKnownGuilds } = require('../../bot/clientRegistry');
 const { enforceGuildLimits } = require('../../bot/tierEnforcement');
 
@@ -179,10 +180,20 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
       lookup = { id, error: 'That doesn\'t look like a valid Discord user ID.' };
     } else {
       const user = await client.users.fetch(id).catch(() => null);
-      const inGuilds = (await Promise.all(guilds.map(async (g) => {
-        const guildObj = client.guilds.cache.get(g.id);
-        const member = await guildObj.members.fetch(id).catch(() => null);
-        return member ? { id: g.id, name: g.name } : null;
+      // allKnownGuilds, not just the main bot's cache -- a server running
+      // its own Custom-tier bot instead of the shared one would otherwise
+      // never show up here at all.
+      const inGuilds = (await Promise.all(allKnownGuilds().map(async (g) => {
+        const member = await g.members.fetch(id).catch(() => null);
+        if (!member) return null;
+        const manualGrant = ManualTierGrants.get(g.id);
+        const effectiveTier = effectiveTierForGuild(g.id);
+        return {
+          id: g.id,
+          name: g.name,
+          manualGrant: manualGrant ? { tierId: manualGrant.tier_id, tierName: TebexTiers.get(manualGrant.tier_id)?.name || '(deleted tier)' } : null,
+          effectiveTierName: effectiveTier?.name || null,
+        };
       }))).filter(Boolean);
       const guildName = (gid) => allKnownGuilds().find((g) => g.id === gid)?.name || client.guilds.cache.get(gid)?.name || gid;
 
@@ -450,6 +461,42 @@ router.post('/tebex/subscribers/:discordUserId/revoke', requireOwner, async (req
   if (existing.guild_id) await enforceGuildLimits(existing.guild_id);
   logAudit(req, 'Manually revoked a Tebex subscription', discordUserId);
   return redirectWithNotice(res, true, `Revoked ${discordUserId}'s subscription.`, 'subscriptions');
+});
+
+// Redirects back into the Global user lookup with the same ID re-searched,
+// instead of the plain redirectWithNotice -- these routes are reached FROM
+// a lookup result (pick one of the user's servers, apply a tier to it), so
+// losing that context on redirect would mean re-typing the ID every time.
+function redirectToLookup(res, lookupId, ok, text) {
+  const qs = new URLSearchParams({ lookupId, ok: ok ? '1' : '0', msg: text });
+  res.redirect(`/staff?${qs.toString()}#user-lookup`);
+}
+
+// A deliberate owner override -- "this server has tier X" -- completely
+// independent of any Discord user's real Tebex subscription (see
+// db/repo.js's ManualTierGrants and web/lib/effectiveTier.js). Reached from
+// the Global user lookup: pick a Discord ID, see which servers they're
+// actually in, apply a tier to exactly one of them without touching
+// anything about their (or anyone else's) real subscription elsewhere.
+router.post('/tebex/manual-grants/:guildId', requireOwner, async (req, res) => {
+  const { guildId } = req.params;
+  const lookupId = (req.body.lookupId || '').trim();
+  const tierId = req.body.tierId ? Number(req.body.tierId) : null;
+  const tier = tierId ? TebexTiers.get(tierId) : null;
+  if (!tier) return redirectToLookup(res, lookupId, false, 'Pick a tier.');
+  ManualTierGrants.upsert(guildId, tier.id, req.session.discordUser?.id);
+  await enforceGuildLimits(guildId);
+  logAudit(req, 'Manually applied a tier to a server', `${guildId} -> ${tier.name}`);
+  return redirectToLookup(res, lookupId, true, `Applied "${tier.name}" to that server.`);
+});
+
+router.post('/tebex/manual-grants/:guildId/remove', requireOwner, async (req, res) => {
+  const { guildId } = req.params;
+  const lookupId = (req.body.lookupId || '').trim();
+  ManualTierGrants.remove(guildId);
+  await enforceGuildLimits(guildId);
+  logAudit(req, 'Removed a manual tier grant', guildId);
+  return redirectToLookup(res, lookupId, true, 'Manual tier grant removed from that server.');
 });
 
 // Lets the owner see the dashboard exactly as a given tier would -- which

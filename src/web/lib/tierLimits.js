@@ -1,4 +1,5 @@
-const { TebexSubscribers, TebexTiers } = require('../../db/repo');
+const { TebexTiers } = require('../../db/repo');
+const { effectiveTierForGuild } = require('./effectiveTier');
 
 // What a server gets with no subscription applied to it at all -- either
 // nobody's ever bought a tier for it, or a subscription exists but hasn't
@@ -34,13 +35,9 @@ function parseLimits(features) {
 // independent of any real server, so the owner can see what a tier allows
 // without needing a real subscription applied anywhere.
 function limitFor(limitKey, guildId, session) {
-  let tier = null;
-  if (session?.isOwner && session?.previewTierId) {
-    tier = TebexTiers.get(session.previewTierId);
-  } else if (guildId) {
-    const subscriber = TebexSubscribers.forGuild(guildId);
-    tier = subscriber ? TebexTiers.get(subscriber.tier_id) : null;
-  }
+  const tier = (session?.isOwner && session?.previewTierId)
+    ? TebexTiers.get(session.previewTierId)
+    : effectiveTierForGuild(guildId);
   const limits = parseLimits(tier?.features);
   if (limitKey in limits) {
     const n = limits[limitKey];
