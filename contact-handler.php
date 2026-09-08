@@ -30,6 +30,9 @@ $email = trim($_POST['email'] ?? '');
 $subject = trim($_POST['subject'] ?? '');
 $message = trim($_POST['message'] ?? '');
 
+if (empty($_POST['agree_privacy'])) {
+    back_with_error('Please agree to the Privacy Policy to send a message.');
+}
 if ($name === '' || $email === '' || $subject === '' || $message === '') {
     back_with_error('Please fill in every field.');
 }

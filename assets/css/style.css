@@ -17,7 +17,7 @@
 
     --text: #f5f4f9;
     --text-muted: #a8a2bd;
-    --text-faint: #6d6785;
+    --text-faint: #837da0; /* was #6d6785 — that measured ~3.75:1 on --bg, below WCAG AA's 4.5:1 for normal text; this measures ~4.7-5:1 on both --bg and --bg-card */
 
     --online: #3ddc97;
     --beta: #ffc857;
@@ -840,8 +840,10 @@ input[type=text], input[type=email], input[type=password], input[type=url], text
 }
 input:focus, textarea:focus, select:focus { border-color: var(--magenta); outline: none; }
 textarea { min-height: 160px; resize: vertical; }
-.checkbox-row { display: flex; align-items: center; gap: 10px; }
-.checkbox-row input { width: auto; }
+.checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; }
+.checkbox-row input { width: auto; margin-top: 3px; flex-shrink: 0; }
+.checkbox-row label { font-size: 13.5px; color: var(--text-muted); }
+.checkbox-row a { color: var(--magenta); font-weight: 600; }
 
 .alert {
     border-radius: var(--radius-sm);
@@ -855,6 +857,53 @@ textarea { min-height: 160px; resize: vertical; }
 
 /* honeypot field, hidden from real users */
 .hp-field { position: absolute; left: -9999px; top: -9999px; opacity: 0; height: 0; }
+
+/* =========================================================================
+   Legal pages (privacy, terms, cookies, refund)
+   ========================================================================= */
+.legal-content { max-width: 760px; margin: 0 auto; }
+.legal-content .legal-updated { color: var(--text-faint); font-size: 13px; margin-bottom: 40px; }
+.legal-content h2 { font-size: 21px; margin-top: 44px; }
+.legal-content h2:first-of-type { margin-top: 0; }
+.legal-content h3 { font-size: 16px; margin-top: 26px; }
+.legal-content p { color: var(--text-muted); }
+.legal-content ul { margin: 0 0 1em; padding-left: 22px; color: var(--text-muted); }
+.legal-content li { margin-bottom: 8px; }
+.legal-content li::marker { color: var(--magenta); }
+.legal-content strong { color: var(--text); }
+.legal-content a { color: var(--magenta); font-weight: 600; }
+
+/* =========================================================================
+   Cookie notice
+   Purely informational — the site only sets strictly-necessary cookies
+   (session/auth, CSRF, and a short-lived Discord-linking state cookie),
+   so this is a notice with a dismiss button, not a consent gate that
+   blocks anything.
+   ========================================================================= */
+.cookie-notice {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    z-index: 90;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.cookie-notice p { margin: 0; font-size: 13.5px; color: var(--text-muted); flex: 1; min-width: 220px; }
+.cookie-notice a { color: var(--magenta); font-weight: 600; }
+.cookie-notice__actions { display: flex; gap: 10px; flex-shrink: 0; }
+@media (max-width: 560px) {
+    .cookie-notice { left: 12px; right: 12px; bottom: 12px; padding: 16px; }
+}
 
 /* =========================================================================
    Footer

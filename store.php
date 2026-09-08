@@ -107,7 +107,7 @@ require __DIR__ . '/includes/header.php';
                             <?php if ($isFeatured && $hasImage): ?><span class="shop-card__ribbon">Best value</span><?php endif; ?>
                             <?php if ($hasImage): ?>
                             <div class="shop-card__media">
-                                <img src="<?php echo e($package['image']); ?>" class="shop-card__image" alt="" loading="lazy">
+                                <img src="<?php echo e($package['image']); ?>" class="shop-card__image" alt="<?php echo e($package['name'] ?? ''); ?>" loading="lazy">
                                 <?php if ($isSub): ?><span class="shop-card__tag">Subscription</span><?php endif; ?>
                             </div>
                             <?php endif; ?>
@@ -149,7 +149,7 @@ require __DIR__ . '/includes/header.php';
                         </div>
                         <template id="pkg-tpl-<?php echo (int) $package['id']; ?>">
                             <?php if ($hasImage): ?>
-                                <img src="<?php echo e($package['image']); ?>" class="store-modal__image" alt="">
+                                <img src="<?php echo e($package['image']); ?>" class="store-modal__image" alt="<?php echo e($package['name'] ?? ''); ?>">
                             <?php endif; ?>
                             <div class="store-modal__badges">
                                 <?php if ($isFeatured): ?><span class="shop-card__tag shop-card__tag--inline shop-card__tag--best">Best value</span><?php endif; ?>

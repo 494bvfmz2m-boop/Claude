@@ -45,7 +45,7 @@ require __DIR__ . '/includes/header.php';
                 <div class="card team-card">
                     <div class="team-card__avatar">
                         <?php if (!empty($member['photo'])): ?>
-                            <img src="<?php echo e($member['photo']); ?>" alt="">
+                            <img src="<?php echo e($member['photo']); ?>" alt="<?php echo e($member['name']); ?>">
                         <?php else: ?>
                             <?php echo e($member['initials']); ?>
                         <?php endif; ?>

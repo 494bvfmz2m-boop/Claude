@@ -37,7 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim(strtolower($_POST['email'] ?? ''));
             $pw    = $_POST['password'] ?? '';
 
-            if ($name === '' || $email === '' || strlen($pw) < 8) {
+            if (empty($_POST['agree_terms'])) {
+                $error = 'Please agree to the Terms and Privacy Policy to continue.';
+            } elseif ($name === '' || $email === '' || strlen($pw) < 8) {
                 $error = 'Please fill in every field — password needs to be at least 8 characters.';
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $error = 'That email address doesn\'t look right.';
@@ -183,6 +185,11 @@ require __DIR__ . '/includes/header.php';
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="new-password">
                     <p class="field--hint">At least 8 characters.</p>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="agree_terms" name="agree_terms" value="1" required
+                        <?php echo !empty($_POST['agree_terms']) ? 'checked' : ''; ?>>
+                    <label for="agree_terms">I agree to the <a href="/terms" target="_blank">Terms &amp; Conditions</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
                 </div>
                 <button type="submit" class="btn btn--primary btn--block">Create account</button>
             </form>

@@ -50,6 +50,10 @@ require __DIR__ . '/includes/header.php';
                     <label for="message">Message</label>
                     <textarea id="message" name="message" required maxlength="4000"></textarea>
                 </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="agree_privacy" name="agree_privacy" value="1" required>
+                    <label for="agree_privacy">I agree to my details being used to reply, per the <a href="/privacy" target="_blank">Privacy Policy</a>.</label>
+                </div>
                 <button type="submit" class="btn btn--primary btn--block">Send message</button>
             </form>
         </div>

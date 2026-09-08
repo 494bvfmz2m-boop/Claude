@@ -80,4 +80,22 @@ document.addEventListener('DOMContentLoaded', function () {
             observer.observe(el);
         });
     }
+
+    // Cookie notice: show once until dismissed. Wrapped in try/catch
+    // since localStorage can throw in some privacy modes — if it does,
+    // the notice just shows every visit instead of breaking the page.
+    var cookieNotice = document.getElementById('cookie-notice');
+    var cookieDismiss = document.getElementById('cookie-notice-dismiss');
+    if (cookieNotice) {
+        var alreadySeen = false;
+        try { alreadySeen = localStorage.getItem('xs_cookie_notice_dismissed') === '1'; } catch (e) {}
+        if (!alreadySeen) cookieNotice.hidden = false;
+
+        if (cookieDismiss) {
+            cookieDismiss.addEventListener('click', function () {
+                cookieNotice.hidden = true;
+                try { localStorage.setItem('xs_cookie_notice_dismissed', '1'); } catch (e) {}
+            });
+        }
+    }
 });

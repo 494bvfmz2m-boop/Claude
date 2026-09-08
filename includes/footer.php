@@ -18,6 +18,13 @@
                     <a href="/contact">Contact</a>
                 </div>
                 <div class="footer-col">
+                    <h4>Legal</h4>
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms &amp; Conditions</a>
+                    <a href="/cookies">Cookies Policy</a>
+                    <a href="/refund">Refund Policy</a>
+                </div>
+                <div class="footer-col">
                     <h4>Studio access</h4>
                     <a href="https://staff.xyphros.net">Staff login</a>
                 </div>
@@ -25,11 +32,13 @@
         </div>
 
         <div class="site-footer__bottom">
-            <span>&copy; <?php echo date('Y'); ?> <?php echo e(SITE_NAME); ?>. All rights reserved.</span>
+            <span>&copy; <?php echo date('Y'); ?> <?php echo e(SITE_NAME); ?>. All rights reserved. Contact: <a href="mailto:<?php echo e(get_settings()['contact_email']); ?>" style="color:inherit;"><?php echo e(get_settings()['contact_email']); ?></a></span>
             <span>Built in-house.</span>
         </div>
     </div>
 </footer>
+
+<?php require __DIR__ . '/cookie-notice.php'; ?>
 
 <script src="<?php echo e(asset_url('/assets/js/main.js')); ?>"></script>
 </body>
