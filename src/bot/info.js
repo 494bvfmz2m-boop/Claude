@@ -1,8 +1,13 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const config = require('../config');
 const { getRankForRoleIds } = require('./cache');
 const { Hierarchies } = require('../db/repo');
 const { getMemberAccess } = require('../web/lib/dashboardAccess');
 const { ACTIONS, canUseAction } = require('./commandPermissions');
+
+function dashboardHost() {
+  try { return new URL(config.dashboardUrl || 'https://bot.xyphros.net').host; } catch { return 'bot.xyphros.net'; }
+}
 
 const INFO_COLOR = '#a32ee2';
 
@@ -105,7 +110,7 @@ async function handleInfo(interaction) {
       {
         name: 'XyphrosMod dashboard',
         value: dashAccess.level === 'full'
-          ? '✅ Full access — can log in and manage this server at bot.xyphros.site'
+          ? `✅ Full access — can log in and manage this server at ${dashboardHost()}`
           : dashAccess.level === 'limited'
             ? `✅ Limited access — can log in and use: ${[...dashAccess.areas].join(', ')}`
             : "❌ Can't access this server's dashboard (ask an admin to grant it from the Permissions page)",

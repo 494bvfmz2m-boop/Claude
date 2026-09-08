@@ -8,21 +8,29 @@ const { handleOwnerKeyword } = require('./ownerKeywords');
 const { emojiUrl } = require('./emoji');
 
 const GREETING_COLOR = '#a32ee2';
-const WEBSITE_URL = 'https://xyphros.site';
+const WEBSITE_URL = 'https://xyphros.net';
 const DISCORD_INVITE = 'https://discord.gg/5bNyCzsyJ2';
 
+function dashboardUrlAndHost() {
+  const url = config.dashboardUrl || 'https://bot.xyphros.net';
+  let host;
+  try { host = new URL(url).host; } catch { host = url; }
+  return { url, host };
+}
+
 function buildGreetingEmbed() {
+  const { url, host } = dashboardUrlAndHost();
   return new EmbedBuilder()
     .setTitle('👋 Invite me to your server for me to work!')
     .setColor(GREETING_COLOR)
     .setThumbnail(emojiUrl('xyphros-online.gif'))
     .setDescription(
       "I only do anything once I'm in a server — I can't help over DMs. Add me with the button below, then " +
-        `manage everything from the dashboard at [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}).`,
+        `manage everything from the dashboard at [${host}](${url}).`,
     )
     .addFields(
       { name: '🔗 Invite me', value: `[Add to a server](${buildGenericInviteUrl()})`, inline: true },
-      { name: '🌐 Website', value: `[xyphros.site](${WEBSITE_URL})`, inline: true },
+      { name: '🌐 Website', value: `[xyphros.net](${WEBSITE_URL})`, inline: true },
       { name: '💬 Support server', value: `[Join Discord](${DISCORD_INVITE})`, inline: true },
       {
         name: 'What I do',
@@ -37,14 +45,15 @@ function buildGreetingEmbed() {
 // unauthorized server the moment it joins, but there's no reason to dangle
 // the link in front of someone it's just going to reject anyway.
 function buildClosedBetaEmbed() {
+  const { url, host } = dashboardUrlAndHost();
   return new EmbedBuilder()
     .setTitle('🔒 XyphrosMod is in closed beta')
     .setColor(GREETING_COLOR)
     .setDescription(
-      `I'm not accepting new servers right now. Head to [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}) ` +
+      `I'm not accepting new servers right now. Head to [${host}](${url}) ` +
         'and click **Log in with Discord** — you\'ll get a **Request access** button there, and a DM from me the moment it\'s reviewed.',
     )
-    .addFields({ name: '🌐 Website', value: `[xyphros.site](${WEBSITE_URL})` });
+    .addFields({ name: '🌐 Website', value: `[xyphros.net](${WEBSITE_URL})` });
 }
 
 function register(client) {

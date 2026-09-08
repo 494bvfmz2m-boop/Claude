@@ -33,7 +33,10 @@ async function handleIntroduction(interaction) {
         .slice(0, 1024)
     : "Commands haven't finished registering yet -- try again in a minute.";
 
-  const dashboardUrl = config.dashboardUrl || 'https://bot.xyphros.site';
+  const dashboardUrl = config.dashboardUrl || 'https://bot.xyphros.net';
+  const dashboardHost = (() => {
+    try { return new URL(dashboardUrl).host; } catch { return dashboardUrl; }
+  })();
 
   const embed = new EmbedBuilder()
     .setTitle("👋 Hi, I'm XyphrosMod!")
@@ -46,7 +49,7 @@ async function handleIntroduction(interaction) {
     .addFields(
       {
         name: '⚙️ Get set up',
-        value: `1. Open **[bot.xyphros.site](${dashboardUrl})** and log in with Discord\n` +
+        value: `1. Open **[${dashboardHost}](${dashboardUrl})** and log in with Discord\n` +
           '2. Drag my **XyphrosMod** role above every role you want me to manage (Server Settings → Roles) -- ' +
           "otherwise ticket access, staff ranks, timeouts, and reaction roles won't work for those roles\n" +
           '3. Set up ticket types, panels, moderation, and staff ranks from the dashboard',

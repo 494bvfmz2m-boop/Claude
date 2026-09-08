@@ -25,11 +25,14 @@ function buildRequestEmbed(request) {
 // Shared with the "test beta DMs" tool on /staff, so a preview is a genuine
 // preview of this exact embed rather than a hand-maintained mockup of it.
 function buildResultEmbed(approve, { test = false } = {}) {
+  const dashboardUrl = config.dashboardUrl || 'https://bot.xyphros.net';
+  let dashboardHost;
+  try { dashboardHost = new URL(dashboardUrl).host; } catch { dashboardHost = dashboardUrl; }
   const embed = new EmbedBuilder()
     .setColor(approve ? '#23a55a' : '#ed4245')
     .setTitle(approve ? '✅ Beta access approved' : '❌ Beta access request declined')
     .setDescription(approve
-      ? `You're in! Log in any time at [bot.xyphros.site](${config.dashboardUrl || 'https://bot.xyphros.site'}).`
+      ? `You're in! Log in any time at [${dashboardHost}](${dashboardUrl}).`
       : "Your request wasn't approved this time.");
   if (test) embed.addFields({ name: '⚠️ This is a test', value: "Nothing actually happened — just previewing what a real one looks like." });
   return embed;
