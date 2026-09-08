@@ -18,6 +18,7 @@ if ($valid) {
 
 $currentPage = 'magic-login';
 $pageTitle = 'Sign-in link';
+$noIndex = true;
 require __DIR__ . '/includes/header.php';
 ?>
 

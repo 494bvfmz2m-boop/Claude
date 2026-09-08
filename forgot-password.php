@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/mailer.php';
 
 $currentPage = 'forgot-password';
 $pageTitle = 'Reset your password';
+$noIndex = true;
 
 if (XyphrosAuth::currentUser()) {
     header('Location: /account');

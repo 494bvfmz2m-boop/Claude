@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/mailer.php';
 
 $currentPage = 'account';
 $pageTitle = 'Your account';
+$noIndex = true;
 
 $me = XyphrosAuth::currentUser();
 if (!$me) {

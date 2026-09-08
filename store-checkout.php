@@ -12,6 +12,7 @@ $justCompleted = isset($_GET['complete']);
 
 $currentPage = 'store';
 $pageTitle = 'Checkout';
+$noIndex = true;
 require __DIR__ . '/includes/header.php';
 ?>
 

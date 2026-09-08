@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/mailer.php';
 
 $currentPage = 'register';
 $pageTitle = 'Create your account';
+$noIndex = true;
 
 function xs_safe_return_to_reg(?string $url): string {
     if (!$url) return '/';

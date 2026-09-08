@@ -14,8 +14,28 @@ no_cache_headers();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?php echo isset($pageTitle) ? e($pageTitle) . ' - ' . SITE_NAME : e(SITE_NAME); ?></title>
-<meta name="description" content="<?php echo e($pageDescription ?? SITE_TAGLINE); ?>">
+<?php
+$xsPageTitleFull = isset($pageTitle) ? $pageTitle . ' - ' . SITE_NAME : SITE_NAME;
+$xsPageDesc = $pageDescription ?? SITE_TAGLINE;
+$xsCanonicalUrl = SITE_URL . (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+$xsOgImage = SITE_URL . '/assets/img/og-image.jpg';
+?>
+<title><?php echo e($xsPageTitleFull); ?></title>
+<meta name="description" content="<?php echo e($xsPageDesc); ?>">
+<link rel="canonical" href="<?php echo e($xsCanonicalUrl); ?>">
+<?php if (!empty($noIndex)): ?>
+<meta name="robots" content="noindex, nofollow">
+<?php endif; ?>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="<?php echo e(SITE_NAME); ?>">
+<meta property="og:title" content="<?php echo e($xsPageTitleFull); ?>">
+<meta property="og:description" content="<?php echo e($xsPageDesc); ?>">
+<meta property="og:url" content="<?php echo e($xsCanonicalUrl); ?>">
+<meta property="og:image" content="<?php echo e($xsOgImage); ?>">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<?php echo e($xsPageTitleFull); ?>">
+<meta name="twitter:description" content="<?php echo e($xsPageDesc); ?>">
+<meta name="twitter:image" content="<?php echo e($xsOgImage); ?>">
 <link rel="icon" type="image/png" href="<?php echo e(asset_url('/assets/img/favicon-32.png')); ?>">
 <link rel="apple-touch-icon" href="<?php echo e(asset_url('/assets/img/apple-touch-icon.png')); ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com">

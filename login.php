@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/mailer.php';
 
 $currentPage = 'login';
 $pageTitle = 'Sign in';
+$noIndex = true;
 $pageDescription = 'Sign in to your Xyphros account.';
 
 /**

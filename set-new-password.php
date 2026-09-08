@@ -21,6 +21,7 @@ if (empty($user['must_change_password'])) {
 
 $currentPage = 'set-new-password';
 $pageTitle = 'Set a new password';
+$noIndex = true;
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

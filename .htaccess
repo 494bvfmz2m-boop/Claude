@@ -2,6 +2,18 @@ RewriteEngine On
 RewriteBase /
 
 # ---------------------------------------------------------------------
+# Force HTTPS. Most hosts put this site behind a proxy/load balancer,
+# so check X-Forwarded-Proto too. HTTPS off on both means the visitor
+# really did arrive over plain HTTP.
+# ---------------------------------------------------------------------
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# Custom 404 page instead of the host's default error page.
+ErrorDocument 404 /404.php
+
+# ---------------------------------------------------------------------
 # Security headers, sent on every response.
 # ---------------------------------------------------------------------
 <IfModule mod_headers.c>
