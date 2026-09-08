@@ -33,23 +33,23 @@ if (!empty($_GET['error'])) {
 
 $state = $_GET['state'] ?? null;
 if (!xs_discord_oauth_state_verify($state)) {
-    $bounce('That Discord link expired — please try again.');
+    $bounce('That Discord link expired. Please try again.');
 }
 
 $code = $_GET['code'] ?? '';
 if ($code === '') {
-    $bounce('Something went wrong linking Discord — please try again.');
+    $bounce('Something went wrong linking Discord. Please try again.');
 }
 
 [$tokenOk, $accessToken, $tokenErr] = Discord::exchangeCode($code);
 if (!$tokenOk || !$accessToken) {
     error_log('Discord OAuth token exchange failed: ' . ($tokenErr ?? 'unknown error'));
-    $bounce('Discord didn\'t confirm that sign-in — please try again.');
+    $bounce('Discord didn\'t confirm that sign-in. Please try again.');
 }
 
 $identity = Discord::fetchIdentity($accessToken);
 if (!$identity) {
-    $bounce('Couldn\'t read your Discord profile — please try again.');
+    $bounce('Couldn\'t read your Discord profile. Please try again.');
 }
 
 // One Discord account can only be linked to one Xyphros account —

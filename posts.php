@@ -24,8 +24,8 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <?php if (empty($posts)): ?>
             <div class="empty-state">
-                <div class="empty-state__icon">&#128221;</div>
-                <p style="margin:0;">No posts yet. Be the first to write one &mdash; check back soon.</p>
+                <div class="empty-state__icon"><?php echo xs_icon('doc', 26); ?></div>
+                <p style="margin:0;">No posts yet. Check back soon.</p>
             </div>
         <?php else: ?>
             <div class="grid grid--3">

@@ -27,7 +27,7 @@ require __DIR__ . '/includes/header.php';
 <section class="section">
     <div class="container" style="max-width:520px;text-align:center;">
         <?php if ($justCompleted): ?>
-            <p class="lede" style="margin-bottom:8px;">Your order is being processed &mdash; it'll show up in your order history shortly.</p>
+            <p class="lede" style="margin-bottom:8px;">Your order is being processed. It'll show up in your order history shortly.</p>
             <p style="color:var(--text-faint,#9b93b0);font-size:13px;margin-bottom:24px;">We'll also send a confirmation email. If you don't see it in a few minutes, check your spam folder.</p>
             <a href="/account?tab=orders" class="btn btn--primary">View order history</a>
         <?php elseif ($ident): ?>

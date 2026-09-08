@@ -28,7 +28,7 @@ $resent = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!xs_csrf_verify($_POST['csrf_token'] ?? null)) {
-        $error = 'That took a bit too long — please try again.';
+        $error = 'That took a bit too long. Please try again.';
     } else {
         $action = $_POST['action'] ?? 'register';
 
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($_POST['agree_terms'])) {
                 $error = 'Please agree to the Terms and Privacy Policy to continue.';
             } elseif ($name === '' || $email === '' || strlen($pw) < 8) {
-                $error = 'Please fill in every field — password needs to be at least 8 characters.';
+                $error = 'Please fill in every field. Password needs to be at least 8 characters.';
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $error = 'That email address doesn\'t look right.';
             } elseif (XyphrosAuth::findByEmail($email)) {
@@ -133,7 +133,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Xyphros account</span>
         <h1><?php echo $step === 'verify' ? 'Check your email' : 'Create your account'; ?></h1>
-        <p class="lede lede--center">One account works everywhere &mdash; xyphros.net and every product.</p>
+        <p class="lede lede--center">One account works everywhere: xyphros.net and every product.</p>
     </div>
 </section>
 

@@ -42,7 +42,7 @@ $resent = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!xs_csrf_verify($_POST['csrf_token'] ?? null)) {
-        $error = 'That took a bit too long — please try again.';
+        $error = 'That took a bit too long. Please try again.';
     } else {
         $action = $_POST['action'] ?? 'login';
 
@@ -82,13 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Your Xyphros sign-in code',
                     "Your Xyphros sign-in code is:\n\n    {$code}\n\n"
                         . "This code expires in 10 minutes. If you didn't request this, "
-                        . "you can ignore this email — your account is still safe.",
+                        . "you can ignore this email. Your account is still safe.",
                     [],
                     render_code_email(
                         'Sign-in code',
                         "Enter this code to finish signing in to your Xyphros account. It expires in 10 minutes.",
                         $code,
-                        "If you didn't try to sign in, you can ignore this email — your account is still safe."
+                        "If you didn't try to sign in, you can ignore this email. Your account is still safe."
                     )
                 );
                 $stage  = 'twofa';
@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'Sign-in code',
                         "Enter this code to finish signing in to your Xyphros account. It expires in 10 minutes.",
                         $code,
-                        "If you didn't try to sign in, you can ignore this email — your account is still safe."
+                        "If you didn't try to sign in, you can ignore this email. Your account is still safe."
                     )
                 );
                 $resent = true;
@@ -163,7 +163,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Xyphros account</span>
         <h1><?php echo $stage === 'twofa' ? ($method === 'totp' ? 'Enter your code' : 'Check your email') : 'Sign in'; ?></h1>
-        <p class="lede lede--center">One account works everywhere &mdash; xyphros.net and every product.</p>
+        <p class="lede lede--center">One account works everywhere: xyphros.net and every product.</p>
     </div>
 </section>
 

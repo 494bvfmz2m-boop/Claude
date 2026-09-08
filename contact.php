@@ -17,7 +17,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Let's talk</span>
         <h1>Get in touch</h1>
-        <p class="lede lede--center">Questions, feedback, or a project you want to talk through &mdash; we read every message.</p>
+        <p class="lede lede--center">Questions, feedback, or a project you want to talk through. We read every message.</p>
     </div>
 </section>
 
@@ -25,7 +25,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container two-col">
         <div>
             <?php if ($sent): ?>
-                <div class="alert alert--success">Thanks &mdash; your message is in. We'll get back to you soon.</div>
+                <div class="alert alert--success">Thanks, your message is in. We'll get back to you soon.</div>
             <?php elseif ($error): ?>
                 <div class="alert alert--error"><?php echo e($error); ?></div>
             <?php endif; ?>
@@ -70,7 +70,7 @@ require __DIR__ . '/includes/header.php';
                     </div>
                 </div>
                 <div class="contact-method">
-                    <div class="contact-method__icon">&#9881;</div>
+                    <div class="contact-method__icon"><?php echo xs_icon('sliders', 18); ?></div>
                     <div>
                         <strong style="display:block; margin-bottom:2px;"><?php echo e($settings['product_support_heading']); ?></strong>
                         <span style="color:var(--text-muted);"><?php echo e($settings['product_support_text']); ?></span>

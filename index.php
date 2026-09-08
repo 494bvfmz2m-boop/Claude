@@ -84,8 +84,8 @@ require __DIR__ . '/includes/header.php';
 
         <?php if (empty($latestPosts)): ?>
             <div class="empty-state">
-                <div class="empty-state__icon">&#128221;</div>
-                <p style="margin:0;">No posts yet &mdash; check back soon.</p>
+                <div class="empty-state__icon"><?php echo xs_icon('doc', 26); ?></div>
+                <p style="margin:0;">No posts yet. Check back soon.</p>
             </div>
         <?php else: ?>
             <div class="grid grid--3">

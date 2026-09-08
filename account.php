@@ -18,7 +18,7 @@ $tab = $_GET['tab'] ?? 'profile';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!XyphrosAuth::csrfVerify($_POST['csrf_token'] ?? null)) {
-        $error = 'That took a bit too long and your session moved on — please try again.';
+        $error = 'That took a bit too long and your session moved on. Please try again.';
     } else {
         $action = $_POST['action'] ?? '';
 
@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'enable_email_2fa') {
             XyphrosAuth::updateUser($me['id'], ['twofa_method' => 'email', 'totp_secret' => null, 'totp_confirmed' => 0]);
-            $success = 'Email 2FA enabled — you\'ll get a code at every sign-in.'; $tab = 'security';
+            $success = 'Email 2FA enabled. You\'ll get a code at every sign-in.'; $tab = 'security';
         }
 
         if ($action === 'disable_2fa') {
@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fresh = XyphrosAuth::findById($me['id']);
             $entered = $_POST['code'] ?? '';
             if (empty($fresh['totp_secret'])) {
-                $error = 'Setup session expired — start again.'; $tab = 'security';
+                $error = 'Setup session expired. Start again.'; $tab = 'security';
             } elseif (!XyphrosAuth::verifyTotp($fresh['totp_secret'], $entered)) {
                 $error = 'That code didn\'t match. Check your phone\'s clock and try again.'; $tab = 'security';
             } else {
@@ -404,7 +404,7 @@ require __DIR__ . '/includes/header.php';
                 <div class="acct-card">
                     <div class="acct-card__head"><div class="acct-card__icon acct-card__icon--discord"><?php echo xs_icon_discord(); ?></div></div>
                     <h2>Discord</h2>
-                    <p class="hint">Link your Discord account so the store can grant your role automatically the moment a purchase completes — required before buying anything that needs Discord.</p>
+                    <p class="hint">Link your Discord account so the store can grant your role automatically the moment a purchase completes. Required before buying anything that needs Discord.</p>
 
                     <?php if (!empty($user['discord_id'])): ?>
                         <div class="connection-row connection-row--linked">
@@ -476,7 +476,7 @@ require __DIR__ . '/includes/header.php';
                     <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 18px;margin-bottom:22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
                         <div style="flex:1;min-width:220px;">
                             <strong style="font-size:13.5px;">Manage or cancel a subscription</strong>
-                            <p class="hint" style="margin:2px 0 0;">Handled by our payment processor, not here. Cancelling stops future charges — you keep access until the period you already paid for ends.</p>
+                            <p class="hint" style="margin:2px 0 0;">Handled by our payment processor, not here. Cancelling stops future charges, but you keep access until the period you already paid for ends.</p>
                         </div>
                         <a href="https://checkout.tebex.io/payment-history" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Cancel subscription <?php echo xs_icon('external', 14); ?></a>
                     </div>
@@ -539,17 +539,17 @@ require __DIR__ . '/includes/header.php';
                     <a href="https://staff.xyphros.net" target="_blank" rel="noopener" class="btn btn--primary btn--sm" style="margin-bottom:20px;">Open Xyphros Staff <?php echo xs_icon('arrow'); ?></a>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
-                        <div style="flex:1;min-width:0;"><strong>Xyphros</strong><div class="hint" style="margin:2px 0 0;">xyphros.net &mdash; blog, products, team, messages</div></div>
+                        <div style="flex:1;min-width:0;"><strong>Xyphros</strong><div class="hint" style="margin:2px 0 0;">xyphros.net: blog, products, team, messages</div></div>
                         <a href="https://staff.xyphros.net/access.php?product=xyphros" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
-                        <div style="flex:1;min-width:0;"><strong>XyphrosPortal</strong><div class="hint" style="margin:2px 0 0;">portal.xyphros.net &mdash; workspaces, tasks, notes</div></div>
+                        <div style="flex:1;min-width:0;"><strong>XyphrosPortal</strong><div class="hint" style="margin:2px 0 0;">portal.xyphros.net: workspaces, tasks, notes</div></div>
                         <a href="https://staff.xyphros.net/access.php?product=portal" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
-                        <div style="flex:1;min-width:0;"><strong>Plexer Pass Tracker</strong><div class="hint" style="margin:2px 0 0;">plexsmp.xyphros.net &mdash; private, invite-only</div></div>
+                        <div style="flex:1;min-width:0;"><strong>Plexer Pass Tracker</strong><div class="hint" style="margin:2px 0 0;">plexsmp.xyphros.net: private, invite-only</div></div>
                         <a href="https://staff.xyphros.net/access.php?product=subtracker" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                 </div>

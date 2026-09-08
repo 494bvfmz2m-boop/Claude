@@ -33,11 +33,11 @@ function settings_defaults(): array
     return [
         'tagline' => SITE_TAGLINE,
         'hero_headline' => 'Software for people who build things together.',
-        'hero_subtext' => 'Xyphros Studios is an independent studio building small, focused tools for teams and communities — starting with XyphrosPortal, a shared home for tasks, to-dos, and notes.',
+        'hero_subtext' => 'Xyphros Studios is an independent studio building small, focused tools for teams and communities, starting with XyphrosPortal, a shared home for tasks, to-dos, and notes.',
         'about_intro_heading' => 'We build the tools we wish existed.',
         'about_intro_text' => "Xyphros Studios is a small, independent studio. We'd rather ship one tool that people genuinely rely on than ten that nobody finishes setting up.",
         'why_heading' => 'Less noise, more done',
-        'why_text' => "Most workspace tools try to do everything and end up doing nothing well. We started Xyphros Studios to build the opposite: small, focused products with a clear job and no clutter around it.\n\nXyphrosPortal is the first product to come out of that approach — a shared workspace for tasks, to-do lists, and notes that's simple enough to actually keep using.",
+        'why_text' => "Most workspace tools try to do everything and end up doing nothing well. We started Xyphros Studios to build the opposite: small, focused products with a clear job and no clutter around it.\n\nXyphrosPortal is the first product to come out of that approach: a shared workspace for tasks, to-do lists, and notes that's simple enough to actually keep using.",
         'how_heading' => 'Built in-house, kept simple',
         'how_text' => "Everything we ship is designed, built, and maintained by our own team. That keeps things slower in some ways, but it means every product gets the same care and the same standards.",
         'contact_email' => SITE_CONTACT_EMAIL,
@@ -804,7 +804,7 @@ function xs_store_finalize_purchase(string $ident, int $packageId, array $user, 
         // Seeing the real options array is what tells us what's needed.
         $failedPackage = Tebex::getPackage($packageId);
         error_log('Tebex add package failed: ' . ($addErr ?? 'unknown error') . ' — package options: ' . json_encode($failedPackage['options'] ?? null) . ($variableData ? ' — variable_data sent: ' . json_encode($variableData) : ''));
-        header('Location: /store?error=' . rawurlencode("Couldn't add that item to checkout — please try again."));
+        header('Location: /store?error=' . rawurlencode("Couldn't add that item to checkout. Please try again."));
         exit;
     }
 

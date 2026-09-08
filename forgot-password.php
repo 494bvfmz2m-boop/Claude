@@ -18,7 +18,7 @@ $resEmail = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!xs_csrf_verify($_POST['csrf_token'] ?? null)) {
-        $error = 'That took a bit too long — please try again.';
+        $error = 'That took a bit too long. Please try again.';
     } else {
         $action = $_POST['action'] ?? 'send_code';
 
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'Reset your password',
                         'Enter this code to reset your Xyphros account password. It expires in 15 minutes.',
                         $code,
-                        "If you didn't request this, you can safely ignore this email — your password hasn't changed."
+                        "If you didn't request this, you can safely ignore this email. Your password hasn't changed."
                     )
                 );
                 $resetUid = $u['id'];
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (strlen($pw) < 8) { $error = 'Password must be at least 8 characters.'; $step = 'newpw'; $resetUid = $uid; }
             elseif ($pw !== $pw2) { $error = "Passwords don't match."; $step = 'newpw'; $resetUid = $uid; }
-            elseif (!$uid) { $error = 'That link has expired — start again.'; $step = 'form'; }
+            elseif (!$uid) { $error = 'That link has expired. Start again.'; $step = 'form'; }
             else {
                 XyphrosAuth::updateUser($uid, ['password_hash' => XyphrosAuth::hashPassword($pw)]);
                 XyphrosAuth::destroyAllSessions($uid); // a password reset should sign out every existing session
@@ -95,7 +95,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Xyphros account</span>
         <h1><?php echo $step === 'newpw' ? 'Set a new password' : ($step === 'verify' ? 'Check your email' : 'Forgot password?'); ?></h1>
-        <p class="lede lede--center">One account works everywhere &mdash; xyphros.net and every product.</p>
+        <p class="lede lede--center">One account works everywhere: xyphros.net and every product.</p>
     </div>
 </section>
 

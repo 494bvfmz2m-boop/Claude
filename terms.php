@@ -25,7 +25,7 @@ require __DIR__ . '/includes/header.php';
 
         <p>
             <strong>Note for the site owner:</strong> this page hasn't been reviewed by a solicitor, and it doesn't
-            name a governing jurisdiction &mdash; that section below is left as a placeholder on purpose rather than
+            name a governing jurisdiction. That section below is left as a placeholder on purpose rather than
             guessed at. Treat this as a solid starting draft, not a substitute for proper legal advice.
         </p>
 
@@ -42,8 +42,8 @@ require __DIR__ . '/includes/header.php';
 
         <h2>The store</h2>
         <ul>
-            <li>Purchases are processed by <a href="https://www.tebex.io" target="_blank" rel="noopener">Tebex</a>, a third-party payment processor and store platform &mdash; not by us directly. Their own terms apply to the payment itself.</li>
-            <li>Some items grant a Discord role automatically once payment completes. This requires a linked Discord account (see <a href="/account?tab=connections">Account &rarr; Connections</a>) &mdash; without one, we can't reliably tell Discord who to give the role to.</li>
+            <li>Purchases are processed by <a href="https://www.tebex.io" target="_blank" rel="noopener">Tebex</a>, a third-party payment processor and store platform, not by us directly. Their own terms apply to the payment itself.</li>
+            <li>Some items grant a Discord role automatically once payment completes. This requires a linked Discord account (see <a href="/account?tab=connections">Account &rarr; Connections</a>). Without one, we can't reliably tell Discord who to give the role to.</li>
             <li>Refunds and subscription cancellations are covered in our separate <a href="/refund">Refund Policy</a>.</li>
             <li>Digital items and roles are for your personal use and aren't transferable to another account or person.</li>
         </ul>
@@ -58,7 +58,7 @@ require __DIR__ . '/includes/header.php';
         <p>The site and our products are provided as-is. We work to keep everything running and accurate, but we can't guarantee the site or any product will be uninterrupted or error-free.</p>
 
         <h2>Governing law</h2>
-        <p><em>[Placeholder &mdash; the jurisdiction whose law governs these terms hasn't been set yet. Fill this in once you've decided, ideally with input from a solicitor.]</em></p>
+        <p><em>[Placeholder: the jurisdiction whose law governs these terms hasn't been set yet. Fill this in once you've decided, ideally with input from a solicitor.]</em></p>
 
         <h2>Contact</h2>
         <p>Questions about these terms? Email <a href="mailto:<?php echo e($contactEmail); ?>"><?php echo e($contactEmail); ?></a>.</p>

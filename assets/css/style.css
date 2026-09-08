@@ -789,7 +789,18 @@ p { margin: 0 0 1em; color: var(--text-muted); }
     border-radius: var(--radius-md);
     color: var(--text-faint);
 }
-.empty-state__icon { font-size: 32px; margin-bottom: 12px; }
+.empty-state__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-faint);
+    margin-bottom: 16px;
+}
 
 /* =========================================================================
    Forms

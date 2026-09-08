@@ -8,12 +8,12 @@ if (!$user) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !xs_csrf_verify($_POST['csrf_token'] ?? null)) {
-    header('Location: /store?error=' . rawurlencode('That took a bit too long — please try again.'));
+    header('Location: /store?error=' . rawurlencode('That took a bit too long. Please try again.'));
     exit;
 }
 
 if (empty(TEBEX_PUBLIC_TOKEN) || empty(TEBEX_PRIVATE_KEY)) {
-    header('Location: /store?error=' . rawurlencode('The store is still being set up — checkout isn\'t connected yet.'));
+    header('Location: /store?error=' . rawurlencode('The store is still being set up. Checkout isn\'t connected yet.'));
     exit;
 }
 
@@ -25,7 +25,7 @@ if (!$packageId) {
 
 $package = Tebex::getPackage($packageId);
 if (!$package) {
-    header('Location: /store?error=' . rawurlencode("That item couldn't be found — it may have been removed."));
+    header('Location: /store?error=' . rawurlencode("That item couldn't be found. It may have been removed."));
     exit;
 }
 
@@ -40,7 +40,7 @@ $customerIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
 if (!$ok || empty($basket['ident'])) {
     error_log('Tebex basket creation failed: ' . ($err ?? 'unknown error'));
-    header('Location: /store?error=' . rawurlencode("Couldn't start checkout — please try again in a moment."));
+    header('Location: /store?error=' . rawurlencode("Couldn't start checkout. Please try again in a moment."));
     exit;
 }
 
@@ -115,7 +115,7 @@ if ($needsDiscordId) {
         // an honest message instead of trading this for a more
         // confusing failure two steps later.
         error_log('Tebex basket auth required but returned no usable provider for basket ' . $ident . ' (package ' . $packageId . ', user ' . $user['id'] . '): ' . json_encode($authOptions));
-        header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet — please contact us if you need it before it's fixed."));
+        header('Location: /store?error=' . rawurlencode("This item's Discord login isn't set up correctly yet. Please contact us if you need it before it's fixed."));
         exit;
     }
     // $authOptions came back empty — no auth actually pending, fall

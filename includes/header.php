@@ -14,7 +14,7 @@ no_cache_headers();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?php echo isset($pageTitle) ? e($pageTitle) . ' &mdash; ' . SITE_NAME : e(SITE_NAME); ?></title>
+<title><?php echo isset($pageTitle) ? e($pageTitle) . ' - ' . SITE_NAME : e(SITE_NAME); ?></title>
 <meta name="description" content="<?php echo e($pageDescription ?? SITE_TAGLINE); ?>">
 <link rel="icon" type="image/png" href="<?php echo e(asset_url('/assets/img/favicon-32.png')); ?>">
 <link rel="apple-touch-icon" href="<?php echo e(asset_url('/assets/img/apple-touch-icon.png')); ?>">

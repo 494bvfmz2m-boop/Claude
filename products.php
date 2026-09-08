@@ -19,7 +19,7 @@ require __DIR__ . '/includes/header.php';
         <h1>Products</h1>
         <p class="lede lede--center">
             Everything here is built and maintained in-house by Xyphros Studios. No bloat,
-            no dark patterns &mdash; just tools we actually want to use ourselves.
+            no dark patterns, just tools we actually want to use ourselves.
         </p>
     </div>
 </section>
@@ -28,8 +28,8 @@ require __DIR__ . '/includes/header.php';
     <div class="container" style="display:flex; flex-direction:column; gap:24px;">
         <?php if (empty($products)): ?>
             <div class="empty-state">
-                <div class="empty-state__icon">&#129529;</div>
-                <p style="margin:0;">Nothing published here yet &mdash; check back soon.</p>
+                <div class="empty-state__icon"><?php echo xs_icon('box', 26); ?></div>
+                <p style="margin:0;">Nothing published here yet. Check back soon.</p>
             </div>
         <?php else: ?>
             <?php foreach ($products as $product): ?>

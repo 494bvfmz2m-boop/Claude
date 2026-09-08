@@ -40,7 +40,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Store</span>
         <h1>Support Xyphros, unlock perks</h1>
-        <p class="lede lede--center">Purchases connect straight to Discord at checkout &mdash; your role shows up automatically once payment goes through.</p>
+        <p class="lede lede--center">Purchases connect straight to Discord at checkout, and your role shows up automatically once payment goes through.</p>
         <?php if ($user): ?>
             <div style="text-align:center;margin-top:8px;">
                 <a href="/account?tab=connections" class="btn btn--ghost btn--sm" style="display:inline-flex;">
@@ -55,13 +55,13 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
 
         <?php if ($error): ?><div class="alert alert--error" style="max-width:560px;margin:0 auto 28px;"><?php echo e($error); ?></div><?php endif; ?>
-        <?php if ($justLinkedDiscord): ?><div class="alert alert--success" style="max-width:560px;margin:0 auto 28px;text-align:center;">Discord linked — you can buy that item now.</div><?php endif; ?>
-        <?php if (!$user): ?><div class="alert" style="max-width:560px;margin:0 auto 28px;text-align:center;">Browsing is open to everyone &mdash; <a href="<?php echo e($signInUrl); ?>" style="color:var(--magenta);font-weight:700;">sign in</a> to buy.</div><?php endif; ?>
+        <?php if ($justLinkedDiscord): ?><div class="alert alert--success" style="max-width:560px;margin:0 auto 28px;text-align:center;">Discord linked. You can buy that item now.</div><?php endif; ?>
+        <?php if (!$user): ?><div class="alert" style="max-width:560px;margin:0 auto 28px;text-align:center;">Browsing is open to everyone. <a href="<?php echo e($signInUrl); ?>" style="color:var(--magenta);font-weight:700;">Sign in</a> to buy.</div><?php endif; ?>
 
         <?php if ($totalPackages === 0): ?>
             <div class="empty-state">
-                <div class="empty-state__icon">&#128722;</div>
-                <p>Nothing's for sale here yet &mdash; check back soon.</p>
+                <div class="empty-state__icon"><?php echo xs_icon('box', 26); ?></div>
+                <p>Nothing's for sale here yet. Check back soon.</p>
             </div>
 
         <?php else: ?>

@@ -11,7 +11,7 @@ $ident = $_GET['ident'] ?? '';
 $packageId = (int) ($_GET['package_id'] ?? 0);
 
 if (!$ident || !$packageId) {
-    header('Location: /store?error=' . rawurlencode('Something went wrong finishing that login — please try again.'));
+    header('Location: /store?error=' . rawurlencode('Something went wrong finishing that login. Please try again.'));
     exit;
 }
 

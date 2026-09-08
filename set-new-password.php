@@ -25,7 +25,7 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!XyphrosAuth::csrfVerify($_POST['csrf_token'] ?? null)) {
-        $error = 'That took a bit too long — please try again.';
+        $error = 'That took a bit too long. Please try again.';
     } else {
         $pw = $_POST['password'] ?? '';
         $pw2 = $_POST['confirm'] ?? '';

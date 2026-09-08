@@ -171,11 +171,11 @@ function sendOrderEmail(array $order, ?array $buyer, ?array $licenseKey): void
         $redeemUrl = $tierData['redeem_url'] ?? 'https://portal.xyphros.net/redeem';
         $redeemProduct = $tierData['redeem_product'] ?? 'XyphrosPortal';
         $bodyHtml = 'Thanks for your purchase of <strong>' . e($order['package_name']) . '</strong>' . e($orderLabel) . '. '
-            . 'Your license key for <strong>' . e($tierLabel) . '</strong> is below — redeem it inside ' . e($redeemProduct) . ' to apply it.';
+            . 'Your license key for <strong>' . e($tierLabel) . '</strong> is below. Redeem it inside ' . e($redeemProduct) . ' to apply it.';
         $bodyText = "Thanks for your purchase!\n\n{$order['package_name']}{$orderLabel}\n\n"
             . "Your license key for {$tierLabel}:\n{$licenseKey['key']}\n\nRedeem it at {$redeemUrl}";
         $footerNote = "Didn't see this land in your inbox? Check your spam folder. "
-            . "You can also view this key anytime — go to your account, open the Orders tab, and click \"View key\" next to this purchase.";
+            . "You can also view this key anytime: go to your account, open the Orders tab, and click \"View key\" next to this purchase.";
 
         $html = render_license_email('Order confirmed', $bodyHtml, $licenseKey['key'], 'Redeem in ' . $redeemProduct, $redeemUrl, $footerNote);
     } else {

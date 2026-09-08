@@ -15,7 +15,7 @@ require __DIR__ . '/includes/header.php';
     <div class="container">
         <span class="eyebrow">Legal</span>
         <h1>Cookies Policy</h1>
-        <p class="lede lede--center">Every cookie this site sets, in full &mdash; there's no hidden tracking list.</p>
+        <p class="lede lede--center">Every cookie this site sets, in full. There's no hidden tracking list.</p>
     </div>
 </section>
 
@@ -24,13 +24,13 @@ require __DIR__ . '/includes/header.php';
         <p class="legal-updated">Last updated 8 September 2026.</p>
 
         <h2>The short version</h2>
-        <p>xyphros.net only sets cookies that are strictly necessary to make the site work &mdash; keeping you signed in, and protecting forms from cross-site attacks. We don't use analytics, advertising, or tracking cookies, so there's nothing here that needs your opt-in consent under EU/UK cookie law &mdash; but we're listing every one anyway, because you should be able to see exactly what's set.</p>
+        <p>xyphros.net only sets cookies that are strictly necessary to make the site work: keeping you signed in, and protecting forms from cross-site attacks. We don't use analytics, advertising, or tracking cookies, so there's nothing here that needs your opt-in consent under EU/UK cookie law. But we're listing every one anyway, because you should be able to see exactly what's set.</p>
 
         <h2>Cookies we set</h2>
         <ul>
-            <li><strong><code>xyphros_session</code></strong> &mdash; keeps you signed in, shared across xyphros.net and portal.xyphros.net so one account works on both. Expires when your session ends or you sign out.</li>
-            <li><strong><code>xs_csrf</code></strong> &mdash; a random token used to confirm form submissions (like the contact form) actually came from this site, not a forged request from elsewhere.</li>
-            <li><strong><code>xs_discord_state</code></strong> and <strong><code>xs_discord_return</code></strong> &mdash; set only while you're in the middle of linking your Discord account, to confirm the login came back from the right place and return you to where you started. Both expire within minutes and aren't set otherwise.</li>
+            <li><strong><code>xyphros_session</code></strong>: keeps you signed in, shared across xyphros.net and portal.xyphros.net so one account works on both. Expires when your session ends or you sign out.</li>
+            <li><strong><code>xs_csrf</code></strong>: a random token used to confirm form submissions (like the contact form) actually came from this site, not a forged request from elsewhere.</li>
+            <li><strong><code>xs_discord_state</code></strong> and <strong><code>xs_discord_return</code></strong>: set only while you're in the middle of linking your Discord account, to confirm the login came back from the right place and return you to where you started. Both expire within minutes and aren't set otherwise.</li>
         </ul>
 
         <h2>What we don't set</h2>
@@ -39,8 +39,8 @@ require __DIR__ . '/includes/header.php';
         <h2>Third-party requests that aren't cookies</h2>
         <p>A couple of things load from third-party domains as part of normal page rendering, which is worth being upfront about even though they're not cookies we set:</p>
         <ul>
-            <li><strong>Google Fonts</strong> &mdash; the site's typefaces load from Google's font CDN, which sees the requesting IP address like any web request.</li>
-            <li><strong>Tebex checkout</strong> &mdash; when you buy something, you're taken to Tebex's own checkout, which is a separate site with its own cookies outside our control.</li>
+            <li><strong>Google Fonts</strong>: the site's typefaces load from Google's font CDN, which sees the requesting IP address like any web request.</li>
+            <li><strong>Tebex checkout</strong>: when you buy something, you're taken to Tebex's own checkout, which is a separate site with its own cookies outside our control.</li>
         </ul>
 
         <h2>Managing cookies</h2>
