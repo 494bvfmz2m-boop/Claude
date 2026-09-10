@@ -909,6 +909,7 @@ textarea { min-height: 160px; resize: vertical; }
     gap: 14px;
     flex-wrap: wrap;
 }
+.cookie-notice[hidden] { display: none; }
 .cookie-notice p { margin: 0; font-size: 13.5px; color: var(--text-muted); flex: 1; min-width: 220px; }
 .cookie-notice a { color: var(--magenta); font-weight: 600; }
 .cookie-notice__actions { display: flex; gap: 10px; flex-shrink: 0; }
