@@ -23,12 +23,6 @@ require __DIR__ . '/includes/header.php';
     <div class="container legal-content">
         <p class="legal-updated">Last updated 8 September 2026.</p>
 
-        <p>
-            <strong>Note for the site owner:</strong> this page hasn't been reviewed by a solicitor, and it doesn't
-            name a governing jurisdiction. That section below is left as a placeholder on purpose rather than
-            guessed at. Treat this as a solid starting draft, not a substitute for proper legal advice.
-        </p>
-
         <h2>Using this site</h2>
         <p>By using xyphros.net you agree to these terms. If you don't agree, please don't use the site. We may update these terms from time to time; continuing to use the site after a change means you accept the update.</p>
 
