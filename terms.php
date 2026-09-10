@@ -51,9 +51,6 @@ require __DIR__ . '/includes/header.php';
         <h2>Liability</h2>
         <p>The site and our products are provided as-is. We work to keep everything running and accurate, but we can't guarantee the site or any product will be uninterrupted or error-free.</p>
 
-        <h2>Governing law</h2>
-        <p><em>[Placeholder: the jurisdiction whose law governs these terms hasn't been set yet. Fill this in once you've decided, ideally with input from a solicitor.]</em></p>
-
         <h2>Contact</h2>
         <p>Questions about these terms? Email <a href="mailto:<?php echo e($contactEmail); ?>"><?php echo e($contactEmail); ?></a>.</p>
     </div>
