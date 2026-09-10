@@ -1,8 +1,9 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { testSwearFilter } = require('./cache');
-const { GuildSettings } = require('../db/repo');
+const { GuildSettings, Warnings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
+const { applyWarningThreshold, buildPunishmentEmbed, sendPunishmentDM } = require('./moderation');
 
 async function logDeletion(guild, message, matchedWord) {
   recordModAction(guild.id, {
@@ -30,6 +31,24 @@ async function logDeletion(guild, message, matchedWord) {
   await logChannel.send({ embeds: [embed] }).catch(() => {});
 }
 
+// A filtered message is a real infraction, not just cleanup -- it now feeds
+// the same warning/auto-punishment pipeline as a staff-given /warn, so
+// "N warnings -> mute/kick/ban" thresholds (Moderation -> Auto-punishments)
+// actually fire from repeat swear-filter hits instead of only ever counting
+// manual warnings. Returns a short note for the in-channel notice if an
+// auto-punishment fired, or null.
+async function warnForFilterHit(guild, message, matchedWord) {
+  const reason = `Swear filter: matched "${matchedWord}" in #${message.channel.name}`;
+  Warnings.add(guild.id, message.author.id, guild.client.user.id, reason);
+  const count = Warnings.listForUser(guild.id, message.author.id).length;
+
+  await sendPunishmentDM(message.author, buildPunishmentEmbed({
+    action: 'warned', emoji: '⚠️', guildName: guild.name, reason,
+  }));
+
+  return applyWarningThreshold(guild, message.member, guild.client.user, count);
+}
+
 function register(client) {
   client.on('messageCreate', async (message) => {
     // Cheap checks first — most messages bail out here without touching the cache/DB at all.
@@ -45,11 +64,15 @@ function register(client) {
       return; // no perms or already gone — don't bother notifying
     }
 
-    message.channel.send(`${message.author}, that message was removed by the word filter.`)
-      .then((notice) => setTimeout(() => notice.delete().catch(() => {}), 5000))
-      .catch(() => {});
-
     await logDeletion(message.guild, message, matchedWord);
+    const autoNote = await warnForFilterHit(message.guild, message, matchedWord);
+
+    const notice = autoNote
+      ? `${message.author}, that message was removed by the word filter ${autoNote}.`
+      : `${message.author}, that message was removed by the word filter.`;
+    message.channel.send(notice)
+      .then((sent) => setTimeout(() => sent.delete().catch(() => {}), 5000))
+      .catch(() => {});
   });
 }
 
