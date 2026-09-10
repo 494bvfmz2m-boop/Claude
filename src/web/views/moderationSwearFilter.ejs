@@ -9,6 +9,30 @@
   </div>
 <% } %>
 
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="margin-top:0;">Diagnostics</h3>
+  <p class="list-item-meta" style="margin-bottom:14px;">
+    Currently serving this server: <strong><%= servingBot %></strong>.
+    Filter is currently <strong><%= settings.swear_filter_enabled ? 'enabled' : 'off' %></strong>
+    with <strong><%= settings.swear_words.length %></strong> word<%= settings.swear_words.length === 1 ? '' : 's' %> saved.
+  </p>
+  <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter/test" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="text" name="testMessage" placeholder="Paste the exact message that should've been caught" style="flex:1; min-width:220px;" value="<%= testResult ? testResult.input : '' %>">
+    <button class="btn btn-sm" type="submit">Test against saved words</button>
+  </form>
+  <% if (testResult) { %>
+    <p class="list-item-meta" style="margin-top:10px;">
+      <% if (testResult.matched) { %>
+        ✅ Matched <strong>"<%= testResult.matched %>"</strong> — the bot would delete this and warn the sender.
+      <% } else { %>
+        ❌ No match — this message would <strong>not</strong> be caught (not in the saved word list, not whole-word,
+        the filter's off, or nothing's saved yet).
+      <% } %>
+    </p>
+  <% } %>
+</div>
+
 <div class="card">
   <form method="post" action="/dashboard/<%= guild.id %>/moderation/swear-filter">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

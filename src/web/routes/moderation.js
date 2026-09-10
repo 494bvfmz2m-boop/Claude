@@ -131,7 +131,19 @@ router.get('/moderation', async (req, res) => {
 router.get('/moderation/swear-filter', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  res.render('moderationSwearFilter', { guild, settings: GuildSettings.get(guild.id), notice: notice(req) });
+  // guild.client is whichever bot actually resolved this guild (see
+  // getGuild.js) -- comparing it to the shared main client tells the owner
+  // which bot is really listening for messages here, since that's easy to
+  // get wrong in your head once a custom bot is involved.
+  const servingBot = guild.client === client ? 'The shared XyphrosMod bot' : 'Your custom bot';
+  let testResult = null;
+  if (req.query.test) {
+    const matched = cache.testSwearFilter(guild.id, req.query.test);
+    testResult = { input: req.query.test, matched };
+  }
+  res.render('moderationSwearFilter', {
+    guild, settings: GuildSettings.get(guild.id), notice: notice(req), servingBot, testResult,
+  });
 });
 
 router.post('/moderation/swear-filter', async (req, res) => {
@@ -144,6 +156,18 @@ router.post('/moderation/swear-filter', async (req, res) => {
   GuildSettings.setSwearFilter(guild.id, { enabled: req.body.enabled === 'on', words });
   cache.invalidateSwearFilter(guild.id);
   res.redirect(`/dashboard/${guild.id}/moderation/swear-filter`);
+});
+
+// Runs a sample message through the EXACT same in-memory matcher the bot
+// itself uses (invalidating first so this always reflects the current saved
+// word list, never a stale cache) -- lets the owner check "why didn't this
+// get caught" without needing a real player to say it again live.
+router.post('/moderation/swear-filter/test', async (req, res) => {
+  const guild = await getGuildOr404(req, res);
+  if (!guild) return;
+  cache.invalidateSwearFilter(guild.id);
+  const qs = new URLSearchParams({ test: req.body.testMessage || '' });
+  res.redirect(`/dashboard/${guild.id}/moderation/swear-filter?${qs.toString()}`);
 });
 
 // ---------- Link filter ----------
