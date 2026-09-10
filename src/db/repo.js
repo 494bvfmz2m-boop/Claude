@@ -1163,14 +1163,29 @@ const TebexSubscribers = {
   list() {
     return db.prepare('SELECT * FROM tebex_subscribers ORDER BY updated_at DESC').all();
   },
+  // Always clears expires_at -- a real Tebex webhook grant/renewal/
+  // cancellation never carries an expiry (those only ever end via a real
+  // cancellation/refund event), and a fresh manual grant through this same
+  // path starts clean too; setExpiry below is the only thing that ever
+  // sets it, called separately right after this by the manual-grant route.
   upsert(discordUserId, tierId, status, reference) {
     db.prepare(`
-      INSERT INTO tebex_subscribers (discord_user_id, tier_id, status, tebex_reference, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      INSERT INTO tebex_subscribers (discord_user_id, tier_id, status, tebex_reference, expires_at, updated_at)
+      VALUES (?, ?, ?, ?, NULL, datetime('now'))
       ON CONFLICT(discord_user_id) DO UPDATE SET
         tier_id = excluded.tier_id, status = excluded.status,
-        tebex_reference = excluded.tebex_reference, updated_at = datetime('now')
+        tebex_reference = excluded.tebex_reference, expires_at = NULL, updated_at = datetime('now')
     `).run(discordUserId, tierId || null, status, reference || null);
+  },
+  // Only ever called for a manual grant (Staff -> Subscriptions) -- pass
+  // null to clear it back to "doesn't expire on its own". See
+  // bot/expiryScheduler.js, which sweeps this on a timer.
+  setExpiry(discordUserId, expiresAtIso) {
+    db.prepare(`UPDATE tebex_subscribers SET expires_at = ?, updated_at = datetime('now') WHERE discord_user_id = ?`)
+      .run(expiresAtIso || null, discordUserId);
+  },
+  listExpired(nowIso) {
+    return db.prepare(`SELECT * FROM tebex_subscribers WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= ?`).all(nowIso);
   },
   // The tier a user currently has active, or null -- what
   // subscriptionGate.js actually checks. A cancelled/expired row still
@@ -1272,12 +1287,20 @@ const ManualTierGrants = {
   listAll() {
     return db.prepare('SELECT * FROM manual_tier_grants ORDER BY updated_at DESC').all();
   },
-  upsert(guildId, tierId, grantedBy) {
+  // expiresAt is optional (null/undefined = doesn't expire on its own).
+  // Always overwrites it on conflict -- re-applying a grant with no expiry
+  // clears a previously-set one, same as picking a new one replaces the old.
+  upsert(guildId, tierId, grantedBy, expiresAt) {
     db.prepare(`
-      INSERT INTO manual_tier_grants (guild_id, tier_id, granted_by, updated_at)
-      VALUES (?, ?, ?, datetime('now'))
-      ON CONFLICT(guild_id) DO UPDATE SET tier_id = excluded.tier_id, granted_by = excluded.granted_by, updated_at = datetime('now')
-    `).run(guildId, tierId, grantedBy || null);
+      INSERT INTO manual_tier_grants (guild_id, tier_id, granted_by, expires_at, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(guild_id) DO UPDATE SET
+        tier_id = excluded.tier_id, granted_by = excluded.granted_by,
+        expires_at = excluded.expires_at, updated_at = datetime('now')
+    `).run(guildId, tierId, grantedBy || null, expiresAt || null);
+  },
+  listExpired(nowIso) {
+    return db.prepare('SELECT * FROM manual_tier_grants WHERE expires_at IS NOT NULL AND expires_at <= ?').all(nowIso);
   },
   remove(guildId) {
     db.prepare('DELETE FROM manual_tier_grants WHERE guild_id = ?').run(guildId);

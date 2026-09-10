@@ -191,7 +191,7 @@ router.get('/', requireAnyStaffAccess, async (req, res) => {
         return {
           id: g.id,
           name: g.name,
-          manualGrant: manualGrant ? { tierId: manualGrant.tier_id, tierName: TebexTiers.get(manualGrant.tier_id)?.name || '(deleted tier)' } : null,
+          manualGrant: manualGrant ? { tierId: manualGrant.tier_id, tierName: TebexTiers.get(manualGrant.tier_id)?.name || '(deleted tier)', expiresAt: manualGrant.expires_at || null } : null,
           effectiveTierName: effectiveTier?.name || null,
         };
       }))).filter(Boolean);
@@ -434,23 +434,34 @@ router.post('/tebex/tiers/:id/delete', requireOwner, (req, res) => {
 // server applied yet, same as a fresh webhook grant, so the buyer (or the
 // owner, on their behalf) still picks one from /subscription before any
 // guild-scoped feature unlocks anywhere.
+// A blank/"forever" choice means null (no auto-expiry, must be revoked by
+// hand); anything else is a whole number of days from right now. Shared by
+// both manual-grant routes below.
+function expiresAtFromDays(rawDays) {
+  const days = parseInt(rawDays, 10);
+  if (!days || days <= 0) return null;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 router.post('/tebex/subscribers/grant', requireOwner, async (req, res) => {
   const discordUserId = (req.body.discordUserId || '').trim();
   const tierId = req.body.tierId ? Number(req.body.tierId) : null;
   const guildId = (req.body.guildId || '').trim();
+  const expiresAt = expiresAtFromDays(req.body.expiresInDays);
   if (!DISCORD_ID.test(discordUserId)) return redirectWithNotice(res, false, 'That doesn\'t look like a Discord user ID.', 'subscriptions');
   const tier = tierId ? TebexTiers.get(tierId) : null;
   if (!tier) return redirectWithNotice(res, false, 'Pick a tier.', 'subscriptions');
 
   TebexSubscribers.upsert(discordUserId, tier.id, 'active', 'manual');
+  TebexSubscribers.setExpiry(discordUserId, expiresAt);
   if (guildId) TebexSubscribers.setGuild(discordUserId, guildId);
   // A manual grant can just as easily be a downgrade (fixing someone who
   // was over-tiered by mistake) as an upgrade -- enforceGuildLimits is a
   // no-op when there's nothing to trim, so it's safe to always run.
   const appliedGuildId = guildId || TebexSubscribers.get(discordUserId)?.guild_id || null;
   if (appliedGuildId) await enforceGuildLimits(appliedGuildId);
-  logAudit(req, 'Manually granted a Tebex tier', `${discordUserId} -> ${tier.name}${guildId ? ` (${guildId})` : ''}`);
-  return redirectWithNotice(res, true, `Granted "${tier.name}" to ${discordUserId}.`, 'subscriptions');
+  logAudit(req, 'Manually granted a Tebex tier', `${discordUserId} -> ${tier.name}${guildId ? ` (${guildId})` : ''}${expiresAt ? ` (expires ${expiresAt})` : ''}`);
+  return redirectWithNotice(res, true, `Granted "${tier.name}" to ${discordUserId}${expiresAt ? ` for ${req.body.expiresInDays} day(s)` : ''}.`, 'subscriptions');
 });
 
 router.post('/tebex/subscribers/:discordUserId/revoke', requireOwner, async (req, res) => {
@@ -484,10 +495,11 @@ router.post('/tebex/manual-grants/:guildId', requireOwner, async (req, res) => {
   const tierId = req.body.tierId ? Number(req.body.tierId) : null;
   const tier = tierId ? TebexTiers.get(tierId) : null;
   if (!tier) return redirectToLookup(res, lookupId, false, 'Pick a tier.');
-  ManualTierGrants.upsert(guildId, tier.id, req.session.discordUser?.id);
+  const expiresAt = expiresAtFromDays(req.body.expiresInDays);
+  ManualTierGrants.upsert(guildId, tier.id, req.session.discordUser?.id, expiresAt);
   await enforceGuildLimits(guildId);
-  logAudit(req, 'Manually applied a tier to a server', `${guildId} -> ${tier.name}`);
-  return redirectToLookup(res, lookupId, true, `Applied "${tier.name}" to that server.`);
+  logAudit(req, 'Manually applied a tier to a server', `${guildId} -> ${tier.name}${expiresAt ? ` (expires ${expiresAt})` : ''}`);
+  return redirectToLookup(res, lookupId, true, `Applied "${tier.name}" to that server${expiresAt ? ` for ${req.body.expiresInDays} day(s)` : ''}.`);
 });
 
 router.post('/tebex/manual-grants/:guildId/remove', requireOwner, async (req, res) => {

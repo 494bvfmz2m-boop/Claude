@@ -5,6 +5,7 @@ const { Events } = require('discord.js');
 const client = require('./bot/client');
 const { registerAllFeatures, registerAllGuildCommands, warmUpAndRefreshAll, registerCommandsForGuild } = require('./bot/registerAll');
 const { startAllSavedCustomBots } = require('./bot/customBots');
+const { register: registerExpiryScheduler } = require('./bot/expiryScheduler');
 const createApp = require('./web/app');
 
 if (!config.discordToken || !config.discordClientId) {
@@ -29,6 +30,11 @@ registerAllFeatures(client, {
     startAllSavedCustomBots().catch((err) => console.error('Failed to start saved custom bots:', err.message));
   },
 });
+
+// Global housekeeping (expiring manual tier grants/subscriptions), not a
+// per-guild feature -- registered once against the main bot only, never
+// per-custom-bot (see expiryScheduler.js).
+registerExpiryScheduler(client);
 
 client.on(Events.GuildCreate, (guild) => registerCommandsForGuild(guild));
 

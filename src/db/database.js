@@ -380,6 +380,7 @@ CREATE TABLE IF NOT EXISTS tebex_subscribers (
   status TEXT NOT NULL DEFAULT 'active',
   tebex_reference TEXT,
   guild_id TEXT,
+  expires_at TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -428,6 +429,7 @@ CREATE TABLE IF NOT EXISTS manual_tier_grants (
   guild_id TEXT PRIMARY KEY,
   tier_id INTEGER NOT NULL,
   granted_by TEXT,
+  expires_at TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -526,6 +528,15 @@ addColumnIfMissing('ticket_types', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0'
 addColumnIfMissing('reaction_role_panels', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('tags', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('scheduled_announcements', 'tier_disabled', 'INTEGER NOT NULL DEFAULT 0');
+// Optional auto-expiry for a grant -- NULL means "doesn't expire on its
+// own" (every real Tebex-driven subscription; it only ever ends via a real
+// cancellation/refund webhook). Only ever set on tebex_subscribers by a
+// MANUAL grant (Staff -> Subscriptions), never by the webhook path -- see
+// repo.js's TebexSubscribers.setExpiry and bot/expiryScheduler.js, which
+// sweeps both this and manual_tier_grants.expires_at on a timer and
+// reverts/removes whatever's past due.
+addColumnIfMissing('tebex_subscribers', 'expires_at', 'TEXT');
+addColumnIfMissing('manual_tier_grants', 'expires_at', 'TEXT');
 
 // staff_ranks pre-dates the multi-hierarchy feature -- rebuild it onto the
 // new schema (adds hierarchy_id, and a role can now belong to more than one
