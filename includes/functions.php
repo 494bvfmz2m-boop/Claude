@@ -345,7 +345,7 @@ function unique_slug(string $base, array $items, ?string $ignoreId = null): stri
 }
 
 /** Friendly date formatting, e.g. "17 Jun 2026". */
-/** The current live site-wide broadcast, or null. Managed from staff.xyphros.net. */
+/** The current live site-wide broadcast, or null. Managed from /staff. */
 function get_active_broadcast(): ?array
 {
     try {
@@ -384,10 +384,15 @@ function time_ago(string $datetime): string
 function xs_render_support_message(array $m): string
 {
     $side = $m['sender_type'] === 'staff' ? 'staff' : 'user';
-    return '<div class="support-msg support-msg--' . $side . '" data-msg-id="' . e($m['id']) . '">'
+    $avatar = $side === 'staff'
+        ? xs_icon('shield', 12)
+        : e(strtoupper(substr($m['sender_name'], 0, 1)));
+    return '<div class="support-msg-row support-msg-row--' . $side . '" data-msg-id="' . e($m['id']) . '">'
+        . '<span class="support-msg-avatar">' . $avatar . '</span>'
+        . '<div class="support-msg support-msg--' . $side . '">'
         . '<div class="support-msg__bubble">' . nl2br(e($m['body'])) . '</div>'
         . '<div class="support-msg__meta">' . e($m['sender_name']) . ' &middot; ' . e(time_ago($m['created_at'])) . '</div>'
-        . '</div>';
+        . '</div></div>';
 }
 
 /**
@@ -544,6 +549,97 @@ function delete_uploaded_file(?string $publicPath): void
     if (is_file($local)) {
         @unlink($local);
     }
+}
+
+/**
+ * Validate an uploaded image and return it as a self-contained
+ * `data:image/jpeg;base64,...` string — no file ever touches disk, so
+ * nothing here can be lost by a redeploy that doesn't carry uploads/
+ * along with it (unlike handle_image_upload(), which writes a file and
+ * returns its URL). Used for account avatars, stored directly in the
+ * `avatar` column (see migration-avatar-to-db.sql).
+ *
+ * Re-encodes everything as JPEG regardless of the source format, at a
+ * capped resolution — keeps the stored string small and consistent
+ * rather than however large/whatever-format the original upload was.
+ *
+ * Returns null if no file was submitted (not an error — same contract
+ * as handle_image_upload()). Throws RuntimeException with a
+ * user-facing message for anything actually wrong with the upload.
+ */
+function handle_avatar_upload_to_db(string $fieldName): ?string
+{
+    if (empty($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $file = $_FILES[$fieldName];
+
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('There was a problem uploading that file. Please try again.');
+    }
+
+    $maxBytes = 5 * 1024 * 1024; // 5 MB — the original upload, before we recompress it down
+    if ($file['size'] > $maxBytes) {
+        throw new RuntimeException('That image is too large. Please use a file under 5 MB.');
+    }
+
+    $imageInfo = @getimagesize($file['tmp_name']);
+    if ($imageInfo === false) {
+        throw new RuntimeException('That file does not look like a valid image.');
+    }
+
+    $source = match ($imageInfo[2]) {
+        IMAGETYPE_JPEG => @imagecreatefromjpeg($file['tmp_name']),
+        IMAGETYPE_PNG => @imagecreatefrompng($file['tmp_name']),
+        IMAGETYPE_GIF => @imagecreatefromgif($file['tmp_name']),
+        IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($file['tmp_name']) : false,
+        default => false,
+    };
+    if (!$source) {
+        throw new RuntimeException('Please upload a JPG, PNG, GIF, or WebP image.');
+    }
+
+    // Flatten transparency onto white first — JPEG (what we re-encode
+    // to below) has no alpha channel, so a transparent PNG/WebP/GIF
+    // would otherwise turn solid black.
+    $srcWidth = imagesx($source);
+    $srcHeight = imagesy($source);
+    $flattened = imagecreatetruecolor($srcWidth, $srcHeight);
+    imagefill($flattened, 0, 0, imagecolorallocate($flattened, 255, 255, 255));
+    imagealphablending($flattened, true);
+    imagecopy($flattened, $source, 0, 0, 0, 0, $srcWidth, $srcHeight);
+    imagedestroy($source);
+
+    // Downscale to fit within 320x320 — plenty for every place this
+    // site displays an avatar, and keeps the base64 string small.
+    $maxDim = 320;
+    if ($srcWidth > $maxDim || $srcHeight > $maxDim) {
+        $scale = min($maxDim / $srcWidth, $maxDim / $srcHeight);
+        $newWidth = max(1, (int) round($srcWidth * $scale));
+        $newHeight = max(1, (int) round($srcHeight * $scale));
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($resized, $flattened, 0, 0, 0, 0, $newWidth, $newHeight, $srcWidth, $srcHeight);
+        imagedestroy($flattened);
+        $flattened = $resized;
+    }
+
+    ob_start();
+    imagejpeg($flattened, null, 82);
+    $jpegBytes = ob_get_clean();
+    imagedestroy($flattened);
+
+    if ($jpegBytes === false || $jpegBytes === '') {
+        throw new RuntimeException('Could not process that image. Please try a different file.');
+    }
+    // Should never realistically happen at 320x320/quality 82, but a
+    // hard cap keeps one huge/adversarial image from bloating every
+    // page that renders this avatar.
+    if (strlen($jpegBytes) > 400 * 1024) {
+        throw new RuntimeException('That image is too complex to store. Please try a simpler photo.');
+    }
+
+    return 'data:image/jpeg;base64,' . base64_encode($jpegBytes);
 }
 
 /**

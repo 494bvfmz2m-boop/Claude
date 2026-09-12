@@ -91,7 +91,7 @@ $xsOgImage = SITE_URL . '/assets/img/og-image.jpg';
                             <span class="signin-menu__arrow">&rarr;</span>
                         </a>
                         <?php if (XyphrosAuth::isXyphrosStaff($xsCurrentUser)): ?>
-                        <a href="https://staff.xyphros.net" class="signin-menu__item" role="menuitem">
+                        <a href="/staff" class="signin-menu__item" role="menuitem">
                             <span class="signin-menu__text">
                                 <span class="signin-menu__name">Staff panel</span>
                             </span>

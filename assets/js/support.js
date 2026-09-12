@@ -46,18 +46,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openPanel() {
         isOpen = true;
-        panel.hidden = false;
+        panel.classList.add('is-open');
         fab.hidden = true;
         fab.setAttribute('aria-expanded', 'true');
         setUnread(false);
         scrollToBottom();
         startPolling(4000);
-        input.focus();
+        setTimeout(function () { input.focus(); }, 120);
     }
 
     function closePanel() {
         isOpen = false;
-        panel.hidden = true;
+        panel.classList.remove('is-open');
         fab.hidden = false;
         fab.setAttribute('aria-expanded', 'false');
         startPolling(20000);
@@ -92,13 +92,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderBubble(m) {
         var side = m.sender_type === 'staff' ? 'staff' : 'user';
-        var div = document.createElement('div');
         var textDiv = document.createElement('div');
         textDiv.textContent = m.body;
-        return '<div class="support-msg support-msg--' + side + '" data-msg-id="' + m.id + '">'
+        var avatar = side === 'staff'
+            ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>'
+            : escapeHtml((m.sender_name || '?').charAt(0).toUpperCase());
+        return '<div class="support-msg-row support-msg-row--' + side + '" data-msg-id="' + m.id + '">'
+            + '<span class="support-msg-avatar">' + avatar + '</span>'
+            + '<div class="support-msg support-msg--' + side + '">'
             + '<div class="support-msg__bubble">' + textDiv.innerHTML.replace(/\n/g, '<br>') + '</div>'
             + '<div class="support-msg__meta">' + escapeHtml(m.sender_name) + ' &middot; just now</div>'
-            + '</div>';
+            + '</div></div>';
     }
 
     function escapeHtml(s) {
@@ -108,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     fab.addEventListener('click', function () {
-        if (panel.hidden) openPanel(); else closePanel();
+        if (!panel.classList.contains('is-open')) openPanel(); else closePanel();
     });
     closeBtn.addEventListener('click', closePanel);
 
@@ -129,12 +133,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    var sendBtn = form.querySelector('.support-widget__send');
+
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         var text = input.value.trim();
         if (!text) return;
         input.value = '';
         input.style.height = 'auto';
+        sendBtn.disabled = true;
 
         fetch('/support-send', {
             method: 'POST',
@@ -164,6 +171,10 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function () {
                 appendMessage('<div class="support-msg support-msg--error">Couldn\'t reach the server. Try again.</div>');
+            })
+            .finally(function () {
+                sendBtn.disabled = false;
+                input.focus();
             });
     });
 

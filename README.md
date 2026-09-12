@@ -77,6 +77,12 @@ copy of `XyphrosAuth`/`Content`/etc, and one `config.local.php`.
 2c. Run `migration-staff-panel.sql` once too (adds the
     `is_subtracker_staff` column the Staff Access / Broadcasts pages
     need for the third product tab). Also idempotent.
+2d. Run `migration-avatar-to-db.sql` once too (widens the `avatar`
+    column to MEDIUMTEXT). Profile pictures are now stored as a
+    `data:` URI directly in the database instead of a file in
+    `uploads/avatars/`, so they can't be lost by a redeploy that
+    doesn't carry `uploads/` along with it. Existing file-based avatars
+    keep working unchanged; only a fresh upload switches to DB storage.
 3. Make sure `data/`, `uploads/`, and their subfolders are writable by
    PHP (`chmod -R 775`, or `777` on hosts that run PHP as a different
    user than FTP).

@@ -3,7 +3,7 @@
  * Content — posts, products, team, page settings, and contact messages
  * for xyphros.net, stored in the same shared `collections` table
  * XyphrosPortal already uses (one row per record, JSON body). This is
- * what lets staff.xyphros.net manage xyphros.net's content even though
+ * what lets /staff manage xyphros.net's content even though
  * they're different subdomains/deployments — it's not reading files off
  * xyphros.net's disk, everything lives in the shared database instead.
  *

@@ -1,0 +1,11 @@
+-- Profile pictures move from disk files to the database itself, so they
+-- can't be lost again on a redeploy that doesn't carry the uploads/
+-- folder along with it. The `avatar` column now holds a data: URI
+-- (image bytes, base64-encoded) directly, instead of a URL pointing at
+-- a file in uploads/avatars/. MEDIUMTEXT comfortably fits a compressed
+-- 320x320 JPEG (typically 15-40 KB) with a lot of headroom.
+-- Existing avatar URLs (uploads/avatars/... or Discord CDN links some
+-- other way) keep working exactly as before — <img src="..."> renders
+-- a URL and a data: URI identically, so nobody needs to re-upload
+-- their photo just because this ran.
+ALTER TABLE users MODIFY COLUMN avatar MEDIUMTEXT NULL;

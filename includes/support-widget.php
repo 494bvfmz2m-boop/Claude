@@ -18,9 +18,12 @@ $xsSupportLastMsgId = !empty($xsSupportMessages) ? end($xsSupportMessages)['id']
         <?php echo xs_icon('chat', 22); ?>
         <span class="support-widget__dot" id="support-unread-dot" <?php echo $xsSupportUnread ? '' : 'hidden'; ?>></span>
     </button>
-    <div class="support-widget__panel" id="support-panel" hidden role="dialog" aria-label="Support chat" aria-modal="false">
+    <div class="support-widget__panel" id="support-panel" role="dialog" aria-label="Support chat" aria-modal="false">
         <div class="support-widget__head">
-            <span><?php echo xs_icon('chat', 16); ?> Support</span>
+            <div class="support-widget__head-info">
+                <span class="support-widget__head-title"><?php echo xs_icon('chat', 16); ?> Support</span>
+                <span class="support-widget__head-sub"><span class="beacon__dot"></span> We usually reply within a few hours</span>
+            </div>
             <button type="button" class="support-widget__close" id="support-close" aria-label="Close chat"><?php echo xs_icon('x', 16); ?></button>
         </div>
         <div class="support-widget__body" id="support-messages">

@@ -103,11 +103,11 @@ require __DIR__ . '/includes/staff-layout-head.php';
                 <?php endforeach; ?>
             </div>
             <?php if ($activeTicket['status'] === 'open'): ?>
-            <form method="post" style="display:flex;gap:8px;padding:14px;border-top:1px solid var(--border);align-items:flex-end;">
+            <form method="post" id="reply-form" style="display:flex;gap:8px;padding:14px;border-top:1px solid var(--border);align-items:flex-end;">
                 <?php csrf_field(); ?>
                 <input type="hidden" name="ticket_id" value="<?php echo e($activeTicket['id']); ?>">
                 <input type="hidden" name="action" value="reply">
-                <textarea name="body" rows="2" placeholder="Reply&hellip;" required style="flex:1;resize:none;"></textarea>
+                <textarea name="body" id="reply-input" rows="2" placeholder="Reply&hellip; (Enter to send, Shift+Enter for a new line)" required style="flex:1;resize:none;" autofocus></textarea>
                 <button type="submit" class="btn btn--primary btn--sm">Send</button>
             </form>
             <?php else: ?>
@@ -123,6 +123,9 @@ require __DIR__ . '/includes/staff-layout-head.php';
     var thread = document.getElementById('ticket-thread');
     var ticketId = <?php echo json_encode($activeTicket['id']); ?>;
     var lastId = <?php echo json_encode(end($activeMessages) ? end($activeMessages)['id'] : ''); ?>;
+
+    thread.scrollTop = thread.scrollHeight;
+
     setInterval(function () {
         fetch('/staff/ticket-poll?ticket=' + encodeURIComponent(ticketId) + '&after=' + encodeURIComponent(lastId))
             .then(function (r) { return r.json(); })
@@ -139,6 +142,18 @@ require __DIR__ . '/includes/staff-layout-head.php';
             })
             .catch(function () {});
     }, 5000);
+
+    // Enter sends the reply, Shift+Enter still inserts a newline.
+    var replyForm = document.getElementById('reply-form');
+    var replyInput = document.getElementById('reply-input');
+    if (replyForm && replyInput) {
+        replyInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (replyInput.value.trim()) replyForm.requestSubmit();
+            }
+        });
+    }
 })();
 </script>
 <?php endif; ?>

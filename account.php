@@ -35,10 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'avatar_upload') {
             try {
-                $url = handle_image_upload('avatar', UPLOADS_DIR . '/avatars', SITE_URL . UPLOADS_URL . '/avatars');
-                if ($url) {
-                    delete_uploaded_file(str_replace(SITE_URL, '', $me['avatar'] ?? ''));
-                    XyphrosAuth::updateUser($me['id'], ['avatar' => $url]);
+                $dataUri = handle_avatar_upload_to_db('avatar');
+                if ($dataUri) {
+                    // Only a leftover pre-migration avatar is an actual
+                    // file on disk to clean up — a data: URI isn't a path
+                    // at all, so skip that case rather than handing an
+                    // enormous base64 string to is_file().
+                    $oldAvatar = $me['avatar'] ?? '';
+                    if ($oldAvatar !== '' && !str_starts_with($oldAvatar, 'data:')) {
+                        delete_uploaded_file(str_replace(SITE_URL, '', $oldAvatar));
+                    }
+                    XyphrosAuth::updateUser($me['id'], ['avatar' => $dataUri]);
                     $success = 'Profile picture updated.';
                 } else {
                     $error = 'Choose an image to upload.';
@@ -50,7 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'avatar_remove') {
-            delete_uploaded_file(str_replace(SITE_URL, '', $me['avatar'] ?? ''));
+            $oldAvatar = $me['avatar'] ?? '';
+            if ($oldAvatar !== '' && !str_starts_with($oldAvatar, 'data:')) {
+                delete_uploaded_file(str_replace(SITE_URL, '', $oldAvatar));
+            }
             XyphrosAuth::updateUser($me['id'], ['avatar' => null]);
             $success = 'Profile picture removed.'; $tab = 'profile';
         }
@@ -574,21 +584,21 @@ require __DIR__ . '/includes/header.php';
                     <div class="acct-card__head"><div class="acct-card__icon"><?php echo xs_icon('grid'); ?></div></div>
                     <h2>Products</h2>
                     <p class="hint">Managing content, accounts, and staff access for every product now happens in one place.</p>
-                    <a href="https://staff.xyphros.net" target="_blank" rel="noopener" class="btn btn--primary btn--sm" style="margin-bottom:20px;">Open Xyphros Staff <?php echo xs_icon('arrow'); ?></a>
+                    <a href="/staff" class="btn btn--primary btn--sm" style="margin-bottom:20px;">Open Xyphros Staff <?php echo xs_icon('arrow'); ?></a>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
                         <div style="flex:1;min-width:0;"><strong>Xyphros</strong><div class="hint" style="margin:2px 0 0;">xyphros.net: blog, products, team, messages</div></div>
-                        <a href="https://staff.xyphros.net/access.php?product=xyphros" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
+                        <a href="/staff/access?product=xyphros" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
                         <div style="flex:1;min-width:0;"><strong>XyphrosPortal</strong><div class="hint" style="margin:2px 0 0;">portal.xyphros.net: workspaces, tasks, notes</div></div>
-                        <a href="https://staff.xyphros.net/access.php?product=portal" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
+                        <a href="/staff/access?product=portal" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                     <div class="product-row">
                         <div class="product-row__icon"><?php echo xs_icon('grid'); ?></div>
                         <div style="flex:1;min-width:0;"><strong>Plexer Pass Tracker</strong><div class="hint" style="margin:2px 0 0;">plexsmp.xyphros.net: private, invite-only</div></div>
-                        <a href="https://staff.xyphros.net/access.php?product=subtracker" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
+                        <a href="/staff/access?product=subtracker" class="btn btn--ghost btn--sm">Manage staff <?php echo xs_icon('arrow'); ?></a>
                     </div>
                 </div>
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Site-wide broadcast bar. Managed entirely from staff.xyphros.net —
+ * Site-wide broadcast bar. Managed entirely from /staff —
  * nothing here to configure, it just displays whatever's currently live.
  */
 $__broadcast = get_active_broadcast();
