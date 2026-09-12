@@ -11,7 +11,7 @@ $noIndex = true;
 require __DIR__ . '/includes/header.php';
 ?>
 
-<section class="page-head">
+<section class="page-head error-404">
     <div class="container">
         <span class="eyebrow">404</span>
         <h1>That page doesn't exist</h1>

@@ -1642,3 +1642,62 @@ input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, inp
     100% { transform: scale(1) rotateY(-360deg); border-color: rgba(61, 220, 151, 0.5); background: rgba(61, 220, 151, 0.12); color: var(--online); }
 }
 .otp-success-check { margin-top: 22px; animation-delay: 1.05s; }
+
+/* =========================================================================
+   Site-wide motion, round two: native page transitions, hero entrance,
+   header/footer polish, team/status/CTA touches, a 404 with personality.
+   ========================================================================= */
+
+/* Native cross-fade between full-page navigations. Chromium-only today;
+   every other browser just ignores this and navigates as normal — zero
+   risk, so no feature-detection needed. */
+@view-transition { navigation: auto; }
+
+/* ---- Hero: headline/subtext/buttons rise in on load, staggered ---- */
+.hero__logo, .hero h1, .hero p.lede, .hero .btn-row {
+    animation: hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero__logo { animation-delay: 0s; }
+.hero h1 { animation-delay: 0.1s; }
+.hero p.lede { animation-delay: 0.2s; }
+.hero .btn-row { animation-delay: 0.3s; }
+@keyframes hero-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.hero__glow { animation: hero-glow-drift 10s ease-in-out infinite; }
+@keyframes hero-glow-drift {
+    0%, 100% { transform: translateX(0) scale(1); }
+    50% { transform: translateX(3%) scale(1.05); }
+}
+
+/* ---- Header brand mark ---- */
+.brand img { transition: transform 0.2s ease; }
+.brand:hover img { transform: scale(1.05) rotate(-2deg); }
+
+/* ---- Footer links: slide right on hover instead of a flat color swap ---- */
+.footer-col a { transition: color 0.15s ease, transform 0.15s ease; }
+.footer-col a:hover { transform: translateX(3px); }
+
+/* ---- Team cards: avatar gets a glow ring and lifts slightly ---- */
+.team-card__avatar { transition: box-shadow 0.25s ease, transform 0.25s ease; }
+.team-card:hover .team-card__avatar { box-shadow: 0 0 0 4px rgba(192, 38, 232, 0.18); transform: scale(1.05); }
+
+/* ---- Status pills: the dot breathes for anything actually "live" ---- */
+.status--online::before, .status--beta::before, .status--maintenance::before {
+    animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+/* ---- CTA panel: the glow behind it drifts slowly, panel lifts on hover ---- */
+.cta-panel { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.cta-panel:hover { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); }
+.cta-panel::before { animation: hero-glow-drift 12s ease-in-out infinite; }
+
+/* ---- Product card icons: a little life on hover ---- */
+.product-card__icon { transition: transform 0.25s ease; }
+.product-card:hover .product-card__icon { transform: scale(1.06) rotate(-3deg); }
+
+/* ---- 404: the eyebrow badge floats (the heading/lede below it already
+   get their entrance from the shared .page-head scroll-reveal system) ---- */
+.error-404 .eyebrow { animation: error-float 3s ease-in-out infinite; }
+@keyframes error-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
