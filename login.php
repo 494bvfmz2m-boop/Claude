@@ -179,7 +179,9 @@ require __DIR__ . '/includes/header.php';
 
         <?php if ($stage === 'twofa'): ?>
 
-            <p style="margin-bottom:20px;color:var(--text-muted);">
+            <div class="otp-icon"><?php echo xs_icon($method === 'totp' ? 'phone' : 'mail', 24); ?></div>
+
+            <p style="margin-bottom:20px;color:var(--text-muted);text-align:center;">
                 <?php if ($method === 'totp'): ?>
                     Open your authenticator app and enter the current 6-digit code.
                 <?php else: ?>
@@ -197,7 +199,9 @@ require __DIR__ . '/includes/header.php';
                     <label for="code">6-digit code</label>
                     <input type="text" id="code" name="code" inputmode="numeric" pattern="\d{6}" maxlength="6"
                         autocomplete="one-time-code" autofocus required
+                        class="otp-input<?php echo $error ? ' shake-once' : ''; ?>"
                         style="text-align:center;font-size:28px;font-weight:700;letter-spacing:0.4em;font-family:var(--font-mono);">
+                    <div class="otp-progress"><div class="otp-progress__bar"></div></div>
                 </div>
                 <button type="submit" class="btn btn--primary btn--block">Verify and sign in</button>
             </form>

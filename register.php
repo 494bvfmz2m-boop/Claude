@@ -147,7 +147,8 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
 
         <?php if ($step === 'verify'): ?>
-            <p style="margin-bottom:20px;color:var(--text-muted);">We sent a 6-digit code to <strong><?php echo e($regEmail); ?></strong>. It expires in 15 minutes.</p>
+            <div class="otp-icon"><?php echo xs_icon('mail', 24); ?></div>
+            <p style="margin-bottom:20px;color:var(--text-muted);text-align:center;">We sent a 6-digit code to <strong><?php echo e($regEmail); ?></strong>. It expires in 15 minutes.</p>
             <form method="post" novalidate>
                 <?php xs_csrf_field(); ?>
                 <input type="hidden" name="action" value="verify_code">
@@ -157,7 +158,9 @@ require __DIR__ . '/includes/header.php';
                     <label for="code">6-digit code</label>
                     <input type="text" id="code" name="code" inputmode="numeric" pattern="\d{6}" maxlength="6"
                         autocomplete="one-time-code" autofocus required
+                        class="otp-input<?php echo $error ? ' shake-once' : ''; ?>"
                         style="text-align:center;font-size:28px;font-weight:700;letter-spacing:0.4em;font-family:var(--font-mono);">
+                    <div class="otp-progress"><div class="otp-progress__bar"></div></div>
                 </div>
                 <button type="submit" class="btn btn--primary btn--block">Verify and continue</button>
             </form>

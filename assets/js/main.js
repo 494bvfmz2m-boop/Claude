@@ -99,6 +99,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // 2FA / TOTP code inputs: fill bar animates as digits go in, and the
+    // whole value gets selected on focus so retyping a wrong code is a
+    // single keystroke instead of manually clearing it first.
+    document.querySelectorAll('.otp-input').forEach(function (input) {
+        var bar = input.parentElement.querySelector('.otp-progress__bar');
+        function updateBar() {
+            if (!bar) return;
+            var digits = input.value.replace(/\D/g, '').length;
+            bar.style.width = (Math.min(digits, 6) / 6 * 100) + '%';
+        }
+        input.addEventListener('input', updateBar);
+        input.addEventListener('focus', function () { input.select(); });
+        updateBar();
+    });
+
     // Give every plain form submit (login, buy now, checkout forms, staff
     // forms, etc.) an immediate loading state on its submit button instead
     // of leaving the page looking frozen until the next page loads. Skipped

@@ -245,7 +245,7 @@ require __DIR__ . '/includes/header.php';
 .session-row--current { position: relative; }
 .session-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .session-icon svg { width: 17px; height: 17px; color: var(--text-muted); }
-.qr-box { text-align: center; background: #fff; padding: 16px; border-radius: var(--radius-md); display: inline-block; margin-bottom: 16px; }
+.qr-box { text-align: center; background: #fff; padding: 16px; border-radius: var(--radius-md); display: inline-block; margin-bottom: 16px; animation: auth-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .product-row { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
 .product-row:last-child { border-bottom: none; }
 .product-row__icon { width: 38px; height: 38px; border-radius: 11px; background: var(--gradient-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -360,7 +360,9 @@ require __DIR__ . '/includes/header.php';
                             <div class="field">
                                 <label>Enter the 6-digit code</label>
                                 <input type="text" name="code" inputmode="numeric" maxlength="6" required autofocus
+                                    class="otp-input<?php echo ($error && $tab === 'security') ? ' shake-once' : ''; ?>"
                                     style="text-align:center;font-size:24px;font-weight:700;letter-spacing:.3em;font-family:var(--font-mono);">
+                                <div class="otp-progress"><div class="otp-progress__bar"></div></div>
                             </div>
                             <button type="submit" class="btn btn--primary btn--block">Confirm and enable</button>
                         </form>
