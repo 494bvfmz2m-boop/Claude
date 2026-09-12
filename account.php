@@ -352,7 +352,7 @@ require __DIR__ . '/includes/header.php';
 
                     <?php if ($totpJustConfirmed): ?>
                         <?php echo xs_otp_success_html($successCode, 'Authenticator app connected - redirecting...'); ?>
-                        <script>setTimeout(function () { location.href = '/account?tab=security'; }, 900);</script>
+                        <script>setTimeout(function () { location.href = '/account?tab=security'; }, 2000);</script>
                     <?php elseif (!empty($user['totp_secret']) && empty($user['totp_confirmed'])): ?>
                         <?php $qrData = XyphrosAuth::totpProvisioningUri($user['totp_secret'], $user['email'], 'Xyphros'); ?>
                         <p style="margin-bottom:14px;">Scan this with Google Authenticator, 1Password, Authy, or any TOTP app:</p>

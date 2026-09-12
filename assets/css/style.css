@@ -1614,19 +1614,31 @@ input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, inp
 /* Wrong code: the whole row shakes, cards flash red */
 .otp-boxes.shake-once .otp-box { animation: alert-shake 0.4s ease; border-color: rgba(255, 107, 107, 0.6); }
 
-/* Correct code: cards flip green in sequence, then a checkmark pops in
+/* Correct code: each card does a full spin to reveal green, alternating
+   spin direction card-to-card, staggered left to right like a slot
+   reel settling — then a checkmark pops in once they've all landed
    (reuses .checkout-success from the checkout flow for the checkmark). */
+.otp-boxes--success { perspective: 500px; }
 .otp-boxes--success .otp-box {
-    border-color: rgba(61, 220, 151, 0.5);
-    background: rgba(61, 220, 151, 0.12);
-    color: var(--online);
-    animation: otp-success-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation: otp-spin-cw 0.6s cubic-bezier(0.45, 0, 0.55, 1) both;
 }
+.otp-boxes--success .otp-box:nth-child(even) { animation-name: otp-spin-ccw; }
 .otp-boxes--success .otp-box:nth-child(1) { animation-delay: 0s; }
-.otp-boxes--success .otp-box:nth-child(2) { animation-delay: 0.06s; }
-.otp-boxes--success .otp-box:nth-child(3) { animation-delay: 0.12s; }
-.otp-boxes--success .otp-box:nth-child(4) { animation-delay: 0.18s; }
-.otp-boxes--success .otp-box:nth-child(5) { animation-delay: 0.24s; }
-.otp-boxes--success .otp-box:nth-child(6) { animation-delay: 0.3s; }
-@keyframes otp-success-in { from { opacity: 0; transform: scale(0.7) translateY(6px); } to { opacity: 1; transform: none; } }
-.otp-success-check { margin-top: 22px; animation-delay: 0.5s; }
+.otp-boxes--success .otp-box:nth-child(2) { animation-delay: 0.09s; }
+.otp-boxes--success .otp-box:nth-child(3) { animation-delay: 0.18s; }
+.otp-boxes--success .otp-box:nth-child(4) { animation-delay: 0.27s; }
+.otp-boxes--success .otp-box:nth-child(5) { animation-delay: 0.36s; }
+.otp-boxes--success .otp-box:nth-child(6) { animation-delay: 0.45s; }
+@keyframes otp-spin-cw {
+    0% { transform: scale(0.9) rotateY(0deg); border-color: var(--border-strong); background: var(--bg-elevated); color: var(--text); }
+    50% { transform: scale(1.08) rotateY(180deg); border-color: var(--border-strong); background: var(--bg-elevated); color: var(--text); }
+    50.01% { border-color: rgba(61, 220, 151, 0.5); background: rgba(61, 220, 151, 0.12); color: var(--online); }
+    100% { transform: scale(1) rotateY(360deg); border-color: rgba(61, 220, 151, 0.5); background: rgba(61, 220, 151, 0.12); color: var(--online); }
+}
+@keyframes otp-spin-ccw {
+    0% { transform: scale(0.9) rotateY(0deg); border-color: var(--border-strong); background: var(--bg-elevated); color: var(--text); }
+    50% { transform: scale(1.08) rotateY(-180deg); border-color: var(--border-strong); background: var(--bg-elevated); color: var(--text); }
+    50.01% { border-color: rgba(61, 220, 151, 0.5); background: rgba(61, 220, 151, 0.12); color: var(--online); }
+    100% { transform: scale(1) rotateY(-360deg); border-color: rgba(61, 220, 151, 0.5); background: rgba(61, 220, 151, 0.12); color: var(--online); }
+}
+.otp-success-check { margin-top: 22px; animation-delay: 1.05s; }

@@ -149,7 +149,7 @@ require __DIR__ . '/includes/header.php';
 
         <?php if ($step === 'success'): ?>
             <?php echo xs_otp_success_html($successCode, 'Email verified - redirecting...'); ?>
-            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 900);</script>
+            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 2000);</script>
         <?php elseif ($step === 'verify'): ?>
             <div class="otp-icon"><?php echo xs_icon('mail', 24); ?></div>
             <p style="margin-bottom:20px;color:var(--text-muted);text-align:center;">We sent a 6-digit code to <strong><?php echo e($regEmail); ?></strong>. It expires in 15 minutes.</p>

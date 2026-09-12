@@ -186,7 +186,7 @@ require __DIR__ . '/includes/header.php';
         <?php if ($stage === 'success'): ?>
 
             <?php echo xs_otp_success_html($successCode, 'Signed in - redirecting...'); ?>
-            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 900);</script>
+            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 2000);</script>
 
         <?php elseif ($stage === 'twofa'): ?>
 
