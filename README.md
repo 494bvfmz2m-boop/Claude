@@ -16,21 +16,29 @@ new store.
 This site expects a MySQL/MariaDB database, with a user that has access to
 it. Create both first if your host doesn't already have them (most hosts do
 this through a "MySQL Databases" section in cPanel or similar) — call them
-whatever you like, then update `includes/config.php` to match.
+whatever you like.
 
 Then **import `schema.sql`** into that database — phpMyAdmin's SQL tab (paste
 the whole file, click Go) or `mysql -u youruser -p yourdb < schema.sql` over
-SSH. It's safe to re-run any time; it only creates tables that are missing
-and never touches existing data.
+SSH. It's safe to re-run any time, on a brand-new database or one that
+already has real accounts/posts/tickets in it from an earlier deployment —
+it only creates tables/columns that are missing and never touches existing
+data.
 
-**Database credentials** live in `includes/config.php`:
+**Database credentials** live in `includes/db_config.php` — copy
+`includes/db_config.example.php` to `db_config.php` (same folder) and fill
+in your real values:
 ```php
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'slothsmp_web');
-define('DB_USER', 'slothsmp_web');
-define('DB_PASS', 'CHANGE_ME_set_a_real_database_password');
+define('DB_NAME', 'your_database_name');
+define('DB_USER', 'your_database_user');
+define('DB_PASS', 'your_database_password');
 ```
-`localhost` is correct for almost every shared host.
+`localhost` is correct for almost every shared host. **`db_config.php` is
+gitignored on purpose** — a database password is a live secret and should
+never be committed to source control. Upload it directly to your host
+(FTP/file manager) next to the example file; `includes/config.php` picks it
+up automatically if present.
 
 ## 2. Upload
 

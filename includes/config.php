@@ -1,8 +1,9 @@
 <?php
 /**
  * SlothSMP — core configuration.
- * Edit SITE_URL, the DB_* constants, and SUPER_OP_EMAILS to match your setup
- * before uploading. See README.md for the full setup walkthrough.
+ * Edit SITE_URL and SUPER_OP_EMAILS to match your setup before uploading.
+ * Database credentials live in includes/db_config.php (gitignored — see
+ * db_config.example.php), not here. See README.md for the full walkthrough.
  */
 
 // ---- Basic site config ----
@@ -15,11 +16,15 @@ define('ROOT_PATH', __DIR__ . '/..');
 define('DATA_PATH', ROOT_PATH . '/data');
 
 // ---- Database (accounts, roles, posts, tickets, store orders) ----
-// "localhost" is correct for almost all shared hosts (cPanel, Pebble-style hosts).
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'slothsmp_web');
-define('DB_USER', 'slothsmp_web');
-define('DB_PASS', 'CHANGE_ME_set_a_real_database_password');
+if (file_exists(__DIR__ . '/db_config.php')) {
+    require_once __DIR__ . '/db_config.php';
+}
+// Fallback placeholders so a fresh checkout without db_config.php uploaded
+// yet fails with a clear "can't connect" message instead of a fatal error.
+if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
+if (!defined('DB_NAME')) define('DB_NAME', 'CHANGE_ME');
+if (!defined('DB_USER')) define('DB_USER', 'CHANGE_ME');
+if (!defined('DB_PASS')) define('DB_PASS', 'CHANGE_ME');
 
 // Bump this whenever CSS/JS/images change, so browsers/hosts don't serve a stale cached copy.
 define('ASSET_VERSION', '20260912a');

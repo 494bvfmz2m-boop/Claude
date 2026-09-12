@@ -42,6 +42,38 @@ CREATE TABLE IF NOT EXISTS roles (
     perm_manage_store TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Adds columns introduced after this table may already have existed on your
+-- host (e.g. upgrading from an older deployment) — does nothing if a column
+-- is already there. Uses INFORMATION_SCHEMA rather than "ADD COLUMN IF NOT
+-- EXISTS" since that syntax isn't supported on every MySQL/MariaDB version.
+SET @col_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'minecraft_username'
+);
+SET @add_col_sql = IF(@col_exists = 0,
+    'ALTER TABLE users ADD COLUMN minecraft_username VARCHAR(16) NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @add_col_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'roles' AND COLUMN_NAME = 'perm_manage_store'
+);
+SET @add_col_sql = IF(@col_exists = 0,
+    'ALTER TABLE roles ADD COLUMN perm_manage_store TINYINT(1) NOT NULL DEFAULT 0',
+    'SELECT 1'
+);
+PREPARE stmt FROM @add_col_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Make sure the Core role always has store-viewing permission, even if it
+-- was created before that permission existed.
+UPDATE roles SET perm_manage_store = 1 WHERE id = 'management';
+
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id INT NOT NULL,
     role_id VARCHAR(64) NOT NULL,

@@ -1,5 +1,6 @@
 # Local secrets — never commit real credentials.
 /includes/tebex_config.php
+/includes/db_config.php
 /includes/config.local.php
 
 # Runtime data (settings are seeded from data/settings.json on first run;
