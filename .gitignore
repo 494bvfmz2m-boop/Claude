@@ -1,0 +1,11 @@
+# Local secrets — never commit real credentials.
+/includes/tebex_config.php
+/includes/config.local.php
+
+# Runtime data (settings are seeded from data/settings.json on first run;
+# the live cache files should not be versioned).
+/data/status_cache.json
+/data/tebex_cache.json
+
+.DS_Store
+Thumbs.db

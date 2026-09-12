@@ -1,0 +1,42 @@
+{
+    "site_name": "SlothSMP",
+    "banner_text": "SLOTHSMP IS NOW OPEN! The server is live and ready for players to join!",
+    "java_ip": "slothsmp.my.pebble.host",
+    "bedrock_ip": "slothsmp.my.pebble.host",
+    "bedrock_port": "25601",
+    "discord_invite": "",
+    "active_theme": "default",
+    "theme_effects": false,
+    "minecraft_rules": [
+        "No bullying, hateful language, racial slurs or making fun of people, This is a chill SMP.",
+        "No NSFW or inappropriate content anywhere, This also includes avatars or names!",
+        "No swearing or profanity, this is a welcoming server.",
+        "No spamming messages, emojis or letters, as it can annoy others and clutter chats.",
+        "No advertising or self-promotion without permission from a moderator or staff member.",
+        "No impersonating other users, moderators, or anyone else.",
+        "No users under the age of 9 in the Minecraft server, 13 in the discord server.",
+        "Follow instructions given by moderators and admin, as they are there to keep the server safe.",
+        "Do not share personal, mental or any information to other users or members, this also includes asking for information.",
+        "Respect other players opinions, even if you disagree, keep arguments out of the chat and keep stuff cooled.",
+        "No cheating or exploiting in the Minecraft server, we hate fools who do this!",
+        "No destroying, breaking or griefing any buildings or homes.",
+        "Have fun, be kind, and help create a positive and welcoming community for everyone."
+    ],
+    "discord_rules": [
+        "No racial slurs or hateful language should ever be used, and everyone must be treated with respect at all times.",
+        "No bullying, harassment, threatening, or making fun of others, whether it’s serious or “just joking.”",
+        "No swearing or profanity so the server stays friendly, welcoming, and appropriate for everyone.",
+        "No NSFW (inappropriate or adult) content of any kind, including images, videos, or messages.",
+        "No sharing links to prevent spam, scams, or unsafe content from being spread.",
+        "No users under the age of 13, following Discord’s safety rules and guidelines.",
+        "No spamming messages, emojis, or reactions, as it can annoy others and clutter chats.",
+        "No advertising or self-promotion without permission from a moderator.",
+        "Respect everyone’s opinions, even if you disagree, and keep arguments calm and respectful.",
+        "Do not share personal information (yours or someone else’s), such as addresses, phone numbers, or passwords.",
+        "Follow instructions given by moderators and admins, as they are there to keep the server safe.",
+        "Use channels for their correct purpose and stay on topic in conversations.",
+        "No impersonating other users, moderators, or anyone else.",
+        "Keep usernames, profile pictures, and statuses appropriate and respectful.",
+        "Have fun, be kind, and help create a positive and welcoming community for everyone."
+    ]
+}

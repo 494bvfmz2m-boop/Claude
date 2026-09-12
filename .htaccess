@@ -1,0 +1,54 @@
+# SlothSMP — clean URLs (no .php in the address bar)
+
+Options -MultiViews -Indexes
+ErrorDocument 404 /404.php
+
+# ---------- Security headers ----------
+# Wrapped in <IfModule> so this never breaks a host that lacks mod_headers —
+# it just silently skips the headers instead of failing to load the site.
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
+  # style-src needs 'unsafe-inline' because role/badge colors are rendered as
+  # inline style="" attributes (admin-picked hex codes, not user input); every
+  # <script> on the site lives in assets/js/main.js, so script-src doesn't.
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'"
+</IfModule>
+
+# ---------- Static asset caching ----------
+# Safe to cache aggressively: every stylesheet/script/image link on the site
+# carries a ?v=ASSET_VERSION query string (see includes/config.php), so
+# bumping that version is what busts this cache — not waiting it out.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+</IfModule>
+
+RewriteEngine On
+RewriteBase /
+
+# If someone requests a URL that still ends in .php, send them to the clean
+# version instead (e.g. /login.php -> /login). Keeps one canonical URL per page.
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\s/+(.*)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# robots.txt and sitemap.xml are PHP-generated (so they can use the real
+# SITE_URL and list actual posts) but still served at their normal static paths.
+RewriteRule ^robots\.txt$ robots.php [L]
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
+# Don't rewrite requests for real files/folders (css, js, images, data/, etc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Otherwise, if "<request>.php" exists on disk, serve that file — this is what
+# makes /login actually load login.php, /admin/posts load admin/posts.php, etc.
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
