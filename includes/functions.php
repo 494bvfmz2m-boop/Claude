@@ -559,9 +559,11 @@ function delete_uploaded_file(?string $publicPath): void
  * returns its URL). Used for account avatars, stored directly in the
  * `avatar` column (see migration-avatar-to-db.sql).
  *
- * Re-encodes everything as JPEG regardless of the source format, at a
+ * Re-encodes everything as PNG regardless of the source format, at a
  * capped resolution — keeps the stored string small and consistent
  * rather than however large/whatever-format the original upload was.
+ * PNG (not JPEG) specifically so a transparent background stays
+ * transparent instead of getting flattened onto a solid color.
  *
  * Returns null if no file was submitted (not an error — same contract
  * as handle_image_upload()). Throws RuntimeException with a
@@ -600,16 +602,14 @@ function handle_avatar_upload_to_db(string $fieldName): ?string
         throw new RuntimeException('Please upload a JPG, PNG, GIF, or WebP image.');
     }
 
-    // Flatten transparency onto white first — JPEG (what we re-encode
-    // to below) has no alpha channel, so a transparent PNG/WebP/GIF
-    // would otherwise turn solid black.
+    // Preserve any transparency from the source instead of flattening
+    // it onto a solid background.
+    imagesavealpha($source, true);
+    imagealphablending($source, false);
+
     $srcWidth = imagesx($source);
     $srcHeight = imagesy($source);
-    $flattened = imagecreatetruecolor($srcWidth, $srcHeight);
-    imagefill($flattened, 0, 0, imagecolorallocate($flattened, 255, 255, 255));
-    imagealphablending($flattened, true);
-    imagecopy($flattened, $source, 0, 0, 0, 0, $srcWidth, $srcHeight);
-    imagedestroy($source);
+    $canvas = $source;
 
     // Downscale to fit within 320x320 — plenty for every place this
     // site displays an avatar, and keeps the base64 string small.
@@ -619,27 +619,31 @@ function handle_avatar_upload_to_db(string $fieldName): ?string
         $newWidth = max(1, (int) round($srcWidth * $scale));
         $newHeight = max(1, (int) round($srcHeight * $scale));
         $resized = imagecreatetruecolor($newWidth, $newHeight);
-        imagecopyresampled($resized, $flattened, 0, 0, 0, 0, $newWidth, $newHeight, $srcWidth, $srcHeight);
-        imagedestroy($flattened);
-        $flattened = $resized;
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagefill($resized, 0, 0, imagecolorallocatealpha($resized, 0, 0, 0, 127));
+        imagecopyresampled($resized, $canvas, 0, 0, 0, 0, $newWidth, $newHeight, $srcWidth, $srcHeight);
+        imagedestroy($canvas);
+        $canvas = $resized;
     }
 
     ob_start();
-    imagejpeg($flattened, null, 82);
-    $jpegBytes = ob_get_clean();
-    imagedestroy($flattened);
+    imagepng($canvas, null, 6);
+    $pngBytes = ob_get_clean();
+    imagedestroy($canvas);
 
-    if ($jpegBytes === false || $jpegBytes === '') {
+    if ($pngBytes === false || $pngBytes === '') {
         throw new RuntimeException('Could not process that image. Please try a different file.');
     }
-    // Should never realistically happen at 320x320/quality 82, but a
-    // hard cap keeps one huge/adversarial image from bloating every
-    // page that renders this avatar.
-    if (strlen($jpegBytes) > 400 * 1024) {
+    // A hard cap keeps one huge/adversarial image from bloating every
+    // page that renders this avatar. PNG runs bigger than the JPEG we
+    // used to store, so the ceiling here is higher than it was — a
+    // photo-like 320x320 PNG typically lands well under this.
+    if (strlen($pngBytes) > 1200 * 1024) {
         throw new RuntimeException('That image is too complex to store. Please try a simpler photo.');
     }
 
-    return 'data:image/jpeg;base64,' . base64_encode($jpegBytes);
+    return 'data:image/png;base64,' . base64_encode($pngBytes);
 }
 
 /**
