@@ -70,11 +70,11 @@ $total = $basket['total_price'] ?? $basket['subtotal'] ?? null;
 
       <div class="basket-summary">
         <span>Total</span>
-        <span><?= e(tebex_format_price($total, $currency)) ?></span>
+        <span id="basketTotal"><?= e(tebex_format_price($total, $currency)) ?></span>
       </div>
 
       <?php if (!empty($basket['links']['checkout'])): ?>
-        <a href="<?= e($basket['links']['checkout']) ?>" class="btn btn-primary btn-block">Checkout with Tebex</a>
+        <a href="<?= e($basket['links']['checkout']) ?>" class="btn btn-primary btn-block btn-checkout">Checkout with Tebex →</a>
       <?php endif; ?>
       <div style="text-align:center; margin-top:14px;">
         <a href="<?= SITE_URL ?>/store" class="muted">← Keep browsing the store</a>

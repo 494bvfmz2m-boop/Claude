@@ -23,7 +23,7 @@ $posts = array_slice($allPosts, ($page - 1) * $perPage, $perPage);
       <p class="muted" style="text-align:center;">Nothing posted yet — check back soon.</p>
     <?php else: ?>
       <?php foreach ($posts as $p): ?>
-        <div class="card post-card">
+        <div class="card post-card" data-reveal>
           <div class="post-meta">
             <span class="post-type-tag<?= ($p['type'] ?? 'post') === 'announcement' ? ' announcement' : '' ?>"><?= e($p['type'] ?? 'post') ?></span>
             <span>by <?= author_badge_html($p['author_id'] ?? null, $p['author_name']) ?></span>

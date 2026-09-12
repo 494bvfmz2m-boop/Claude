@@ -4,6 +4,7 @@ require_once __DIR__ . '/includes/bootstrap.php';
 $me = current_user();
 $error = null;
 $notice = null;
+$justAdded = false;
 $settings = db_read('settings', []);
 $storeEnabled = store_is_enabled($settings);
 
@@ -54,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     foreach (($updated['packages'] ?? []) as $p) $count += (int)($p['quantity'] ?? 1);
                     $_SESSION['basket_item_count'] = $count;
                     $notice = 'Added to your basket.';
+                    $justAdded = true;
                 } else {
                     $error = $result['error'] ?: 'Could not add that item. Please try again.';
                 }
@@ -76,6 +78,7 @@ $username = store_current_username();
       <p>Support <?= e($settings['site_name'] ?? SITE_NAME) ?> and grab a rank, kit, or perk. Purchases are handled securely by Tebex.</p>
     </div>
 
+    <?php if ($justAdded): ?><span id="cartJustAdded" hidden></span><?php endif; ?>
     <?php if ($notice): ?><div class="alert alert-success"><?= e($notice) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
@@ -100,7 +103,7 @@ $username = store_current_username();
     <?php else: ?>
       <?php foreach ($categories as $cat): ?>
         <?php $packages = $cat['packages'] ?? []; if (empty($packages)) continue; ?>
-        <div class="store-category">
+        <div class="store-category" data-reveal>
           <div class="store-category-head">
             <div>
               <h2><?= e($cat['name'] ?? 'Store') ?></h2>

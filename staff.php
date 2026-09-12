@@ -20,7 +20,7 @@ $staffList = get_staff_list();
       <div class="card">
         <div class="staff-list">
           <?php foreach ($staffList as $entry): ?>
-            <div class="staff-row">
+            <div class="staff-row" data-reveal>
               <?php if ($entry['role']): ?>
                 <span class="role-pill" style="<?= role_pill_style($entry['role']) ?>"><?= e($entry['role']['name']) ?></span>
               <?php else: ?>

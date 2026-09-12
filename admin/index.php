@@ -18,22 +18,22 @@ require_once __DIR__ . '/../includes/header.php';
     <h1>Dashboard</h1>
     <p class="muted">Welcome back, <?= e($me['username']) ?>.</p>
 
-    <div class="status-grid" style="margin-top: 24px;">
+    <div class="status-grid" style="margin-top: 24px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
       <div class="status-block">
         <div class="label">Members</div>
-        <div style="font-size:1.8rem; font-weight:700;"><?= count($users) ?></div>
+        <div style="font-size:1.8rem; font-weight:700;" class="stat-number"><?= count($users) ?></div>
       </div>
       <div class="status-block">
         <div class="label">Posts &amp; announcements</div>
-        <div style="font-size:1.8rem; font-weight:700;"><?= count($posts) ?></div>
+        <div style="font-size:1.8rem; font-weight:700;" class="stat-number"><?= count($posts) ?></div>
       </div>
       <div class="status-block">
         <div class="label">Roles</div>
-        <div style="font-size:1.8rem; font-weight:700;"><?= count($roles) ?></div>
+        <div style="font-size:1.8rem; font-weight:700;" class="stat-number"><?= count($roles) ?></div>
       </div>
       <div class="status-block">
         <div class="label">Unverified accounts</div>
-        <div style="font-size:1.8rem; font-weight:700;"><?= count(array_filter($users, fn($u) => empty($u['verified']))) ?></div>
+        <div style="font-size:1.8rem; font-weight:700;" class="stat-number"><?= count(array_filter($users, fn($u) => empty($u['verified']))) ?></div>
       </div>
     </div>
 

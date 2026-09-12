@@ -61,7 +61,7 @@ $regularPosts = array_slice($regularPosts, 0, 3);
     <?php else: ?>
       <div class="announce-strip">
         <?php foreach ($announcements as $p): ?>
-          <div class="announce-item">
+          <div class="announce-item" data-reveal>
             <span class="announce-icon">🦥</span>
             <div>
               <h3><a href="<?= SITE_URL ?>/post?id=<?= (int)$p['id'] ?>"><?= e($p['title']) ?></a></h3>
@@ -86,7 +86,7 @@ $regularPosts = array_slice($regularPosts, 0, 3);
       <p>What's new around the SMP</p>
     </div>
     <?php foreach ($regularPosts as $p): ?>
-      <div class="card post-card">
+      <div class="card post-card" data-reveal>
         <div class="post-meta">
           <span class="post-type-tag"><?= e($p['type'] ?? 'post') ?></span>
           <span>by <?= author_badge_html($p['author_id'] ?? null, $p['author_name']) ?></span>

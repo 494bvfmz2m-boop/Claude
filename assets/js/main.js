@@ -3,6 +3,63 @@
 
   var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ---- Header shadow once the page scrolls ---- */
+  (function setupHeaderShadow() {
+    var header = document.querySelector('.site-header');
+    if (!header) return;
+    var ticking = false;
+    function update() {
+      header.classList.toggle('is-scrolled', window.scrollY > 8);
+      ticking = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    }, { passive: true });
+    update();
+  })();
+
+  /* ---- Scroll-reveal for [data-reveal] elements ---- */
+  (function setupScrollReveal() {
+    var targets = document.querySelectorAll('[data-reveal]');
+    if (!targets.length) return;
+
+    // Only hide-then-reveal if we can actually observe and reveal things —
+    // otherwise (no IntersectionObserver, or reduced motion) show everything
+    // immediately rather than risk content stuck invisible.
+    if (prefersReducedMotion || !('IntersectionObserver' in window)) {
+      targets.forEach(function (el) { el.classList.add('reveal-visible'); });
+      return;
+    }
+
+    document.documentElement.classList.add('js-reveal');
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('reveal-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    targets.forEach(function (el) { observer.observe(el); });
+  })();
+
+  /* ---- Loading feedback on form submit ---- */
+  (function setupSubmitLoading() {
+    document.addEventListener('submit', function (e) {
+      if (e.defaultPrevented) return; // a data-confirm dialog the user cancelled, etc.
+      var form = e.target;
+      if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-loading')) return;
+      var btn = e.submitter || form.querySelector('button[type="submit"], button:not([type])');
+      // pointer-events (not the disabled attribute) so a named submit button's
+      // value is still included in the submitted form data.
+      if (btn) btn.classList.add('is-loading');
+    });
+  })();
+
   /* ---- Mobile nav toggle ---- */
   var navToggle = document.getElementById('navToggle');
   var mainNav = document.getElementById('mainNav');
@@ -312,4 +369,46 @@
       if (form) form.submit();
     });
   })();
+
+  /* ---- Cart icon "bump" after something is added (see store.php's #cartJustAdded marker) ---- */
+  (function bumpCartOnAdd() {
+    if (prefersReducedMotion) return;
+    if (!document.getElementById('cartJustAdded')) return;
+    var chip = document.querySelector('.cart-chip');
+    if (!chip) return;
+    chip.classList.add('bump');
+    chip.addEventListener('animationend', function () { chip.classList.remove('bump'); }, { once: true });
+  })();
+
+  /* ---- Count up from 0 to a number already rendered in an element's text
+     (never from a data-attribute placeholder — the real value must already
+     be there for anyone without JS, this just animates toward it). ---- */
+  function countUpElement(el, duration) {
+    var text = el.textContent;
+    var match = text.match(/[\d.,]+/);
+    if (!match) return;
+    var target = parseFloat(match[0].replace(/,/g, ''));
+    if (isNaN(target)) return;
+    var prefix = text.slice(0, match.index);
+    var suffix = text.slice(match.index + match[0].length);
+    var decimals = (match[0].split('.')[1] || '').length;
+    var start = null;
+    function step(ts) {
+      if (start === null) start = ts;
+      var progress = Math.min(1, (ts - start) / duration);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = prefix + (target * eased).toFixed(decimals) + suffix;
+      if (progress < 1) window.requestAnimationFrame(step);
+    }
+    window.requestAnimationFrame(step);
+  }
+
+  if (!prefersReducedMotion) {
+    var basketTotalEl = document.getElementById('basketTotal');
+    if (basketTotalEl) countUpElement(basketTotalEl, 600);
+
+    document.querySelectorAll('.stat-number').forEach(function (el) {
+      countUpElement(el, 900);
+    });
+  }
 })();
