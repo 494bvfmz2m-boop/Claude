@@ -7,6 +7,11 @@ function e($str) {
     return htmlspecialchars((string)$str, ENT_QUOTES, 'UTF-8');
 }
 
+/** True unless an admin has explicitly turned the store off (missing key = on, for sites set up before this existed). */
+function store_is_enabled($settings) {
+    return !array_key_exists('store_enabled', $settings) || !empty($settings['store_enabled']);
+}
+
 function redirect($url) {
     header('Location: ' . $url);
     exit;

@@ -4,6 +4,8 @@ require_once __DIR__ . '/includes/bootstrap.php';
 $me = current_user();
 $error = null;
 $notice = null;
+$settings = db_read('settings', []);
+$storeEnabled = store_is_enabled($settings);
 
 /** The Minecraft username to attribute purchases to: session override, else the logged-in account's saved one. */
 function store_current_username() {
@@ -15,7 +17,7 @@ function store_current_username() {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $action = $_POST['action'] ?? '';
+    $action = $storeEnabled ? ($_POST['action'] ?? '') : '';
 
     if ($action === 'set_username') {
         $username = trim($_POST['minecraft_username'] ?? '');
@@ -77,6 +79,9 @@ $username = store_current_username();
     <?php if ($notice): ?><div class="alert alert-success"><?= e($notice) ?></div><?php endif; ?>
     <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
+    <?php if (!$storeEnabled): ?>
+      <div class="empty-state">🛍️ The store is currently closed. Check back soon!</div>
+    <?php else: ?>
     <div class="mc-username-bar">
       <form method="post" style="display:flex; gap:8px; flex:1; flex-wrap:wrap; align-items:center;">
         <?= csrf_field() ?>
@@ -96,8 +101,13 @@ $username = store_current_username();
       <?php foreach ($categories as $cat): ?>
         <?php $packages = $cat['packages'] ?? []; if (empty($packages)) continue; ?>
         <div class="store-category">
-          <h2><?= e($cat['name'] ?? 'Store') ?></h2>
-          <?php if (!empty($cat['description'])): ?><p><?= e(truncate_text($cat['description'], 160)) ?></p><?php endif; ?>
+          <div class="store-category-head">
+            <div>
+              <h2><?= e($cat['name'] ?? 'Store') ?></h2>
+              <?php if (!empty($cat['description'])): ?><p><?= e(truncate_text($cat['description'], 160)) ?></p><?php endif; ?>
+            </div>
+            <span class="badge store-category-count"><?= count($packages) ?> item<?= count($packages) === 1 ? '' : 's' ?></span>
+          </div>
           <div class="package-grid">
             <?php foreach ($packages as $pkg): ?>
               <?php
@@ -105,25 +115,46 @@ $username = store_current_username();
                 $basePrice = $pkg['base_price'] ?? null;
                 $currency = $pkg['currency'] ?? 'USD';
                 $onSale = $basePrice !== null && $price !== null && (float)$basePrice > (float)$price;
+                $isSubscription = ($pkg['type'] ?? '') === 'subscription';
+                $priceHtml = ($onSale ? '<span class="was">' . e(tebex_format_price($basePrice, $currency)) . '</span>' : '')
+                    . e(tebex_format_price($price, $currency)) . ($isSubscription ? '<span class="package-price-period">/mo</span>' : '');
+                $desc = store_parse_description($pkg['description'] ?? '');
+                $tags = [];
+                if ($isSubscription) $tags[] = 'Subscription';
+                if ($onSale) $tags[] = 'Sale';
               ?>
-              <div class="package-card">
-                <?php if (!empty($pkg['image'])): ?>
-                  <img src="<?= e($pkg['image']) ?>" alt="" class="package-image" loading="lazy">
-                <?php endif; ?>
+              <div class="package-card" data-package-card
+                   data-package-id="<?= (int)($pkg['id'] ?? 0) ?>"
+                   data-name="<?= e($pkg['name'] ?? 'Package') ?>"
+                   data-intro="<?= e($desc['intro']) ?>"
+                   data-features="<?= e(json_encode($desc['features'])) ?>"
+                   data-tags="<?= e(json_encode($tags)) ?>"
+                   data-price-html="<?= e($priceHtml) ?>"
+                   data-image="<?= e($pkg['image'] ?? '') ?>">
+                <div class="package-top">
+                  <span class="package-icon"><?php if (!empty($pkg['image'])): ?><img src="<?= e($pkg['image']) ?>" alt="" loading="lazy"><?php else: ?>🛍️<?php endif; ?></span>
+                  <?php if (!empty($tags)): ?>
+                    <div class="package-tags">
+                      <?php foreach ($tags as $tag): ?><span class="pkg-tag pkg-tag-<?= e(strtolower($tag)) ?>"><?= e($tag) ?></span><?php endforeach; ?>
+                    </div>
+                  <?php endif; ?>
+                </div>
                 <div class="package-body">
                   <h3><?= e($pkg['name'] ?? 'Package') ?></h3>
-                  <?php if (!empty($pkg['description'])): ?>
-                    <p class="package-desc"><?= e(truncate_text($pkg['description'], 110)) ?></p>
+                  <?php if ($desc['intro'] !== ''): ?><p class="package-desc"><?= e(truncate_text($desc['intro'], 120)) ?></p><?php endif; ?>
+                  <?php if (!empty($desc['features'])): ?>
+                    <ul class="package-features">
+                      <?php foreach (array_slice($desc['features'], 0, 5) as $feature): ?><li><?= e($feature) ?></li><?php endforeach; ?>
+                    </ul>
                   <?php endif; ?>
-                  <div class="package-price">
-                    <?php if ($onSale): ?><span class="was"><?= e(tebex_format_price($basePrice, $currency)) ?></span><?php endif; ?>
-                    <?= e(tebex_format_price($price, $currency)) ?>
-                  </div>
-                  <form method="post">
+                </div>
+                <div class="package-bottom">
+                  <div class="package-price"><?= $priceHtml ?></div>
+                  <form method="post" class="package-buy-form" data-package-form="<?= (int)($pkg['id'] ?? 0) ?>">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="add_to_cart">
                     <input type="hidden" name="package_id" value="<?= (int)($pkg['id'] ?? 0) ?>">
-                    <button type="submit" class="btn btn-primary btn-block btn-sm">Add to basket</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Buy now</button>
                   </form>
                 </div>
               </div>
@@ -132,6 +163,22 @@ $username = store_current_username();
         </div>
       <?php endforeach; ?>
     <?php endif; ?>
+    <?php endif; ?>
   </div>
 </section>
+
+<div class="package-modal-overlay" id="packageModalOverlay">
+  <div class="package-modal" role="dialog" aria-modal="true" aria-labelledby="packageModalTitle">
+    <button type="button" class="package-modal-close" id="packageModalClose" aria-label="Close">&times;</button>
+    <img class="package-modal-image" id="packageModalImage" alt="" hidden>
+    <div class="package-tags" id="packageModalTags"></div>
+    <h2 id="packageModalTitle"></h2>
+    <p class="package-modal-intro" id="packageModalIntro"></p>
+    <ul class="package-features" id="packageModalFeatures"></ul>
+    <div class="package-modal-footer">
+      <div class="package-price" id="packageModalPrice"></div>
+      <button type="button" class="btn btn-primary" id="packageModalBuy">Buy now</button>
+    </div>
+  </div>
+</div>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

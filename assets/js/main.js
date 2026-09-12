@@ -218,4 +218,83 @@
       layer.appendChild(p);
     }
   })();
+
+  /* ---- Store package preview modal ---- */
+  (function setupPackageModal() {
+    var overlay = document.getElementById('packageModalOverlay');
+    if (!overlay) return;
+
+    var closeBtn = document.getElementById('packageModalClose');
+    var buyBtn = document.getElementById('packageModalBuy');
+    var titleEl = document.getElementById('packageModalTitle');
+    var introEl = document.getElementById('packageModalIntro');
+    var featuresEl = document.getElementById('packageModalFeatures');
+    var priceEl = document.getElementById('packageModalPrice');
+    var tagsEl = document.getElementById('packageModalTags');
+    var imageEl = document.getElementById('packageModalImage');
+
+    function openModalFor(card) {
+      titleEl.textContent = card.getAttribute('data-name') || '';
+      introEl.textContent = card.getAttribute('data-intro') || '';
+      introEl.hidden = !introEl.textContent;
+
+      var features = [];
+      try { features = JSON.parse(card.getAttribute('data-features') || '[]'); } catch (e) { features = []; }
+      featuresEl.innerHTML = '';
+      features.forEach(function (f) {
+        var li = document.createElement('li');
+        li.textContent = f;
+        featuresEl.appendChild(li);
+      });
+
+      var tags = [];
+      try { tags = JSON.parse(card.getAttribute('data-tags') || '[]'); } catch (e) { tags = []; }
+      tagsEl.innerHTML = '';
+      tags.forEach(function (t) {
+        var span = document.createElement('span');
+        span.className = 'pkg-tag pkg-tag-' + t.toLowerCase();
+        span.textContent = t;
+        tagsEl.appendChild(span);
+      });
+
+      priceEl.innerHTML = card.getAttribute('data-price-html') || '';
+
+      var image = card.getAttribute('data-image');
+      if (image) {
+        imageEl.src = image;
+        imageEl.hidden = false;
+      } else {
+        imageEl.hidden = true;
+        imageEl.removeAttribute('src');
+      }
+
+      buyBtn.setAttribute('data-package-id', card.getAttribute('data-package-id') || '');
+      overlay.classList.add('open');
+    }
+
+    function closeModal() {
+      overlay.classList.remove('open');
+    }
+
+    document.querySelectorAll('[data-package-card]').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('form')) return; // let the card's own Buy now button submit normally
+        openModalFor(card);
+      });
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    buyBtn.addEventListener('click', function () {
+      var id = buyBtn.getAttribute('data-package-id');
+      var form = document.querySelector('form[data-package-form="' + id + '"]');
+      if (form) form.submit();
+    });
+  })();
 })();

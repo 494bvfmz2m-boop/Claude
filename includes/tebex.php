@@ -103,8 +103,30 @@ function tebex_add_package_to_basket($basketIdent, $packageId, $quantity = 1) {
     return $result;
 }
 
+/** Tebex has no DELETE for basket packages — a PUT with quantity 0 removes the line item instead. */
 function tebex_remove_package_from_basket($basketIdent, $packageId) {
-    return tebex_request('DELETE', '/baskets/' . rawurlencode($basketIdent) . '/packages/' . (int)$packageId);
+    return tebex_request('PUT', '/baskets/' . rawurlencode($basketIdent) . '/packages/' . (int)$packageId, [
+        'quantity' => 0,
+    ]);
+}
+
+/**
+ * Splits a Tebex package description into a short intro line + a bullet
+ * feature list, so a plain block of admin-typed text renders as a tidy
+ * checklist instead of one dense paragraph. Convention: the first line is
+ * the intro/summary, every line after that becomes one checklist item
+ * (any leading -, *, •, ✓ the admin already typed is stripped so it isn't
+ * doubled up with our own checkmark icon). A single-line description has
+ * no feature list, just the intro.
+ */
+function store_parse_description($raw) {
+    $lines = preg_split('/\r\n|\r|\n/', trim((string)$raw));
+    $lines = array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== ''));
+    if (empty($lines)) return ['intro' => '', 'features' => []];
+
+    $intro = array_shift($lines);
+    $features = array_map(fn($l) => ltrim($l, "-*•✓ \t"), $lines);
+    return ['intro' => $intro, 'features' => $features];
 }
 
 /** e.g. "$4.99 USD" */

@@ -3,16 +3,41 @@ require_once __DIR__ . '/../includes/bootstrap.php';
 require_permission('manage_store');
 $me = current_user();
 
+$success = false;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $settings = db_read('settings', []);
+    $settings['store_enabled'] = isset($_POST['store_enabled']);
+    db_write('settings', $settings);
+    $success = true;
+}
+
 $pageTitle = 'Store';
 $activeAdminPage = 'store';
 require_once __DIR__ . '/../includes/header.php';
 
+$storeEnabled = store_is_enabled($settings);
 $orders = db_query("SELECT * FROM tebex_orders ORDER BY created_at DESC LIMIT 100");
 ?>
 <div class="admin-shell">
   <?php require __DIR__ . '/../includes/admin_nav.php'; ?>
   <div class="admin-main">
     <h1>Store</h1>
+    <?php if ($success): ?><div class="alert alert-success">Saved.</div><?php endif; ?>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Store visibility</h2>
+      <p class="muted">Turn the whole store off for maintenance, between restocks, or if you're not ready to sell yet — the <code>/store</code> and <code>/basket</code> pages show a "closed" message instead, and the Store link/basket icon disappear from the site nav. Nothing in your Tebex webstore itself is affected.</p>
+      <form method="post">
+        <?= csrf_field() ?>
+        <div class="checkbox-row">
+          <input type="checkbox" id="store_enabled" name="store_enabled" <?= $storeEnabled ? 'checked' : '' ?>>
+          <label for="store_enabled">Store is open to visitors</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+      </form>
+    </div>
 
     <div class="card">
       <h2 style="margin-top:0;">Connection status</h2>

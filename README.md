@@ -146,11 +146,20 @@ replying gets an email notification when we have an address for them.
 
 ## 14. The Tebex store
 
-`/store` lists your Tebex webstore's categories and packages, lets visitors
-add items to a basket, and hands off to Tebex's own hosted checkout page —
-this site never touches payment details directly. **Admin → Store** shows a
-connection-status check and a log of completed orders (once the webhook
+`/store` lists your Tebex webstore's categories and packages as clickable
+cards (click one for a bigger preview with the full description), lets
+visitors add items to a basket, and hands off to Tebex's own hosted checkout
+page — this site never touches payment details directly. **Admin → Store**
+has an on/off switch for the whole store (handy for maintenance or before
+you're ready to sell — `/store` and `/basket` show a "closed" message and
+the Store link/basket icon disappear from the nav while it's off), a
+connection-status check, and a log of completed orders (once the webhook
 below is set up).
+
+A package's description becomes the card's checklist automatically: the
+first line is the short blurb shown under the title, and every line after
+that becomes one checkmarked feature — no special formatting needed, just
+one feature per line in the Tebex Creator Panel.
 
 ### Connecting your store
 

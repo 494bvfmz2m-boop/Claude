@@ -11,7 +11,7 @@
       <a href="<?= SITE_URL ?>/rules">Server Rules</a>
       <a href="<?= SITE_URL ?>/staff">Staff</a>
       <a href="<?= SITE_URL ?>/announcements">Announcements</a>
-      <a href="<?= SITE_URL ?>/store">Store</a>
+      <?php if (store_is_enabled($settings)): ?><a href="<?= SITE_URL ?>/store">Store</a><?php endif; ?>
       <?php if (!empty($settings['discord_invite'])): ?>
         <a href="<?= e($settings['discord_invite']) ?>" target="_blank" rel="noopener">Discord</a>
       <?php endif; ?>

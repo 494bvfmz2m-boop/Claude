@@ -14,6 +14,7 @@ $pageNoIndex = $pageNoIndex ?? (strpos($requestPath, '/admin') === 0);
 $canonicalUrl = SITE_URL . ($_SERVER['REQUEST_URI'] ?? '/');
 $me = current_user();
 $cartCount = (int)($_SESSION['basket_item_count'] ?? 0);
+$storeEnabled = store_is_enabled($settings);
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,7 +59,7 @@ $cartCount = (int)($_SESSION['basket_item_count'] ?? 0);
         <a href="<?= SITE_URL ?>/rules">Rules</a>
         <a href="<?= SITE_URL ?>/staff">Staff</a>
         <a href="<?= SITE_URL ?>/announcements">Announcements</a>
-        <a href="<?= SITE_URL ?>/store">Store</a>
+        <?php if ($storeEnabled): ?><a href="<?= SITE_URL ?>/store">Store</a><?php endif; ?>
         <a href="<?= SITE_URL ?>/support">Support</a>
         <?php if (!empty($settings['discord_invite'])): ?>
           <a href="<?= e($settings['discord_invite']) ?>" target="_blank" rel="noopener">Discord</a>
@@ -70,9 +71,14 @@ $cartCount = (int)($_SESSION['basket_item_count'] ?? 0);
       </div>
     </nav>
     <div class="nav-auth">
-      <a href="<?= SITE_URL ?>/basket" class="cart-chip" aria-label="View basket">
-        🛒<?php if ($cartCount > 0): ?><span class="cart-count"><?= $cartCount ?></span><?php endif; ?>
-      </a>
+      <?php if ($storeEnabled): ?>
+        <div class="cart-group">
+          <a href="<?= SITE_URL ?>/store" class="cart-store-btn">🛍️ Store</a>
+          <a href="<?= SITE_URL ?>/basket" class="cart-chip" aria-label="View basket">
+            🛒<?php if ($cartCount > 0): ?><span class="cart-count"><?= $cartCount ?></span><?php endif; ?>
+          </a>
+        </div>
+      <?php endif; ?>
       <?php if ($me): ?>
         <?php $role = primary_role_for_user($me); ?>
         <a href="<?= SITE_URL ?>/account" class="user-chip" style="--role-color: <?= e(role_color_or_default($role)) ?>">

@@ -2,10 +2,12 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 
 $error = null;
+$settings = db_read('settings', []);
+$storeEnabled = store_is_enabled($settings);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $action = $_POST['action'] ?? '';
+    $action = $storeEnabled ? ($_POST['action'] ?? '') : '';
     $ident = current_basket_ident();
 
     if ($action === 'remove' && $ident) {
@@ -26,7 +28,7 @@ $pageTitle = 'Your basket';
 $pageNoIndex = true;
 require_once __DIR__ . '/includes/header.php';
 
-$basket = tebex_configured() ? get_active_basket() : null;
+$basket = ($storeEnabled && tebex_configured()) ? get_active_basket() : null;
 $items = $basket['packages'] ?? [];
 $currency = $basket['currency'] ?? 'USD';
 $total = $basket['total_price'] ?? $basket['subtotal'] ?? null;
@@ -40,7 +42,9 @@ $total = $basket['total_price'] ?? $basket['subtotal'] ?? null;
 
     <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
-    <?php if (!tebex_configured()): ?>
+    <?php if (!$storeEnabled): ?>
+      <div class="empty-state">🛍️ The store is currently closed.</div>
+    <?php elseif (!tebex_configured()): ?>
       <div class="empty-state">The store isn't connected yet.</div>
     <?php elseif (empty($items)): ?>
       <div class="empty-state">
