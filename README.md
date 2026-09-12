@@ -74,6 +74,9 @@ copy of `XyphrosAuth`/`Content`/etc, and one `config.local.php`.
    you're not sure whether it already ran.
 2b. Run `migration-support-tickets.sql` once too (adds the
     `support_tickets` and `support_messages` tables). Also idempotent.
+2c. Run `migration-staff-panel.sql` once too (adds the
+    `is_subtracker_staff` column the Staff Access / Broadcasts pages
+    need for the third product tab). Also idempotent.
 3. Make sure `data/`, `uploads/`, and their subfolders are writable by
    PHP (`chmod -R 775`, or `777` on hosts that run PHP as a different
    user than FTP).

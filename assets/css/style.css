@@ -1391,7 +1391,9 @@ textarea { min-height: 160px; resize: vertical; }
     .staff-topbar h1 { font-size: 20px; }
     .staff-card { padding: 20px; }
     .staff-form .field-row { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 560px) {
     .staff-main { padding: 18px 14px 44px; }
+    .stat-grid { grid-template-columns: 1fr; }
 }

@@ -658,6 +658,8 @@ function xs_icon(string $name, int $size = 16): string
         'clock'    => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
         'chat'     => '<path d="M4 5.5h16v10.5H9l-4 3.5v-3.5H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
         'x'        => '<path d="M6 6l12 12M18 6L6 18"/>',
+        'search'   => '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>',
+        'lock'     => '<rect x="5" y="11" width="14" height="9" rx="1.8"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>',
     ];
     return '<svg viewBox="0 0 24 24" width="' . $size . '" height="' . $size . '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:middle">' . ($icons[$name] ?? '') . '</svg>';
 }
