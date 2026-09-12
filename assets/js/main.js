@@ -6,10 +6,24 @@
   /* ---- Mobile nav toggle ---- */
   var navToggle = document.getElementById('navToggle');
   var mainNav = document.getElementById('mainNav');
+  var siteHeader = document.querySelector('.site-header');
   if (navToggle && mainNav) {
+    // The header can grow a second row (the cart/auth buttons wrap under it
+    // once the slide-out panel is open on a narrow phone), so the panel's
+    // position is computed from the header's real height rather than a
+    // fixed guess — otherwise the two can drift apart and overlap.
+    function positionMobileNav() {
+      if (!siteHeader) return;
+      var h = siteHeader.getBoundingClientRect().height;
+      mainNav.style.top = h + 'px';
+      mainNav.style.height = (window.innerHeight - h) + 'px';
+    }
     navToggle.addEventListener('click', function () {
       mainNav.classList.toggle('open');
+      positionMobileNav();
     });
+    window.addEventListener('resize', positionMobileNav);
+    positionMobileNav();
   }
 
   /* ---- "More" overflow menu: collapse nav links that don't fit ---- */
@@ -44,9 +58,10 @@
       }
       moreWrap.style.display = '';
       overflowed.forEach(function (a) {
-        a.style.display = 'none';
         var clone = a.cloneNode(true);
+        clone.style.display = ''; // cloneNode copies the inline style below, which would otherwise hide it too
         moreMenu.appendChild(clone);
+        a.style.display = 'none';
       });
     }
 

@@ -118,9 +118,20 @@ function tebex_remove_package_from_basket($basketIdent, $packageId) {
  * (any leading -, *, •, ✓ the admin already typed is stripped so it isn't
  * doubled up with our own checkmark icon). A single-line description has
  * no feature list, just the intro.
+ *
+ * Tebex descriptions come out of their rich-text editor as HTML (e.g.
+ * "<p>Line one<br />Line two</p>"), not plain text with real line breaks —
+ * so <br>/<p> tags are converted to newlines and everything else is
+ * stripped before splitting, or the raw markup would show up literally.
  */
 function store_parse_description($raw) {
-    $lines = preg_split('/\r\n|\r|\n/', trim((string)$raw));
+    $text = (string)$raw;
+    $text = preg_replace('/<br\s*\/?>/i', "\n", $text);
+    $text = preg_replace('#</p>|</li>|</div>#i', "\n", $text);
+    $text = strip_tags($text);
+    $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+
+    $lines = preg_split('/\r\n|\r|\n/', trim($text));
     $lines = array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== ''));
     if (empty($lines)) return ['intro' => '', 'features' => []];
 
