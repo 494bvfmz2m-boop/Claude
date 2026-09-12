@@ -28,10 +28,14 @@ require __DIR__ . '/includes/header.php';
 <section class="section">
     <div class="container" style="max-width:520px;text-align:center;">
         <?php if ($justCompleted): ?>
+            <div class="checkout-success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 8"/></svg>
+            </div>
             <p class="lede" style="margin-bottom:8px;">Your order is being processed. It'll show up in your order history shortly.</p>
             <p style="color:var(--text-faint,#9b93b0);font-size:13px;margin-bottom:24px;">We'll also send a confirmation email. If you don't see it in a few minutes, check your spam folder.</p>
             <a href="/account?tab=orders" class="btn btn--primary">View order history</a>
         <?php elseif ($ident): ?>
+            <div class="checkout-spinner" id="checkout-spinner"></div>
             <p class="lede" style="margin-bottom:24px;">Opening checkout&hellip;</p>
             <button id="reopen-checkout" class="btn btn--primary" style="display:none;">Open checkout</button>
             <script>
@@ -47,6 +51,8 @@ require __DIR__ . '/includes/header.php';
                     Tebex.checkout.launch();
                 }
                 open();
+                var spinner = document.getElementById('checkout-spinner');
+                if (spinner) spinner.style.display = 'none';
                 document.getElementById('reopen-checkout').style.display = 'inline-flex';
                 document.getElementById('reopen-checkout').addEventListener('click', open);
 

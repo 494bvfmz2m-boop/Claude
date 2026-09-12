@@ -219,9 +219,13 @@ require __DIR__ . '/includes/header.php';
         modal.querySelector('.store-modal__panel').focus();
     }
     function closeModal() {
-        modal.hidden = true;
+        modal.classList.add('is-closing');
         document.body.style.overflow = '';
-        body.innerHTML = '';
+        setTimeout(function () {
+            modal.hidden = true;
+            modal.classList.remove('is-closing');
+            body.innerHTML = '';
+        }, 150);
     }
 
     document.querySelectorAll('.shop-card[data-pkg]').forEach(function (card) {

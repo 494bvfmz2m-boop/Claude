@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // content if something here fails or IntersectionObserver is missing.
     if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         var revealTargets = document.querySelectorAll(
-            '.page-head h1, .page-head .lede, .section h2, .product-card, .post-card, .team-card, .contact-method, .empty-state, .shop-card, .store-gate'
+            '.page-head h1, .page-head .lede, .section h2, .product-card, .post-card, .team-card, .contact-method, .empty-state, .shop-card, .store-gate, .store-category__head, .legal-content h2, .gate-card'
         );
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
@@ -98,4 +98,25 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
+
+    // Give every plain form submit (login, buy now, checkout forms, staff
+    // forms, etc.) an immediate loading state on its submit button instead
+    // of leaving the page looking frozen until the next page loads. Skipped
+    // when something upstream already called preventDefault (e.g. a
+    // confirm() dialog that was cancelled, or a page with its own AJAX
+    // submit handler) since by the time this bubbles up to document, an
+    // earlier handler's preventDefault() is already reflected here.
+    document.addEventListener('submit', function (e) {
+        if (e.defaultPrevented) return;
+        var form = e.target;
+        if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-loading')) return;
+        var btn = e.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+        if (!btn || !btn.classList || !btn.classList.contains('btn') || btn.classList.contains('is-loading')) return;
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+        var spinner = document.createElement('span');
+        spinner.className = 'btn-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        btn.appendChild(spinner);
+    });
 });

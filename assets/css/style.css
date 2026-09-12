@@ -1447,3 +1447,114 @@ textarea { min-height: 160px; resize: vertical; }
     .staff-main { padding: 18px 14px 44px; }
     .stat-grid { grid-template-columns: 1fr; }
 }
+
+/* =========================================================================
+   Premium motion pass — buttons, inputs, store, checkout, auth
+   All of this rides on top of the existing global reduced-motion rule
+   near the top of this file (kills every animation/transition duration),
+   so nothing extra is needed per-rule here for that.
+   ========================================================================= */
+
+/* ---- Buttons: tactile press + loading spinner + primary sheen ---- */
+.btn { position: relative; overflow: hidden; }
+.btn:active { transform: scale(0.97); }
+.btn--primary::before {
+    content: '';
+    position: absolute; top: 0; left: -60%;
+    width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.55s ease;
+    pointer-events: none;
+}
+.btn--primary:hover::before { left: 130%; }
+.btn.is-loading { cursor: wait; pointer-events: none; opacity: 0.88; }
+.btn-spinner {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: currentColor;
+    animation: btn-spin 0.6s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* ---- Nav link hover sweep (active page keeps its own static underline) ---- */
+.nav__links a::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -16px;
+    height: 2px;
+    background: var(--gradient);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s ease;
+}
+.nav__links a:not(.is-active):hover::before { transform: scaleX(1); }
+
+/* ---- Inputs: focus glow instead of a flat border flip ---- */
+input[type=text], input[type=email], input[type=password], input[type=url], textarea, select {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, input[type=url]:focus, textarea:focus, select:focus {
+    box-shadow: 0 0 0 4px rgba(192, 38, 232, 0.14);
+}
+
+/* ---- Alerts: a short attention shake on error, a gentle pop on success ---- */
+.alert--error { animation: alert-shake 0.4s ease; }
+.alert--success { animation: alert-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes alert-shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+}
+@keyframes alert-pop { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* ---- Auth pages (login/register/forgot-password/set-new-password): the
+   card itself rises in on load instead of just appearing. ---- */
+.auth-card { animation: auth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes auth-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* ---- Store cards: image zoom on hover, featured cards breathe softly ---- */
+.shop-card__image { transition: transform 0.45s ease; }
+.shop-card:hover .shop-card__image { transform: scale(1.07); }
+.shop-card--featured { animation: shop-card-glow 3.2s ease-in-out infinite; }
+@keyframes shop-card-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(192,38,232,.15), 0 0 40px rgba(109, 40, 249, 0.16); }
+    50% { box-shadow: 0 0 0 1px rgba(192,38,232,.3), 0 0 52px rgba(192, 38, 232, 0.28); }
+}
+.shop-card__ribbon { animation: ribbon-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both; }
+@keyframes ribbon-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+
+/* Store quick-view modal: closes with the same motion it opened with,
+   instead of the instant snap [hidden] gives on its own. */
+.store-modal.is-closing .store-modal__overlay { animation: xmodal-fade 0.15s ease reverse both; }
+.store-modal.is-closing .store-modal__panel { animation: xmodal-pop 0.15s cubic-bezier(0.16, 1, 0.3, 1) reverse both; }
+
+/* ---- Checkout: a real loading spinner while Tebex's script boots, and a
+   drawn-in checkmark on the "thanks" screen instead of a static icon. ---- */
+.checkout-spinner {
+    width: 40px; height: 40px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    border: 3px solid var(--border-strong);
+    border-top-color: var(--magenta);
+    animation: btn-spin 0.8s linear infinite;
+}
+.checkout-success {
+    width: 64px; height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: var(--gradient-soft);
+    display: flex; align-items: center; justify-content: center;
+    animation: checkout-success-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.checkout-success svg { width: 30px; height: 30px; color: var(--online); }
+.checkout-success svg path {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    animation: checkout-check-draw 0.4s ease 0.3s forwards;
+}
+@keyframes checkout-success-pop { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: none; } }
+@keyframes checkout-check-draw { to { stroke-dashoffset: 0; } }

@@ -57,7 +57,7 @@ require __DIR__ . '/includes/header.php';
 </section>
 
 <section class="section">
-    <div class="container" style="max-width:420px;">
+    <div class="container auth-card" style="max-width:420px;">
         <?php if ($error): ?><div class="alert alert--error"><?php echo e($error); ?></div><?php endif; ?>
         <form method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?php echo e(XyphrosAuth::csrfToken()); ?>">
