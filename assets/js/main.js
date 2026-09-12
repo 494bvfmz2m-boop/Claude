@@ -99,19 +99,79 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // 2FA / TOTP code inputs: fill bar animates as digits go in, and the
-    // whole value gets selected on focus so retyping a wrong code is a
-    // single keystroke instead of manually clearing it first.
-    document.querySelectorAll('.otp-input').forEach(function (input) {
-        var bar = input.parentElement.querySelector('.otp-progress__bar');
-        function updateBar() {
-            if (!bar) return;
-            var digits = input.value.replace(/\D/g, '').length;
-            bar.style.width = (Math.min(digits, 6) / 6 * 100) + '%';
+    // 2FA / verification code boxes: one card per digit. Typing a digit
+    // advances to the next card, Backspace on an empty card goes back,
+    // pasting a full code fills every card at once, and the real value
+    // is kept in sync on a hidden input the form actually submits.
+    document.querySelectorAll('.otp-boxes[data-otp]').forEach(function (group) {
+        var boxes = Array.prototype.slice.call(group.querySelectorAll('.otp-box'));
+        var hidden = group.querySelector('.otp-hidden');
+        var form = group.closest('form');
+        if (!boxes.length || !hidden) return;
+
+        function syncHidden() {
+            hidden.value = boxes.map(function (b) { return b.value; }).join('');
         }
-        input.addEventListener('input', updateBar);
-        input.addEventListener('focus', function () { input.select(); });
-        updateBar();
+        function focusBox(i) {
+            if (boxes[i]) boxes[i].focus();
+        }
+        function maybeAutoSubmit() {
+            if (form && boxes.every(function (b) { return b.value; })) {
+                form.requestSubmit();
+            }
+        }
+
+        boxes.forEach(function (box, i) {
+            box.addEventListener('input', function () {
+                box.value = box.value.replace(/\D/g, '').slice(-1);
+                box.classList.toggle('is-filled', !!box.value);
+                syncHidden();
+                if (box.value && i < boxes.length - 1) focusBox(i + 1);
+                maybeAutoSubmit();
+            });
+            box.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && !box.value && i > 0) {
+                    focusBox(i - 1);
+                    boxes[i - 1].value = '';
+                    boxes[i - 1].classList.remove('is-filled');
+                    syncHidden();
+                } else if (e.key === 'ArrowLeft' && i > 0) {
+                    e.preventDefault();
+                    focusBox(i - 1);
+                } else if (e.key === 'ArrowRight' && i < boxes.length - 1) {
+                    e.preventDefault();
+                    focusBox(i + 1);
+                }
+            });
+            box.addEventListener('paste', function (e) {
+                var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                if (!text) return;
+                e.preventDefault();
+                text.slice(0, boxes.length).split('').forEach(function (ch, idx) {
+                    boxes[idx].value = ch;
+                    boxes[idx].classList.add('is-filled');
+                });
+                syncHidden();
+                focusBox(Math.min(text.length, boxes.length - 1));
+                maybeAutoSubmit();
+            });
+            box.addEventListener('focus', function () { box.select(); });
+        });
+
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                syncHidden();
+                if (hidden.value.length < 6) {
+                    e.preventDefault();
+                    var emptyIdx = boxes.findIndex(function (b) { return !b.value; });
+                    focusBox(emptyIdx === -1 ? 0 : emptyIdx);
+                    group.classList.add('shake-once');
+                    setTimeout(function () { group.classList.remove('shake-once'); }, 400);
+                    return;
+                }
+                group.classList.add('is-checking');
+            });
+        }
     });
 
     // Give every plain form submit (login, buy now, checkout forms, staff

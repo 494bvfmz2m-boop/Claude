@@ -118,10 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     : (XyphrosAuth::verifyCode($u['id'], '2fa_login', $entered) !== false);
 
                 if ($ok) {
-                    complete_login($u, $returnTo);
+                    XyphrosAuth::createSession($u['id']);
+                    $stage = 'success';
+                    $successCode = $entered;
+                    $successUrl = !empty($u['must_change_password'])
+                        ? '/set-new-password?return_to=' . rawurlencode($returnTo)
+                        : $returnTo;
+                } else {
+                    $error = 'Incorrect or expired code. Try again.';
+                    $stage = 'twofa';
                 }
-                $error = 'Incorrect or expired code. Try again.';
-                $stage = 'twofa';
             }
         }
 
@@ -163,7 +169,7 @@ require __DIR__ . '/includes/header.php';
 <section class="page-head">
     <div class="container">
         <span class="eyebrow">Xyphros account</span>
-        <h1><?php echo $stage === 'twofa' ? ($method === 'totp' ? 'Enter your code' : 'Check your email') : 'Sign in'; ?></h1>
+        <h1><?php echo $stage === 'success' ? "You're in!" : ($stage === 'twofa' ? ($method === 'totp' ? 'Enter your code' : 'Check your email') : 'Sign in'); ?></h1>
         <p class="lede lede--center">One account works everywhere: xyphros.net and every product.</p>
     </div>
 </section>
@@ -177,7 +183,12 @@ require __DIR__ . '/includes/header.php';
             <div class="alert alert--success">A new code is on its way.</div>
         <?php endif; ?>
 
-        <?php if ($stage === 'twofa'): ?>
+        <?php if ($stage === 'success'): ?>
+
+            <?php echo xs_otp_success_html($successCode, 'Signed in - redirecting...'); ?>
+            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 900);</script>
+
+        <?php elseif ($stage === 'twofa'): ?>
 
             <div class="otp-icon"><?php echo xs_icon($method === 'totp' ? 'phone' : 'mail', 24); ?></div>
 
@@ -196,12 +207,8 @@ require __DIR__ . '/includes/header.php';
                 <input type="hidden" name="method" value="<?php echo e($method); ?>">
                 <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">
                 <div class="field">
-                    <label for="code">6-digit code</label>
-                    <input type="text" id="code" name="code" inputmode="numeric" pattern="\d{6}" maxlength="6"
-                        autocomplete="one-time-code" autofocus required
-                        class="otp-input<?php echo $error ? ' shake-once' : ''; ?>"
-                        style="text-align:center;font-size:28px;font-weight:700;letter-spacing:0.4em;font-family:var(--font-mono);">
-                    <div class="otp-progress"><div class="otp-progress__bar"></div></div>
+                    <label>6-digit code</label>
+                    <?php echo xs_otp_boxes('code'); ?>
                 </div>
                 <button type="submit" class="btn btn--primary btn--block">Verify and sign in</button>
             </form>

@@ -15,6 +15,7 @@ if (!$me) {
 
 $error = '';
 $success = '';
+$totpJustConfirmed = false;
 $tab = $_GET['tab'] ?? 'profile';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -143,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 XyphrosAuth::updateUser($me['id'], ['twofa_method' => 'totp', 'totp_confirmed' => 1]);
                 $success = 'Authenticator app connected.'; $tab = 'security';
+                $totpJustConfirmed = true;
+                $successCode = $entered;
             }
         }
 
@@ -289,7 +292,7 @@ require __DIR__ . '/includes/header.php';
         </div>
 
         <?php if ($error): ?><div class="alert alert--error" style="margin-bottom:24px;"><?php echo e($error); ?></div><?php endif; ?>
-        <?php if ($success): ?><div class="alert alert--success" style="margin-bottom:24px;"><?php echo e($success); ?></div><?php endif; ?>
+        <?php if ($success && !$totpJustConfirmed): ?><div class="alert alert--success" style="margin-bottom:24px;"><?php echo e($success); ?></div><?php endif; ?>
 
         <div class="acct-wrap">
             <nav class="acct-nav">
@@ -347,7 +350,10 @@ require __DIR__ . '/includes/header.php';
                     <h2>Two-factor authentication</h2>
                     <p class="hint">This is the only place to manage 2FA for your Xyphros account.</p>
 
-                    <?php if (!empty($user['totp_secret']) && empty($user['totp_confirmed'])): ?>
+                    <?php if ($totpJustConfirmed): ?>
+                        <?php echo xs_otp_success_html($successCode, 'Authenticator app connected - redirecting...'); ?>
+                        <script>setTimeout(function () { location.href = '/account?tab=security'; }, 900);</script>
+                    <?php elseif (!empty($user['totp_secret']) && empty($user['totp_confirmed'])): ?>
                         <?php $qrData = XyphrosAuth::totpProvisioningUri($user['totp_secret'], $user['email'], 'Xyphros'); ?>
                         <p style="margin-bottom:14px;">Scan this with Google Authenticator, 1Password, Authy, or any TOTP app:</p>
                         <div class="qr-box">
@@ -359,10 +365,7 @@ require __DIR__ . '/includes/header.php';
                             <input type="hidden" name="action" value="totp_confirm">
                             <div class="field">
                                 <label>Enter the 6-digit code</label>
-                                <input type="text" name="code" inputmode="numeric" maxlength="6" required autofocus
-                                    class="otp-input<?php echo ($error && $tab === 'security') ? ' shake-once' : ''; ?>"
-                                    style="text-align:center;font-size:24px;font-weight:700;letter-spacing:.3em;font-family:var(--font-mono);">
-                                <div class="otp-progress"><div class="otp-progress__bar"></div></div>
+                                <?php echo xs_otp_boxes('code'); ?>
                             </div>
                             <button type="submit" class="btn btn--primary btn--block">Confirm and enable</button>
                         </form>

@@ -91,8 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 XyphrosAuth::updateUser($uid, ['email_verified' => 1]);
                 XyphrosAuth::createSession($uid);
-                header('Location: ' . $returnTo);
-                exit;
+                $step = 'success';
+                $successCode = $entered;
+                $successUrl = $returnTo;
             }
         }
 
@@ -133,7 +134,7 @@ require __DIR__ . '/includes/header.php';
 <section class="page-head">
     <div class="container">
         <span class="eyebrow">Xyphros account</span>
-        <h1><?php echo $step === 'verify' ? 'Check your email' : 'Create your account'; ?></h1>
+        <h1><?php echo $step === 'success' ? 'All set!' : ($step === 'verify' ? 'Check your email' : 'Create your account'); ?></h1>
         <p class="lede lede--center">One account works everywhere: xyphros.net and every product.</p>
     </div>
 </section>
@@ -146,7 +147,10 @@ require __DIR__ . '/includes/header.php';
             <div class="alert alert--success">A new code is on its way.</div>
         <?php endif; ?>
 
-        <?php if ($step === 'verify'): ?>
+        <?php if ($step === 'success'): ?>
+            <?php echo xs_otp_success_html($successCode, 'Email verified - redirecting...'); ?>
+            <script>setTimeout(function () { location.href = <?php echo json_encode($successUrl); ?>; }, 900);</script>
+        <?php elseif ($step === 'verify'): ?>
             <div class="otp-icon"><?php echo xs_icon('mail', 24); ?></div>
             <p style="margin-bottom:20px;color:var(--text-muted);text-align:center;">We sent a 6-digit code to <strong><?php echo e($regEmail); ?></strong>. It expires in 15 minutes.</p>
             <form method="post" novalidate>
@@ -155,12 +159,8 @@ require __DIR__ . '/includes/header.php';
                 <input type="hidden" name="reg_uid" value="<?php echo e($regUid); ?>">
                 <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">
                 <div class="field">
-                    <label for="code">6-digit code</label>
-                    <input type="text" id="code" name="code" inputmode="numeric" pattern="\d{6}" maxlength="6"
-                        autocomplete="one-time-code" autofocus required
-                        class="otp-input<?php echo $error ? ' shake-once' : ''; ?>"
-                        style="text-align:center;font-size:28px;font-weight:700;letter-spacing:0.4em;font-family:var(--font-mono);">
-                    <div class="otp-progress"><div class="otp-progress__bar"></div></div>
+                    <label>6-digit code</label>
+                    <?php echo xs_otp_boxes('code'); ?>
                 </div>
                 <button type="submit" class="btn btn--primary btn--block">Verify and continue</button>
             </form>

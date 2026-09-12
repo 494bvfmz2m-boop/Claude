@@ -647,6 +647,45 @@ function handle_avatar_upload_to_db(string $fieldName): ?string
 }
 
 /**
+ * Renders a 6-card one-time-code input (login 2FA, register email
+ * verification, account TOTP setup all share this). Each card is just
+ * UI — assets/js/main.js keeps the real value synced into the hidden
+ * `<input name="$name">` this also renders, which is what the form
+ * actually submits.
+ */
+function xs_otp_boxes(string $name = 'code'): string
+{
+    $html = '<div class="otp-boxes" data-otp role="group" aria-label="6-digit code">';
+    for ($i = 0; $i < 6; $i++) {
+        $autofocus = $i === 0 ? ' autofocus' : '';
+        $autocomplete = $i === 0 ? 'one-time-code' : 'off';
+        $html .= '<input type="text" class="otp-box" inputmode="numeric" maxlength="1" autocomplete="' . $autocomplete . '"' . $autofocus . ' aria-label="Digit ' . ($i + 1) . '">';
+    }
+    $html .= '<input type="hidden" name="' . e($name) . '" class="otp-hidden">';
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Renders the "code confirmed" state: the same 6 cards flipped to a
+ * static green readout (one card per character of $code) with a
+ * drawn-in checkmark underneath. Callers pair this with a short
+ * setTimeout() redirect so the animation has a moment to play before
+ * navigating on.
+ */
+function xs_otp_success_html(string $code, string $note): string
+{
+    $html = '<div class="otp-boxes otp-boxes--success" aria-hidden="true">';
+    foreach (str_split(str_pad($code, 6)) as $digit) {
+        $html .= '<div class="otp-box">' . e(trim($digit)) . '</div>';
+    }
+    $html .= '</div>';
+    $html .= '<div class="checkout-success otp-success-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 8"/></svg></div>';
+    $html .= '<p class="lede" style="margin-top:14px;">' . e($note) . '</p>';
+    return $html;
+}
+
+/**
  * Render a plain-text post body as safe HTML paragraphs. Blank lines
  * start a new paragraph; single line breaks become <br>. Everything is
  * escaped first, so this is safe even though posts are authored by a
