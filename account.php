@@ -247,6 +247,14 @@ require __DIR__ . '/includes/header.php';
 .connection-row--linked { border-color: rgba(88, 101, 242, 0.3); background: rgba(88, 101, 242, 0.06); }
 .connection-row__avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .connection-row__avatar--placeholder { display: flex; align-items: center; justify-content: center; background: #5865F2; color: #fff; }
+
+.support-history-ticket { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; overflow: hidden; }
+.support-history-ticket__head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; color: var(--text); }
+.support-history-ticket__head:hover { background: var(--bg-card-hover); }
+.support-history-ticket__head svg { transition: transform 0.15s ease; flex-shrink: 0; }
+.support-history-ticket__head.is-open svg { transform: rotate(90deg); }
+.support-history-ticket__subject { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.support-history-ticket__body { display: none; flex-direction: column; gap: 12px; padding: 16px; border-top: 1px solid var(--border); background: var(--bg-elevated); }
 </style>
 
 <section class="section" style="padding-top:48px;">
@@ -280,6 +288,7 @@ require __DIR__ . '/includes/header.php';
                 <a href="/account?tab=connections" class="<?php echo $tab === 'connections' ? 'is-active' : ''; ?>"><?php echo xs_icon('external'); ?> Connections</a>
                 <a href="/account?tab=sessions" class="<?php echo $tab === 'sessions' ? 'is-active' : ''; ?>"><?php echo xs_icon('monitor'); ?> Devices</a>
                 <a href="/account?tab=orders" class="<?php echo $tab === 'orders' ? 'is-active' : ''; ?>"><?php echo xs_icon('box'); ?> Orders</a>
+                <a href="/account?tab=support" class="<?php echo $tab === 'support' ? 'is-active' : ''; ?>"><?php echo xs_icon('chat'); ?> Support</a>
                 <?php if ($isSuperAdmin): ?>
                 <a href="/account?tab=products" class="<?php echo $tab === 'products' ? 'is-active' : ''; ?>"><?php echo xs_icon('grid'); ?> Products</a>
                 <?php endif; ?>
@@ -528,6 +537,34 @@ require __DIR__ . '/includes/header.php';
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
+                        </div>
+                    <?php endforeach; endif; ?>
+                </div>
+
+            <?php elseif ($tab === 'support'): ?>
+                <div class="acct-card">
+                    <div class="acct-card__head"><div class="acct-card__icon"><?php echo xs_icon('chat'); ?></div></div>
+                    <h2>Support conversations</h2>
+                    <p class="hint">Every conversation you've had with the Xyphros team, saved here until we close it out. Use the chat bubble in the corner to send a message &mdash; this page is just the history.</p>
+                    <?php
+                    $myTickets = SupportTicket::forUser($user['id']);
+                    ?>
+                    <?php if (empty($myTickets)): ?>
+                        <p style="color:var(--text-muted);font-size:14px;">No conversations yet. Click the chat bubble in the bottom-right corner any time you need help.</p>
+                    <?php else: foreach ($myTickets as $ticket): ?>
+                        <?php $ticketMessages = SupportTicket::messages($ticket['id']); ?>
+                        <div class="support-history-ticket">
+                            <button type="button" class="support-history-ticket__head" onclick="var t=this.nextElementSibling; var open = t.style.display === 'flex'; t.style.display = open ? 'none' : 'flex'; this.classList.toggle('is-open', !open);">
+                                <span class="support-history-ticket__subject"><?php echo e($ticket['subject']); ?></span>
+                                <span class="acct-badge <?php echo $ticket['status'] === 'open' ? 'acct-badge--verified' : 'acct-badge--muted'; ?>"><?php echo $ticket['status'] === 'open' ? 'Open' : 'Closed'; ?></span>
+                                <span class="badge-muted" style="margin-left:auto;"><?php echo e(time_ago($ticket['last_message_at'])); ?></span>
+                                <?php echo xs_icon('arrow', 14); ?>
+                            </button>
+                            <div class="support-history-ticket__body">
+                                <?php foreach ($ticketMessages as $m): ?>
+                                    <?php echo xs_render_support_message($m); ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     <?php endforeach; endif; ?>
                 </div>

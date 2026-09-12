@@ -5,6 +5,10 @@ require_once __DIR__ . '/Content.php';
 require_once __DIR__ . '/Tebex.php';
 require_once __DIR__ . '/License.php';
 require_once __DIR__ . '/Discord.php';
+require_once __DIR__ . '/Permissions.php';
+require_once __DIR__ . '/AuditLog.php';
+require_once __DIR__ . '/Broadcast.php';
+require_once __DIR__ . '/SupportTicket.php';
 
 /** Build a static asset URL with a cache-busting version query string. */
 function asset_url(string $path): string
@@ -243,6 +247,27 @@ function complete_login(array $user, string $returnTo): void
 }
 
 /**
+ * Redirect to $url with a one-shot flash message tacked on as a query
+ * param, then exit. Pairs with get_flash() below — the classic
+ * Post/Redirect/Get pattern, so a page refresh after a form submit
+ * doesn't resubmit it.
+ */
+function redirect_with_flash(string $url, string $type, string $message): void
+{
+    $sep = str_contains($url, '?') ? '&' : '?';
+    header('Location: ' . $url . $sep . 'flash=' . rawurlencode($type . ':' . $message));
+    exit;
+}
+
+/** Read (and implicitly consume, since it only ever lives in the URL) a flash message set by redirect_with_flash(). */
+function get_flash(): ?array
+{
+    if (empty($_GET['flash'])) return null;
+    [$type, $message] = array_pad(explode(':', $_GET['flash'], 2), 2, '');
+    return ['type' => $type === 'error' ? 'error' : 'success', 'message' => $message];
+}
+
+/**
  * A long, URL-safe, one-time token — same auth_codes table generateCode()
  * uses, just not limited to 6 digits (that's for something a person types
  * in; this is for something that only ever appears in a link).
@@ -340,6 +365,29 @@ function format_date(string $isoDate): string
 {
     $ts = strtotime($isoDate);
     return $ts ? date('j M Y', $ts) : $isoDate;
+}
+
+/** Short relative time ("just now", "5m ago"), falling back to a plain date past a month. */
+function time_ago(string $datetime): string
+{
+    $diff = time() - strtotime($datetime);
+    if ($diff < 60) return 'just now';
+    if ($diff < 3600) return floor($diff / 60) . 'm ago';
+    if ($diff < 86400) return floor($diff / 3600) . 'h ago';
+    if ($diff < 2592000) return floor($diff / 86400) . 'd ago';
+    return date('M j, Y', strtotime($datetime));
+}
+
+/** One support-chat message bubble — shared markup between the initial
+ * server render and the JS that appends live/polled messages, so the
+ * two never visually drift apart. */
+function xs_render_support_message(array $m): string
+{
+    $side = $m['sender_type'] === 'staff' ? 'staff' : 'user';
+    return '<div class="support-msg support-msg--' . $side . '" data-msg-id="' . e($m['id']) . '">'
+        . '<div class="support-msg__bubble">' . nl2br(e($m['body'])) . '</div>'
+        . '<div class="support-msg__meta">' . e($m['sender_name']) . ' &middot; ' . e(time_ago($m['created_at'])) . '</div>'
+        . '</div>';
 }
 
 /**
@@ -606,6 +654,10 @@ function xs_icon(string $name, int $size = 16): string
         'send'     => '<path d="M3.5 11.5L20 3.8 12.3 20.5l-2.4-6.9-6.4-2.1z"/><path d="M9.9 13.6L20 3.8"/>',
         'logout'   => '<path d="M9 4H6a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 6 20h3"/><path d="M15 16l4.5-4-4.5-4M19.5 12h-11"/>',
         'external' => '<path d="M9 5H5.5A1.5 1.5 0 0 0 4 6.5v12A1.5 1.5 0 0 0 5.5 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/><path d="M14 4h6v6M20 4l-9.5 9.5"/>',
+        'plus'     => '<path d="M12 5v14M5 12h14"/>',
+        'clock'    => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+        'chat'     => '<path d="M4 5.5h16v10.5H9l-4 3.5v-3.5H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+        'x'        => '<path d="M6 6l12 12M18 6L6 18"/>',
     ];
     return '<svg viewBox="0 0 24 24" width="' . $size . '" height="' . $size . '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:middle">' . ($icons[$name] ?? '') . '</svg>';
 }

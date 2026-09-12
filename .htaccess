@@ -35,6 +35,7 @@ ErrorDocument 404 /404.php
 # world-readable).
 <IfModule mod_rewrite.c>
     RewriteRule ^includes/ - [F,L]
+    RewriteRule ^staff/includes/ - [F,L]
 </IfModule>
 
 # ---------------------------------------------------------------------

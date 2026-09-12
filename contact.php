@@ -10,6 +10,12 @@ $error = $_GET['error'] ?? null;
 $settings = get_settings();
 $contactEmail = $settings['contact_email'];
 
+// Must happen before any HTML output (header.php below) — session_start()
+// (inside csrf_token(), called later by csrf_field()) silently fails to
+// set its cookie once output has started, which would make every contact
+// form submission fail CSRF verification.
+$csrfToken = csrf_token();
+
 require __DIR__ . '/includes/header.php';
 ?>
 

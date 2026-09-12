@@ -26,7 +26,7 @@
                 </div>
                 <div class="footer-col">
                     <h4>Studio access</h4>
-                    <a href="https://staff.xyphros.net">Staff login</a>
+                    <a href="/staff">Staff login</a>
                 </div>
             </div>
         </div>
@@ -39,7 +39,13 @@
 </footer>
 
 <?php require __DIR__ . '/cookie-notice.php'; ?>
+<?php if ($xsCurrentUser): ?>
+    <?php require __DIR__ . '/support-widget.php'; ?>
+<?php endif; ?>
 
 <script src="<?php echo e(asset_url('/assets/js/main.js')); ?>"></script>
+<?php if ($xsCurrentUser): ?>
+    <script src="<?php echo e(asset_url('/assets/js/support.js')); ?>"></script>
+<?php endif; ?>
 </body>
 </html>

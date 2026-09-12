@@ -3,9 +3,14 @@
 Plain PHP/CSS/JS, no framework, no build step. Accounts, sessions,
 site content (posts/products/team), orders, and license keys live in a
 shared MySQL database (`daane_xyphros`) — the same database
-XyphrosPortal and the staff panel use, which is what lets one account
-work across every `*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
+XyphrosPortal uses, which is what lets one account work across every
+`*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
 (accounts/sessions) and `includes/Content.php` (everything else).
+
+The internal staff admin panel (`/staff`) lives in this same codebase
+now — it used to be a separate deployment on staff.xyphros.net with
+its own copy of every shared class; that's gone, there's exactly one
+copy of `XyphrosAuth`/`Content`/etc, and one `config.local.php`.
 
 ## What's included
 
@@ -28,6 +33,22 @@ work across every `*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
 - **License keys** — some Tebex packages (see `TEBEX_LICENSE_PACKAGES`
   in config) auto-issue a Portal workspace-limit license key on
   purchase, emailed to the buyer and viewable from Account → Orders.
+- **Support chat** — a signed-in customer gets a floating chat bubble
+  (bottom-right, see `includes/support-widget.php`) to message staff;
+  the conversation is saved to their account (visible under Account →
+  Support) until a staff member closes it from `/staff/tickets`. See
+  `includes/SupportTicket.php` and `migration-support-tickets.sql`.
+- **Staff panel** (`/staff`) — manage posts/products/team/page content,
+  read contact-form messages and the support chat inbox, send email,
+  manage site-wide broadcast banners, search/lock/reset accounts, view
+  orders and license keys, and (Founder-only) grant staff access, set
+  per-staff permissions, and read the audit log. Gated on the same
+  account system as the public site — no separate login. A Founder is
+  any account with `is_super_admin`; everyone else needs
+  `is_xyphros_staff` plus whatever specific permissions a Founder
+  grants them from `/staff/permissions` (see `includes/Permissions.php`
+  for the full list). Every sensitive staff action is recorded in
+  `includes/AuditLog.php`, readable at `/staff/audit`.
 
 ## Requirements
 
@@ -51,12 +72,23 @@ work across every `*.xyphros.net` subdomain. See `includes/XyphrosAuth.php`
    database (adds the Discord-link columns on `users` and the
    `login_attempts` table). It's idempotent — safe to run again if
    you're not sure whether it already ran.
+2b. Run `migration-support-tickets.sql` once too (adds the
+    `support_tickets` and `support_messages` tables). Also idempotent.
 3. Make sure `data/`, `uploads/`, and their subfolders are writable by
    PHP (`chmod -R 775`, or `777` on hosts that run PHP as a different
    user than FTP).
 4. Set `ASSET_VERSION` in `includes/config.php` up by one any time you
    hand-edit a file in `assets/` over FTP, so browsers don't keep
    serving a stale cached copy.
+5. To reach `/staff` at all, at least one account needs
+   `is_super_admin = 1` (a "Founder") — there's no UI for granting the
+   very first one, since `/staff/access` (where staff access is
+   normally granted) is itself Founder-only. Set it directly once,
+   after registering a normal account:
+   `UPDATE users SET is_super_admin = 1 WHERE email = 'you@example.com';`
+   Every Founder can grant `is_xyphros_staff` (regular staff) or
+   `is_super_admin` (another Founder) to other accounts from
+   `/staff/access` after that.
 
 ## Discord — role granting and account linking
 
@@ -126,9 +158,16 @@ exactly). `DISCORD_BOT_TOKEN` is separate and only used by the staff
 - 2FA (email code or TOTP authenticator app) is available per-account
   from Account → Password & 2FA. Codes are single-use, expire, are
   rate-limited to 5 attempts, and are never stored in plaintext.
-- CSRF protection on every state-changing form: session-derived tokens
-  once signed in (`XyphrosAuth::csrfToken()`), cookie-derived tokens on
-  the logged-out auth pages (`xs_csrf_token()`).
+- CSRF protection on every state-changing form: session-cookie-derived
+  tokens once signed in (`XyphrosAuth::csrfToken()`), plain-cookie
+  tokens on the logged-out auth pages (`xs_csrf_token()`), and PHP
+  native-session tokens on the contact form and every staff form
+  (`csrf_field()`/`csrf_verify()`). The last one only works if
+  `xs_session_start()` runs before any HTML output — `session_start()`
+  silently fails to set its cookie once output has begun, which would
+  make the form always fail its own CSRF check. `contact.php` and
+  `staff/includes/staff-auth.php` both call it first thing, before
+  their layout include — keep that ordering if you ever touch either.
 - The Tebex webhook verifies an HMAC-SHA256 signature over the raw
   request body before trusting anything in it — a guessed/leaked
   webhook URL alone isn't enough to fake an order.
