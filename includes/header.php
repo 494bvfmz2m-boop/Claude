@@ -56,10 +56,9 @@ $storeEnabled = store_is_enabled($settings);
     <nav class="main-nav" id="mainNav">
       <div class="nav-links" id="navLinks">
         <a href="<?= SITE_URL ?>">Home</a>
-        <a href="<?= SITE_URL ?>/rules">Rules</a>
+        <a href="<?= SITE_URL ?>/rules" class="mobile-only-link">Rules</a>
         <a href="<?= SITE_URL ?>/staff">Staff</a>
-        <a href="<?= SITE_URL ?>/announcements">Announcements</a>
-        <?php if ($storeEnabled): ?><a href="<?= SITE_URL ?>/store">Store</a><?php endif; ?>
+        <a href="<?= SITE_URL ?>/announcements" class="mobile-only-link">Announcements</a>
         <a href="<?= SITE_URL ?>/support">Support</a>
         <?php if (!empty($settings['discord_invite'])): ?>
           <a href="<?= e($settings['discord_invite']) ?>" target="_blank" rel="noopener">Discord</a>
@@ -67,7 +66,11 @@ $storeEnabled = store_is_enabled($settings);
       </div>
       <div class="nav-more" id="navMore">
         <button type="button" class="nav-more-btn" id="navMoreBtn">More <span aria-hidden="true">▾</span></button>
-        <div class="nav-more-menu" id="navMoreMenu"></div>
+        <div class="nav-more-menu" id="navMoreMenu">
+          <a href="<?= SITE_URL ?>/rules">Rules</a>
+          <a href="<?= SITE_URL ?>/announcements">Announcements</a>
+          <div id="navMoreDynamic"></div>
+        </div>
       </div>
     </nav>
     <div class="nav-auth">
@@ -75,7 +78,8 @@ $storeEnabled = store_is_enabled($settings);
         <div class="cart-group">
           <a href="<?= SITE_URL ?>/store" class="cart-store-btn">🛍️ Store</a>
           <a href="<?= SITE_URL ?>/basket" class="cart-chip" aria-label="View basket">
-            🛒<?php if ($cartCount > 0): ?><span class="cart-count"><?= $cartCount ?></span><?php endif; ?>
+            <svg class="cart-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            <?php if ($cartCount > 0): ?><span class="cart-count"><?= $cartCount ?></span><?php endif; ?>
           </a>
         </div>
       <?php endif; ?>

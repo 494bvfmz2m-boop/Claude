@@ -71,6 +71,16 @@
     // fixed guess — otherwise the two can drift apart and overlap.
     function positionMobileNav() {
       if (!siteHeader) return;
+      // This inline sizing is only meant for the slide-out phone menu
+      // (see the max-width:760px rule for .main-nav). Media queries don't
+      // scope inline styles set from JS, so without this guard the same
+      // code would also run on desktop and stretch the whole header to
+      // fill the screen.
+      if (window.innerWidth > 760) {
+        mainNav.style.top = '';
+        mainNav.style.height = '';
+        return;
+      }
       var h = siteHeader.getBoundingClientRect().height;
       mainNav.style.top = h + 'px';
       mainNav.style.height = (window.innerHeight - h) + 'px';
@@ -89,15 +99,25 @@
     var moreWrap = document.getElementById('navMore');
     var moreBtn = document.getElementById('navMoreBtn');
     var moreMenu = document.getElementById('navMoreMenu');
-    if (!links || !moreWrap || !moreBtn || !moreMenu) return;
+    var moreDynamic = document.getElementById('navMoreDynamic');
+    if (!links || !moreWrap || !moreBtn || !moreMenu || !moreDynamic) return;
 
-    var allLinks = Array.prototype.slice.call(links.children);
+    // Rules/Announcements live permanently in the dropdown (see header.php) and
+    // have a hidden desktop duplicate in the main row just so the mobile
+    // slide-out menu still lists them — exclude that duplicate from the
+    // overflow measurement below since it's never actually visible here.
+    var allLinks = Array.prototype.slice.call(links.children).filter(function (a) {
+      return !a.classList.contains('mobile-only-link');
+    });
 
     function recalc() {
       if (window.innerWidth <= 760) { moreWrap.hidden = true; return; }
       moreWrap.hidden = false;
+      // The dropdown always holds Rules & Announcements regardless of
+      // overflow, so the button itself always stays visible on desktop.
+      moreWrap.style.display = '';
       allLinks.forEach(function (a) { a.style.display = ''; });
-      moreMenu.innerHTML = '';
+      moreDynamic.innerHTML = '';
       moreMenu.classList.remove('open');
 
       var nav = links.parentElement;
@@ -109,15 +129,10 @@
         if (used > available) overflowed.push(a);
       });
 
-      if (overflowed.length === 0) {
-        moreWrap.style.display = 'none';
-        return;
-      }
-      moreWrap.style.display = '';
       overflowed.forEach(function (a) {
         var clone = a.cloneNode(true);
         clone.style.display = ''; // cloneNode copies the inline style below, which would otherwise hide it too
-        moreMenu.appendChild(clone);
+        moreDynamic.appendChild(clone);
         a.style.display = 'none';
       });
     }
@@ -131,6 +146,12 @@
 
     window.addEventListener('resize', recalc);
     window.addEventListener('load', recalc);
+    // Fallback-font metrics during the very first measurement can be
+    // narrower than the real webfont, making links look like they fit when
+    // they won't once Pixelify Sans/Inter actually swap in — recheck then.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(recalc);
+    }
     recalc();
   })();
 

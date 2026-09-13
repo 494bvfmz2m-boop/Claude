@@ -27,7 +27,7 @@ if (!defined('DB_USER')) define('DB_USER', 'CHANGE_ME');
 if (!defined('DB_PASS')) define('DB_PASS', 'CHANGE_ME');
 
 // Bump this whenever CSS/JS/images change, so browsers/hosts don't serve a stale cached copy.
-define('ASSET_VERSION', '20260912a');
+define('ASSET_VERSION', '20260913a');
 
 // Accounts that always have every permission and always outrank every role,
 // no matter what roles (if any) are assigned to them in the database. Not a
