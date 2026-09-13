@@ -71,6 +71,35 @@ bind to a non-localhost address as a reminder.
 Login attempts are rate-limited per username (5 attempts / 5 minutes, in-memory —
 fine for a single instance; a multi-instance deployment would need a shared store).
 
+## Deploying `vault-server` (e.g. with Coolify)
+
+The root `Dockerfile` builds and runs only `vault-server` (a multi-stage build —
+compiles with a full Rust toolchain, ships just the binary). It bakes in sensible
+container defaults:
+
+- `VAULT_BIND_ADDR=0.0.0.0:7878` — listens on all interfaces inside the container.
+  This is safe specifically because Coolify's proxy (Traefik) sits in front,
+  terminates TLS, and is the only thing that talks to the container directly —
+  satisfying the "put it behind TLS" requirement from the section above without
+  any extra config on your part.
+- `VAULT_DB_PATH=/data/vault.db` — the SQLite file lives under `/data`, a declared
+  Docker volume, so it survives redeploys.
+
+To deploy on Coolify:
+
+1. Create a new resource → **Docker Build** (Dockerfile) pointed at this repo/branch.
+   Coolify will find the root `Dockerfile` automatically.
+2. **Add a persistent volume** mounted at `/data`. Skipping this means every
+   redeploy wipes your vault.
+3. **Assign a domain** and let Coolify issue/manage the TLS certificate (its
+   default Traefik + Let's Encrypt flow). No app-level env vars are required —
+   the image's built-in defaults are already container-ready.
+4. Set `VAULT_SERVER_URL` on any machine running `vault-cli` to that domain, e.g.
+   `export VAULT_SERVER_URL=https://vault.yourdomain.com`.
+
+The container exposes port `7878` (matches `EXPOSE` in the Dockerfile) — point
+Coolify's port mapping at that if it doesn't auto-detect it.
+
 ## Using the CLI
 
 ```
