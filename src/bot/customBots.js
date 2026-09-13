@@ -29,6 +29,30 @@ async function fetchApplicationInfo(token) {
   return res.json();
 }
 
+// The dashboard redirects here the instant Discord's OAuth authorize page
+// finishes -- but Discord's own gateway can lag a few seconds behind that
+// REST-level join, so the very first READY payload for a brand new gateway
+// session sometimes doesn't include the guild yet even though the invite
+// genuinely went through. Rather than giving up the moment `ready` fires,
+// wait for it to actually show up (via cache, or the GuildCreate event
+// dispatched once its data arrives) before concluding it was never invited.
+function waitForGuild(client, guildId, timeoutMs) {
+  if (client.guilds.cache.has(guildId)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onGuildCreate = (guild) => {
+      if (guild.id !== guildId) return;
+      clearTimeout(timer);
+      client.off(Events.GuildCreate, onGuildCreate);
+      resolve(true);
+    };
+    client.on(Events.GuildCreate, onGuildCreate);
+    const timer = setTimeout(() => {
+      client.off(Events.GuildCreate, onGuildCreate);
+      resolve(client.guilds.cache.has(guildId)); // one last check in case of a last-instant race
+    }, timeoutMs);
+  });
+}
+
 // Starts a custom bot for one guild: validates the token, logs it in,
 // confirms it actually landed in the target guild, wires up the exact
 // same feature set as the main bot (registerAllFeatures), and registers
@@ -64,6 +88,8 @@ async function startCustomBot(guildId, token) {
     await client.destroy().catch(() => {});
     throw new Error(`Couldn't log in with that token: ${err.message}`);
   }
+
+  await waitForGuild(client, guildId, 15_000);
 
   if (!client.guilds.cache.has(guildId)) {
     pendingOrLiveClients.delete(guildId);
