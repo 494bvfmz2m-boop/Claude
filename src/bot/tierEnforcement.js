@@ -10,6 +10,7 @@ const { resolveGuild, mainClient } = require('./clientRegistry');
 const { buildPanelMessage } = require('./panelMessage');
 const { stopCustomBot } = require('./customBots');
 const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
+const { handoffPostedPanels } = require('./panelHandoff');
 
 // Discord gives bots no way to add themselves to a server -- only a human
 // clicking an OAuth invite link can do that. The main bot is deliberately
@@ -143,6 +144,15 @@ async function enforceGuildLimits(guildId) {
     // needs updating too or the Custom Bot page would keep showing
     // "connected" for a bot that's actually been disconnected.
     CustomBots.setStopped(guildId);
+    // Symmetric with the connect-side handoff in customBots.js -- any panel
+    // the now-disconnected custom bot posted is stuck under an application
+    // that's no longer listening, so the shared bot (if it's still around)
+    // needs to take those over the same way, or their buttons/reactions
+    // just stop responding with no obvious cause.
+    const fallbackGuild = resolveGuild(guildId);
+    if (fallbackGuild) {
+      await handoffPostedPanels(guildId, fallbackGuild).catch((err) => console.error(`Panel handoff failed for guild ${guildId}:`, err.message));
+    }
     await notifyIfMainBotMissing(guildId, subscriber);
   }
 }

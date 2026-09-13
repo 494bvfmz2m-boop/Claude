@@ -4,6 +4,7 @@ const { registerAllFeatures, registerCommandsForGuild, warmUpAndRefreshAll } = r
 const { CustomBots } = require('../db/repo');
 const { isConfigured, decrypt } = require('../web/lib/tokenCrypto');
 const registry = require('./clientRegistry');
+const { handoffPostedPanels } = require('./panelHandoff');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -104,6 +105,13 @@ async function startCustomBot(guildId, token) {
     botUsername: client.user.tag,
     botAvatar: client.user.avatarURL({ size: 64 }),
   });
+
+  // Best-effort -- any already-posted ticket/reaction-role panels need to
+  // move to this bot's own identity (see panelHandoff.js for why), but a
+  // hiccup here shouldn't fail the connection itself; the dashboard's own
+  // "Deploy" buttons are still there as a manual fallback.
+  const guild = client.guilds.cache.get(guildId);
+  handoffPostedPanels(guildId, guild).catch((err) => console.error(`Panel handoff failed for guild ${guildId}:`, err.message));
 
   client.on('error', (err) => {
     console.error(`Custom bot for guild ${guildId} errored:`, err.message);
