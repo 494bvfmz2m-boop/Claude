@@ -345,6 +345,11 @@ table tr:last-child td { border-bottom: none; }
 .btn-checkout:hover { animation-play-state: paused; }
 @keyframes checkoutGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,169,30,0.45); } 50% { box-shadow: 0 0 0 8px rgba(242,169,30,0); } }
 .mc-username-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg-alt); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 20px; font-size: 0.9rem; animation: fadeInUp .4s ease both; }
+.creator-code-bar { margin-top: 6px; }
+.creator-code-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg-alt); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 0.9rem; }
+.creator-code-form input[type="text"] { flex: 1; min-width: 160px; }
+.creator-code-applied { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--gold-soft); border: 1px solid rgba(242,169,30,0.35); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 0.9rem; }
+.creator-code-applied strong { color: var(--gold); }
 .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; animation: fadeIn .5s ease both; }
 
 /* ---- Package preview modal ---- */

@@ -111,6 +111,23 @@ function tebex_remove_package_from_basket($basketIdent, $packageId) {
 }
 
 /**
+ * Applies a Tebex Creator Code (creator/streamer referral) to a basket —
+ * shares a percentage of the sale with that creator and, if the code is set
+ * up that way in the Tebex Creator Panel, gives the buyer a discount too.
+ * Codes and their payout % are configured entirely on Tebex's side (Creator
+ * Panel -> Engagement -> Creator Codes); this just lets a customer enter one.
+ */
+function tebex_apply_creator_code($basketIdent, $code) {
+    return tebex_request('POST', '/baskets/' . rawurlencode($basketIdent) . '/creator-codes', [
+        'creator_code' => $code,
+    ]);
+}
+
+function tebex_remove_creator_code($basketIdent) {
+    return tebex_request('POST', '/baskets/' . rawurlencode($basketIdent) . '/creator-codes/remove');
+}
+
+/**
  * Splits a Tebex package description into a short intro line + a bullet
  * feature list, so a plain block of admin-typed text renders as a tidy
  * checklist instead of one dense paragraph. Convention: the first line is
