@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["vault-crypto", "vault-server", "vault-cli"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[profile.release]
+strip = true
