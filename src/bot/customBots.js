@@ -112,6 +112,7 @@ async function startCustomBot(guildId, token) {
   // "Deploy" buttons are still there as a manual fallback.
   const guild = client.guilds.cache.get(guildId);
   handoffPostedPanels(guildId, guild).catch((err) => console.error(`Panel handoff failed for guild ${guildId}:`, err.message));
+  registry.demoteSharedBotRole(guildId).catch(() => {});
 
   client.on('error', (err) => {
     console.error(`Custom bot for guild ${guildId} errored:`, err.message);

@@ -90,4 +90,25 @@ function ownsGuild(client, guildId) {
   return Boolean(guildId) && clientForGuild(guildId) === client;
 }
 
-module.exports = { mainClient, registerCustomClient, unregisterCustomClient, clientForGuild, resolveGuild, allKnownGuilds, guardClientEvents, ownsGuild };
+// Cosmetic only -- called right after a custom bot takes over a guild, so
+// the shared bot's own role doesn't sit there looking like a second live
+// bot in the member list while it's actually just standing by. Strips its
+// color and drops it to the very bottom of the role list (position 0, just
+// above @everyone). Best-effort: a guild the shared bot no longer has
+// Manage Roles in (or isn't in at all -- see notifyIfMainBotMissing in
+// tierEnforcement.js) just silently skips this, same as any other
+// permissions edge case.
+async function demoteSharedBotRole(guildId) {
+  const guild = mainClient.guilds.cache.get(guildId);
+  if (!guild) return;
+  const me = guild.members.me ?? await guild.members.fetchMe().catch(() => null);
+  const role = me?.roles.botRole;
+  if (!role) return;
+  await role.edit({ color: 0, reason: 'Custom bot connected -- standing by as backup' }).catch(() => {});
+  await role.setPosition(0).catch(() => {});
+}
+
+module.exports = {
+  mainClient, registerCustomClient, unregisterCustomClient, clientForGuild, resolveGuild, allKnownGuilds,
+  guardClientEvents, ownsGuild, demoteSharedBotRole,
+};

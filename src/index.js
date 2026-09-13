@@ -1,7 +1,7 @@
 const config = require('./config');
 require('./db/database'); // ensures schema exists before anything else runs
 
-const { Events } = require('discord.js');
+const { Events, ActivityType } = require('discord.js');
 const client = require('./bot/client');
 const { registerAllFeatures, registerAllGuildCommands, warmUpAndRefreshAll, registerCommandsForGuild } = require('./bot/registerAll');
 const { startAllSavedCustomBots } = require('./bot/customBots');
@@ -21,6 +21,12 @@ if (!config.discordClientSecret || !config.dashboardUrl) {
 registerAllFeatures(client, {
   onReady: async () => {
     console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
+    // Presence is one global setting for the whole connection, not per-guild
+    // -- this bot is simultaneously the active bot in some servers and a
+    // silent backup in others (wherever a Custom-tier subscriber's own bot
+    // has taken over, see customBots.js), so the text has to hold up in
+    // both: true either way, never implies it's doing nothing.
+    client.user.setPresence({ activities: [{ name: 'for tickets & mod actions', type: ActivityType.Watching }], status: 'online' });
     await registerAllGuildCommands(client);
     warmUpAndRefreshAll(client).catch((err) => console.error('Staff list warm-up failed:', err.message));
     // Custom bots (Custom Tebex tier -- see bot/customBots.js) start after
