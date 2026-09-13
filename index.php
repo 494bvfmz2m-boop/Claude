@@ -51,7 +51,7 @@ require __DIR__ . '/includes/header.php';
                 <?php if (!empty($featuredProduct['icon'])): ?>
                     <img src="<?php echo e($featuredProduct['icon']); ?>" alt="">
                 <?php else: ?>
-                    <div class="product-card__icon-fallback"></div>
+                    <div class="product-card__icon-fallback"><?php echo xs_icon('box', 26); ?></div>
                 <?php endif; ?>
             </div>
             <div>
