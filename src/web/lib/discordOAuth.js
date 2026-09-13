@@ -52,16 +52,15 @@ function buildGenericInviteUrl() {
 // that application's own OAuth2 > Redirects list, or Discord rejects the
 // whole authorize request outright.
 //
-// Deliberately omits response_type=code -- Discord only requires it (and
-// only then redirects with a `code` to exchange) when the scope requests
-// something beyond bot/applications.commands, e.g. `identify`. Since this
-// never needs a code (the callback route below just confirms the bot
-// landed in the guild, it doesn't exchange anything), adding response_type
-// here would ask Discord for an authorization code our scope has no real
-// use for -- which is exactly the kind of malformed request that can make
-// the whole authorize call quietly fail instead of actually inviting the
-// bot. Just scope + redirect_uri is enough: Discord still redirects to
-// redirect_uri (with ?guild_id=&permissions=) once the bot's added.
+// response_type=code has to be here: if the subscriber's own application
+// has "Requires OAuth2 Code Grant" turned on (Developer Portal -> Bot),
+// Discord refuses the ENTIRE invite with "Integration requires code
+// grant" unless response_type=code is present -- the bot never gets
+// added at all. We never actually exchange the code it hands back (the
+// callback route just confirms the bot landed in the guild), but Discord
+// still requires asking for one up front for such an app. Since there's
+// no reliable way to know from here whether a given subscriber's app has
+// that toggle on, always requesting it is what works for both cases.
 function buildCustomBotInviteUrl(applicationId, guildId, redirectUri) {
   const params = new URLSearchParams({
     client_id: applicationId,
@@ -69,6 +68,7 @@ function buildCustomBotInviteUrl(applicationId, guildId, redirectUri) {
     permissions: BOT_INVITE_PERMISSIONS,
     guild_id: guildId,
     disable_guild_select: 'true',
+    response_type: 'code',
     redirect_uri: redirectUri,
   });
   return `https://discord.com/oauth2/authorize?${params.toString()}`;
