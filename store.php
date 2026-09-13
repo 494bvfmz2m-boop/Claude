@@ -135,7 +135,14 @@ $username = store_current_username();
                    data-price-html="<?= e($priceHtml) ?>"
                    data-image="<?= e($pkg['image'] ?? '') ?>">
                 <div class="package-top">
-                  <span class="package-icon"><?php if (!empty($pkg['image'])): ?><img src="<?= e($pkg['image']) ?>" alt="" loading="lazy"><?php else: ?>🛍️<?php endif; ?></span>
+                  <span class="package-icon<?= $isSubscription ? ' is-subscription' : '' ?>">
+                    <?php if (!empty($pkg['image'])): ?>
+                      <img src="<?= e($pkg['image']) ?>" alt="" loading="lazy">
+                      <?php if ($isSubscription): ?><span class="package-icon-badge" title="Subscription">🔁</span><?php endif; ?>
+                    <?php else: ?>
+                      <?= $isSubscription ? '🔁' : '🛍️' ?>
+                    <?php endif; ?>
+                  </span>
                   <?php if (!empty($tags)): ?>
                     <div class="package-tags">
                       <?php foreach ($tags as $tag): ?><span class="pkg-tag pkg-tag-<?= e(strtolower($tag)) ?>"><?= e($tag) ?></span><?php endforeach; ?>
