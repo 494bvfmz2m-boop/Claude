@@ -64,6 +64,9 @@ RewriteRule ^ /%1 [R=301,L]
 # ---------------------------------------------------------------------
 RewriteRule ^posts/([a-zA-Z0-9-]+)$ post.php?slug=$1 [L,QSA]
 
+# Same for a single Docs/Wiki page: /docs/some-slug -> doc.php?slug=some-slug
+RewriteRule ^docs/([a-zA-Z0-9-]+)$ doc.php?slug=$1 [L,QSA]
+
 # ---------------------------------------------------------------------
 # 4. Generic clean URL: /anything -> anything.php, only if that file
 #    actually exists. Covers every current and future plain page

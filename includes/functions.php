@@ -706,6 +706,239 @@ function render_post_body(string $body): string
     return $html;
 }
 
+/* =========================================================================
+   Docs / Wiki
+   Pages live in the same shared `collections` table as posts/products/team
+   (collection 'docs') — no dedicated table needed. Category grouping and
+   ordering are plain fields on each page record, sorted here in PHP; at
+   the scale of a docs site (tens to low hundreds of pages) that's simpler
+   and just as fast as pushing it down into SQL.
+   ========================================================================= */
+
+/** Every Docs/Wiki page, unsorted. */
+function xs_docs_all(): array
+{
+    return Content::all('docs');
+}
+
+/**
+ * Docs pages grouped by category, in display order (by category_order
+ * then sort_order within each category): [['category' => ..., 'pages' => [...]], ...].
+ */
+function xs_docs_grouped(bool $publishedOnly = true): array
+{
+    $pages = xs_docs_all();
+    if ($publishedOnly) {
+        $pages = array_values(array_filter($pages, fn($p) => !empty($p['published'])));
+    }
+    usort($pages, function ($a, $b) {
+        return [(int) ($a['category_order'] ?? 0), (int) ($a['sort_order'] ?? 0)]
+            <=> [(int) ($b['category_order'] ?? 0), (int) ($b['sort_order'] ?? 0)];
+    });
+
+    $groups = [];
+    foreach ($pages as $page) {
+        $cat = ($page['category'] ?? '') !== '' ? $page['category'] : 'General';
+        $groups[$cat][] = $page;
+    }
+    $out = [];
+    foreach ($groups as $cat => $groupPages) {
+        $out[] = ['category' => $cat, 'pages' => $groupPages];
+    }
+    return $out;
+}
+
+/** A single Docs page by slug, or null if it doesn't exist (or isn't published, when $publishedOnly). */
+function xs_docs_find_by_slug(string $slug, bool $publishedOnly = true): ?array
+{
+    foreach (xs_docs_all() as $page) {
+        if (($page['slug'] ?? '') === $slug && (!$publishedOnly || !empty($page['published']))) {
+            return $page;
+        }
+    }
+    return null;
+}
+
+/**
+ * A small Markdown subset for Docs/Wiki content: headings (# through
+ * ####), **bold**, *italic*, `inline code`, fenced ``` code blocks,
+ * bullet/numbered lists, blockquotes, [links](https://...), and ---
+ * horizontal rules. Not a full CommonMark implementation — just enough
+ * for real documentation without pulling in a dependency this
+ * framework-less codebase doesn't otherwise have. Everything is
+ * escaped before any tag is added, so this is safe even though it
+ * allows a *subset* of raw-looking syntax through.
+ *
+ * Returns ['html' => string, 'toc' => [['id','text','level'], ...]] —
+ * the toc entries are h2/h3 headings, for an "on this page" sidebar.
+ */
+function xs_render_doc_body(string $md): array
+{
+    $md = str_replace("\r\n", "\n", $md);
+    $lines = explode("\n", $md);
+
+    $html = '';
+    $toc = [];
+    $usedIds = [];
+    $inCode = false;
+    $codeLang = '';
+    $codeBuf = [];
+    $listType = null;
+    $paraBuf = [];
+
+    $flushPara = function () use (&$paraBuf, &$html) {
+        if (!$paraBuf) return;
+        $text = trim(implode(' ', $paraBuf));
+        if ($text !== '') {
+            $html .= '<p>' . xs_doc_inline($text) . '</p>' . "\n";
+        }
+        $paraBuf = [];
+    };
+    $closeList = function () use (&$listType, &$html) {
+        if ($listType) {
+            $html .= '</' . $listType . '>' . "\n";
+            $listType = null;
+        }
+    };
+
+    foreach ($lines as $line) {
+        if (preg_match('/^```\s*([a-zA-Z0-9_+-]*)\s*$/', $line, $m)) {
+            if (!$inCode) {
+                $flushPara();
+                $closeList();
+                $inCode = true;
+                $codeLang = $m[1];
+                $codeBuf = [];
+            } else {
+                $inCode = false;
+                $langLabel = $codeLang !== '' ? '<span class="doc-code__lang">' . e($codeLang) . '</span>' : '<span></span>';
+                $html .= '<div class="doc-code">'
+                    . '<div class="doc-code__bar">' . $langLabel . '<button type="button" class="doc-code__copy" data-copy>Copy</button></div>'
+                    . '<pre><code>' . e(implode("\n", $codeBuf)) . '</code></pre></div>' . "\n";
+            }
+            continue;
+        }
+        if ($inCode) {
+            $codeBuf[] = $line;
+            continue;
+        }
+
+        $trimmed = rtrim($line);
+
+        if (preg_match('/^(#{1,4})\s+(.*)$/', $trimmed, $m)) {
+            $flushPara();
+            $closeList();
+            $level = strlen($m[1]);
+            $text = trim($m[2]);
+            $id = xs_doc_heading_id($text, $usedIds);
+            $html .= '<h' . $level . ' id="' . e($id) . '">' . xs_doc_inline($text) . '</h' . $level . '>' . "\n";
+            if ($level <= 3) {
+                $toc[] = ['id' => $id, 'text' => $text, 'level' => $level];
+            }
+            continue;
+        }
+
+        if (preg_match('/^(-{3,}|\*{3,})$/', $trimmed)) {
+            $flushPara();
+            $closeList();
+            $html .= "<hr>\n";
+            continue;
+        }
+
+        if (preg_match('/^>\s?(.*)$/', $trimmed, $m)) {
+            $flushPara();
+            $closeList();
+            $html .= '<blockquote><p>' . xs_doc_inline(trim($m[1])) . '</p></blockquote>' . "\n";
+            continue;
+        }
+
+        if (preg_match('/^[-*]\s+(.*)$/', $trimmed, $m)) {
+            $flushPara();
+            if ($listType !== 'ul') {
+                $closeList();
+                $html .= "<ul>\n";
+                $listType = 'ul';
+            }
+            $html .= '<li>' . xs_doc_inline(trim($m[1])) . '</li>' . "\n";
+            continue;
+        }
+
+        if (preg_match('/^\d+\.\s+(.*)$/', $trimmed, $m)) {
+            $flushPara();
+            if ($listType !== 'ol') {
+                $closeList();
+                $html .= "<ol>\n";
+                $listType = 'ol';
+            }
+            $html .= '<li>' . xs_doc_inline(trim($m[1])) . '</li>' . "\n";
+            continue;
+        }
+
+        if (trim($trimmed) === '') {
+            $flushPara();
+            $closeList();
+            continue;
+        }
+
+        $paraBuf[] = trim($trimmed);
+    }
+
+    // An unterminated ``` fence still renders its captured lines rather
+    // than silently swallowing content the author clearly meant to show.
+    if ($inCode && $codeBuf) {
+        $html .= '<div class="doc-code"><pre><code>' . e(implode("\n", $codeBuf)) . '</code></pre></div>' . "\n";
+    }
+    $flushPara();
+    $closeList();
+
+    return ['html' => $html, 'toc' => $toc];
+}
+
+/**
+ * Inline formatting within one block: `code`, **bold**, *italic*,
+ * [text](url). Escapes the whole string first, then adds tags around
+ * matched spans — code spans are swapped out for placeholders before
+ * bold/italic/link run, so a literal "*" inside `inline code` can never
+ * be misread as emphasis syntax.
+ */
+function xs_doc_inline(string $text): string
+{
+    $text = e($text);
+
+    $codeSpans = [];
+    $text = preg_replace_callback('/`([^`]+)`/', function ($m) use (&$codeSpans) {
+        $key = "\x01" . count($codeSpans) . "\x02";
+        $codeSpans[$key] = '<code>' . $m[1] . '</code>';
+        return $key;
+    }, $text);
+
+    // Only http(s)/mailto links are allowed through — no javascript: etc.
+    $text = preg_replace_callback('/\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/', function ($m) {
+        return '<a href="' . $m[2] . '" target="_blank" rel="noopener">' . $m[1] . '</a>';
+    }, $text);
+    $text = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $text);
+    $text = preg_replace('/(?<!\*)\*([^*]+)\*(?!\*)/', '<em>$1</em>', $text);
+
+    if ($codeSpans) {
+        $text = strtr($text, $codeSpans);
+    }
+    return $text;
+}
+
+/** A URL-safe heading id, de-duplicated within one page — used for anchor links and the "on this page" TOC. */
+function xs_doc_heading_id(string $text, array &$usedIds): string
+{
+    $id = slugify($text);
+    $base = $id;
+    $i = 2;
+    while (isset($usedIds[$id])) {
+        $id = $base . '-' . $i;
+        $i++;
+    }
+    $usedIds[$id] = true;
+    return $id;
+}
+
 /**
  * Turns a Tebex package's (HTML) description into plain text lines,
  * one per bullet/paragraph/line-break in the source — used to render

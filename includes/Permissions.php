@@ -15,6 +15,7 @@ class Permissions
         'manage_posts'      => 'Manage Posts',
         'manage_products'   => 'Manage Products',
         'manage_team'       => 'Manage Team',
+        'manage_docs'       => 'Manage Docs & Wiki',
         'manage_settings'   => 'Edit Page Content',
         'view_messages'     => 'View Messages (client contact form submissions)',
         'manage_support'    => 'Support Chat (reply to and close customer conversations)',

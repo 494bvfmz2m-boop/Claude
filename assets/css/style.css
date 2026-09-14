@@ -1742,3 +1742,121 @@ input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, inp
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-6px); }
 }
+
+/* =========================================================================
+   Docs / Wiki
+   Three-column layout: category sidebar, article, "on this page" TOC.
+   Collapses to sidebar-above-content on mobile (no toggle drawer —
+   deliberately simple, since this is a read-mostly area).
+   ========================================================================= */
+.docs-shell {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr) 210px;
+    gap: 44px;
+    max-width: var(--container);
+    margin: 0 auto;
+    padding: 44px 24px 110px;
+    align-items: start;
+}
+
+.docs-sidebar { position: sticky; top: 94px; max-height: calc(100vh - 110px); overflow-y: auto; padding-right: 4px; }
+.docs-search {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 22px;
+    color: var(--text-faint);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.docs-search:focus-within { border-color: var(--magenta); box-shadow: 0 0 0 4px rgba(192, 38, 232, 0.14); }
+.docs-search svg { flex-shrink: 0; }
+.docs-search input { border: none; background: none; padding: 0; font-size: 14px; color: var(--text); width: 100%; }
+.docs-search input:focus { outline: none; box-shadow: none; }
+
+.docs-nav__group { margin-bottom: 24px; }
+.docs-nav__label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+    padding: 0 10px;
+}
+.docs-nav__link {
+    display: block;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    color: var(--text-muted);
+    border-left: 2px solid transparent;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.docs-nav__link:hover { color: var(--text); background: var(--bg-card-hover); }
+.docs-nav__link.is-active { color: var(--text); background: var(--gradient-soft); border-left-color: var(--magenta); font-weight: 700; }
+.docs-nav__empty { font-size: 13px; color: var(--text-faint); padding: 0 10px; }
+
+.docs-content { min-width: 0; animation: auth-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.docs-breadcrumb { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.05em; }
+.docs-breadcrumb a { color: var(--text-faint); }
+.docs-breadcrumb a:hover { color: var(--magenta); }
+.docs-breadcrumb span { margin: 0 6px; }
+.docs-content h1 { font-size: clamp(28px, 3.6vw, 38px); margin-bottom: 10px; }
+.docs-content__lede { font-size: 16.5px; color: var(--text-muted); margin-bottom: 8px; }
+.docs-content__meta { font-size: 12.5px; color: var(--text-faint); margin-bottom: 36px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+
+/* Article typography — deliberately roomier line-height/measure than
+   the rest of the site, since this is the one place people read
+   paragraph after paragraph rather than skim. */
+.docs-prose { font-size: 16px; line-height: 1.75; color: var(--text); }
+.docs-prose h2 { font-size: 24px; margin: 44px 0 16px; scroll-margin-top: 100px; }
+.docs-prose h3 { font-size: 19px; margin: 32px 0 12px; scroll-margin-top: 100px; text-transform: none; }
+.docs-prose h4 { font-size: 16px; margin: 24px 0 10px; color: var(--text-muted); text-transform: none; }
+.docs-prose > *:first-child { margin-top: 0; }
+.docs-prose p { margin: 0 0 18px; color: var(--text-muted); }
+.docs-prose ul, .docs-prose ol { margin: 0 0 18px; padding-left: 24px; color: var(--text-muted); }
+.docs-prose li { margin-bottom: 8px; line-height: 1.6; }
+.docs-prose li::marker { color: var(--magenta); }
+.docs-prose a { color: var(--magenta); font-weight: 600; text-decoration: underline; text-decoration-color: rgba(192, 38, 232, 0.35); text-underline-offset: 2px; }
+.docs-prose a:hover { text-decoration-color: var(--magenta); }
+.docs-prose strong { color: var(--text); }
+.docs-prose code { font-family: var(--font-mono); font-size: 0.87em; background: var(--bg-elevated); border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; color: var(--beta); }
+.docs-prose blockquote { margin: 0 0 20px; padding: 4px 20px; border-left: 3px solid var(--magenta); background: var(--gradient-soft); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.docs-prose blockquote p { margin: 12px 0; color: var(--text); }
+.docs-prose hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+.doc-code { margin: 0 0 22px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--bg-elevated); }
+.doc-code__bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border); }
+.doc-code__lang { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.doc-code__copy {
+    background: none; border: 1px solid var(--border-strong); color: var(--text-muted);
+    font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 100px; cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.doc-code__copy:hover { color: var(--text); border-color: var(--magenta); }
+.doc-code__copy.is-copied { color: var(--online); border-color: var(--online); }
+.doc-code pre { margin: 0; padding: 16px 18px; overflow-x: auto; }
+.doc-code code { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.6; color: var(--text); background: none; border: none; padding: 0; }
+
+.docs-toc { position: sticky; top: 94px; max-height: calc(100vh - 110px); overflow-y: auto; }
+.docs-toc__label { display: block; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 12px; }
+.docs-toc__link { display: block; font-size: 13px; color: var(--text-faint); padding: 5px 0 5px 14px; border-left: 1px solid var(--border); transition: color .15s ease, border-color .15s ease; }
+.docs-toc__link--3 { padding-left: 26px; font-size: 12.5px; }
+.docs-toc__link:hover { color: var(--text-muted); }
+.docs-toc__link.is-active { color: var(--magenta); border-left-color: var(--magenta); font-weight: 700; }
+
+@media (max-width: 1100px) {
+    .docs-shell { grid-template-columns: 230px minmax(0, 1fr); }
+    .docs-toc { display: none; }
+}
+@media (max-width: 780px) {
+    .docs-shell { grid-template-columns: 1fr; padding: 24px 18px 70px; gap: 28px; }
+    .docs-sidebar { position: static; max-height: none; order: -1; margin-bottom: 4px; }
+}
+
+/* Staff Docs editor — a slightly taller monospace textarea since it's
+   holding Markdown-lite, not prose. */
+.doc-editor { font-family: var(--font-mono); font-size: 14px; line-height: 1.6; }

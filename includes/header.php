@@ -60,6 +60,7 @@ $xsOgImage = SITE_URL . '/assets/img/og-image.jpg';
                 <li><a href="/products" class="<?php echo $currentPage === 'products' ? 'is-active' : ''; ?>">Products</a></li>
                 <li><a href="/store" class="<?php echo $currentPage === 'store' ? 'is-active' : ''; ?>">Store</a></li>
                 <li><a href="/posts" class="<?php echo $currentPage === 'posts' ? 'is-active' : ''; ?>">Posts</a></li>
+                <li><a href="/docs" class="<?php echo $currentPage === 'docs' ? 'is-active' : ''; ?>">Docs</a></li>
                 <li><a href="/about" class="<?php echo $currentPage === 'about' ? 'is-active' : ''; ?>">About</a></li>
                 <li><a href="/contact" class="<?php echo $currentPage === 'contact' ? 'is-active' : ''; ?>">Contact</a></li>
             </ul>

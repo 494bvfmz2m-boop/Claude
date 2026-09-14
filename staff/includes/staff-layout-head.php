@@ -34,11 +34,12 @@ $staffSupportUnread = SupportTicket::unreadCountForStaff();
             <span class="staff-nav__label">Overview</span>
             <a href="/staff" class="<?php echo $navPage === 'dashboard' ? 'is-active' : ''; ?>"><?php echo xs_icon('home', 15); ?> Dashboard</a>
 
-            <?php if (Permissions::can($currentStaffUser, 'manage_posts') || Permissions::can($currentStaffUser, 'manage_products') || Permissions::can($currentStaffUser, 'manage_team') || Permissions::can($currentStaffUser, 'manage_settings')): ?>
+            <?php if (Permissions::can($currentStaffUser, 'manage_posts') || Permissions::can($currentStaffUser, 'manage_products') || Permissions::can($currentStaffUser, 'manage_team') || Permissions::can($currentStaffUser, 'manage_settings') || Permissions::can($currentStaffUser, 'manage_docs')): ?>
             <span class="staff-nav__label">Content</span>
             <?php if (Permissions::can($currentStaffUser, 'manage_posts')): ?><a href="/staff/posts" class="<?php echo $navPage === 'posts' ? 'is-active' : ''; ?>"><?php echo xs_icon('doc', 15); ?> Posts</a><?php endif; ?>
             <?php if (Permissions::can($currentStaffUser, 'manage_products')): ?><a href="/staff/products" class="<?php echo $navPage === 'products' ? 'is-active' : ''; ?>"><?php echo xs_icon('box', 15); ?> Products</a><?php endif; ?>
             <?php if (Permissions::can($currentStaffUser, 'manage_team')): ?><a href="/staff/team" class="<?php echo $navPage === 'team' ? 'is-active' : ''; ?>"><?php echo xs_icon('users', 15); ?> Team</a><?php endif; ?>
+            <?php if (Permissions::can($currentStaffUser, 'manage_docs')): ?><a href="/staff/docs" class="<?php echo $navPage === 'docs' ? 'is-active' : ''; ?>"><?php echo xs_icon('doc', 15); ?> Docs &amp; Wiki</a><?php endif; ?>
             <?php if (Permissions::can($currentStaffUser, 'manage_settings')): ?><a href="/staff/settings" class="<?php echo $navPage === 'settings' ? 'is-active' : ''; ?>"><?php echo xs_icon('sliders', 15); ?> Page content</a><?php endif; ?>
             <?php endif; ?>
 

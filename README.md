@@ -14,7 +14,16 @@ copy of `XyphrosAuth`/`Content`/etc, and one `config.local.php`.
 
 ## What's included
 
-- **Public site** — Home, Products, Posts, About, Contact, Store.
+- **Public site** — Home, Products, Posts, Docs, About, Contact, Store.
+- **Docs & Wiki** (`/docs`, `/docs/{slug}`) — categorized help articles
+  with a sidebar, live client-side search, an "on this page" table of
+  contents, and syntax-highlighted-looking code blocks with a copy
+  button. Content supports a small Markdown subset (headings, **bold**,
+  *italic*, `code`, fenced ``` code blocks, lists, blockquotes, and
+  links) — see `xs_render_doc_body()` in `includes/functions.php`.
+  Pages live in the same shared `collections` table as posts/products/
+  team, so there's no separate migration for this — managed from
+  `/staff/docs` (needs the "Manage Docs & Wiki" permission).
 - **Accounts** — sign up/in, email verification, password reset,
   email 2FA or authenticator-app 2FA, active-device management, all in
   `/login`, `/register`, `/forgot-password`, `/account`.
