@@ -12,6 +12,19 @@ $pageDescription = 'Support Xyphros and unlock Discord perks.';
 $user = XyphrosAuth::currentUser();
 $categories = Tebex::getCategories();
 
+// A package restricted to one specific buyer (see TEBEX_RESTRICTED_PACKAGES
+// in config) is invisible to everyone else — store-buy.php also refuses
+// the purchase server-side, so this is about not showing a "Buy now"
+// button for something most visitors could never actually check out with,
+// not the actual security boundary.
+foreach ($categories as &$category) {
+    $category['packages'] = array_values(array_filter(
+        $category['packages'],
+        fn($pkg) => xs_store_user_can_buy((int) $pkg['id'], $user)
+    ));
+}
+unset($category);
+
 // Cheapest-first: sort packages within each category by price, then sort
 // the categories themselves by their cheapest package, so the grid reads
 // cheapest top-left down to most expensive bottom-right.

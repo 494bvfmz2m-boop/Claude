@@ -1218,6 +1218,23 @@ function xs_next_order_number(): int
     return (int) $db->lastInsertId();
 }
 
+/**
+ * True if $user is allowed to buy $packageId — always true unless that
+ * package is listed in TEBEX_RESTRICTED_PACKAGES, in which case only
+ * the one account with the matching email (case-insensitive) is
+ * allowed. Used both to hide a restricted package from everyone else
+ * on /store and, more importantly, as the actual server-side check in
+ * store-buy.php — the /store listing is just UI, not the boundary.
+ */
+function xs_store_user_can_buy(int $packageId, ?array $user): bool
+{
+    $restrictedTo = TEBEX_RESTRICTED_PACKAGES[$packageId] ?? null;
+    if ($restrictedTo === null) {
+        return true;
+    }
+    return $user && strcasecmp($user['email'] ?? '', $restrictedTo) === 0;
+}
+
 function xs_store_finalize_purchase(string $ident, int $packageId, array $user, array $variableData = []): void
 {
     [$addOk, , $addErr] = Tebex::addPackage($ident, $packageId, 1, $variableData);

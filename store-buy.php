@@ -29,6 +29,13 @@ if (!$package) {
     exit;
 }
 
+if (!xs_store_user_can_buy($packageId, $user)) {
+    // Deliberately the same message a not-found item gets — nothing here
+    // hints that this package exists but is reserved for someone else.
+    header('Location: /store?error=' . rawurlencode("That item couldn't be found. It may have been removed."));
+    exit;
+}
+
 $customerIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
 [$ok, $basket, $err] = Tebex::createBasket(
