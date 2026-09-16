@@ -184,22 +184,6 @@ define('TEBEX_FEATURED_PACKAGES', [
     7650960,
 ]);
 
-// ---- Store: packages restricted to one specific buyer ---------------------
-// Maps a Tebex package ID to the one account email (lowercase) allowed
-// to buy it — everyone else never even sees it listed on /store, and
-// store-buy.php refuses the purchase server-side even if someone gets
-// hold of a direct link. That account still needs to sign in and buy
-// it normally; this only narrows who's allowed to, nothing about the
-// checkout flow itself changes.
-//
-// This maps real customer emails, so it's kept in config.local.php
-// (never committed) rather than here — define it there, e.g.:
-//   define('TEBEX_RESTRICTED_PACKAGES', [
-//       7712345 => 'someone@example.com',
-//   ]);
-// Anything not listed here is unrestricted, same as before.
-xs_define('TEBEX_RESTRICTED_PACKAGES', []);
-
 // ---- Deferred email sending -------------------------------------------
 // send-pending-emails.php sends order-confirmation and license-key emails
 // OUTSIDE the Tebex webhook request (SMTP is too slow to do inline —
