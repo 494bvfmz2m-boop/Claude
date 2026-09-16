@@ -1,0 +1,18 @@
+{
+  "name": "discord-reminder-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot for setting one-time, monthly, quarterly, and yearly reminders.",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.5.0"
+  }
+}

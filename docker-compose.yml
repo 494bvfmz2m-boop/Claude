@@ -1,0 +1,15 @@
+services:
+  reminder-bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      GUILD_ID: ${GUILD_ID:-}
+      OWNER_ID: ${OWNER_ID:-1227918600753512480}
+      DB_PATH: /app/data/reminders.json
+    volumes:
+      - reminder-data:/app/data
+
+volumes:
+  reminder-data:
