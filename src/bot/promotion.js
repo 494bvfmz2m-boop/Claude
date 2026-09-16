@@ -44,14 +44,20 @@ async function changeRank(interaction, direction) {
     return interaction.reply({ content: "You can't promote or demote yourself.", ephemeral: true });
   }
 
+  // Deferred here, before the member fetch and the role change below (both
+  // real Discord API calls) -- otherwise a slow one can blow Discord's
+  // 3-second first-response window and show "This interaction failed" even
+  // though the rank change actually went through.
+  await interaction.deferReply();
+
   const targetMember = await guild.members.fetch(user.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
 
   const hierarchy = Hierarchies.getPrimary(guild.id);
   if (!hierarchy) {
-    return interaction.reply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.', ephemeral: true });
+    return interaction.editReply({ content: 'No staff hierarchy is set up yet — configure it on the dashboard first.' });
   }
 
   // The ladder /promote and /demote actually step through -- excludes any
@@ -60,7 +66,7 @@ async function changeRank(interaction, direction) {
   // stepping through it never lands anyone on one.
   const ladder = getPromotableLadder(hierarchy.id);
   if (ladder.length === 0) {
-    return interaction.reply({ content: 'No promotable ranks are set up yet — configure the hierarchy on the dashboard first.', ephemeral: true });
+    return interaction.editReply({ content: 'No promotable ranks are set up yet — configure the hierarchy on the dashboard first.' });
   }
 
   const override = isOverride(guild, interaction.member);
@@ -68,11 +74,11 @@ async function changeRank(interaction, direction) {
   const targetRank = getRankForRoleIds(hierarchy.id, [...targetMember.roles.cache.keys()]);
 
   if (!override && invokerRank.rank === 0) {
-    return interaction.reply({ content: "You're not part of the staff hierarchy, so you can't promote or demote anyone.", ephemeral: true });
+    return interaction.editReply({ content: "You're not part of the staff hierarchy, so you can't promote or demote anyone." });
   }
 
   if (!override && invokerRank.rank <= targetRank.rank) {
-    return interaction.reply({ content: "You can only act on someone with a strictly lower rank than you.", ephemeral: true });
+    return interaction.editReply({ content: "You can only act on someone with a strictly lower rank than you." });
   }
 
   // Ladder positions, not raw rank numbers -- -1 means "below the bottom
@@ -93,7 +99,7 @@ async function changeRank(interaction, direction) {
     const msg = direction > 0
       ? `**${user.tag}** is already at the highest rank you can promote them to.`
       : `**${user.tag}** isn't part of the staff hierarchy — nothing to demote.`;
-    return interaction.reply({ content: msg, ephemeral: true });
+    return interaction.editReply({ content: msg });
   }
 
   const newRung = newIndex >= 0 ? ladder[newIndex] : null;
@@ -102,7 +108,7 @@ async function changeRank(interaction, direction) {
   try {
     await applyRankChange(guild, targetMember, targetRank.roleId, newRoleId);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't update their roles: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't update their roles: ${err.message}` });
   }
 
   const verb = direction > 0 ? 'Promoted' : 'Demoted';
@@ -111,7 +117,7 @@ async function changeRank(interaction, direction) {
   const stepsLabel = actualSteps > 1 ? ` ${actualSteps} ranks` : '';
   const clampNote = actualSteps < steps ? ` (asked for ${steps}, but that's as far as they could go)` : '';
 
-  await interaction.reply({ content: `${emoji} ${verb} **${user.tag}**${stepsLabel} to ${newRankLabel}.${clampNote}` });
+  await interaction.editReply({ content: `${emoji} ${verb} **${user.tag}**${stepsLabel} to ${newRankLabel}.${clampNote}` });
   await logAction(guild, `${emoji} ${verb}`, user, interaction.user, `rank ${targetRank.rank} → ${newRung ? newRung.rank : 0}`, direction > 0 ? emojiUrl('xyphros-levelup.gif') : null);
 }
 

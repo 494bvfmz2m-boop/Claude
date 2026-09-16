@@ -43,13 +43,19 @@ async function handleVerifyClick(interaction) {
     return interaction.reply({ content: "You're already verified!", ephemeral: true });
   }
 
+  // This button gets clicked by every new member, often right as they join
+  // -- exactly when Discord's API is likeliest to be a little slow for
+  // them. Deferring first means a sluggish role.add() never shows up as
+  // "This interaction failed" on someone's very first action in the server.
+  await interaction.deferReply({ ephemeral: true });
+
   try {
     await interaction.member.roles.add(role);
   } catch {
-    return interaction.reply({ content: "Couldn't give you the role -- XyphrosMod's role might need to be dragged above it in Server Settings → Roles.", ephemeral: true });
+    return interaction.editReply({ content: "Couldn't give you the role -- XyphrosMod's role might need to be dragged above it in Server Settings → Roles." });
   }
 
-  return interaction.reply({ content: "You're verified! Welcome in.", ephemeral: true });
+  return interaction.editReply({ content: "You're verified! Welcome in." });
 }
 
 module.exports = { postOrUpdatePanel, buildVerificationMessage, handleVerifyClick };

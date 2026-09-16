@@ -158,6 +158,8 @@ async function handleInvite(interaction) {
     return interaction.reply({ content: "I can't create an invite for that channel.", ephemeral: true });
   }
 
+  await interaction.deferReply({ ephemeral: true });
+
   let invite;
   try {
     invite = await channel.createInvite({
@@ -167,12 +169,12 @@ async function handleInvite(interaction) {
       reason: `Requested by ${interaction.user.tag}`,
     });
   } catch (err) {
-    return interaction.reply({ content: `Couldn't create an invite: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't create an invite: ${err.message}` });
   }
 
   const expiryNote = maxAgeHours ? `expires in ${maxAgeHours}h` : 'expires in 24h';
   const usesNote = maxUses ? `, max ${maxUses} use${maxUses === 1 ? '' : 's'}` : '';
-  await interaction.reply({ content: `🔗 ${invite.url} — ${expiryNote}${usesNote}`, ephemeral: true });
+  await interaction.editReply({ content: `🔗 ${invite.url} — ${expiryNote}${usesNote}` });
 }
 
 const EMOJI_MENTION_RE = /<(a?):(\w{2,32}):(\d+)>/;
@@ -225,14 +227,19 @@ async function handleSteal(interaction) {
     }
   }
 
+  // Deferred here, not earlier -- everything above is a cheap local/cache
+  // check, but creating the emoji means Discord fetching and processing the
+  // image itself, which can easily clear the 3-second first-response window.
+  await interaction.deferReply();
+
   let emoji;
   try {
     emoji = await interaction.guild.emojis.create({ attachment: url, name, reason: `Added by ${interaction.user.tag}` });
   } catch (err) {
-    return interaction.reply({ content: `Couldn't add that emoji: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't add that emoji: ${err.message}` });
   }
 
-  await interaction.reply(`✅ Added ${emoji.toString()} as \`:${emoji.name}:\``);
+  await interaction.editReply(`✅ Added ${emoji.toString()} as \`:${emoji.name}:\``);
 }
 
 async function handleServerInfo(interaction) {

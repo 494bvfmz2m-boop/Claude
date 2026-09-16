@@ -25,6 +25,12 @@ async function handleLockdown(interaction) {
   const { guild, channel, member } = interaction;
   const reason = interaction.options.getString('reason');
 
+  // Deferred before the permission-overwrite edit below -- that's a real
+  // Discord API call, and a slow one would otherwise blow the 3-second
+  // first-response window and show "This interaction failed" even though
+  // the channel actually got locked.
+  await interaction.deferReply();
+
   try {
     await channel.permissionOverwrites.edit(
       guild.roles.everyone,
@@ -32,7 +38,7 @@ async function handleLockdown(interaction) {
       { reason: reason ? `Locked by ${member.user.tag}: ${reason}` : `Locked by ${member.user.tag}` },
     );
   } catch (err) {
-    return interaction.reply({ content: `Couldn't lock this channel: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't lock this channel: ${err.message}` });
   }
 
   const embed = new EmbedBuilder()
@@ -43,7 +49,7 @@ async function handleLockdown(interaction) {
     .setFooter({ text: `Locked by ${member.user.tag}` })
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed] });
+  await interaction.editReply({ embeds: [embed] });
 
   recordModAction(guild.id, { action: '🔒 Channel locked', target: null, moderator: member.user, reason: reason ? `${reason} (#${channel.name})` : `#${channel.name}` });
   await logToModChannel(guild, embed);
@@ -54,6 +60,8 @@ async function handleUnlockdown(interaction) {
 
   const { guild, channel, member } = interaction;
   const reason = interaction.options.getString('reason');
+
+  await interaction.deferReply();
 
   try {
     // Clears the overwrite entirely rather than setting it to explicitly
@@ -66,7 +74,7 @@ async function handleUnlockdown(interaction) {
       { reason: reason ? `Unlocked by ${member.user.tag}: ${reason}` : `Unlocked by ${member.user.tag}` },
     );
   } catch (err) {
-    return interaction.reply({ content: `Couldn't unlock this channel: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't unlock this channel: ${err.message}` });
   }
 
   const embed = new EmbedBuilder()
@@ -76,7 +84,7 @@ async function handleUnlockdown(interaction) {
     .setFooter({ text: `Unlocked by ${member.user.tag}` })
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed] });
+  await interaction.editReply({ embeds: [embed] });
 
   recordModAction(guild.id, { action: '🔓 Channel unlocked', target: null, moderator: member.user, reason: reason ? `${reason} (#${channel.name})` : `#${channel.name}` });
   await logToModChannel(guild, embed);

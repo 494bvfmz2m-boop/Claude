@@ -72,6 +72,13 @@ async function handleBetaRequestButton(interaction) {
   BetaRequests.decide(id, approve ? 'approved' : 'rejected', interaction.user.id);
   if (approve) BetaAllowlist.add(request.discord_user_id);
 
+  // Acknowledged immediately, before the DM send below -- sending a DM is
+  // the slowest, least reliable kind of Discord API call (it has to open a
+  // DM channel first), and a button click needs SOME response within 3
+  // seconds or the approving admin sees "This interaction failed" even
+  // though the approval already went through.
+  await interaction.deferUpdate();
+
   const requester = await interaction.client.users.fetch(request.discord_user_id).catch(() => null);
   if (requester) {
     await requester.send({ embeds: [buildResultEmbed(approve)] }).catch(() => {});
@@ -80,7 +87,7 @@ async function handleBetaRequestButton(interaction) {
   const decidedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
     .setColor(approve ? '#23a55a' : '#ed4245')
     .addFields({ name: approve ? '✅ Approved' : '❌ Rejected', value: `By ${interaction.user.tag}` });
-  await interaction.update({ embeds: [decidedEmbed], components: [] });
+  await interaction.editReply({ embeds: [decidedEmbed], components: [] });
 }
 
 module.exports = { notifyAdmins, handleBetaRequestButton, buildResultEmbed };

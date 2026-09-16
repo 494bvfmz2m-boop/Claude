@@ -100,18 +100,29 @@ async function handleBan(interaction) {
   const reason = interaction.options.getString('reason');
   const deleteDays = interaction.options.getInteger('delete_days') || 0;
 
+  // Deferred immediately, before the member fetch or the ban itself --
+  // both are real Discord API calls, and Discord only gives 3 seconds for
+  // the FIRST response. Left un-deferred, a slow API call (network blip,
+  // Discord-side rate limiting) makes the command show "This interaction
+  // failed" to the moderator even when the ban actually went through.
+  // Deferred non-ephemeral to match the success reply below, which is
+  // meant to be visible to the channel/other staff, not just the mod who
+  // ran it -- the tradeoff is a post-defer error also ends up public
+  // instead of ephemeral, which is an acceptable, rare edge case.
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!canActOn(interaction.guild, interaction.member, targetMember)) {
-    return interaction.reply({ content: "You can't ban someone with an equal or higher role than you.", ephemeral: true });
+    return interaction.editReply({ content: "You can't ban someone with an equal or higher role than you." });
   }
 
   try {
     await interaction.guild.members.ban(user.id, { reason: reason || undefined, deleteMessageSeconds: deleteDays * 86400 });
   } catch (err) {
-    return interaction.reply({ content: `Couldn't ban them: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't ban them: ${err.message}` });
   }
 
-  await interaction.reply({ content: `🔨 Banned **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
+  await interaction.editReply({ content: `🔨 Banned **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '🔨 Member banned', target: user, moderator: interaction.user, reason });
   await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'banned', emoji: '🔨', guildName: interaction.guild.name, reason }));
 }
@@ -122,13 +133,15 @@ async function handleUnban(interaction) {
   const userId = interaction.options.getString('user_id').trim();
   const reason = interaction.options.getString('reason');
 
+  await interaction.deferReply();
+
   try {
     await interaction.guild.members.unban(userId, reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't unban that ID: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't unban that ID: ${err.message}` });
   }
 
-  await interaction.reply({ content: `✅ Unbanned \`${userId}\`.` });
+  await interaction.editReply({ content: `✅ Unbanned \`${userId}\`.` });
   await logAction(interaction.guild, { action: '✅ Member unbanned', target: userId, moderator: interaction.user, reason });
 }
 
@@ -138,21 +151,23 @@ async function handleKick(interaction) {
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
 
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
   if (!canActOn(interaction.guild, interaction.member, targetMember)) {
-    return interaction.reply({ content: "You can't kick someone with an equal or higher role than you.", ephemeral: true });
+    return interaction.editReply({ content: "You can't kick someone with an equal or higher role than you." });
   }
 
   try {
     await targetMember.kick(reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't kick them: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't kick them: ${err.message}` });
   }
 
-  await interaction.reply({ content: `👢 Kicked **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
+  await interaction.editReply({ content: `👢 Kicked **${user.tag}**.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '👢 Member kicked', target: user, moderator: interaction.user, reason });
   await sendPunishmentDM(user, buildPunishmentEmbed({ action: 'kicked', emoji: '👢', guildName: interaction.guild.name, reason }));
 }
@@ -169,21 +184,23 @@ async function handleMute(interaction) {
     return interaction.reply({ content: `Couldn't parse "${durationInput}" — try something like \`10m\`, \`2h\`, or \`1d\` (max 28d).`, ephemeral: true });
   }
 
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
   if (!canActOn(interaction.guild, interaction.member, targetMember)) {
-    return interaction.reply({ content: "You can't mute someone with an equal or higher role than you.", ephemeral: true });
+    return interaction.editReply({ content: "You can't mute someone with an equal or higher role than you." });
   }
 
   try {
     await targetMember.timeout(ms, reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't mute them: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't mute them: ${err.message}` });
   }
 
-  await interaction.reply({ content: `🔇 Muted **${user.tag}** for ${durationInput}.${reason ? ` Reason: ${reason}` : ''}` });
+  await interaction.editReply({ content: `🔇 Muted **${user.tag}** for ${durationInput}.${reason ? ` Reason: ${reason}` : ''}` });
   await logAction(interaction.guild, { action: '🔇 Member muted', target: user, moderator: interaction.user, reason, extra: [{ name: 'Duration', value: durationInput, inline: true }] });
   await sendPunishmentDM(user, buildPunishmentEmbed({
     action: 'muted', emoji: '🔇', guildName: interaction.guild.name, reason,
@@ -197,18 +214,20 @@ async function handleUnmute(interaction) {
   const user = interaction.options.getUser('user');
   const reason = interaction.options.getString('reason');
 
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
 
   try {
     await targetMember.timeout(null, reason || undefined);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't remove their mute: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't remove their mute: ${err.message}` });
   }
 
-  await interaction.reply({ content: `🔊 Unmuted **${user.tag}**.` });
+  await interaction.editReply({ content: `🔊 Unmuted **${user.tag}**.` });
   await logAction(interaction.guild, { action: '🔊 Member unmuted', target: user, moderator: interaction.user, reason });
 }
 
@@ -391,21 +410,23 @@ async function handleNick(interaction) {
   const target = interaction.options.getUser('user');
   const newNick = interaction.options.getString('nickname');
 
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(target.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
   if (!canActOn(interaction.guild, interaction.member, targetMember)) {
-    return interaction.reply({ content: "You can't change the nickname of someone with an equal or higher role than you.", ephemeral: true });
+    return interaction.editReply({ content: "You can't change the nickname of someone with an equal or higher role than you." });
   }
 
   try {
     await targetMember.setNickname(newNick || null);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't change their nickname: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't change their nickname: ${err.message}` });
   }
 
-  await interaction.reply(newNick ? `✏️ Changed **${target.tag}**'s nickname to **${newNick}**.` : `✏️ Cleared **${target.tag}**'s nickname.`);
+  await interaction.editReply(newNick ? `✏️ Changed **${target.tag}**'s nickname to **${newNick}**.` : `✏️ Cleared **${target.tag}**'s nickname.`);
   await logAction(interaction.guild, { action: '✏️ Nickname changed', target, moderator: interaction.user, reason: newNick || '(cleared)' });
 }
 
@@ -419,13 +440,15 @@ async function handleSlowmode(interaction) {
     return interaction.reply({ content: "That's not a channel I can set slowmode on.", ephemeral: true });
   }
 
+  await interaction.deferReply();
+
   try {
     await channel.setRateLimitPerUser(seconds, `Set by ${interaction.user.tag}`);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't set slowmode: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't set slowmode: ${err.message}` });
   }
 
-  await interaction.reply(seconds > 0
+  await interaction.editReply(seconds > 0
     ? `🐢 Slowmode in <#${channel.id}> set to **${seconds}s**.`
     : `🐇 Slowmode in <#${channel.id}> turned off.`);
   await logAction(interaction.guild, { action: '🐢 Slowmode changed', target: null, moderator: interaction.user, reason: `#${channel.name} → ${seconds}s` });
@@ -448,22 +471,24 @@ async function handleRole(interaction) {
   const target = interaction.options.getUser('user');
   const role = interaction.options.getRole('role');
 
+  await interaction.deferReply();
+
   const targetMember = await interaction.guild.members.fetch(target.id).catch(() => null);
   if (!targetMember) {
-    return interaction.reply({ content: "They're not in this server.", ephemeral: true });
+    return interaction.editReply({ content: "They're not in this server." });
   }
   if (roleAtOrAboveMember(interaction.guild, interaction.member, role)) {
-    return interaction.reply({ content: "You can't manage a role at or above your own highest role.", ephemeral: true });
+    return interaction.editReply({ content: "You can't manage a role at or above your own highest role." });
   }
 
   try {
     if (sub === 'add') await targetMember.roles.add(role);
     else await targetMember.roles.remove(role);
   } catch (err) {
-    return interaction.reply({ content: `Couldn't ${sub === 'add' ? 'add' : 'remove'} that role: ${err.message}`, ephemeral: true });
+    return interaction.editReply({ content: `Couldn't ${sub === 'add' ? 'add' : 'remove'} that role: ${err.message}` });
   }
 
-  await interaction.reply(sub === 'add'
+  await interaction.editReply(sub === 'add'
     ? `✅ Gave <@${target.id}> the **${role.name}** role.`
     : `✅ Took the **${role.name}** role from <@${target.id}>.`);
   await logAction(interaction.guild, { action: sub === 'add' ? '➕ Role added' : '➖ Role removed', target, moderator: interaction.user, reason: role.name });
