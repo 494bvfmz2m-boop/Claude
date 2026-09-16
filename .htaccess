@@ -26,7 +26,7 @@ ErrorDocument 404 /404.php
     # few places, e.g. the Tebex checkout embed), but this still blocks
     # the two most common injection payoffs: loading a script from an
     # attacker-controlled domain, and framing this site elsewhere.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.tebex.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://headless.tebex.io; frame-src https://js.tebex.io https://pay.tebex.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.tebex.io https://t.whop.tw; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://headless.tebex.io https://t.whop.tw; frame-src https://js.tebex.io https://pay.tebex.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
 </IfModule>
 
 # Never serve includes/*.php over the web directly — everything in
