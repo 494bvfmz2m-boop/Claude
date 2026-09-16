@@ -1,3 +1,6 @@
 {
-  "enabledPlugins": ["anthropics/claude-plugins-community"]
+  "enabledPlugins": [
+    "anthropics/claude-plugins-community",
+    "paddle@anthropics/claude-plugins-community"
+  ]
 }
