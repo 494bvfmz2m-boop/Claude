@@ -1,7 +1,7 @@
 const express = require('express');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { verifyCsrf } = require('../utils/csrf');
-const { getBotGuilds, getGuildChannels, getGuildRoles, sendMessage, editMessage } = require('../utils/discordApi');
+const { getBotGuilds, getGuildChannels, getGuildRoles, sendMessage, editMessage, createChannel } = require('../utils/discordApi');
 const { db, getGuildSettings, updateGuildSettings } = require('../../src/database/db');
 const { giveawayEmbed, giveawayEndedEmbed, orderEmbed } = require('../../src/utils/embeds');
 const { pickWinners } = require('../../src/handlers/giveawayManager');
@@ -58,6 +58,35 @@ router.post('/guilds/:id/settings', verifyCsrf, async (req, res) => {
   }
   const updated = updateGuildSettings(req.params.id, fields);
   res.json(updated);
+});
+
+router.post('/guilds/:id/honeypot', verifyCsrf, async (req, res) => {
+  const guildId = req.params.id;
+  if (!(await assertBotInGuild(guildId))) return res.status(404).json({ error: 'Bot is not in that server.' });
+
+  const { enabled, channel_id: existingChannelId, name } = req.body || {};
+
+  if (!enabled) {
+    updateGuildSettings(guildId, { honeypot_enabled: 0 });
+    return res.json({ success: true });
+  }
+
+  try {
+    let channelId = existingChannelId || getGuildSettings(guildId).honeypot_channel_id;
+    if (!channelId) {
+      const created = await createChannel(guildId, {
+        name: name || '🚫│do-not-post-here',
+        type: 0,
+        topic: 'Staff only — do not send messages in this channel.',
+      });
+      channelId = created.id;
+    }
+    updateGuildSettings(guildId, { honeypot_enabled: 1, honeypot_channel_id: channelId });
+    res.json({ success: true, channelId });
+  } catch (err) {
+    logger.error('Failed to configure honeypot from dashboard:', err.message);
+    res.status(502).json({ error: 'Failed to create/configure the trap channel on Discord.' });
+  }
 });
 
 router.get('/guilds/:id/warnings', (req, res) => {

@@ -31,4 +31,8 @@ async function editMessage(channelId, messageId, body) {
   return rest.patch(Routes.channelMessage(channelId, messageId), { body });
 }
 
-module.exports = { rest, getBotGuilds, getGuild, getGuildChannels, getGuildRoles, sendMessage, editMessage };
+async function createChannel(guildId, body) {
+  return rest.post(Routes.guildChannels(guildId), { body });
+}
+
+module.exports = { rest, getBotGuilds, getGuild, getGuildChannels, getGuildRoles, sendMessage, editMessage, createChannel };

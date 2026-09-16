@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   antiraid_join_threshold INTEGER DEFAULT 10,
   antiraid_join_window_ms INTEGER DEFAULT 10000,
   antiraid_min_account_age_days INTEGER DEFAULT 7,
-  antiraid_action TEXT DEFAULT 'kick'
+  antiraid_action TEXT DEFAULT 'kick',
+  honeypot_enabled INTEGER DEFAULT 0,
+  honeypot_channel_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS warnings (

@@ -29,6 +29,10 @@ module.exports = {
       .addIntegerOption((o) => o.setName('window_seconds').setDescription('Time window in seconds').setMinValue(2).setMaxValue(300))
       .addIntegerOption((o) => o.setName('min_account_age_days').setDescription('Minimum Discord account age in days').setMinValue(0).setMaxValue(365))
       .addStringOption((o) => o.setName('action').setDescription('Action to take against flagged joins').addChoices({ name: 'Kick', value: 'kick' }, { name: 'Ban', value: 'ban' })))
+    .addSubcommand((sc) => sc.setName('honeypot').setDescription('Configure the anti-raid honeypot trap channel')
+      .addBooleanOption((o) => o.setName('enabled').setDescription('Enable or disable the honeypot').setRequired(true))
+      .addChannelOption((o) => o.setName('channel').setDescription('Use an existing channel as the trap (skips creating one)').addChannelTypes(ChannelType.GuildText))
+      .addStringOption((o) => o.setName('name').setDescription('Name for a new trap channel (used only when no channel is given and none exists yet)')))
     .addSubcommand((sc) => sc.setName('view').setDescription('View the current configuration')),
 
   async execute(interaction) {
@@ -97,6 +101,37 @@ module.exports = {
       return interaction.reply({ content: `Anti-raid ${enabled ? 'enabled' : 'disabled'}.`, ephemeral: true });
     }
 
+    if (sub === 'honeypot') {
+      const enabled = interaction.options.getBoolean('enabled', true);
+
+      if (!enabled) {
+        updateGuildSettings(guildId, { honeypot_enabled: 0 });
+        return interaction.reply({ content: 'Honeypot disabled. The trap channel was left in place — delete it manually if you no longer want it.', ephemeral: true });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const existingChannel = interaction.options.getChannel('channel');
+      const name = interaction.options.getString('name');
+      const settings = getGuildSettings(guildId);
+      let channelId = existingChannel?.id || settings.honeypot_channel_id;
+
+      if (!channelId) {
+        const created = await interaction.guild.channels.create({
+          name: name || '🚫│do-not-post-here',
+          type: ChannelType.GuildText,
+          topic: 'Staff only — do not send messages in this channel.',
+          reason: 'Anti-raid honeypot channel',
+        });
+        channelId = created.id;
+      }
+
+      updateGuildSettings(guildId, { honeypot_enabled: 1, honeypot_channel_id: channelId });
+      return interaction.editReply({
+        content: `Honeypot enabled in <#${channelId}>. Anyone who posts there (other than staff with Ban Members/Moderate Members permissions) is instantly soft-banned — kicked and their recent messages purged, but not permanently banned. **Never link, mention, or post in this channel.**`,
+      });
+    }
+
     if (sub === 'view') {
       const s = getGuildSettings(guildId);
       const embed = new EmbedBuilder()
@@ -111,6 +146,7 @@ module.exports = {
           { name: 'Ticket Category', value: s.ticket_category_id ? `<#${s.ticket_category_id}>` : 'Not set', inline: true },
           { name: 'Ticket Staff Role', value: s.ticket_staff_role_id ? `<@&${s.ticket_staff_role_id}>` : 'Not set', inline: true },
           { name: 'Anti-Raid', value: s.antiraid_enabled ? `Enabled (${s.antiraid_join_threshold} joins / ${s.antiraid_join_window_ms / 1000}s, min age ${s.antiraid_min_account_age_days}d, action: ${s.antiraid_action})` : 'Disabled' },
+          { name: 'Honeypot', value: s.honeypot_enabled ? `Enabled in <#${s.honeypot_channel_id}>` : 'Disabled' },
         );
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }

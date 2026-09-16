@@ -11,16 +11,19 @@ web dashboard for managing it all — built with Node.js, SQLite and Express.
 - **Anti-raid** — flags join bursts and accounts under a minimum age, auto-kicks/bans, and alerts a log channel.
 - **Giveaways** — `/gstart`, `/gend`, `/greroll`, `/glist`, with an embed + Enter button; winners are picked automatically when the timer ends (survives restarts).
 - **Join/leave notices** — configurable welcome/leave embeds with `{user}`, `{server}`, `{membercount}` placeholders.
-- **Automatic order embeds** — `/order` posts an order embed manually, and `POST /api/webhook/order/:guildId` lets an external store/payment system (Stripe, Shopify, your own checkout, etc.) trigger one automatically.
+- **Automatic order embeds** — `/order` posts one manually; `POST /api/webhook/order/:guildId` (a shared secret) lets any custom website/backend trigger one; `POST /api/webhook/stripe/:guildId` verifies a real Stripe webhook signature and posts one straight from `checkout.session.completed` / `payment_intent.succeeded`.
+- **Anti-raid honeypot** — `/config honeypot` creates (or adopts) a decoy channel nobody legitimate should ever post in. Anyone who does (other than staff) is instantly soft-banned: kicked and their recent messages purged, but free to rejoin — it's a trap, not a permanent ban.
 - **Dashboard** — a password-protected web UI to configure everything above, and to view tickets, giveaways, orders, and warnings, without touching Discord.
 
 ## Project layout
 
 ```
-src/            the bot (discord.js client, commands, events, handlers)
-dashboard/      the web dashboard (Express server + static frontend)
-data/           SQLite database (created automatically, gitignored)
-scripts/        setup utilities (password hashing)
+src/                the bot (discord.js client, commands, events, handlers)
+dashboard/          the web dashboard (Express server + static frontend)
+data/               SQLite database (created automatically, gitignored)
+scripts/            setup utilities (password hashing)
+Dockerfile          image shared by both services (see docker-compose.yml)
+docker-compose.yml  Coolify deployment: bot + dashboard services, shared volume
 ```
 
 Both the bot and the dashboard read/write the same SQLite database
@@ -60,9 +63,19 @@ string into `SESSION_SECRET`. Never put a plaintext password in `.env` —
 only the bcrypt hash is stored. `.env` is gitignored and must never be
 committed.
 
-If you plan to wire up automatic order embeds from an external store, set
-`ORDER_WEBHOOK_SECRET` to a long random value and have that system send it
-as the `x-webhook-secret` header.
+For automatic order embeds, configure **one** of:
+
+- **Custom website/backend** — set `ORDER_WEBHOOK_SECRET` to a long random
+  value, then have your backend `POST` to `/api/webhook/order/:guildId`
+  (your Discord server ID) with header `x-webhook-secret: <that value>` and
+  JSON body `{ "order_ref", "product", "customer", "amount", "status" }`.
+- **Stripe** — create a webhook endpoint in the Stripe Dashboard pointing at
+  `https://your-dashboard-domain/api/webhook/stripe/:guildId`, subscribed to
+  `checkout.session.completed` and/or `payment_intent.succeeded`, then put
+  its signing secret in `STRIPE_WEBHOOK_SECRET`. The signature is verified
+  with Stripe's own SDK before anything is posted; unsigned or mis-signed
+  requests are rejected. Set a `product` key in the Checkout Session's
+  `metadata` so the embed shows a real product name.
 
 ### 3. Install and run
 
@@ -87,6 +100,48 @@ In Discord (or via the dashboard **Settings** tab), run `/config` to set:
 - `/config tickets` — ticket category, staff role, ticket log channel, then `/ticketpanel #channel` to post the panel
 - `/config orders` — channel for order embeds
 - `/config antiraid` — enable/tune anti-raid protection
+- `/config honeypot enabled:true [channel] [name]` — sets up the trap channel
+  (creates one if you don't pass an existing `channel`); `enabled:false`
+  disables it without deleting the channel. **Never link or mention this
+  channel to members**, and don't post in it yourself with a non-staff
+  account — that's the point.
+
+## Deploying on Coolify
+
+The repo ships a `docker-compose.yml` and `Dockerfile` built for this: two
+services (`bot` and `dashboard`) from the same image, sharing one persistent
+volume (`bot-data`) for the SQLite database so both processes see the same
+data.
+
+1. In Coolify, create a new resource → **Docker Compose**, pointed at this
+   repository (it will pick up `docker-compose.yml` at the root automatically).
+2. Coolify scans the compose file for `${VARIABLE}` placeholders and turns
+   each into an input field in its UI — fill in all of these there (do **not**
+   commit a `.env` file):
+   - `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID` (optional)
+   - `DASHBOARD_URL` — the public https URL Coolify will give the `dashboard`
+     service (set this *after* Coolify assigns/you attach a domain)
+   - `DASHBOARD_ADMIN_USERNAME`, `DASHBOARD_ADMIN_PASSWORD_HASH` (generate
+     locally with `npm run hash-password -- "your-password"`)
+   - `SESSION_SECRET` (generate locally, see above)
+   - `ORDER_WEBHOOK_SECRET` and/or `STRIPE_WEBHOOK_SECRET` if you're using
+     automatic order embeds
+   - ⚠️ **The bcrypt hash and any secret containing a literal `$` needs each
+     `$` doubled (`$$`) when pasted into Coolify's env var field** — Compose
+     treats a single `$` as the start of a variable reference and will
+     silently mangle the value otherwise. Example:
+     `$2a$12$abc...` → `$$2a$$12$$abc...`.
+3. Expose the `dashboard` service on a domain in Coolify (it listens on port
+   `3000` internally) and leave `bot` with no exposed port — it only needs
+   outbound access to Discord's gateway.
+4. Deploy. Once it's up, register slash commands once from your machine (or
+   a one-off Coolify command) with `DISCORD_TOKEN=... CLIENT_ID=... npm run deploy`,
+   since that's a one-time action, not something that needs to run in the
+   container.
+5. The `bot-data` volume persists across redeploys — restarting or
+   redeploying the stack doesn't lose your configuration, warnings, tickets,
+   or giveaway history. The database schema self-migrates new columns on
+   startup, so pulling updates from this repo won't require a manual migration.
 
 ## Security notes
 
@@ -121,3 +176,19 @@ Treat the password like any other admin credential.
 - Tickets are per-user (one open ticket at a time), permissioned so only the
   opener, the configured staff role, and Manage Server admins can see the
   channel, and are logged to the ticket log channel on open/close.
+
+## Notes on the honeypot
+
+- The trap channel is a normal, visible text channel — hiding it defeats the
+  purpose, since a raid/spam bot that can't see it can't fall into it.
+  Legitimate members simply have no reason to type there; the risk is a
+  member trying it out of curiosity, which is why staff (Ban Members /
+  Moderate Members) are exempt from the auto soft-ban and get a warning
+  in the log channel instead.
+- A "soft ban" here is a ban immediately followed by an unban: it kicks the
+  member, deletes their recent messages (up to 7 days, the maximum Discord
+  allows), and logs the action — but does **not** prevent them from
+  rejoining. It's meant to disrupt a raid in progress and clean up spam, not
+  to permanently punish.
+- Every trigger is logged to the configured log channel and recorded in the
+  database as a `honeypot_softban` moderation action.

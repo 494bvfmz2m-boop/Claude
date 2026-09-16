@@ -1,0 +1,50 @@
+# Deploy target: Coolify (Docker Compose resource). Coolify scans this file for
+# ${VARIABLE} placeholders and generates matching input fields in its UI, so set
+# every value below there rather than committing a .env file to the repo.
+#
+# Both services share one persisted SQLite database over the `bot-data` volume:
+# the bot process needs the gateway connection for live events (moderation,
+# tickets, giveaways, anti-raid, the honeypot), while the dashboard only needs
+# the Discord REST API + the same database file, so it can run independently.
+services:
+  bot:
+    build: .
+    image: discord-management-bot:latest
+    command: node src/index.js
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      GUILD_ID: ${GUILD_ID:-}
+      DATABASE_PATH: /app/data/bot.sqlite
+    volumes:
+      - bot-data:/app/data
+
+  dashboard:
+    build: .
+    image: discord-management-bot:latest
+    command: node dashboard/server.js
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DATABASE_PATH: /app/data/bot.sqlite
+      DASHBOARD_PORT: 3000
+      DASHBOARD_URL: ${DASHBOARD_URL}
+      DASHBOARD_ADMIN_USERNAME: ${DASHBOARD_ADMIN_USERNAME}
+      DASHBOARD_ADMIN_PASSWORD_HASH: ${DASHBOARD_ADMIN_PASSWORD_HASH}
+      SESSION_SECRET: ${SESSION_SECRET}
+      NODE_ENV: production
+      ORDER_WEBHOOK_SECRET: ${ORDER_WEBHOOK_SECRET:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - bot-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  bot-data:

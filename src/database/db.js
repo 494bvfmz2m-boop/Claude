@@ -13,12 +13,27 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
+// CREATE TABLE IF NOT EXISTS won't add new columns to a table that already
+// exists from a previous deploy, so backfill any columns schema.sql has
+// gained since then (keeps upgrades on a persisted volume, e.g. Coolify, painless).
+const NEW_COLUMNS = {
+  honeypot_enabled: 'INTEGER DEFAULT 0',
+  honeypot_channel_id: 'TEXT',
+};
+const existingColumns = new Set(db.prepare('PRAGMA table_info(guild_settings)').all().map((c) => c.name));
+for (const [name, definition] of Object.entries(NEW_COLUMNS)) {
+  if (!existingColumns.has(name)) {
+    db.exec(`ALTER TABLE guild_settings ADD COLUMN ${name} ${definition}`);
+  }
+}
+
 const SETTINGS_COLUMNS = new Set([
   'welcome_channel_id', 'welcome_message', 'leave_channel_id', 'leave_message',
   'log_channel_id', 'mod_log_channel_id', 'order_channel_id', 'mute_role_id',
   'ticket_category_id', 'ticket_staff_role_id', 'ticket_log_channel_id', 'ticket_counter',
   'antiraid_enabled', 'antiraid_join_threshold', 'antiraid_join_window_ms',
   'antiraid_min_account_age_days', 'antiraid_action',
+  'honeypot_enabled', 'honeypot_channel_id',
 ]);
 
 function getGuildSettings(guildId) {

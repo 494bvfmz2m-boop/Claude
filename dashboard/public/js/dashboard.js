@@ -228,6 +228,23 @@
         </div>
       </div>
 
+      <div class="card">
+        <h3>Anti-Raid Honeypot</h3>
+        <p class="hint" style="margin-top:-4px">Creates (or reuses) a trap channel. Anyone other than staff who posts in it is instantly soft-banned (kicked + recent messages purged — not a permanent ban). Never link, mention, or post in this channel yourself.</p>
+        <label><input type="checkbox" id="honeypot_enabled" ${s.honeypot_enabled ? 'checked' : ''} style="width:auto;margin-right:8px" />Enabled</label>
+        <div class="grid-2" style="margin-top:12px">
+          <div>
+            <label>Trap Channel</label>
+            <select id="honeypot_channel_id">${channelOptions(TEXT, s.honeypot_channel_id)}</select>
+          </div>
+          <div>
+            <label>New Channel Name <span style="color:var(--text-dim)">(only used if none selected/exists)</span></label>
+            <input type="text" id="honeypot_name" placeholder="🚫│do-not-post-here" />
+          </div>
+        </div>
+        <div class="btn-row"><button id="save-honeypot" class="secondary">Save Honeypot</button></div>
+      </div>
+
       <div class="btn-row">
         <button id="save-settings">Save Settings</button>
       </div>
@@ -256,6 +273,24 @@
         toast('Settings saved.');
       } catch (err) {
         toast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('save-honeypot').addEventListener('click', async (e) => {
+      const btn = e.target;
+      const payload = {
+        enabled: document.getElementById('honeypot_enabled').checked,
+        channel_id: document.getElementById('honeypot_channel_id').value || null,
+        name: document.getElementById('honeypot_name').value.trim() || null,
+      };
+      btn.disabled = true;
+      try {
+        await api(`/api/guilds/${state.activeGuildId}/honeypot`, { method: 'POST', body: JSON.stringify(payload) });
+        toast('Honeypot settings saved.');
+        renderSettings();
+      } catch (err) {
+        toast(err.message, 'error');
+        btn.disabled = false;
       }
     });
   }

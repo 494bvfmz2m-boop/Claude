@@ -8,6 +8,7 @@ const { requireAuth } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const apiRoutes = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
+const stripeWebhookRoutes = require('./routes/stripeWebhook');
 const { logger } = require('../src/utils/logger');
 
 if (!config.sessionSecret || config.sessionSecret.length < 32) {
@@ -44,7 +45,15 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(express.json({ limit: '100kb' }));
+// The `verify` hook stashes the exact raw bytes on req.rawBody alongside the
+// normal parsed req.body — Stripe's webhook signature check needs those raw
+// bytes (HMAC over the literal payload), not a re-serialized JSON.parse of it.
+app.use(express.json({
+  limit: '100kb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 app.use(session({
   name: 'dashboard.sid',
@@ -62,7 +71,12 @@ app.use(session({
 
 const generalLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 
+// Public, unauthenticated: lets Coolify (or any uptime prober) check the
+// container is alive without needing session credentials.
+app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/webhook', stripeWebhookRoutes);
 app.use('/auth', generalLimiter, authRoutes);
 app.use('/api', generalLimiter, requireAuth, apiRoutes);
 
