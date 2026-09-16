@@ -18,6 +18,13 @@ if (!config.discordClientSecret || !config.dashboardUrl) {
   process.exit(1);
 }
 
+// The bot and dashboard share this one process -- without these, a single
+// unhandled rejection anywhere (a scheduler loop, a missing .catch()) takes
+// the whole thing down, dashboard included, instead of just logging and
+// carrying on.
+process.on('unhandledRejection', (err) => console.error('Unhandled promise rejection:', err));
+process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
+
 registerAllFeatures(client, {
   onReady: async () => {
     console.log(`Bot logged in as ${client.user.tag}, in ${client.guilds.cache.size} server(s).`);
