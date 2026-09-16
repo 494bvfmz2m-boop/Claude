@@ -60,6 +60,16 @@ function waitForGuild(client, guildId, timeoutMs) {
 // it in clientRegistry so the dashboard starts routing that guild's
 // requests through it immediately.
 async function startCustomBot(guildId, token) {
+  // A double-click on "Connect"/"Reconnect", or the OAuth callback firing
+  // twice (a browser retry, a refreshed page), would otherwise spin up a
+  // second Client for the same guild+token while the first is still mid-
+  // login -- both then race to register themselves in clientRegistry, and
+  // whichever loses just leaks (never destroyed, still holding a gateway
+  // connection). One attempt at a time per guild.
+  if (pendingOrLiveClients.has(guildId)) {
+    throw new Error("Already connecting -- give it a moment and refresh before trying again.");
+  }
+
   const appInfo = await fetchApplicationInfo(token);
 
   const client = new Client(CLIENT_OPTIONS);
