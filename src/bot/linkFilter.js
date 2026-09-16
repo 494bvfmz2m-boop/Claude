@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { testLinkFilter } = require('./cache');
 const { GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
+const colors = require('./colors');
 
 async function logDeletion(guild, message, matchedLink) {
   recordModAction(guild.id, {
@@ -17,7 +18,7 @@ async function logDeletion(guild, message, matchedLink) {
   if (!logChannel) return;
   const embed = new EmbedBuilder()
     .setTitle('🔗 Link filter triggered')
-    .setColor('#ed4245')
+    .setColor(colors.DANGER)
     .addFields(
       { name: 'User', value: `<@${message.author.id}>`, inline: true },
       { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },

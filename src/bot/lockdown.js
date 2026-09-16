@@ -3,9 +3,10 @@ const { canUseAction } = require('./commandPermissions');
 const { recordModAction } = require('./modLog');
 const { GuildSettings } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
-const LOCK_COLOR = '#a32ee2';
-const UNLOCK_COLOR = '#23a55a';
+const LOCK_COLOR = colors.BRAND;
+const UNLOCK_COLOR = colors.SUCCESS;
 
 function denyReply(interaction, command) {
   return interaction.reply({ content: `You don't have permission to use \`/${command}\`. Ask an admin to grant it from the dashboard's Permissions page.`, ephemeral: true });

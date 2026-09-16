@@ -1,9 +1,10 @@
 const { EmbedBuilder } = require('discord.js');
 const { GuildSettings, GlobalBlocklist } = require('../db/repo');
 const { applyRoleTriggers } = require('./roleTriggers');
+const colors = require('./colors');
 
-const WELCOME_COLOR = '#23a55a';
-const LEAVE_COLOR = '#a32ee2';
+const WELCOME_COLOR = colors.SUCCESS;
+const LEAVE_COLOR = colors.BRAND;
 
 const DEFAULT_WELCOME = "Welcome {user} to **{server}**! We're now at {membercount} members.";
 const DEFAULT_LEAVE = '**{username}** has left **{server}**. Now at {membercount} members.';

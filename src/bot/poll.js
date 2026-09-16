@@ -1,7 +1,8 @@
 const { EmbedBuilder } = require('discord.js');
 const { Polls } = require('../db/repo');
+const colors = require('./colors');
 
-const POLL_COLOR = '#a32ee2';
+const POLL_COLOR = colors.BRAND;
 const NUMBER_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
 const MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30d -- our own scheduler, not a Discord-imposed limit
 

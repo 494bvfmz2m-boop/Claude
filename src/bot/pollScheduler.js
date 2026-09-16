@@ -1,8 +1,9 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Polls } = require('../db/repo');
 const { ownsGuild } = require('./clientRegistry');
+const colors = require('./colors');
 
-const POLL_COLOR = '#a32ee2';
+const POLL_COLOR = colors.BRAND;
 const NUMBER_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
 const CHECK_INTERVAL_MS = 30000;
 

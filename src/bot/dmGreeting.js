@@ -6,8 +6,9 @@ const { buildGenericInviteUrl } = require('../web/lib/discordOAuth');
 const { buildOwnerPanelEmbed, buildOwnerPanelRow } = require('./ownerPanel');
 const { handleOwnerKeyword } = require('./ownerKeywords');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
-const GREETING_COLOR = '#a32ee2';
+const GREETING_COLOR = colors.BRAND;
 const WEBSITE_URL = 'https://xyphros.net';
 const DISCORD_INVITE = 'https://discord.gg/5bNyCzsyJ2';
 

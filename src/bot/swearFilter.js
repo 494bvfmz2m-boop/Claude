@@ -4,6 +4,7 @@ const { GuildSettings, Warnings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
 const { applyWarningThreshold, buildPunishmentEmbed, sendPunishmentDM } = require('./moderation');
+const colors = require('./colors');
 
 async function logDeletion(guild, message, matchedWord) {
   recordModAction(guild.id, {
@@ -19,7 +20,7 @@ async function logDeletion(guild, message, matchedWord) {
   if (!logChannel) return;
   const embed = new EmbedBuilder()
     .setTitle('🧼 Swear filter triggered')
-    .setColor('#ed4245')
+    .setColor(colors.DANGER)
     .setThumbnail(emojiUrl('xyphros-filter.png'))
     .addFields(
       { name: 'User', value: `<@${message.author.id}>`, inline: true },

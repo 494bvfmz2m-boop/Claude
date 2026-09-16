@@ -1,5 +1,6 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { ReactionRolePanels } = require('../db/repo');
+const colors = require('./colors');
 
 const CUSTOM_EMOJI = /^<a?:\w+:(\d+)>$/;
 
@@ -26,7 +27,7 @@ function buildReactionRoleMessage(panel, guild) {
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
     .setDescription(`${panel.description}\n\n${lines.join('\n')}${note}`)
-    .setColor(panel.color || '#a32ee2');
+    .setColor(panel.color || colors.BRAND);
 
   return { embeds: [embed] };
 }

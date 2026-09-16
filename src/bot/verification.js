@@ -1,7 +1,8 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
+const colors = require('./colors');
 
-const VERIFY_COLOR = '#a32ee2';
+const VERIFY_COLOR = colors.BRAND;
 const DEFAULT_MESSAGE = 'Click the button below to verify and get access to the rest of the server.';
 
 function buildVerificationMessage(settings) {

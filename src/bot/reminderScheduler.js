@@ -1,9 +1,10 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Reminders } = require('../db/repo');
 const { ownsGuild } = require('./clientRegistry');
+const colors = require('./colors');
 
 const CHECK_INTERVAL_MS = 20000;
-const COLOR = '#a32ee2';
+const COLOR = colors.BRAND;
 
 // DM first; if DMs are closed (or it's not deliverable there), fall back to
 // pinging them in the channel the reminder was set from -- same fallback

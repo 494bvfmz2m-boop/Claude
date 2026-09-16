@@ -1,6 +1,7 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { getStaffRanks } = require('./cache');
 const { Hierarchies } = require('../db/repo');
+const colors = require('./colors');
 const { ownsGuild } = require('./clientRegistry');
 
 const DEBOUNCE_MS = 3000;
@@ -41,7 +42,7 @@ async function renderHierarchyList(guild, hierarchy) {
 
   const embed = new EmbedBuilder()
     .setTitle(`👮 ${hierarchy.name}`)
-    .setColor(hierarchy.color || '#a32ee2')
+    .setColor(hierarchy.color || colors.BRAND)
     .addFields(fields)
     .setTimestamp()
     .setFooter({ text: 'Auto-updates when tracked roles change' });

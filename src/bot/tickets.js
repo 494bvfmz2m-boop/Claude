@@ -10,6 +10,7 @@ const {
 const { TicketTypes, Tickets, GuildSettings, GlobalBlocklist } = require('../db/repo');
 const { buildTranscript } = require('./transcript');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
 function sanitizeForChannelName(str) {
   return String(str).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 80);
@@ -103,7 +104,7 @@ async function openTicket(interaction, ticketTypeId) {
   const welcomeEmbed = new EmbedBuilder()
     .setTitle(ticketType.welcome_title || `${ticketType.name} ticket`)
     .setDescription(ticketType.welcome_description || `Thanks for reaching out, <@${interaction.user.id}>. Support will be with you shortly.`)
-    .setColor(ticketType.welcome_color || '#a32ee2')
+    .setColor(ticketType.welcome_color || colors.BRAND)
     .setThumbnail(emojiUrl('xyphros-ticket.png'))
     .setTimestamp();
 
@@ -133,7 +134,7 @@ async function openTicket(interaction, ticketTypeId) {
         { name: 'Type', value: ticketType.name, inline: true },
         { name: 'Opened by', value: `<@${interaction.user.id}>`, inline: true },
       )
-      .setColor('#23a55a')
+      .setColor(colors.SUCCESS)
       .setTimestamp();
     await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
   }
@@ -182,7 +183,7 @@ async function closeTicket(interaction, ticketDbId, reason) {
           { name: 'Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
           { name: 'Reason', value: reason || 'No reason provided', inline: false },
         )
-        .setColor('#ed4245')
+        .setColor(colors.DANGER)
         .setTimestamp();
       if (!wantsTranscript) embed.setFooter({ text: 'Transcripts are turned off for this ticket type' });
       await logChannel.send({ embeds: [embed], files: transcriptFile ? [transcriptFile] : [] });
@@ -285,7 +286,7 @@ async function applyChangeType(interaction, ticketDbId, newTypeId) {
     content: mentionRoles || undefined,
     embeds: [new EmbedBuilder()
       .setDescription(`🔄 This ticket was moved to **${newType.name}** by <@${interaction.user.id}>. Everything above stays right here.`)
-      .setColor(newType.welcome_color || '#a32ee2')],
+      .setColor(newType.welcome_color || colors.BRAND)],
   });
 
   await interaction.followUp({ content: `Done — moved to **${newType.name}**.`, ephemeral: true });

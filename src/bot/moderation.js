@@ -3,6 +3,7 @@ const { Warnings, GuildSettings } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { canUseAction } = require('./commandPermissions');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
 const PUNISHMENT_THUMBNAILS = {
   banned: emojiUrl('xyphros-ban.gif'),
@@ -13,7 +14,7 @@ function denyReply(interaction, command) {
   return interaction.reply({ content: `You don't have permission to use \`/${command}\`. Ask an admin to grant it from the dashboard's Permissions page.`, ephemeral: true });
 }
 
-const MOD_COLOR = '#ed4245';
+const MOD_COLOR = colors.DANGER;
 const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000; // Discord's own cap
 
 async function getLogChannel(guild) {
@@ -61,7 +62,7 @@ function buildPunishmentEmbed({ action, emoji, guildName, reason, extra }) {
 async function announcePurgeComplete(channel, deletedCount, moderator) {
   const embed = new EmbedBuilder()
     .setTitle('🧹 Purge completed')
-    .setColor('#23a55a')
+    .setColor(colors.SUCCESS)
     .setDescription(`${deletedCount} message${deletedCount === 1 ? '' : 's'} deleted.`)
     .setFooter({ text: `By ${moderator.tag}` })
     .setTimestamp();

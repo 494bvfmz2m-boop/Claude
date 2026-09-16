@@ -6,6 +6,7 @@ const {
   StringSelectMenuBuilder,
 } = require('discord.js');
 const { TicketTypes } = require('../db/repo');
+const colors = require('./colors');
 
 const BUTTONS_PER_ROW = 5;
 const MAX_BUTTON_ROWS = 5;
@@ -20,7 +21,7 @@ function buildPanelMessage(panel) {
   const embed = new EmbedBuilder()
     .setTitle(panel.title)
     .setDescription(panel.description)
-    .setColor(panel.color || '#a32ee2');
+    .setColor(panel.color || colors.BRAND);
 
   if (types.length === 0) {
     return { embeds: [embed], components: [] };

@@ -2,9 +2,10 @@ const { AuditLogEvent, EmbedBuilder } = require('discord.js');
 const config = require('../config');
 const { AppSettings, BetaAllowlist } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
-const JOIN_COLOR = '#5865F2';
-const LEFT_COLOR = '#a32ee2';
+const JOIN_COLOR = colors.DISCORD_BLURPLE;
+const LEFT_COLOR = colors.BRAND;
 
 function isAuthorized(discordUserId) {
   if (!discordUserId) return false;
@@ -41,7 +42,7 @@ async function notifyOwner(client, guild, { executor, status }) {
     authorized: { title: '✅ Joined a new server (authorized)', color: JOIN_COLOR, note: null, footerIcon: emojiUrl('xyphros-radar.gif') },
     unverified: {
       title: '⚠️ Joined a new server (unverified)',
-      color: '#d97706',
+      color: colors.WARNING,
       note: "Couldn't identify who added me -- missing View Audit Log, the entry hasn't shown up yet, or it aged out. Closed beta is on, so I stayed rather than guess and kick someone legitimate. Worth a manual look.",
       footerIcon: emojiUrl('xyphros-warning.png'),
     },

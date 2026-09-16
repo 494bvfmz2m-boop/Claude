@@ -1,8 +1,9 @@
 const { EmbedBuilder, Events } = require('discord.js');
 const { Giveaways } = require('../db/repo');
 const { ownsGuild } = require('./clientRegistry');
+const colors = require('./colors');
 
-const GIVEAWAY_COLOR = '#a32ee2';
+const GIVEAWAY_COLOR = colors.BRAND;
 const CHECK_INTERVAL_MS = 30000;
 
 function pickWinners(entries, count) {

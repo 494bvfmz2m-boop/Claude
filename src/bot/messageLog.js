@@ -1,9 +1,10 @@
 const { EmbedBuilder, Events, AuditLogEvent, PermissionFlagsBits } = require('discord.js');
 const { GuildSettings } = require('../db/repo');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
-const DELETE_COLOR = '#ed4245';
-const EDIT_COLOR = '#a32ee2';
+const DELETE_COLOR = colors.DANGER;
+const EDIT_COLOR = colors.BRAND;
 const MAX_FIELD_LEN = 1000;
 
 // In-memory only, on purpose -- /snipe and /editsnipe are for catching

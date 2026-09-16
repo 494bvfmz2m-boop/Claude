@@ -1,8 +1,9 @@
 const { EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { parseDuration } = require('./moderation');
 const { getLastDeleted, getLastEdited } = require('./messageLog');
+const colors = require('./colors');
 
-const COLOR = '#a32ee2';
+const COLOR = colors.BRAND;
 
 function formatDuration(ms) {
   const totalSeconds = Math.floor(ms / 1000);

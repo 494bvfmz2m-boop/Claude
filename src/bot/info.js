@@ -4,12 +4,13 @@ const { getRankForRoleIds } = require('./cache');
 const { Hierarchies } = require('../db/repo');
 const { getMemberAccess } = require('../web/lib/dashboardAccess');
 const { ACTIONS, canUseAction } = require('./commandPermissions');
+const colors = require('./colors');
 
 function dashboardHost() {
   try { return new URL(config.dashboardUrl || 'https://bot.xyphros.net').host; } catch { return 'bot.xyphros.net'; }
 }
 
-const INFO_COLOR = '#a32ee2';
+const INFO_COLOR = colors.BRAND;
 
 function permLine(label, has) {
   return `${has ? '✅' : '❌'} ${label}`;

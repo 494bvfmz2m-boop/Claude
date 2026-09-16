@@ -12,8 +12,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const config = require('../config');
 const { DmFormSends } = require('../db/repo');
+const colors = require('./colors');
 
-const FORM_COLOR = '#a32ee2';
+const FORM_COLOR = colors.BRAND;
 
 async function sendWithForm(client, { recipientId, recipientTag, template, defaultSend }) {
   if (!template) return defaultSend();

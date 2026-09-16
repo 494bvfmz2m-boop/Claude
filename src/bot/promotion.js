@@ -3,8 +3,9 @@ const { getRankForRoleIds, getPromotableLadder } = require('./cache');
 const { GuildSettings, Hierarchies } = require('../db/repo');
 const { recordModAction } = require('./modLog');
 const { emojiUrl } = require('./emoji');
+const colors = require('./colors');
 
-const PROMO_COLOR = '#a32ee2';
+const PROMO_COLOR = colors.BRAND;
 
 function isOverride(guild, member) {
   return guild.ownerId === member.id || member.permissions.has(PermissionFlagsBits.Administrator);

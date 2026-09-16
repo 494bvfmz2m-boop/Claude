@@ -1,8 +1,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const config = require('../config');
 const { BetaRequests, BetaAllowlist, DashboardAdmins } = require('../db/repo');
+const colors = require('./colors');
 
-const COLOR = '#a32ee2';
+const COLOR = colors.BRAND;
 
 function adminRecipientIds() {
   const ids = new Set(DashboardAdmins.list().map((a) => a.discord_user_id));
@@ -29,7 +30,7 @@ function buildResultEmbed(approve, { test = false } = {}) {
   let dashboardHost;
   try { dashboardHost = new URL(dashboardUrl).host; } catch { dashboardHost = dashboardUrl; }
   const embed = new EmbedBuilder()
-    .setColor(approve ? '#23a55a' : '#ed4245')
+    .setColor(approve ? colors.SUCCESS : colors.DANGER)
     .setTitle(approve ? '✅ Beta access approved' : '❌ Beta access request declined')
     .setDescription(approve
       ? `You're in! Log in any time at [${dashboardHost}](${dashboardUrl}).`
@@ -85,7 +86,7 @@ async function handleBetaRequestButton(interaction) {
   }
 
   const decidedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-    .setColor(approve ? '#23a55a' : '#ed4245')
+    .setColor(approve ? colors.SUCCESS : colors.DANGER)
     .addFields({ name: approve ? '✅ Approved' : '❌ Rejected', value: `By ${interaction.user.tag}` });
   await interaction.editReply({ embeds: [decidedEmbed], components: [] });
 }

@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const colors = require('./colors');
 const {
   TicketTypes, Panels, ReactionRolePanels, Tags, ScheduledAnnouncements,
   TebexSubscribers, CustomBots,
@@ -32,7 +33,7 @@ async function notifyIfMainBotMissing(guildId, subscriber) {
         + "isn't left with nothing -- but it looks like it's not in that server anymore. "
         + `[Click here to re-invite it](${buildGenericInviteUrl()}) to restore basic functionality.`,
       )
-      .setColor('#a32ee2');
+      .setColor(colors.BRAND);
     await user.send({ embeds: [embed] }).catch(() => {});
   } catch { /* can't reach them by DM -- nothing more we can do automatically */ }
 }

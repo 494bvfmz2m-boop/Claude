@@ -2,8 +2,9 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { canUseAction } = require('./commandPermissions');
 const { getRankForRoleIds } = require('./cache');
 const { Hierarchies } = require('../db/repo');
+const colors = require('./colors');
 
-const HELP_COLOR = '#a32ee2';
+const HELP_COLOR = colors.BRAND;
 
 // [action key used by canUseAction, usage string, description]
 const GATED_MOD_COMMANDS = [
