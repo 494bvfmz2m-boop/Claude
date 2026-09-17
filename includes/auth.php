@@ -201,8 +201,8 @@ function change_password($userId, $currentPassword, $newPassword, $confirmPasswo
  */
 function set_account_minecraft_username($userId, $minecraftUsername) {
     $minecraftUsername = trim($minecraftUsername);
-    if ($minecraftUsername !== '' && (strlen($minecraftUsername) < 3 || strlen($minecraftUsername) > 16 || !preg_match('/^[A-Za-z0-9_]+$/', $minecraftUsername))) {
-        return ['ok' => false, 'error' => 'That doesn\'t look like a valid Minecraft username (3-16 characters: letters, numbers, underscores).'];
+    if ($minecraftUsername !== '' && !is_valid_minecraft_username($minecraftUsername)) {
+        return ['ok' => false, 'error' => 'That doesn\'t look like a valid Minecraft username (3-16 characters: letters, numbers, underscores — Bedrock players can leave the leading "." from Geyser).'];
     }
     db_execute("UPDATE users SET minecraft_username = ? WHERE id = ?", [$minecraftUsername !== '' ? $minecraftUsername : null, (int)$userId]);
     return ['ok' => true, 'error' => null];

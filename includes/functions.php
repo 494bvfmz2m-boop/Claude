@@ -134,6 +134,17 @@ function validate_username($username, $excludeUserId = null) {
     return null;
 }
 
+/**
+ * Format check for the *Minecraft* username field (store checkout, account
+ * profile) — distinct from validate_username() above, which is for this
+ * site's own login username. Allows an optional leading "." because
+ * Bedrock players joined through Geyser/Floodgate get that prefix added to
+ * their Java-side username by default (e.g. ".Steve").
+ */
+function is_valid_minecraft_username($username) {
+    return (bool)preg_match('/^\.?[A-Za-z0-9_]{3,16}$/', $username);
+}
+
 function current_user() {
     if (empty($_SESSION['user_id'])) return null;
     static $cached = null;

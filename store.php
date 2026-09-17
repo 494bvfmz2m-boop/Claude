@@ -22,8 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'set_username') {
         $username = trim($_POST['minecraft_username'] ?? '');
-        if ($username === '' || !preg_match('/^[A-Za-z0-9_]{3,16}$/', $username)) {
-            $error = 'Enter a valid Minecraft username (3-16 characters: letters, numbers, underscores).';
+        if ($username === '' || !is_valid_minecraft_username($username)) {
+            $error = 'Enter a valid Minecraft username (3-16 characters: letters, numbers, underscores — Bedrock players can leave the leading "." from Geyser).';
         } else {
             $_SESSION['mc_username'] = $username;
             $notice = 'Playing as ' . $username . '. You can add items to your basket now.';
@@ -90,7 +90,7 @@ $username = store_current_username();
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="set_username">
         <label for="minecraft_username" style="margin:0; white-space:nowrap;"><?= $username ? 'Playing as' : 'Minecraft username' ?></label>
-        <input type="text" id="minecraft_username" name="minecraft_username" value="<?= e($username ?? '') ?>" placeholder="Your in-game username" style="max-width:220px;" required pattern="[A-Za-z0-9_]{3,16}">
+        <input type="text" id="minecraft_username" name="minecraft_username" value="<?= e($username ?? '') ?>" placeholder="Your in-game username" style="max-width:220px;" required pattern="\.?[A-Za-z0-9_]{3,16}" title="3-16 letters, numbers, underscores. Bedrock players: keep the leading &quot;.&quot; from Geyser.">
         <button type="submit" class="btn btn-outline btn-sm"><?= $username ? 'Change' : 'Set' ?></button>
       </form>
       <a href="<?= SITE_URL ?>/basket" class="btn btn-ghost btn-sm">🛒 View basket</a>
