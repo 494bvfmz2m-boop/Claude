@@ -152,7 +152,12 @@ main {
   box-shadow: 0 1px 3px rgba(31, 63, 92, 0.06);
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition: opacity 0.6s ease, transform 0.6s ease, box-shadow 0.2s ease;
+  scroll-margin-top: 4.5rem;
+}
+
+.section:hover {
+  box-shadow: 0 4px 16px rgba(31, 63, 92, 0.1);
 }
 
 .section.reveal {
@@ -252,18 +257,20 @@ main {
 }
 
 .car-stage {
-  max-width: 480px;
+  max-width: 560px;
   margin: 1.2rem auto 0.5rem auto;
   background: linear-gradient(180deg, #eef2f5 0%, #e4e9ed 100%);
   border-radius: 10px;
-  padding: 0.75rem;
+  padding: 0.75rem 0.75rem 1rem 0.75rem;
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 
 #carSvg {
   width: 100%;
   height: auto;
   display: block;
+  overflow: visible;
 }
 
 #carSvg .lane {
@@ -275,6 +282,122 @@ main {
 #carSvg .shadow {
   fill: #000;
   opacity: 0.1;
+}
+
+/* glow ring behind the finished car */
+.glow-ring {
+  fill: var(--accent-light);
+  filter: blur(11px);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.glow-ring.show {
+  opacity: 0.32;
+  animation: glowPulse 2.6s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.24; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.06); }
+}
+
+/* robotarm */
+.robot-arm {
+  transform: translateY(-190px);
+  opacity: 0;
+  transition: transform 0.55s cubic-bezier(.3, 1.1, .4, 1), opacity 0.3s ease;
+}
+
+.robot-arm .arm-pole,
+.robot-arm .arm-bar {
+  stroke: #55606a;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.robot-arm .claw-left,
+.robot-arm .claw-right {
+  stroke: #3a4249;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: transform 0.25s ease;
+  transform-box: fill-box;
+}
+
+.robot-arm .claw-left {
+  transform-origin: 100% 0%;
+}
+
+.robot-arm .claw-right {
+  transform-origin: 0% 0%;
+}
+
+.robot-arm.arm-in {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.robot-arm.arm-lower {
+  transform: translateY(16px);
+  opacity: 1;
+}
+
+.robot-arm.arm-grab .claw-left {
+  transform: rotate(20deg);
+}
+
+.robot-arm.arm-grab .claw-right {
+  transform: rotate(-20deg);
+}
+
+/* spark burst when the body is placed */
+.spark line {
+  stroke: #e8b93c;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  opacity: 0;
+}
+
+.spark.show line {
+  animation: sparkFlash 0.55s ease-out forwards;
+}
+
+@keyframes sparkFlash {
+  0% { opacity: 0; stroke-dashoffset: 20; }
+  30% { opacity: 1; }
+  100% { opacity: 0; stroke-dashoffset: 0; }
+}
+
+/* finished badge */
+.done-badge {
+  transform: translateY(-12px) scale(0.6);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(.34, 1.4, .64, 1), opacity 0.4s ease;
+}
+
+.done-badge circle {
+  fill: #2f8a5d;
+}
+
+.done-badge path {
+  stroke: #fff;
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.done-badge.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 
 #part-chassis rect {
@@ -306,6 +429,28 @@ main {
   fill: #dbe7f0;
 }
 
+#part-body .door-seam {
+  stroke: #1f3f5c;
+  stroke-width: 1.2;
+  opacity: 0.5;
+}
+
+#part-body .mirror {
+  fill: #1f3f5c;
+}
+
+#part-body .headlight {
+  fill: #f2d982;
+}
+
+#part-body .taillight {
+  fill: #b4544f;
+}
+
+#part-body .bumper {
+  fill: #6b7580;
+}
+
 /* start state: pieces hidden / offset, JS adds .in class to animate in */
 #part-chassis,
 #part-engine,
@@ -314,25 +459,26 @@ main {
 #part-body,
 #part-windows {
   opacity: 0;
-  transition: opacity 0.6s cubic-bezier(.2, .7, .3, 1), transform 0.6s cubic-bezier(.2, .7, .3, 1);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(.34, 1.45, .64, 1);
 }
 
 #part-chassis {
-  transform: translateY(20px);
+  transform: translateY(24px);
 }
 #part-engine {
-  transform: translateY(-16px);
+  transform: translateY(-20px);
 }
 #part-wheel-left {
-  transform: translate(-40px, -10px) rotate(-90deg);
-  transform-origin: 115px 140px;
+  transform: translate(-60px, -14px) rotate(-120deg);
+  transform-origin: 192px 160px;
 }
 #part-wheel-right {
-  transform: translate(40px, -10px) rotate(90deg);
-  transform-origin: 285px 140px;
+  transform: translate(60px, -14px) rotate(120deg);
+  transform-origin: 308px 160px;
 }
 #part-body {
-  transform: translateY(-24px);
+  transform: translateY(-18px);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.3, 1.2, .4, 1);
 }
 #part-windows {
   transform: translateY(-8px);
@@ -353,14 +499,50 @@ main {
 }
 
 #carSvg.done .wheel {
-  animation: roll 2.6s linear infinite;
+  animation: roll 1.8s linear infinite;
   transform-box: fill-box;
   transform-origin: center;
 }
 
 @keyframes roll {
-  0%, 70% { transform: rotate(0deg); }
+  0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* status text + progress dots below the stage */
+.build-status {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step-label {
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--accent-dark);
+  min-height: 1.3em;
+}
+
+.progress-dots {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.progress-dots .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #d5dbe0;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.progress-dots .dot.dot-active {
+  background: var(--accent);
+  transform: scale(1.15);
 }
 
 .replay-btn {
@@ -462,5 +644,26 @@ main {
   .section-head .icon {
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .glow-ring.show,
+  #carSvg.done .wheel {
+    animation: none;
+  }
+  .section,
+  #part-chassis,
+  #part-engine,
+  #part-wheel-left,
+  #part-wheel-right,
+  #part-body,
+  #part-windows,
+  .robot-arm,
+  .done-badge {
+    transition-duration: 0.01ms !important;
   }
 }

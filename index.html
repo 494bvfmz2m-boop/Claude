@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='19' font-size='19'%3E%F0%9F%9A%97%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
@@ -45,50 +46,91 @@
       <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 16l1.5-5A2 2 0 0 1 6.4 9.5h11.2a2 2 0 0 1 1.9 1.5L21 16"/><path d="M3 16h18v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1V17H6.5v1.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V16z"/><circle cx="7" cy="16.5" r="1.4"/><circle cx="17" cy="16.5" r="1.4"/></svg></span>
       <h2>Van los onderdeel tot auto</h2>
     </div>
-    <p>Deze korte animatie laat in het klein zien hoe een auto stap voor stap wordt opgebouwd: eerst het chassis, dan het motorblok en de wielen, daarna de carrosserie en als laatste de ramen.</p>
+    <p>Deze animatie laat in het klein zien hoe een auto op de productielijn wordt opgebouwd: eerst het chassis, dan het motorblok en de wielen, daarna plaatst de robotarm de carrosserie en tot slot gaan de ramen erin.</p>
 
     <div class="car-stage" id="carStage">
-      <svg id="carSvg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animatie van een auto die in elkaar wordt gezet">
+      <svg id="carSvg" viewBox="0 0 500 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animatie van een auto die stap voor stap in elkaar wordt gezet door een robotarm">
         <defs>
           <linearGradient id="bodyGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#4372a3"/>
+            <stop offset="0" stop-color="#4d7fb0"/>
             <stop offset="1" stop-color="#2f5d8a"/>
           </linearGradient>
         </defs>
 
-        <line class="lane" x1="0" y1="172" x2="400" y2="172"/>
-        <ellipse class="shadow" cx="200" cy="176" rx="150" ry="8"/>
+        <ellipse id="glowRing" class="glow-ring" cx="250" cy="136" rx="175" ry="55"/>
+
+        <line class="lane" x1="0" y1="190" x2="500" y2="190"/>
+        <ellipse class="shadow" cx="250" cy="195" rx="175" ry="9"/>
+
+        <g id="robotArm" class="robot-arm">
+          <line class="arm-pole" x1="250" y1="-20" x2="250" y2="50"/>
+          <line class="arm-bar" x1="215" y1="50" x2="285" y2="50"/>
+          <line class="claw-left" x1="225" y1="50" x2="213" y2="70"/>
+          <line class="claw-right" x1="275" y1="50" x2="287" y2="70"/>
+        </g>
 
         <g id="part-chassis">
-          <rect x="55" y="120" width="290" height="18" rx="4"/>
+          <rect x="150" y="140" width="200" height="16" rx="4"/>
         </g>
 
         <g id="part-engine">
-          <rect x="80" y="98" width="46" height="26" rx="3"/>
-          <line x1="86" y1="106" x2="120" y2="106"/>
-          <line x1="86" y1="114" x2="120" y2="114"/>
+          <rect x="175" y="114" width="50" height="28" rx="3"/>
+          <line x1="182" y1="123" x2="218" y2="123"/>
+          <line x1="182" y1="132" x2="218" y2="132"/>
         </g>
 
         <g id="part-wheel-left" class="wheel">
-          <circle cx="115" cy="140" r="26"/>
-          <circle class="hub" cx="115" cy="140" r="9"/>
-          <g class="spokes"><line x1="115" y1="123" x2="115" y2="157"/><line x1="98" y1="140" x2="132" y2="140"/></g>
+          <circle cx="192" cy="160" r="28"/>
+          <circle class="hub" cx="192" cy="160" r="10"/>
+          <g class="spokes"><line x1="192" y1="141" x2="192" y2="179"/><line x1="173" y1="160" x2="211" y2="160"/><line x1="179" y1="147" x2="205" y2="173"/><line x1="205" y1="147" x2="179" y2="173"/></g>
         </g>
         <g id="part-wheel-right" class="wheel">
-          <circle cx="285" cy="140" r="26"/>
-          <circle class="hub" cx="285" cy="140" r="9"/>
-          <g class="spokes"><line x1="285" y1="123" x2="285" y2="157"/><line x1="268" y1="140" x2="302" y2="140"/></g>
+          <circle cx="308" cy="160" r="28"/>
+          <circle class="hub" cx="308" cy="160" r="10"/>
+          <g class="spokes"><line x1="308" y1="141" x2="308" y2="179"/><line x1="289" y1="160" x2="327" y2="160"/><line x1="295" y1="147" x2="321" y2="173"/><line x1="321" y1="147" x2="295" y2="173"/></g>
         </g>
 
         <g id="part-body">
-          <path d="M60,120 L75,90 Q95,68 130,68 L270,68 Q300,68 320,90 L340,120 Z" fill="url(#bodyGradient)"/>
+          <path d="M140,140 L152,112 Q165,92 190,90 L205,74 Q225,66 250,66 Q275,66 295,74 L310,90 Q335,92 348,112 L360,140 Z" fill="url(#bodyGradient)"/>
+          <line class="door-seam" x1="250" y1="92" x2="250" y2="140"/>
+          <ellipse class="mirror" cx="201" cy="93" rx="5" ry="3"/>
+          <circle class="headlight" cx="146" cy="127" r="4"/>
+          <rect class="taillight" x="351" y="119" width="7" height="11" rx="1.5"/>
+          <rect class="bumper" x="137" y="136" width="17" height="7" rx="2.5"/>
+          <rect class="bumper" x="346" y="136" width="17" height="7" rx="2.5"/>
         </g>
 
         <g id="part-windows">
-          <path d="M118,90 L138,74 L192,74 L192,90 Z"/>
-          <path d="M202,90 L202,74 L252,74 L272,90 Z"/>
+          <path d="M195,88 L207,76 L248,76 L248,88 Z"/>
+          <path d="M252,88 L252,76 L293,76 L305,88 Z"/>
+        </g>
+
+        <g id="sparkBurst" class="spark">
+          <line x1="250" y1="90" x2="250" y2="72"/>
+          <line x1="250" y1="90" x2="232" y2="90"/>
+          <line x1="250" y1="90" x2="268" y2="90"/>
+          <line x1="250" y1="90" x2="236" y2="76"/>
+          <line x1="250" y1="90" x2="264" y2="76"/>
+          <line x1="250" y1="90" x2="236" y2="104"/>
+          <line x1="250" y1="90" x2="264" y2="104"/>
+        </g>
+
+        <g id="doneBadge" class="done-badge">
+          <circle cx="430" cy="45" r="18"/>
+          <path d="M422,45 L428,52 L439,38"/>
         </g>
       </svg>
+
+      <div class="build-status">
+        <p id="stepLabel" class="step-label">Klaar om te bouwen&hellip;</p>
+        <div class="progress-dots" id="progressDots" aria-hidden="true">
+          <span class="dot" data-step="1"></span>
+          <span class="dot" data-step="2"></span>
+          <span class="dot" data-step="3"></span>
+          <span class="dot" data-step="4"></span>
+          <span class="dot" data-step="5"></span>
+        </div>
+      </div>
     </div>
 
     <button type="button" id="replayBtn" class="replay-btn">

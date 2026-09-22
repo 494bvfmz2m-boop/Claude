@@ -2,17 +2,12 @@
   var svg = document.getElementById("carSvg");
   var replayBtn = document.getElementById("replayBtn");
   var stage = document.getElementById("carStage");
+  var robotArm = document.getElementById("robotArm");
+  var sparkBurst = document.getElementById("sparkBurst");
+  var doneBadge = document.getElementById("doneBadge");
+  var stepLabel = document.getElementById("stepLabel");
+  var dots = document.querySelectorAll("#progressDots .dot");
 
-  var order = [
-    "part-chassis",
-    "part-engine",
-    "part-wheel-left",
-    "part-wheel-right",
-    "part-body",
-    "part-windows"
-  ];
-
-  var stepDelay = 450; // ms between onderdelen
   var timers = [];
 
   function clearTimers() {
@@ -22,28 +17,98 @@
     timers = [];
   }
 
-  function playAnimation() {
+  function at(ms, fn) {
+    timers.push(window.setTimeout(fn, ms));
+  }
+
+  function setPart(id, on) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle("in", on);
+  }
+
+  function setDots(count) {
+    dots.forEach(function (dot, index) {
+      dot.classList.toggle("dot-active", index < count);
+    });
+  }
+
+  function setArm(classes) {
+    // SVG elements need setAttribute for class changes; className is read-only there.
+    robotArm.setAttribute("class", classes);
+  }
+
+  function resetStage() {
     clearTimers();
-    svg.classList.remove("done");
+    svg.classList.remove("play", "done");
+    ["part-chassis", "part-engine", "part-wheel-left", "part-wheel-right", "part-body", "part-windows"].forEach(function (id) {
+      setPart(id, false);
+    });
+    setArm("robot-arm");
+    sparkBurst.classList.remove("show");
+    doneBadge.classList.remove("show");
+    setDots(0);
+    stepLabel.textContent = "Klaar om te bouwen…";
+  }
+
+  function playAnimation() {
+    resetStage();
     svg.classList.add("play");
 
-    order.forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) el.classList.remove("in");
+    at(50, function () {
+      stepLabel.textContent = "1. Chassis plaatsen";
+      setPart("part-chassis", true);
+      setDots(1);
     });
 
-    order.forEach(function (id, index) {
-      var timer = window.setTimeout(function () {
-        var el = document.getElementById(id);
-        if (el) el.classList.add("in");
-      }, index * stepDelay);
-      timers.push(timer);
+    at(600, function () {
+      stepLabel.textContent = "2. Motorblok monteren";
+      setPart("part-engine", true);
+      setDots(2);
     });
 
-    var doneTimer = window.setTimeout(function () {
+    at(1150, function () {
+      stepLabel.textContent = "3. Wielen monteren";
+      setPart("part-wheel-left", true);
+      setPart("part-wheel-right", true);
+      setDots(3);
+    });
+
+    at(1800, function () {
+      stepLabel.textContent = "4. Carrosserie plaatsen";
+      setArm("robot-arm arm-in");
+    });
+
+    at(2250, function () {
+      setArm("robot-arm arm-in arm-grab");
+    });
+
+    at(2500, function () {
+      setArm("robot-arm arm-in arm-grab arm-lower");
+      setPart("part-body", true);
+      sparkBurst.classList.add("show");
+      setDots(4);
+    });
+
+    at(2820, function () {
+      setArm("robot-arm arm-in arm-lower");
+      sparkBurst.classList.remove("show");
+    });
+
+    at(3050, function () {
+      setArm("robot-arm arm-out");
+    });
+
+    at(3250, function () {
+      stepLabel.textContent = "5. Ramen plaatsen";
+      setPart("part-windows", true);
+      setDots(5);
+    });
+
+    at(3750, function () {
       svg.classList.add("done");
-    }, order.length * stepDelay + 600);
-    timers.push(doneTimer);
+      doneBadge.classList.add("show");
+      stepLabel.textContent = "Klaar! De auto is compleet.";
+    });
   }
 
   var played = false;
