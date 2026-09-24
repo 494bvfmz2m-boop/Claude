@@ -193,7 +193,25 @@
         </div>
         <label>Ticket Log Channel</label>
         <select id="ticket_log_channel_id">${channelOptions(TEXT, s.ticket_log_channel_id)}</select>
-        <p class="hint" style="margin-top:10px">Use <code>/ticketpanel</code> in Discord to post the ticket-opening button once configured.</p>
+
+        <h3 style="margin-top:20px">Panel Appearance</h3>
+        <label>Panel Title</label>
+        <input type="text" id="ticket_panel_title" value="${esc(s.ticket_panel_title)}" maxlength="256" />
+        <label>Panel Description</label>
+        <textarea id="ticket_panel_description" rows="3" maxlength="1000">${esc(s.ticket_panel_description)}</textarea>
+        <div class="grid-2">
+          <div>
+            <label>Button Label</label>
+            <input type="text" id="ticket_panel_button_label" value="${esc(s.ticket_panel_button_label)}" maxlength="80" />
+          </div>
+          <div>
+            <label>Button Emoji <span style="color:var(--text-dim)">(unicode only)</span></label>
+            <input type="text" id="ticket_panel_button_emoji" value="${esc(s.ticket_panel_button_emoji || '')}" maxlength="8" />
+          </div>
+        </div>
+        <label>Embed Color</label>
+        <input type="text" id="ticket_panel_color" value="${esc(s.ticket_panel_color)}" maxlength="7" placeholder="#5865F2" />
+        <p class="hint" style="margin-top:10px">Both fields save with the button below. Once a category is set, run <code>/ticketpanel post #channel</code> in Discord to (re)post the panel with these changes — or use <code>/ticketpanel edit</code> for the same editor without leaving Discord.</p>
       </div>
 
       <div class="card">
@@ -267,6 +285,11 @@
         antiraid_join_window_ms: (parseInt(document.getElementById('antiraid_join_window_s').value, 10) || 10) * 1000,
         antiraid_min_account_age_days: parseInt(document.getElementById('antiraid_min_account_age_days').value, 10) || 0,
         antiraid_action: document.getElementById('antiraid_action').value,
+        ticket_panel_title: document.getElementById('ticket_panel_title').value.trim(),
+        ticket_panel_description: document.getElementById('ticket_panel_description').value.trim(),
+        ticket_panel_button_label: document.getElementById('ticket_panel_button_label').value.trim(),
+        ticket_panel_button_emoji: document.getElementById('ticket_panel_button_emoji').value.trim() || null,
+        ticket_panel_color: document.getElementById('ticket_panel_color').value.trim(),
       };
       try {
         await api(`/api/guilds/${state.activeGuildId}/settings`, { method: 'POST', body: JSON.stringify(payload) });

@@ -7,7 +7,7 @@ web dashboard for managing it all — built with Node.js, SQLite and Express.
 ## Features
 
 - **Moderation** — `/kick`, `/ban`, `/unban`, `/timeout`, `/warn`, `/warnings`, `/clear`, all logged to a mod-log channel.
-- **Tickets** — a button panel (`/ticketpanel`) opens a private channel per user, with claim/close buttons.
+- **Tickets** — a fully customizable button panel: `/ticketpanel edit` opens an in-Discord modal editor (title, description, button label/emoji, embed color) and `/ticketpanel post` places it in a channel. Opening a ticket creates a private channel per user, with claim/close buttons.
 - **Anti-raid** — flags join bursts and accounts under a minimum age, auto-kicks/bans, and alerts a log channel.
 - **Giveaways** — `/gstart`, `/gend`, `/greroll`, `/glist`, with an embed + Enter button; winners are picked automatically when the timer ends (survives restarts).
 - **Join/leave notices** — configurable welcome/leave embeds with `{user}`, `{server}`, `{membercount}` placeholders.
@@ -95,9 +95,12 @@ username/password you configured above.
 
 In Discord (or via the dashboard **Settings** tab), run `/config` to set:
 
-- `/config welcome` / `/config leave` — join/leave channels & messages
+- `/config welcome channel:` / `/config leave channel:` — pick the channel, then a modal opens
+  in Discord to write the multi-line message template (`{user}`, `{server}`, `{membercount}`)
 - `/config logs` / `/config modlog` — logging channels
-- `/config tickets` — ticket category, staff role, ticket log channel, then `/ticketpanel #channel` to post the panel
+- `/config tickets` — ticket category, staff role, ticket log channel; then customize the panel
+  itself with `/ticketpanel edit` (opens a modal for title/description/button/color) and place it
+  with `/ticketpanel post #channel`
 - `/config orders` — channel for order embeds
 - `/config antiraid` — enable/tune anti-raid protection
 - `/config honeypot enabled:true [channel] [name]` — sets up the trap channel

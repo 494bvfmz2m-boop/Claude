@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const config = require('../config');
 const { safeEqual } = require('../utils/csrf');
+const { asyncHandler } = require('../utils/asyncHandler');
 const { db, getGuildSettings } = require('../../src/database/db');
 const { orderEmbed } = require('../../src/utils/embeds');
 const { sendMessage } = require('../utils/discordApi');
@@ -14,7 +15,7 @@ const webhookLimiter = rateLimit({ windowMs: 60 * 1000, max: 30 });
 // External integrations (a storefront, Stripe, etc.) POST here to automatically
 // post an order embed when an order is received. Protected by a shared secret
 // header rather than a session, since the caller isn't a logged-in browser.
-router.post('/order/:guildId', webhookLimiter, express.json({ limit: '20kb' }), async (req, res) => {
+router.post('/order/:guildId', webhookLimiter, express.json({ limit: '20kb' }), asyncHandler(async (req, res) => {
   if (!config.orderWebhookSecret) {
     return res.status(503).json({ error: 'Order webhooks are not configured on this server.' });
   }
@@ -49,6 +50,6 @@ router.post('/order/:guildId', webhookLimiter, express.json({ limit: '20kb' }), 
     logger.error('Order webhook failed:', err.message);
     res.status(500).json({ error: 'Failed to post order embed.' });
   }
-});
+}));
 
 module.exports = router;

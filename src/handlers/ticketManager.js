@@ -1,16 +1,26 @@
 const {
   ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder,
 } = require('discord.js');
-const { getGuildSettings, nextTicketNumber, db } = require('../database/db');
-const { ticketPanelEmbed, ticketOpenEmbed } = require('../utils/embeds');
+const { getGuildSettings, updateGuildSettings, nextTicketNumber, db } = require('../database/db');
+const { ticketPanelEmbed, ticketOpenEmbed, parseHexColor } = require('../utils/embeds');
 const { isStaff } = require('../utils/permissions');
 const { logger, sendToLogChannel } = require('../utils/logger');
 const config = require('../config');
 
-function panelRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('ticket_open').setLabel('Open Ticket').setEmoji('🎫').setStyle(ButtonStyle.Primary),
-  );
+function panelRow(settings, withEmoji = true) {
+  const button = new ButtonBuilder()
+    .setCustomId('ticket_open')
+    .setLabel(settings?.ticket_panel_button_label || 'Open Ticket')
+    .setStyle(ButtonStyle.Primary);
+  const emoji = settings?.ticket_panel_button_emoji;
+  if (withEmoji) {
+    try {
+      button.setEmoji(emoji || '🎫');
+    } catch {
+      // Invalid/unsupported emoji text — fall through with no emoji rather than fail the whole panel.
+    }
+  }
+  return new ActionRowBuilder().addComponents(button);
 }
 
 function ticketRow(claimed) {
@@ -20,8 +30,54 @@ function ticketRow(claimed) {
   );
 }
 
-async function sendPanel(channel) {
-  await channel.send({ embeds: [ticketPanelEmbed(channel.guild)], components: [panelRow()] });
+async function sendPanel(channel, settings) {
+  const s = settings || getGuildSettings(channel.guild.id);
+  const guildMeta = { name: channel.guild.name, iconURL: channel.guild.iconURL() ?? undefined };
+  const embed = ticketPanelEmbed(s, guildMeta);
+  try {
+    await channel.send({ embeds: [embed], components: [panelRow(s, true)] });
+  } catch (err) {
+    // Most likely cause: an invalid/unsupported button emoji rejected by the API.
+    // Retry once without it rather than leaving the panel unposted.
+    logger.warn('Ticket panel send failed, retrying without the button emoji:', err.message);
+    await channel.send({ embeds: [embed], components: [panelRow(s, false)] });
+  }
+}
+
+async function handlePanelEditModalSubmit(interaction) {
+  const title = interaction.fields.getTextInputValue('title').trim();
+  const description = interaction.fields.getTextInputValue('description').trim();
+  const buttonLabel = interaction.fields.getTextInputValue('button_label').trim();
+  const buttonEmoji = interaction.fields.getTextInputValue('button_emoji').trim();
+  const colorRaw = interaction.fields.getTextInputValue('color').trim();
+
+  let colorHex = '#5865F2';
+  if (colorRaw) {
+    const parsed = parseHexColor(colorRaw);
+    if (!parsed) {
+      return interaction.reply({
+        content: `"${colorRaw}" isn't a valid hex color — use a format like \`#5865F2\`. Run \`/ticketpanel edit\` again to retry (your other changes weren't saved).`,
+        ephemeral: true,
+      });
+    }
+    colorHex = parsed.hex;
+  }
+
+  const settings = updateGuildSettings(interaction.guild.id, {
+    ticket_panel_title: title,
+    ticket_panel_description: description,
+    ticket_panel_button_label: buttonLabel,
+    ticket_panel_button_emoji: buttonEmoji || null,
+    ticket_panel_color: colorHex,
+  });
+
+  const guildMeta = { name: interaction.guild.name, iconURL: interaction.guild.iconURL() ?? undefined };
+  await interaction.reply({
+    content: 'Ticket panel updated — here\'s a preview. Run `/ticketpanel post` to (re)post it in a channel.',
+    embeds: [ticketPanelEmbed(settings, guildMeta)],
+    components: [panelRow(settings, true)],
+    ephemeral: true,
+  });
 }
 
 async function openTicket(interaction) {
@@ -118,4 +174,7 @@ async function cancelClose(interaction) {
   await interaction.update({ content: 'Ticket close cancelled.', components: [] });
 }
 
-module.exports = { sendPanel, openTicket, claimTicket, requestClose, confirmClose, cancelClose, panelRow, ticketRow };
+module.exports = {
+  sendPanel, openTicket, claimTicket, requestClose, confirmClose, cancelClose,
+  panelRow, ticketRow, handlePanelEditModalSubmit,
+};

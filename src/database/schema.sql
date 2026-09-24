@@ -18,7 +18,12 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   antiraid_min_account_age_days INTEGER DEFAULT 7,
   antiraid_action TEXT DEFAULT 'kick',
   honeypot_enabled INTEGER DEFAULT 0,
-  honeypot_channel_id TEXT
+  honeypot_channel_id TEXT,
+  ticket_panel_title TEXT DEFAULT '🎫 Support Tickets',
+  ticket_panel_description TEXT DEFAULT 'Need help, have a question, or want to report an issue? Click the button below to open a private ticket with our staff team.',
+  ticket_panel_button_label TEXT DEFAULT 'Open Ticket',
+  ticket_panel_button_emoji TEXT DEFAULT '🎫',
+  ticket_panel_color TEXT DEFAULT '#5865F2'
 );
 
 CREATE TABLE IF NOT EXISTS warnings (

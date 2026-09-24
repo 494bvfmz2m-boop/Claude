@@ -1,9 +1,10 @@
 const express = require('express');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { verifyCsrf } = require('../utils/csrf');
+const { asyncHandler } = require('../utils/asyncHandler');
 const { getBotGuilds, getGuildChannels, getGuildRoles, sendMessage, editMessage, createChannel } = require('../utils/discordApi');
 const { db, getGuildSettings, updateGuildSettings } = require('../../src/database/db');
-const { giveawayEmbed, giveawayEndedEmbed, orderEmbed } = require('../../src/utils/embeds');
+const { giveawayEmbed, giveawayEndedEmbed, orderEmbed, parseHexColor } = require('../../src/utils/embeds');
 const { pickWinners } = require('../../src/handlers/giveawayManager');
 const { logger } = require('../../src/utils/logger');
 
@@ -14,7 +15,7 @@ async function assertBotInGuild(guildId) {
   return guilds.some((g) => g.id === guildId);
 }
 
-router.get('/guilds', async (req, res) => {
+router.get('/guilds', asyncHandler(async (req, res) => {
   try {
     const guilds = await getBotGuilds();
     res.json(guilds.map((g) => ({ id: g.id, name: g.name, icon: g.icon })));
@@ -22,33 +23,35 @@ router.get('/guilds', async (req, res) => {
     logger.error('Failed to fetch bot guilds:', err.message);
     res.status(502).json({ error: 'Failed to reach Discord API.' });
   }
-});
+}));
 
-router.get('/guilds/:id/channels', async (req, res) => {
+router.get('/guilds/:id/channels', asyncHandler(async (req, res) => {
   if (!(await assertBotInGuild(req.params.id))) return res.status(404).json({ error: 'Bot is not in that server.' });
   const channels = await getGuildChannels(req.params.id);
   res.json(channels.map((c) => ({ id: c.id, name: c.name, type: c.type, parent_id: c.parent_id })));
-});
+}));
 
-router.get('/guilds/:id/roles', async (req, res) => {
+router.get('/guilds/:id/roles', asyncHandler(async (req, res) => {
   if (!(await assertBotInGuild(req.params.id))) return res.status(404).json({ error: 'Bot is not in that server.' });
   const roles = await getGuildRoles(req.params.id);
   res.json(roles.filter((r) => r.name !== '@everyone').map((r) => ({ id: r.id, name: r.name, color: r.color })));
-});
+}));
 
-router.get('/guilds/:id/settings', async (req, res) => {
+router.get('/guilds/:id/settings', asyncHandler(async (req, res) => {
   if (!(await assertBotInGuild(req.params.id))) return res.status(404).json({ error: 'Bot is not in that server.' });
   res.json(getGuildSettings(req.params.id));
-});
+}));
 
 const SETTINGS_FIELDS = [
   'welcome_channel_id', 'welcome_message', 'leave_channel_id', 'leave_message',
   'log_channel_id', 'mod_log_channel_id', 'order_channel_id', 'ticket_category_id',
   'ticket_staff_role_id', 'ticket_log_channel_id', 'antiraid_enabled',
   'antiraid_join_threshold', 'antiraid_join_window_ms', 'antiraid_min_account_age_days', 'antiraid_action',
+  'ticket_panel_title', 'ticket_panel_description', 'ticket_panel_button_label',
+  'ticket_panel_button_emoji', 'ticket_panel_color',
 ];
 
-router.post('/guilds/:id/settings', verifyCsrf, async (req, res) => {
+router.post('/guilds/:id/settings', verifyCsrf, asyncHandler(async (req, res) => {
   if (!(await assertBotInGuild(req.params.id))) return res.status(404).json({ error: 'Bot is not in that server.' });
   const fields = {};
   for (const key of SETTINGS_FIELDS) {
@@ -56,11 +59,16 @@ router.post('/guilds/:id/settings', verifyCsrf, async (req, res) => {
       fields[key] = req.body[key];
     }
   }
+  if (fields.ticket_panel_color) {
+    const parsed = parseHexColor(fields.ticket_panel_color);
+    if (!parsed) return res.status(400).json({ error: `"${fields.ticket_panel_color}" isn't a valid hex color (use e.g. #5865F2).` });
+    fields.ticket_panel_color = parsed.hex;
+  }
   const updated = updateGuildSettings(req.params.id, fields);
   res.json(updated);
-});
+}));
 
-router.post('/guilds/:id/honeypot', verifyCsrf, async (req, res) => {
+router.post('/guilds/:id/honeypot', verifyCsrf, asyncHandler(async (req, res) => {
   const guildId = req.params.id;
   if (!(await assertBotInGuild(guildId))) return res.status(404).json({ error: 'Bot is not in that server.' });
 
@@ -87,7 +95,7 @@ router.post('/guilds/:id/honeypot', verifyCsrf, async (req, res) => {
     logger.error('Failed to configure honeypot from dashboard:', err.message);
     res.status(502).json({ error: 'Failed to create/configure the trap channel on Discord.' });
   }
-});
+}));
 
 router.get('/guilds/:id/warnings', (req, res) => {
   const rows = db.prepare('SELECT * FROM warnings WHERE guild_id = ? ORDER BY created_at DESC LIMIT 200').all(req.params.id);
@@ -104,7 +112,7 @@ router.get('/guilds/:id/giveaways', (req, res) => {
   res.json(rows.map((r) => ({ ...r, entries: JSON.parse(r.entries).length })));
 });
 
-router.post('/guilds/:id/giveaways', verifyCsrf, async (req, res) => {
+router.post('/guilds/:id/giveaways', verifyCsrf, asyncHandler(async (req, res) => {
   const guildId = req.params.id;
   if (!(await assertBotInGuild(guildId))) return res.status(404).json({ error: 'Bot is not in that server.' });
 
@@ -138,9 +146,9 @@ router.post('/guilds/:id/giveaways', verifyCsrf, async (req, res) => {
     logger.error('Failed to start giveaway from dashboard:', err.message);
     res.status(502).json({ error: 'Failed to post giveaway to Discord.' });
   }
-});
+}));
 
-router.post('/guilds/:id/giveaways/:gid/end', verifyCsrf, async (req, res) => {
+router.post('/guilds/:id/giveaways/:gid/end', verifyCsrf, asyncHandler(async (req, res) => {
   const giveaway = db.prepare('SELECT * FROM giveaways WHERE id = ? AND guild_id = ?').get(req.params.gid, req.params.id);
   if (!giveaway) return res.status(404).json({ error: 'Giveaway not found.' });
   if (giveaway.ended) return res.status(409).json({ error: 'Giveaway already ended.' });
@@ -164,14 +172,14 @@ router.post('/guilds/:id/giveaways/:gid/end', verifyCsrf, async (req, res) => {
     logger.error('Failed to end giveaway from dashboard:', err.message);
     res.status(502).json({ error: 'Giveaway marked ended, but posting the result to Discord failed.' });
   }
-});
+}));
 
 router.get('/guilds/:id/orders', (req, res) => {
   const rows = db.prepare('SELECT * FROM orders WHERE guild_id = ? ORDER BY created_at DESC LIMIT 200').all(req.params.id);
   res.json(rows);
 });
 
-router.post('/guilds/:id/orders', verifyCsrf, async (req, res) => {
+router.post('/guilds/:id/orders', verifyCsrf, asyncHandler(async (req, res) => {
   const guildId = req.params.id;
   const settings = getGuildSettings(guildId);
   if (!settings.order_channel_id) return res.status(409).json({ error: 'No order channel configured for this server yet.' });
@@ -191,6 +199,6 @@ router.post('/guilds/:id/orders', verifyCsrf, async (req, res) => {
     logger.error('Failed to post order from dashboard:', err.message);
     res.status(502).json({ error: 'Failed to post order embed to Discord.' });
   }
-});
+}));
 
 module.exports = router;

@@ -1,4 +1,7 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder,
+  ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle,
+} = require('discord.js');
 const { updateGuildSettings, getGuildSettings } = require('../../database/db');
 const cfg = require('../../config');
 
@@ -7,12 +10,10 @@ module.exports = {
     .setName('config')
     .setDescription('Configure the bot for this server.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .addSubcommand((sc) => sc.setName('welcome').setDescription('Set the join announcement channel and message')
-      .addChannelOption((o) => o.setName('channel').setDescription('Channel for join messages').addChannelTypes(ChannelType.GuildText).setRequired(true))
-      .addStringOption((o) => o.setName('message').setDescription('Use {user}, {server}, {membercount}')))
-    .addSubcommand((sc) => sc.setName('leave').setDescription('Set the leave announcement channel and message')
-      .addChannelOption((o) => o.setName('channel').setDescription('Channel for leave messages').addChannelTypes(ChannelType.GuildText).setRequired(true))
-      .addStringOption((o) => o.setName('message').setDescription('Use {user}, {server}, {membercount}')))
+    .addSubcommand((sc) => sc.setName('welcome').setDescription('Set the join announcement channel and open the message editor')
+      .addChannelOption((o) => o.setName('channel').setDescription('Channel for join messages').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+    .addSubcommand((sc) => sc.setName('leave').setDescription('Set the leave announcement channel and open the message editor')
+      .addChannelOption((o) => o.setName('channel').setDescription('Channel for leave messages').addChannelTypes(ChannelType.GuildText).setRequired(true)))
     .addSubcommand((sc) => sc.setName('logs').setDescription('Set the general/anti-raid log channel')
       .addChannelOption((o) => o.setName('channel').setDescription('Log channel').addChannelTypes(ChannelType.GuildText).setRequired(true)))
     .addSubcommand((sc) => sc.setName('modlog').setDescription('Set the moderation action log channel')
@@ -39,22 +40,23 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
 
-    if (sub === 'welcome') {
+    if (sub === 'welcome' || sub === 'leave') {
       const channel = interaction.options.getChannel('channel', true);
-      const message = interaction.options.getString('message');
-      const fields = { welcome_channel_id: channel.id };
-      if (message) fields.welcome_message = message;
-      updateGuildSettings(guildId, fields);
-      return interaction.reply({ content: `Welcome messages will be sent in ${channel}.`, ephemeral: true });
-    }
-
-    if (sub === 'leave') {
-      const channel = interaction.options.getChannel('channel', true);
-      const message = interaction.options.getString('message');
-      const fields = { leave_channel_id: channel.id };
-      if (message) fields.leave_message = message;
-      updateGuildSettings(guildId, fields);
-      return interaction.reply({ content: `Leave messages will be sent in ${channel}.`, ephemeral: true });
+      const settings = getGuildSettings(guildId);
+      const isWelcome = sub === 'welcome';
+      const modal = new ModalBuilder()
+        .setCustomId(`config_${sub}_modal:${channel.id}`)
+        .setTitle(isWelcome ? 'Welcome Message Editor' : 'Leave Message Editor');
+      modal.addComponents(new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('message')
+          .setLabel('Message — use {user} {server} {membercount}')
+          .setStyle(TextInputStyle.Paragraph)
+          .setMaxLength(1000)
+          .setRequired(true)
+          .setValue(isWelcome ? settings.welcome_message : settings.leave_message),
+      ));
+      return interaction.showModal(modal);
     }
 
     if (sub === 'logs') {

@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const config = require('../config');
 const { ensureCsrfToken, safeEqual } = require('../utils/csrf');
+const { asyncHandler } = require('../utils/asyncHandler');
 const { logger } = require('../../src/utils/logger');
 
 const router = express.Router();
@@ -31,7 +32,7 @@ router.get('/session', (req, res) => {
   res.json({ authenticated: !!(req.session && req.session.authenticated), username: req.session?.username || null });
 });
 
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { username, password, csrfToken } = req.body || {};
 
   if (!req.session.csrfToken || typeof csrfToken !== 'string' || !safeEqual(req.session.csrfToken, csrfToken)) {
@@ -67,7 +68,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       res.json({ success: true, csrfToken: req.session.csrfToken });
     });
   });
-});
+}));
 
 router.post('/logout', (req, res) => {
   req.session.destroy(() => {

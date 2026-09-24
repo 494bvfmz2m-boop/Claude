@@ -25,6 +25,13 @@ if (config.nodeEnv === 'production' && !config.url.startsWith('https://')) {
   logger.warn('NODE_ENV=production but DASHBOARD_URL is not https:// — secure cookies require HTTPS in front of this app.');
 }
 
+// Every route is wrapped in asyncHandler, so this shouldn't fire in practice —
+// it's a last-resort net so a bug that slips through logs instead of taking
+// the whole dashboard down (Node treats unhandled rejections as fatal by default).
+process.on('unhandledRejection', (err) => {
+  logger.error('Unhandled promise rejection in dashboard:', err);
+});
+
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');

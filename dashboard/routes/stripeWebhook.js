@@ -1,6 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const config = require('../config');
+const { asyncHandler } = require('../utils/asyncHandler');
 const { db, getGuildSettings } = require('../../src/database/db');
 const { orderEmbed } = require('../../src/utils/embeds');
 const { sendMessage } = require('../utils/discordApi');
@@ -49,7 +50,7 @@ function extractOrder(event) {
 // Needs the raw request body for signature verification — server.js captures
 // it into req.rawBody alongside the normal JSON parse, so this route doesn't
 // need its own body-parser.
-router.post('/stripe/:guildId', stripeLimiter, async (req, res) => {
+router.post('/stripe/:guildId', stripeLimiter, asyncHandler(async (req, res) => {
   if (!config.stripeWebhookSecret) {
     return res.status(503).json({ error: 'Stripe webhooks are not configured on this server.' });
   }
@@ -91,6 +92,6 @@ router.post('/stripe/:guildId', stripeLimiter, async (req, res) => {
     logger.error('Failed to post Stripe order embed:', err.message);
     res.status(500).json({ error: 'Failed to post order embed.' });
   }
-});
+}));
 
 module.exports = router;

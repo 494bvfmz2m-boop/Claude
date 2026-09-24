@@ -2,6 +2,18 @@ const { Events, MessageFlags } = require('discord.js');
 const { logger } = require('../utils/logger');
 const ticketManager = require('../handlers/ticketManager');
 const { enterGiveaway } = require('../handlers/giveawayManager');
+const { updateGuildSettings } = require('../database/db');
+
+async function handleWelcomeOrLeaveModal(interaction, kind) {
+  const channelId = interaction.customId.split(':')[1];
+  const message = interaction.fields.getTextInputValue('message').trim();
+  updateGuildSettings(interaction.guild.id, {
+    [`${kind}_channel_id`]: channelId,
+    [`${kind}_message`]: message,
+  });
+  const label = kind === 'welcome' ? 'Welcome' : 'Leave';
+  return interaction.reply({ content: `${label} messages will be sent in <#${channelId}> with your updated template.`, ephemeral: true });
+}
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -31,6 +43,19 @@ module.exports = {
           default:
             return;
         }
+      }
+
+      if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'ticketpanel_edit_modal') {
+          return ticketManager.handlePanelEditModalSubmit(interaction);
+        }
+        if (interaction.customId.startsWith('config_welcome_modal:')) {
+          return handleWelcomeOrLeaveModal(interaction, 'welcome');
+        }
+        if (interaction.customId.startsWith('config_leave_modal:')) {
+          return handleWelcomeOrLeaveModal(interaction, 'leave');
+        }
+        return;
       }
     } catch (err) {
       logger.error('Interaction handling error:', err);

@@ -29,12 +29,24 @@ function leaveEmbed(member, template) {
     .setTimestamp();
 }
 
-function ticketPanelEmbed(guild) {
-  return new EmbedBuilder()
-    .setColor(config.colors.primary)
-    .setTitle('🎫 Support Tickets')
-    .setDescription('Need help, have a question, or want to report an issue?\nClick the button below to open a private ticket with our staff team.')
-    .setFooter({ text: guild.name, iconURL: guild.iconURL() ?? undefined });
+function parseHexColor(input) {
+  if (!input) return null;
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(String(input).trim());
+  if (!match) return null;
+  return { hex: `#${match[1].toUpperCase()}`, int: parseInt(match[1], 16) };
+}
+
+// settings: the guild_settings row (or a subset with the ticket_panel_* fields).
+// guildMeta: optional { name, iconURL } for the footer — the bot passes the live
+// Guild's values, the dashboard (which only has REST guild data) passes its own.
+function ticketPanelEmbed(settings, guildMeta) {
+  const parsedColor = parseHexColor(settings?.ticket_panel_color);
+  const embed = new EmbedBuilder()
+    .setColor(parsedColor ? parsedColor.int : config.colors.primary)
+    .setTitle(settings?.ticket_panel_title || '🎫 Support Tickets')
+    .setDescription(settings?.ticket_panel_description || 'Need help, have a question, or want to report an issue? Click the button below to open a private ticket with our staff team.');
+  if (guildMeta?.name) embed.setFooter({ text: guildMeta.name, iconURL: guildMeta.iconURL || undefined });
+  return embed;
 }
 
 function ticketOpenEmbed(user, ticketNumber) {
@@ -117,4 +129,5 @@ module.exports = {
   giveawayEndedEmbed,
   orderEmbed,
   antiRaidAlertEmbed,
+  parseHexColor,
 };

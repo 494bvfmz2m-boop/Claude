@@ -19,6 +19,11 @@ db.exec(schema);
 const NEW_COLUMNS = {
   honeypot_enabled: 'INTEGER DEFAULT 0',
   honeypot_channel_id: 'TEXT',
+  ticket_panel_title: "TEXT DEFAULT '🎫 Support Tickets'",
+  ticket_panel_description: "TEXT DEFAULT 'Need help, have a question, or want to report an issue? Click the button below to open a private ticket with our staff team.'",
+  ticket_panel_button_label: "TEXT DEFAULT 'Open Ticket'",
+  ticket_panel_button_emoji: "TEXT DEFAULT '🎫'",
+  ticket_panel_color: "TEXT DEFAULT '#5865F2'",
 };
 const existingColumns = new Set(db.prepare('PRAGMA table_info(guild_settings)').all().map((c) => c.name));
 for (const [name, definition] of Object.entries(NEW_COLUMNS)) {
@@ -34,6 +39,8 @@ const SETTINGS_COLUMNS = new Set([
   'antiraid_enabled', 'antiraid_join_threshold', 'antiraid_join_window_ms',
   'antiraid_min_account_age_days', 'antiraid_action',
   'honeypot_enabled', 'honeypot_channel_id',
+  'ticket_panel_title', 'ticket_panel_description', 'ticket_panel_button_label',
+  'ticket_panel_button_emoji', 'ticket_panel_color',
 ]);
 
 function getGuildSettings(guildId) {
