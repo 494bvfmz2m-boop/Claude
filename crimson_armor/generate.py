@@ -442,6 +442,62 @@ def split_piece(layers, piece):
     return out
 
 
+def sword():
+    """16x16 Crimson Sword icon: diagonal, hilt bottom-left, tip top-right."""
+    cells = {}
+    # blade: three diagonals (lit edge, glowing core, shadow edge)
+    for y in range(1, 9):
+        for x in range(16):
+            d = x + y
+            if d not in (13, 14, 15) or x > 14:
+                continue
+            if y == 1 and d == 13:
+                continue  # taper the tip
+            if d == 13:
+                cells[x, y] = SHINE if y % 3 else HI
+            elif d == 14:
+                cells[x, y] = GLOW if y in (2, 5) else VEIN
+            else:
+                cells[x, y] = MID if y % 2 else BASE
+    cells[13, 1] = (255, 214, 190)  # tip glint
+    # crossguard, perpendicular to the blade, with a gem at the centre
+    for x in range(4, 10):
+        cells[x, x + 1] = GOLD_L if x % 2 else GOLD
+    for x in range(3, 9):
+        cells[x, x + 2] = GOLD_D if x % 2 else GOLD
+    cells[6, 7] = GOLD_L
+    cells[6, 8] = VEIN      # heart gem
+    cells[5, 7] = GOLD
+    # grip wrapped in crimson stem
+    for y in range(9, 14):
+        for x in (13 - y, 14 - y):
+            if (x, y) in cells:
+                continue
+            if y % 2:
+                cells[x, y] = STEM_D
+            else:
+                cells[x, y] = STEM_L if x == 14 - y else STEM
+    # shroomlight pommel
+    cells[0, 14] = SHROOM
+    cells[1, 14] = GLOW
+    cells[0, 15] = GLOW
+    # thorns jutting off the back edge of the blade
+    for x, y in ((12, 4), (10, 6), (14, 2)):
+        cells.setdefault((x, y), STEM_L)
+
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for (x, y), c in cells.items():
+        img.putpixel((x, y), c + (255,))
+    # auto outline around everything
+    for y in range(16):
+        for x in range(16):
+            if (x, y) in cells:
+                continue
+            if any((x + dx, y + dy) in cells for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                img.putpixel((x, y), OUTLINE + (255,))
+    return img
+
+
 def main():
     os.makedirs(f"{OUT}/items", exist_ok=True)
     os.makedirs(f"{OUT}/equipped", exist_ok=True)
@@ -455,6 +511,8 @@ def main():
     l2 = Tex()
     leggings(l2)
     l2.img.save(f"{OUT}/armor_layer_2.png")
+
+    sword().save(f"{OUT}/items/crimson_sword.png")
 
     layers = {"l1": l1.img, "l2": l2.img}
     for piece, rows in ICONS.items():
