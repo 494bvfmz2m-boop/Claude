@@ -27,6 +27,7 @@ STEM_L = (196, 104, 140)
 WART = (170, 12, 22)      # nether-wart leaves
 WART_L = (224, 40, 44)
 SHROOM = (255, 196, 110)  # shroomlight buds
+SWORD_OUTLINE = (66, 12, 22)  # lighter so it doesn't read as holes when extruded
 
 rng = random.Random(1337)
 
@@ -502,7 +503,6 @@ def greatsword():
     """32x32 Crimson Greatsword. Drawn in blade space: a runs along the blade
     (hilt bottom-left -> tip top-right), p is the offset across it."""
     N = 32
-    rnd = random.Random(99)
     cells = {}
     thorns = (5, 12)
     for y in range(N):
@@ -514,18 +514,17 @@ def greatsword():
             if -3 <= a <= 28:
                 w = 4.2 if a < 16 else 4.2 * (28 - a) / 12
                 if ap <= w:
+                    # clean vanilla-style bands: no noise, it reads as static in 3D
                     if p <= -w + 1.2:
-                        c = SHINE if rnd.random() < 0.8 else (255, 214, 190)
+                        c = SHINE
                     elif p >= w - 1.2:
-                        c = DEEP
+                        c = BASE
                     elif ap <= 1:
-                        c = GLOW if rnd.random() < 0.18 else VEIN
+                        c = GLOW if a % 6 == 0 else VEIN
                     elif p < 0:
-                        c = HI if rnd.random() < 0.75 else MID
+                        c = HI
                     else:
-                        c = BASE if rnd.random() < 0.7 else MID
-                        if rnd.random() < 0.06:
-                            c = VEIN
+                        c = MID
                 # barbed thorns on the back edge, raking toward the tip
                 for a0 in thorns:
                     d = p - w
@@ -562,7 +561,7 @@ def greatsword():
         for x in range(N):
             if (x, y) not in cells and any(
                     (x + dx, y + dy) in cells for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
-                img.putpixel((x, y), OUTLINE + (255,))
+                img.putpixel((x, y), SWORD_OUTLINE + (255,))
     return img
 
 
