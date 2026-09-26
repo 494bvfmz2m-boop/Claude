@@ -34,26 +34,36 @@ function buildGiveawayMessage(giveaway) {
   return { embeds: [embed], components: [row] };
 }
 
-// Shared by the slash command and the dashboard's "start a giveaway" form --
-// both already have a posted `message` (the interaction's own reply, or a
-// channel.send from the dashboard) that needs a real DB row and then a second
-// edit once that row's id exists, since the giveaway message embeds its own id
-// in the Enter button's customId.
-async function finalizeGiveaway(message, { prize, winnerCount, requiredRoleId, hostedBy, endsAt }) {
+// Shared by the slash command and the dashboard's "start a giveaway" form.
+// The giveaway message's Enter button needs this row's real id baked into
+// its customId -- but the row needs a message_id to be created at all, and
+// posting the message needs the id first. Broken by creating the row with
+// a placeholder message_id, building the FULL correct message (real button
+// id included) from the very first post, then filling in the real
+// message_id once it exists -- that last step is a local DB write, not a
+// network call, so there's no window where a slow/failed Discord API call
+// can leave the button permanently wired to the wrong id. (The previous
+// version posted a placeholder with id 0, then tried to patch it via a
+// second message.edit() -- if that edit silently failed, id 0 stuck
+// forever and Giveaways.get(0) returning null made every click on Enter
+// say "already ended," no matter how much time was actually left.)
+// `postFn` does the actual send (interaction.reply+fetchReply, or a plain
+// channel.send) so this stays agnostic to which surface is calling it.
+async function createGiveaway(postFn, { guildId, channelId, prize, winnerCount, requiredRoleId, hostedBy, endsAt }) {
   const id = Giveaways.create({
-    guildId: message.guild.id,
-    channelId: message.channelId,
-    messageId: message.id,
-    prize,
-    winnerCount,
-    requiredRoleId: requiredRoleId || null,
-    hostedBy,
-    endsAt,
+    guildId, channelId, messageId: '', prize, winnerCount,
+    requiredRoleId: requiredRoleId || null, hostedBy, endsAt,
   });
-  await message.edit(buildGiveawayMessage({
-    id, prize, winner_count: winnerCount, entries: [], ends_at: endsAt, required_role_id: requiredRoleId || null, hosted_by: hostedBy,
-  })).catch(() => {});
-  return id;
+  try {
+    const message = await postFn(buildGiveawayMessage({
+      id, prize, winner_count: winnerCount, entries: [], ends_at: endsAt, required_role_id: requiredRoleId || null, hosted_by: hostedBy,
+    }));
+    Giveaways.setMessageId(id, message.id);
+    return id;
+  } catch (err) {
+    Giveaways.delete(id); // never actually posted -- don't leave a phantom row behind
+    throw err;
+  }
 }
 
 async function handleGiveawayStart(interaction) {
@@ -67,23 +77,22 @@ async function handleGiveawayStart(interaction) {
     return interaction.reply({ content: "Couldn't parse that duration -- use something like `10m`, `2h`, or `1d` (max 30d).", ephemeral: true });
   }
 
-  const endsAt = new Date(Date.now() + ms);
-  const draft = {
-    id: 0,
-    prize,
-    winner_count: winnerCount,
-    entries: [],
-    ends_at: endsAt.toISOString(),
-    required_role_id: requiredRole?.id || null,
-    hosted_by: interaction.user.tag,
-  };
+  const endsAt = new Date(Date.now() + ms).toISOString();
 
-  await interaction.reply(buildGiveawayMessage(draft));
-  const message = await interaction.fetchReply();
-
-  await finalizeGiveaway(message, {
-    prize, winnerCount, requiredRoleId: requiredRole?.id || null, hostedBy: interaction.user.tag, endsAt: endsAt.toISOString(),
-  });
+  try {
+    await createGiveaway(
+      async (payload) => { await interaction.reply(payload); return interaction.fetchReply(); },
+      {
+        guildId: interaction.guildId, channelId: interaction.channelId, prize, winnerCount,
+        requiredRoleId: requiredRole?.id || null, hostedBy: interaction.user.tag, endsAt,
+      },
+    );
+  } catch (err) {
+    // interaction.reply() itself is what's most likely to have thrown here
+    // (already replied, or a Discord hiccup) -- nothing more we can safely
+    // respond with at this point since we don't know if a reply landed.
+    console.error('Failed to start giveaway:', err.message);
+  }
 }
 
 async function handleGiveawayEnd(interaction) {
@@ -160,5 +169,5 @@ async function handleGiveawayEnter(interaction, giveawayId) {
 }
 
 module.exports = {
-  giveaway: handleGiveawayCommand, handleGiveawayEnter, buildGiveawayMessage, finalizeGiveaway, parseDuration, MAX_DURATION_MS,
+  giveaway: handleGiveawayCommand, handleGiveawayEnter, buildGiveawayMessage, createGiveaway, parseDuration, MAX_DURATION_MS,
 };

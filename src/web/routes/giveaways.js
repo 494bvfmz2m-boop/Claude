@@ -2,7 +2,7 @@ const express = require('express');
 const { Giveaways } = require('../../db/repo');
 const { getGuildOr404, guildChannelOptions } = require('../lib/getGuild');
 const { requireArea } = require('../middleware/auth');
-const { buildGiveawayMessage, finalizeGiveaway, parseDuration } = require('../../bot/giveaway');
+const { createGiveaway, parseDuration } = require('../../bot/giveaway');
 
 const router = express.Router({ mergeParams: true });
 router.use(requireArea('giveaways'));
@@ -42,18 +42,16 @@ router.post('/giveaways', async (req, res) => {
 
   const endsAt = new Date(Date.now() + ms);
   const hostedBy = req.session.discordUser.username;
-  const draft = {
-    id: 0, prize, winner_count: winnerCount, entries: [], ends_at: endsAt.toISOString(), required_role_id: requiredRoleId, hosted_by: hostedBy,
-  };
 
-  let message;
   try {
-    message = await channel.send(buildGiveawayMessage(draft));
+    await createGiveaway(
+      (payload) => channel.send(payload),
+      { guildId: guild.id, channelId: channel.id, prize, winnerCount, requiredRoleId, hostedBy, endsAt: endsAt.toISOString() },
+    );
   } catch (err) {
     return res.status(500).render('error', { message: `Failed to post the giveaway: ${err.message}` });
   }
 
-  await finalizeGiveaway(message, { prize, winnerCount, requiredRoleId, hostedBy, endsAt: endsAt.toISOString() });
   res.redirect(`/dashboard/${guild.id}/giveaways`);
 });
 

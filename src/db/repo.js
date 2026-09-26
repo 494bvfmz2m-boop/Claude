@@ -999,6 +999,13 @@ const Giveaways = {
   setEntries(id, entries) {
     db.prepare('UPDATE giveaways SET entries = ? WHERE id = ?').run(JSON.stringify(entries), id);
   },
+  // Called once, right after the giveaway message actually posts -- see
+  // bot/giveaway.js's createGiveaway for why the row is created with a
+  // placeholder message_id first (the button needs this row's real id
+  // baked in from the very first post, not patched in after the fact).
+  setMessageId(id, messageId) {
+    db.prepare('UPDATE giveaways SET message_id = ? WHERE id = ?').run(messageId, id);
+  },
   markEnded(id) {
     db.prepare('UPDATE giveaways SET ended = 1 WHERE id = ?').run(id);
   },
