@@ -563,28 +563,6 @@ def greatsword():
     return img
 
 
-def clear(img, x0, y0, w, h, keep=()):
-    for y in range(y0, y0 + h):
-        for x in range(x0, x0 + w):
-            if (x, y) not in keep:
-                img.putpixel((x, y), (0, 0, 0, 0))
-
-
-def slim(l1, l2):
-    """Open gaps like vanilla armor so the skin shows and it reads less bulky."""
-    # helmet: open face (eyes + mouth) with the gold nose guard kept
-    clear(l1, 9, 11, 6, 5, keep={(11, 11), (12, 11), (11, 12), (12, 12)})
-    clear(l1, 16, 0, 8, 8)                    # helmet underside
-    # sleeves: skin shows between pauldron and gauntlet; no underside
-    clear(l1, 40, 24, 16, 4)
-    clear(l1, 48, 16, 4, 4)
-    clear(l1, 28, 16, 8, 4)                   # chestplate underside
-    # boots: no sole face; leggings: open inner leg below the knee and underside
-    clear(l1, 8, 16, 4, 4)
-    clear(l2, 8, 26, 4, 6)
-    clear(l2, 8, 16, 4, 4)
-
-
 def main():
     os.makedirs(f"{OUT}/items", exist_ok=True)
     os.makedirs(f"{OUT}/equipped", exist_ok=True)
@@ -596,7 +574,6 @@ def main():
 
     l2 = Tex()
     leggings(l2)
-    slim(l1.img, l2.img)
     l1.img.save(f"{OUT}/armor_layer_1.png")
     l2.img.save(f"{OUT}/armor_layer_2.png")
 
