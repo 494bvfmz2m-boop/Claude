@@ -2,6 +2,7 @@
 
 Standard 64x32 Minecraft humanoid armor layout. Run: python3 generate.py
 """
+import os
 import random
 from PIL import Image
 
@@ -329,7 +330,120 @@ def leggings(t):
     t.leaf(12, 22, True); t.bud(15, 21)
 
 
+# --- inventory icons (16x16) ---------------------------------------------
+KEY = {
+    "o": OUTLINE, "x": VOID, "d": DEEP, "b": BASE, "m": MID, "h": HI, "s": SHINE,
+    "v": VEIN, "w": GLOW, "k": GOLD_D, "g": GOLD, "G": GOLD_L,
+    "t": STEM, "T": STEM_L, "l": WART_L, "y": SHROOM,
+}
+
+ICONS = {
+    "helmet": [
+        "..............y.",
+        ".....oooooo.lTt.",
+        "....ohsGgmbo.t..",
+        "...ohsmGgbbdot..",
+        "..ohsmbGgbbbdo..",
+        "..ohmbbGgbbbdo..",
+        "..ohbbbGgbbbdo..",
+        "..oggggggggkgo..",
+        "..obxwvkkvwxdo..",
+        "..ohbbxgkxbbdo..",
+        "..ohbxbgkbxbdo..",
+        "..oggggggggggo..",
+        "...oooooooooo...",
+        "................",
+        "................",
+        "................",
+    ],
+    "chestplate": [
+        "....yT....Ty....",
+        ".oooolt..tloooo.",
+        "ohhsgot..toshgdo",
+        "ohsmgbgGGgbmgddo",
+        "odhmbbgwvgbbmhdo",
+        "odhbbbbggbbbbhdo",
+        "oggohbbddbbhoggo",
+        "oooohbbddbbhoooo",
+        "...ohbbddbbdo...",
+        "...omhhddhhdo...",
+        "...obbbddbbdo...",
+        "...ogggkkgggo...",
+        "...oooooooooo...",
+        "................",
+        "................",
+        "................",
+    ],
+    "leggings": [
+        "................",
+        "..oooooooooooo..",
+        "..oggggwvggggo..",
+        "..ohsbbbbbbmdo..",
+        "..ohmbbddbbbdo..",
+        "..ohmbboobbbdo..",
+        "..ohmbo..obbdo..",
+        "..ogGgo..ogGgo..",
+        "..ohwbo..obwdo..",
+        "..otmbo..obmdo..",
+        "..ohTbo..obbdo..",
+        "..olbdo..obddo..",
+        "..oooo....oooo..",
+        "................",
+        "................",
+        "................",
+    ],
+    "boots": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "..oooo....oooo..",
+        "..oGgo....oGgo..",
+        "..obvo....obvo..",
+        "..ohbo....ohbo..",
+        "ooohbo..ooohbo..",
+        "oshmbo..oshmbo..",
+        "ogGgkoG.ogGgkoG.",
+        "oooooo..oooooo..",
+        "................",
+        "................",
+        "................",
+    ],
+}
+
+
+def icon(rows):
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    assert len(rows) == 16 and all(len(r) == 16 for r in rows), rows
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), KEY[ch] + (255,))
+    return img
+
+
+# --- per-piece equipped textures (cropped from the layer sheets) ----------
+PIECE_REGIONS = {
+    "helmet": ("l1", [(0, 0, 32, 16)]),
+    "chestplate": ("l1", [(16, 16, 24, 16), (40, 16, 16, 16)]),
+    "leggings": ("l2", [(0, 0, 64, 32)]),
+    "boots": ("l1", [(0, 16, 16, 16)]),
+}
+
+
+def split_piece(layers, piece):
+    src_name, boxes = PIECE_REGIONS[piece]
+    src = layers[src_name]
+    out = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+    for x, y, w, h in boxes:
+        out.paste(src.crop((x, y, x + w, y + h)), (x, y))
+    return out
+
+
 def main():
+    os.makedirs(f"{OUT}/items", exist_ok=True)
+    os.makedirs(f"{OUT}/equipped", exist_ok=True)
     l1 = Tex()
     helmet(l1)
     chestplate(l1)
@@ -340,6 +454,11 @@ def main():
     l2 = Tex()
     leggings(l2)
     l2.img.save(f"{OUT}/armor_layer_2.png")
+
+    layers = {"l1": l1.img, "l2": l2.img}
+    for piece, rows in ICONS.items():
+        icon(rows).save(f"{OUT}/items/crimson_{piece}.png")
+        split_piece(layers, piece).save(f"{OUT}/equipped/crimson_{piece}_equipped.png")
 
 
 if __name__ == "__main__":
