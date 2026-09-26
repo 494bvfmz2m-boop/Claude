@@ -572,8 +572,6 @@ def clear(img, x0, y0, w, h, keep=()):
 
 def slim(l1, l2):
     """Open gaps like vanilla armor so the skin shows and it reads less bulky."""
-    # helmet: open face (eyes + mouth) with the gold nose guard kept
-    clear(l1, 9, 11, 6, 5, keep={(11, 11), (12, 11), (11, 12), (12, 12)})
     clear(l1, 16, 0, 8, 8)                    # helmet underside
     # sleeves: skin shows between pauldron and gauntlet; no underside
     clear(l1, 40, 24, 16, 4)
