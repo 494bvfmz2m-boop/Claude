@@ -1,0 +1,346 @@
+"""Generates Crimson Armor textures (armor_layer_1.png / armor_layer_2.png).
+
+Standard 64x32 Minecraft humanoid armor layout. Run: python3 generate.py
+"""
+import random
+from PIL import Image
+
+OUT = __file__.rsplit("/", 1)[0]
+
+# --- palette -------------------------------------------------------------
+OUTLINE = (28, 4, 8)
+VOID = (44, 8, 14)
+DEEP = (78, 10, 20)
+BASE = (122, 16, 28)
+MID = (158, 26, 38)
+HI = (198, 52, 58)
+SHINE = (236, 108, 96)
+VEIN = (255, 64, 52)
+GLOW = (255, 150, 110)
+GOLD_D = (120, 72, 22)
+GOLD = (196, 142, 44)
+GOLD_L = (246, 204, 96)
+STEM_D = (96, 36, 66)     # crimson stem bark
+STEM = (148, 62, 98)
+STEM_L = (196, 104, 140)
+WART = (170, 12, 22)      # nether-wart leaves
+WART_L = (224, 40, 44)
+SHROOM = (255, 196, 110)  # shroomlight buds
+
+rng = random.Random(1337)
+
+
+class Tex:
+    def __init__(self):
+        self.img = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+        self.px = self.img.load()
+
+    def put(self, x, y, c):
+        self.px[x, y] = c + (255,)
+
+    def get(self, x, y):
+        return self.px[x, y][:3]
+
+    def rect(self, x0, y0, w, h, c):
+        for y in range(y0, y0 + h):
+            for x in range(x0, x0 + w):
+                self.put(x, y, c)
+
+    def hline(self, x0, y, w, c):
+        self.rect(x0, y, w, 1, c)
+
+    def plate(self, x0, y0, w, h, light=0, veins=0.06, bevel=True):
+        """Brushed crimson plate with dithered noise, glowing cracks and bevel."""
+        shades = [VOID, DEEP, BASE, MID, HI, SHINE]
+        for y in range(y0, y0 + h):
+            for x in range(x0, x0 + w):
+                r = rng.random()
+                i = 2 + light
+                if r < 0.12:
+                    i -= 1
+                elif r > 0.88:
+                    i += 1
+                self.put(x, y, shades[max(0, min(5, i))])
+        # glowing cracks: short random walks
+        n = int(w * h * veins / 3)
+        for _ in range(n):
+            x, y = rng.randrange(x0, x0 + w), rng.randrange(y0, y0 + h)
+            for _ in range(3):
+                self.put(x, y, VEIN if rng.random() < 0.7 else DEEP)
+                x = min(x0 + w - 1, max(x0, x + rng.choice((-1, 0, 1))))
+                y = min(y0 + h - 1, max(y0, y + 1))
+        if bevel:
+            for x in range(x0, x0 + w):
+                self.put(x, y0, shades[min(5, 4 + light)])
+                self.put(x, y0 + h - 1, DEEP)
+            for y in range(y0 + 1, y0 + h - 1):
+                self.put(x0, y, shades[min(5, 3 + light)])
+                self.put(x0 + w - 1, y, DEEP)
+
+    def dark(self, x0, y0, w, h):
+        for y in range(y0, y0 + h):
+            for x in range(x0, x0 + w):
+                self.put(x, y, OUTLINE if rng.random() < 0.35 else VOID)
+
+    def gold_row(self, x0, y, w, studs=()):
+        for x in range(x0, x0 + w):
+            self.put(x, y, GOLD if (x - x0) % 3 else GOLD_L)
+        for s in studs:
+            self.put(x0 + s, y, GOLD_L)
+
+    def gold_col(self, x, y0, h):
+        for y in range(y0, y0 + h):
+            self.put(x, y, GOLD if (y - y0) % 3 else GOLD_L)
+
+    def branch(self, pts, clip, thick=()):
+        """Draw crimson stem through pts; bark shading, lit on the left."""
+        pts = list(pts)
+        cx, cy, cw, ch = clip
+        for x, y in pts:
+            for dx, dy in ((1, 0), (-1, 0), (0, 1)):
+                n = (x + dx, y + dy)
+                inside = cx <= n[0] < cx + cw and cy <= n[1] < cy + ch
+                if inside and n not in pts and self.get(*n) not in (GOLD, GOLD_L, GOLD_D):
+                    self.put(*n, OUTLINE)
+        for x, y in pts:
+            self.put(x, y, STEM)
+        for x, y in pts:
+            if (x - 1, y) not in pts and rng.random() < 0.6:
+                self.put(x, y, STEM_L)
+        for x, y in thick:
+            self.put(x, y, STEM_D)
+
+    def leaf(self, x, y, bright=False):
+        self.put(x, y, WART_L if bright else WART)
+
+    def bud(self, x, y):
+        self.put(x, y, SHROOM)
+
+
+def helmet(t):
+    # top: crest
+    t.plate(8, 0, 8, 8, light=1)
+    t.gold_col(11, 0, 8)
+    t.gold_col(12, 0, 8)
+    for y in range(0, 8, 2):
+        t.put(12, y, GOLD_D)
+    # bottom
+    t.dark(16, 0, 8, 8)
+
+    # sides: right (0,8) front edge x=7 ; left (16,8) front edge x=16
+    for x0, front_x, back_x in ((0, 7, 0), (16, 16, 23)):
+        t.plate(x0, 8, 8, 8)
+        t.gold_col(front_x, 8, 8)
+        t.gold_row(x0, 15, 8)
+        # swept fin lines
+        step = 1 if front_x > back_x else -1
+        for i in range(4):
+            t.put(front_x - step * (2 + i), 10 + i // 2, HI)
+            t.put(front_x - step * (2 + i), 11 + i // 2, DEEP)
+        # ear vent with ember glow
+        vx = x0 + 3
+        t.put(vx, 12, OUTLINE); t.put(vx + 1, 12, OUTLINE)
+        t.put(vx, 13, VEIN); t.put(vx + 1, 13, OUTLINE)
+
+    # front: full visor
+    t.plate(8, 8, 8, 8, light=1)
+    t.hline(8, 8, 8, HI)
+    t.gold_col(11, 8, 3); t.gold_col(12, 8, 3)         # nose-guard crest
+    t.hline(8, 11, 8, OUTLINE)                          # eye slit
+    t.hline(9, 12, 6, OUTLINE)
+    t.put(9, 11, GLOW); t.put(10, 11, VEIN)             # glowing eyes
+    t.put(14, 11, GLOW); t.put(13, 11, VEIN)
+    t.put(11, 11, GOLD_D); t.put(12, 11, GOLD_D)
+    t.put(11, 12, GOLD); t.put(12, 12, GOLD)
+    for x in (10, 13):                                  # mouth grille
+        t.put(x, 13, OUTLINE); t.put(x, 14, OUTLINE)
+    t.put(11, 14, DEEP); t.put(12, 14, DEEP)
+    t.gold_row(8, 15, 8)
+
+    # back: plate with a sprouting vine
+    t.plate(24, 8, 8, 8, light=-1)
+    t.gold_row(24, 15, 8)
+    t.branch([(28, 14), (28, 13), (27, 12), (27, 11), (28, 10), (29, 9)], clip=(24, 8, 8, 8))
+    t.leaf(26, 11); t.leaf(29, 12, True); t.bud(30, 9)
+
+
+def chestplate(t):
+    # body top (20,16,8,4): shoulders; back edge row 16
+    t.plate(20, 16, 8, 4, light=1)
+    t.gold_row(20, 19, 8)
+    t.dark(22, 17, 4, 2)                     # neck hole
+    t.bud(20, 16); t.bud(27, 16)             # branch tips poking over shoulders
+    t.leaf(21, 16, True); t.leaf(26, 16, True)
+    # body bottom
+    t.dark(28, 16, 8, 4)
+
+    # front (20,20,8,12)
+    t.plate(20, 20, 8, 12, light=1, veins=0.05)
+    t.gold_row(20, 20, 8)
+    # pecs
+    for x in (20, 21, 26, 27):
+        t.put(x, 21, SHINE)
+    t.put(20, 22, HI); t.put(27, 22, HI)
+    for x in (21, 22, 25, 26):
+        t.put(x, 25, DEEP)
+    # crimson heart gem in gold setting
+    for x, y in ((23, 21), (24, 21), (22, 22), (25, 22), (21, 23), (26, 23),
+                 (22, 24), (25, 24), (23, 25), (24, 25)):
+        t.put(x, y, GOLD)
+    t.put(23, 21, GOLD_L)
+    t.put(23, 22, GLOW); t.put(24, 22, SHINE)
+    t.put(22, 23, WART_L); t.put(23, 23, VEIN); t.put(24, 23, VEIN); t.put(25, 23, WART)
+    t.put(23, 24, WART); t.put(24, 24, DEEP)
+    # ab plates
+    for y in (27, 29):
+        t.hline(21, y, 6, DEEP)
+        t.hline(21, y + 1, 6, HI)
+    t.put(23, 28, OUTLINE); t.put(24, 28, OUTLINE)
+    t.put(23, 30, OUTLINE); t.put(24, 30, OUTLINE)
+    t.hline(20, 31, 8, OUTLINE)
+    t.put(21, 31, GOLD_L); t.put(26, 31, GOLD_L)
+
+    # sides
+    for x0 in (16, 28):
+        t.plate(x0, 20, 4, 12)
+        t.gold_row(x0, 20, 4)
+        for y in (24, 27, 30):
+            t.hline(x0, y, 4, DEEP)
+        t.hline(x0, 31, 4, OUTLINE)
+
+    # back (32,20,8,12): darker plate so the branch pops
+    t.plate(32, 20, 8, 12, light=-1, veins=0.03)
+    t.gold_row(32, 20, 8)
+    t.hline(32, 31, 8, OUTLINE)
+    # spine
+    for y in range(21, 31):
+        if t.get(35, y) != VEIN:
+            t.put(35, y, DEEP)
+    # the branch: trunk from lower spine, splits at the shoulder blades
+    trunk = [(35, 30), (36, 30), (35, 29), (36, 29), (35, 28), (36, 28), (35, 27), (36, 27), (36, 26), (35, 26)]
+    left = [(34, 25), (34, 24), (33, 23), (33, 22), (32, 21)]
+    right = [(37, 25), (37, 24), (38, 23), (38, 22), (39, 21)]
+    twig_l = [(35, 24), (35, 23), (35, 22)]
+    twig_r = [(36, 23), (36, 22), (37, 21)]
+    t.branch(trunk + left + right + twig_l + twig_r, clip=(32, 20, 8, 12),
+             thick=[(36, 30), (36, 29), (36, 27), (34, 25), (37, 25)])
+    for x, y in ((32, 20), (39, 20)):
+        t.put(x, y, STEM)                     # pierces the gold collar
+    t.bud(35, 21); t.bud(37, 20)
+    for x, y, b in ((32, 23, True), (34, 22, False), (39, 23, True), (37, 22, False),
+                    (33, 25, False), (38, 25, True), (34, 27, True), (37, 28, False)):
+        t.leaf(x, y, b)
+    # roots at the base
+    t.put(34, 30, STEM_D); t.put(37, 30, STEM_D); t.put(33, 30, STEM)
+
+
+def arms(t):
+    # top (44,16,4,4): pauldron cap, branch creeping over it
+    t.plate(44, 16, 4, 4, light=2)
+    for x in range(44, 48):
+        t.put(x, 16, GOLD); t.put(x, 19, GOLD)
+    t.put(45, 17, GOLD_L)
+    t.branch([(47, 16), (47, 17), (46, 18)], clip=(44, 16, 4, 4))
+    t.bud(46, 17); t.leaf(44, 18, True)
+    # bottom
+    t.dark(48, 16, 4, 4)
+
+    faces = {"outer": 40, "front": 44, "inner": 48, "back": 52}
+    for name, x0 in faces.items():
+        # pauldron rows 20-23
+        t.plate(x0, 20, 4, 4, light=2 if name != "inner" else 0)
+        t.gold_row(x0, 23, 4)
+        t.hline(x0, 21, 4, MID)
+        # undersuit rows 24-27 (chainmail-ish)
+        for y in range(24, 28):
+            for x in range(x0, x0 + 4):
+                t.put(x, y, DEEP if (x + y) % 2 else VOID)
+        # vambrace rows 28-31
+        t.plate(x0, 28, 4, 4, light=1)
+        t.gold_row(x0, 28, 4)
+        t.hline(x0, 31, 4, OUTLINE)
+    # rune on outer vambrace
+    t.put(41, 29, VEIN); t.put(42, 30, VEIN); t.put(41, 30, GLOW)
+    # spike studs on pauldron front
+    t.put(45, 20, SHINE); t.put(41, 20, SHINE)
+
+    # branch climbing the back of the arm from the body side (x=52) outward
+    t.branch([(52, 25), (52, 24), (53, 23), (53, 22), (54, 21), (54, 20)],
+             clip=(52, 20, 4, 12), thick=[(52, 25)])
+    t.leaf(55, 22, True); t.leaf(52, 22); t.bud(55, 20)
+
+
+def boots(t):
+    # sole
+    t.dark(8, 16, 4, 4)
+    faces = {"outer": 0, "front": 4, "inner": 8, "back": 12}
+    for name, x0 in faces.items():
+        t.gold_row(x0, 26, 4)
+        t.dark(x0, 27, 4, 1)
+        t.plate(x0, 28, 4, 3, light=1, bevel=False)
+        t.hline(x0, 31, 4, OUTLINE)
+        t.put(x0 + 1, 31, VOID)
+    # toe cap
+    t.put(5, 29, SHINE); t.put(6, 29, SHINE); t.put(5, 30, GOLD); t.put(6, 30, GOLD)
+    # heel spur
+    t.put(13, 30, GOLD_L); t.put(14, 30, GOLD)
+    # ember on outer ankle
+    t.put(1, 28, VEIN)
+
+
+def leggings(t):
+    # waist on body region, lower rows
+    faces = {"right": (16, 4), "front": (20, 8), "left": (28, 4), "back": (32, 8)}
+    for name, (x0, w) in faces.items():
+        t.dark(x0, 25, w, 1)
+        t.gold_row(x0, 26, w)
+        t.dark(x0, 27, w, 1)
+        t.plate(x0, 28, w, 4, light=1)
+        # tasset separations
+        for x in range(x0 + 3, x0 + w, 4):
+            for y in range(28, 32):
+                t.put(x, y, OUTLINE)
+    # buckle gem
+    t.put(23, 26, GOLD_L); t.put(24, 26, GOLD_L)
+    t.put(23, 27, VEIN); t.put(24, 27, GLOW)
+    # back: little root motif continuing the chest branch
+    t.put(35, 28, STEM); t.put(36, 28, STEM); t.put(35, 29, STEM_L); t.put(36, 30, STEM)
+    t.leaf(34, 30, True)
+
+    # leg top
+    t.plate(4, 16, 4, 4, bevel=False)
+    t.dark(8, 16, 4, 4)
+    legs = {"outer": 0, "front": 4, "inner": 8, "back": 12}
+    for name, x0 in legs.items():
+        light = 0 if name == "inner" else 1
+        t.plate(x0, 20, 4, 5, light=light)         # thigh plate
+        t.dark(x0, 25, 4, 1)
+        t.plate(x0, 26, 4, 2, light=light, bevel=False)  # knee band
+        t.dark(x0, 28, 4, 1)
+        t.plate(x0, 29, 4, 3, light=light)         # shin
+    # knee guard on front
+    t.put(5, 26, GOLD_L); t.put(6, 26, GOLD_L); t.put(4, 26, GOLD); t.put(7, 26, GOLD)
+    t.put(5, 27, VEIN); t.put(6, 27, GOLD)
+    # vertical gold trim on outer thigh + rune
+    t.gold_col(0, 20, 5)
+    t.put(2, 22, VEIN); t.put(1, 23, GLOW)
+    # vine wrapping the back of the thigh
+    t.branch([(13, 24), (14, 23), (14, 22), (13, 21)], clip=(12, 20, 4, 12))
+    t.leaf(12, 22, True); t.bud(15, 21)
+
+
+def main():
+    l1 = Tex()
+    helmet(l1)
+    chestplate(l1)
+    arms(l1)
+    boots(l1)
+    l1.img.save(f"{OUT}/armor_layer_1.png")
+
+    l2 = Tex()
+    leggings(l2)
+    l2.img.save(f"{OUT}/armor_layer_2.png")
+
+
+if __name__ == "__main__":
+    main()
