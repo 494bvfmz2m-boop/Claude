@@ -498,6 +498,74 @@ def sword():
     return img
 
 
+def greatsword():
+    """32x32 Crimson Greatsword. Drawn in blade space: a runs along the blade
+    (hilt bottom-left -> tip top-right), p is the offset across it."""
+    N = 32
+    rnd = random.Random(99)
+    cells = {}
+    thorns = (5, 12)
+    for y in range(N):
+        for x in range(N):
+            a, p = x - y, x + y - (N - 1)
+            ap = abs(p)
+            c = None
+            # blade
+            if -3 <= a <= 28:
+                w = 4.2 if a < 16 else 4.2 * (28 - a) / 12
+                if ap <= w:
+                    if p <= -w + 1.2:
+                        c = SHINE if rnd.random() < 0.8 else (255, 214, 190)
+                    elif p >= w - 1.2:
+                        c = DEEP
+                    elif ap <= 1:
+                        c = GLOW if rnd.random() < 0.18 else VEIN
+                    elif p < 0:
+                        c = HI if rnd.random() < 0.75 else MID
+                    else:
+                        c = BASE if rnd.random() < 0.7 else MID
+                        if rnd.random() < 0.06:
+                            c = VEIN
+                # barbed thorns on the back edge, raking toward the tip
+                for a0 in thorns:
+                    d = p - w
+                    if p > 0 and 0 < d <= 3 and 0 <= a - a0 - (d - 1) * 1.0 <= 3 - d:
+                        c = STEM_L if d < 2 else STEM
+            # crossguard: gold bar, then crimson-stem wings curling toward the tip
+            if -7 <= a <= -3 and ap <= 6:
+                c = GOLD_L if a == -3 else (GOLD_D if a == -7 else GOLD)
+                if a == -5 and ap in (3, 5):
+                    c = GOLD_L
+            if 6 < ap <= 11:
+                ta = -5 + (ap - 6) * 0.9
+                if abs(a - ta) <= 1.0:
+                    c = STEM_L if a > ta else STEM
+                if ap >= 9.5 and abs(a - ta) <= 1.5:
+                    c = SHROOM
+            # heart gem in the guard
+            gd = ap + abs(a + 5)
+            if gd <= 2:
+                c = GLOW if gd == 0 else (VEIN if gd == 1 or p < 0 else WART)
+            # grip wrapped in crimson stem
+            if -17 <= a <= -8 and ap <= 1.5:
+                c = STEM_D if a % 3 == 0 else (STEM_L if p < 0 else STEM)
+            # pommel: shroomlight in a gold ring
+            r = ((a + 21) ** 2 + p ** 2) ** 0.5
+            if a <= -18 and r <= 3.9:
+                c = SHROOM if r <= 1.5 else (GLOW if r <= 2.9 else GOLD)
+            if c:
+                cells[x, y] = c
+    img = Image.new("RGBA", (N, N), (0, 0, 0, 0))
+    for (x, y), c in cells.items():
+        img.putpixel((x, y), c + (255,))
+    for y in range(N):
+        for x in range(N):
+            if (x, y) not in cells and any(
+                    (x + dx, y + dy) in cells for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                img.putpixel((x, y), OUTLINE + (255,))
+    return img
+
+
 def main():
     os.makedirs(f"{OUT}/items", exist_ok=True)
     os.makedirs(f"{OUT}/equipped", exist_ok=True)
@@ -512,7 +580,8 @@ def main():
     leggings(l2)
     l2.img.save(f"{OUT}/armor_layer_2.png")
 
-    sword().save(f"{OUT}/items/crimson_sword.png")
+    sword().save(f"{OUT}/items/crimson_sword_16x.png")
+    greatsword().save(f"{OUT}/items/crimson_sword.png")
 
     layers = {"l1": l1.img, "l2": l2.img}
     for piece, rows in ICONS.items():
