@@ -245,6 +245,9 @@ class Tex(demon.Tex):
 
 def layers(S):
     """Paint layer_1 (helmet shell, chestplate, boots) and layer_2 (leggings)."""
+    if "look" in S:
+        import armor_looks
+        return armor_looks.paint(S)
     P, main, sec = S["pal"], PATTERNS[S["pattern"]], PATTERNS[S.get("secondary", "cloth")]
     t1, t2 = Tex(64, 32), Tex(64, 32)
     # helmet shell (used by the 3D helmet's atlas)
@@ -407,6 +410,10 @@ def icons(S):
         for (x, y), k in S.get("icon_extra", {}).get(piece, {}).items():
             img.putpixel((x, y), P[k] + (255,))
         out[piece] = img
+    if "look" in S:   # chestplate/leggings/boots icons come from the real textures
+        import armor_looks
+        l1, l2 = layers(S)
+        out = armor_looks.icons_from(l1, l2, P, out["helmet"])
     return out
 
 
