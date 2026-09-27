@@ -294,31 +294,10 @@ equipments:
         i, r = tier_items(ns, tier)
         items += i
         recs += r
-    # recipe book: an /ia item that turns into the readable written book on right-click
+    # recipe book: crafted as a signed written book via the crimson_forge datapack
     pages = BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
     BOOK.write_commands(pages)
-    write(f"{base}/textures/item/crimson_recipe_book.png", BOOK.book_icon())
     BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))
-    command = f"execute as {{player}} run function {BOOK.DATAPACK}:swap_book"
-    items.append(f"""  crimson_recipe_book:
-    enabled: true
-    display_name: '&6Crimson Forge Recipe Book'
-    lore:
-      - '&f'
-      - '&7Every Crimson and Blue Crimson recipe.'
-      - '&eRight-click to open'
-      - '&8or type /trigger recipebook'
-    resource:
-      material: BOOK
-      generate: true
-      textures:
-        - item/crimson_recipe_book
-    events:
-      interact:
-        right:
-          execute_commands:
-            - command: '{command}'
-              as_console: true""")
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 recipes:
@@ -327,14 +306,14 @@ recipes:
 items:
 {chr(10).join(items)}
 """)
-    listed = ["crimson_recipe_book"] + [i.split(":")[0].strip() for i in items if not i.strip().startswith("crimson_recipe_book")]
+    listed = [i.split(":")[0].strip() for i in items]
     write(f"{base}/configs/categories.yml", f"""info:
   namespace: {ns}
 categories:
   crimson_forge:
     enabled: true
     name: '&cCrimson Forge'
-    icon: {ns}:crimson_recipe_book
+    icon: {ns}:crimson_sword
     permission: ia.menu.crimson_forge
     items:
 """ + "".join(f"      - {ns}:{i}\n" for i in listed))

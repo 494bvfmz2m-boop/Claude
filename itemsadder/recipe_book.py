@@ -322,36 +322,46 @@ def book_item(pages):
 DATAPACK = "crimson_forge"
 
 
+BOOK_RECIPE = ["minecraft:writable_book", "minecraft:ghast_tear", "minecraft:redstone"]
+
+
 def write_datapack(pages, out_zip):
-    """Vanilla datapack: /trigger recipebook gives the book to anyone, and
-    function crimson_forge:swap_book turns the held /ia book into it."""
+    """Vanilla datapack: a crafting recipe whose result is the signed
+    Crimson Forge book with every recipe page already written, plus an
+    advancement that unlocks it in the recipe book once you hold a Book and
+    Quill. /function crimson_forge:give_book hands one out directly."""
     import zipfile
-    book = book_item(pages)
+    book = {"id": "minecraft:written_book", "count": 1, "components": {
+        "minecraft:written_book_content": {"title": "Crimson Forge", "author": "SlothSMP", "pages": pages},
+        "minecraft:enchantment_glint_override": True}}
     files = {
-        "pack.mcmeta": json.dumps({"pack": {
-            "description": "Crimson Forge recipe book",
-            "pack_format": 88, "supported_formats": [71, 999], "min_format": 71, "max_format": 999}}, indent=1),
-        f"data/{DATAPACK}/function/load.mcfunction":
-            "scoreboard objectives add recipebook trigger\n",
-        f"data/{DATAPACK}/function/tick.mcfunction":
-            "scoreboard players enable @a recipebook\n"
-            f"execute as @a[scores={{recipebook=1..}}] run function {DATAPACK}:give_book\n"
-            "scoreboard players set @a[scores={recipebook=1..}] recipebook 0\n",
-        f"data/{DATAPACK}/function/give_book.mcfunction": f"give @s {book}\n",
-        f"data/{DATAPACK}/function/swap_book.mcfunction": f"item replace entity @s weapon.mainhand with {book}\n",
-        "data/minecraft/tags/function/load.json": json.dumps({"values": [f"{DATAPACK}:load"]}),
-        "data/minecraft/tags/function/tick.json": json.dumps({"values": [f"{DATAPACK}:tick"]}),
+        "pack.mcmeta": {"pack": {"description": "Crimson Forge recipe book",
+                                 "pack_format": 88, "supported_formats": [71, 999],
+                                 "min_format": 71, "max_format": 999}},
+        f"data/{DATAPACK}/recipe/crimson_forge_book.json": {
+            "type": "minecraft:crafting_shapeless", "category": "misc",
+            "ingredients": BOOK_RECIPE, "result": book},
+        f"data/{DATAPACK}/advancement/recipes/crimson_forge_book.json": {
+            "parent": "minecraft:recipes/root",
+            "criteria": {
+                "has_book_and_quill": {"trigger": "minecraft:inventory_changed",
+                                       "conditions": {"items": [{"items": "minecraft:writable_book"}]}},
+                "has_the_recipe": {"trigger": "minecraft:recipe_unlocked",
+                                   "conditions": {"recipe": f"{DATAPACK}:crimson_forge_book"}}},
+            "requirements": [["has_book_and_quill", "has_the_recipe"]],
+            "rewards": {"recipes": [f"{DATAPACK}:crimson_forge_book"]}},
+        f"data/{DATAPACK}/function/give_book.mcfunction": f"give @s {book_item(pages)}\n",
     }
     with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, text in files.items():
-            z.writestr(name, text)
+        for name, data in files.items():
+            z.writestr(name, data if isinstance(data, str) else json.dumps(data, indent=1, ensure_ascii=True))
 
 
 def write_commands(pages):
     path = os.path.join(ROOT, "itemsadder", "recipe_book_commands.txt")
     with open(path, "w") as f:
         f.write("# Crimson Forge recipe book (Minecraft 26.x / 1.21.5+).\n"
-                "# With the crimson_forge datapack installed, players type:  /trigger recipebook\n"
-                "# or right-click the Crimson Forge Recipe Book from /ia.\n"
-                "# To hand one out without the datapack, run this from the server console:\n\n")
+                "# Players craft it (datapack): Book and Quill + Ghast Tear + Redstone Dust.\n"
+                "# Admins with the datapack: /function crimson_forge:give_book\n"
+                "# Without the datapack, run this from the server console:\n\n")
         f.write("give @p " + book_item(pages) + "\n")
