@@ -323,6 +323,15 @@ equipments:
           min_amount: 1
           max_amount: 1
           chance: {scroll[4]}""")
+    for sid, (pat, ing) in SC.SCROLL_RECIPES.items():
+        recs.append(f"""    {sid}:
+      permission: itemsadder.craft.{sid}
+      enabled: true
+      pattern:
+""" + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
+            + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
+        item: {ns}:{sid}
+        amount: 1""")
     write(f"{base}/configs/loots.yml", f"""info:
   namespace: {ns}
 loots:

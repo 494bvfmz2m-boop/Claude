@@ -23,6 +23,24 @@ SCROLLS = {
                     ["sword_recipe", "bow_recipe"], "WARDEN", 100),
     },
 }
+# crafting recipes for the scrolls themselves: paper + the materials of their story;
+# every Blue Crimson scroll is reforged from its Crimson scroll
+SCROLL_RECIPES = {
+    "crimson_scroll_armor": (["GRG", "PNP", "GRG"], {"G": "GHAST_TEAR", "R": "REDSTONE", "P": "PAPER",
+                                                     "N": "NETHERITE_SCRAP"}),
+    "crimson_scroll_tools": (["BRB", "PDP", "BRB"], {"B": "BLAZE_POWDER", "R": "REDSTONE", "P": "PAPER",
+                                                     "D": "DIAMOND"}),
+    "crimson_scroll_weapons": (["MRM", "PFP", "MRM"], {"M": "MAGMA_CREAM", "R": "REDSTONE", "P": "PAPER",
+                                                       "F": "FIRE_CHARGE"}),
+    "blue_crimson_scroll_armor": (["ELE", "PSP", "ELE"], {"E": "ECHO_SHARD", "L": "LAPIS_LAZULI", "P": "PAPER",
+                                                          "S": "crimson-gear:crimson_scroll_armor"}),
+    "blue_crimson_scroll_tools": (["HLH", "PSP", "HLH"], {"H": "PRISMARINE_SHARD", "L": "LAPIS_LAZULI", "P": "PAPER",
+                                                          "S": "crimson-gear:crimson_scroll_tools"}),
+    "blue_crimson_scroll_weapons": (["ALA", "PSP", "ALA"], {"A": "AMETHYST_SHARD", "L": "LAPIS_LAZULI",
+                                                            "P": "PAPER", "S": "crimson-gear:crimson_scroll_weapons"}),
+}
+MOB_NAMES = {"GHAST": "Ghasts", "BLAZE": "Blazes", "WITHER_SKELETON": "Wither Skeletons",
+             "WARDEN": "the Warden", "ELDER_GUARDIAN": "Elder Guardians"}
 RECIPE_LABEL = {"armor_recipe": "Any armor piece", "tool_recipe": "Any tool",
                 "sword_recipe": "Sword", "bow_recipe": "Bow"}
 TEMPLATE_NAMES = {"NETHERITE_{PIECE}": "Netherite piece (same slot)", "NETHERITE_{TOOL}": "Netherite tool (same kind)",
@@ -46,7 +64,7 @@ def recipe_lines(pattern, ingredients, accent):
 
 def lore(tier_cfg, scroll, accent):
     title, story, keys, mob, chance = scroll
-    out = ["&f"] + [f"&o&7{s}" for s in story]
+    out = ["&f"] + [f"&o&7{s}" for s in story] + [f"&8Craft it, or take it from {MOB_NAMES[mob]}."]
     for key in keys:
         pattern, ingredients = tier_cfg[key]
         out += ["&f", f"&6{RECIPE_LABEL[key]}:" if accent == "&c" else f"&b{RECIPE_LABEL[key]}:"]
