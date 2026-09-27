@@ -464,10 +464,13 @@ def helmet_parts():
         part("inlay_top", (-0.8, 33.1, -3.6), (0.8, 33.25, 3.6), "nebula", glow=True),
         part("inlay_crest", (-0.8, 32.6, -4.75), (0.8, 33.1, 4.75), "nebula", glow=True),
         part("inlay_back", (-0.8, 25.6, 5), (0.8, 32, 5.08), "nebula", glow=True),
-        # wraparound scanner visor
-        part("visor_front", (-4.75, 27.3, -5.12), (4.75, 28.5, -4.98), "ring", glow=True),
-        part("visor_rim_top", (-4.8, 28.5, -5.1), (4.8, 28.8, -4.9), "gold"),
-        part("visor_rim_bot", (-4.8, 27, -5.1), (4.8, 27.3, -4.9), "gold"),
+        # V-shaped scanner visor, swept up towards the temples
+        part("visor_r", (0, 27.3, -5.14), (4.9, 28.4, -4.98), "glow_c", glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
+        part("visor_l", (-4.9, 27.3, -5.14), (0, 28.4, -4.98), "glow_c", glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
+        part("visor_rim_r", (0, 26.9, -5.1), (4.9, 27.3, -4.95), "gold", rot=("z", 22.5, (0, 27.85, -5.06))),
+        part("visor_rim_l", (-4.9, 26.9, -5.1), (0, 27.3, -4.95), "gold", rot=("z", -22.5, (0, 27.85, -5.06))),
+        part("prow", (-0.35, 24.4, -5.25), (0.35, 27, -5.02), "gold"),
+        part("beam", (-0.12, 33.25, -0.12), (0.12, 37.4, 0.12), "glow_c", glow=True),
         # high gorget
         part("gorget_front", (-4.4, 23.2, -4.4), (4.4, 24.6, -3.2), "gold"),
         part("gorget_back", (-4.4, 23.2, 3.2), (4.4, 24.6, 4.4), "gold"),
@@ -497,6 +500,10 @@ def helmet_parts():
         part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "gold_d"),
         part("horn_tip", (5.5, 38.4, 7.9), (6, 39.6, 8.5), "glow_c", glow=True),
         part("horn_edge", (6.4, 29.5, -1.2), (6.55, 31.3, 1.6), "glow_c", glow=True),
+        part("horn_line", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2), "glow_c", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
+        part("horn_low", (4.8, 26.8, 0.6), (5.6, 27.8, 3.8), "gold_d", rot=("x", -22.5, (5.2, 27.3, 0.6))),
+        part("horn_low_tip", (4.95, 28.7, 3.6), (5.45, 29.5, 4.1), "glow_c", glow=True),
+        part("jaw", (3.1, 24.4, -5.5), (4.9, 27, -4.9), "steel_l", rot=("y", 22.5, (4.9, 25.7, -4.9))),
         # angular pauldrons with glowing edge lines
         part("pauldron", (4.4, 25, -2.6), (8.9, 26.2, 2.6), "steel"),
         part("pauldron_upper", (5, 26.2, -2), (8.3, 27, 2), "steel_l"),
