@@ -175,7 +175,30 @@ def layers(S):
     if S.get("leg_art"):
         t2.stamp(LEG["right"], S["leg_art"], P)
         t2.stamp(LEG["front"], S["leg_art"], P)
+    cutouts(t1.img, t2.img)
     return t1.img, t2.img
+
+
+def clear(img, rect, cells):
+    """Make (u, v) cells of a face see-through so the skin shows."""
+    x0, y0, _, _ = rect
+    for u, v in cells:
+        img.putpixel((x0 + u, y0 + v), (0, 0, 0, 0))
+
+
+def cutouts(l1, l2):
+    """Open the armor up: bare upper arms, a V-neck, open sides, and leggings
+    that only wrap the front and outside of the leg."""
+    for k in ("right", "front", "left", "back"):
+        clear(l1, ARM[k], [(u, v) for u in range(4) for v in range(4, 8)])       # bare upper arm
+    clear(l1, BODY["front"], [(u, 0) for u in range(2, 6)] + [(3, 1), (4, 1)])   # V-neck
+    for k in ("right", "left"):                                                 # open sides, one strap
+        clear(l1, BODY[k], [(u, v) for u in range(4) for v in range(2, 10) if v != 5])
+    clear(l1, BODY["back"], [(u, v) for u in range(2, 6) for v in range(1, 3)] + [(3, 3), (4, 3)])
+    clear(l2, LEG["left"], [(u, v) for u in range(4) for v in range(12) if v not in (0, 5)])  # inner leg
+    clear(l2, LEG["back"], [(u, v) for u in range(4) for v in range(6, 12)])  # back of the knee down
+    clear(l2, LEG["front"], [(u, v) for u in (1, 2) for v in (7, 8, 9)])      # shin slit
+    clear(l2, LEG["top"], [(u, v) for u in range(4) for v in range(4)])       # no cap over the hip
 
 
 # --- icons (16x16 on the Lode Studio template silhouettes) ------------------------------

@@ -236,11 +236,14 @@ def tier_assets(base, ns, tier):
             "display": build_model.BOW_DISPLAY,
         })
 
-    if tier == "halloween":   # glowing jack-o'-lantern helmet
-        write(f"{base}/textures/item/armor/{tier}_parts.png", animate(HW.atlas(), HW.GLOW))
+    if tier == "halloween":   # open witch hat with a carved pumpkin, built by the armor-set engine
+        at, sw = AE.atlas(AS.HALLOWEEN_STYLE, hl1)
+        parts = AE.resolve(AS.HALLOWEEN_STYLE["helmet"](), sw)
+        write(f"{base}/textures/item/armor/{tier}_parts.png", animate(at, {AS.HALLOWEEN_STYLE["pal"]["g"]}))
         write(f"{base}/textures/item/armor/{tier}_parts.png.mcmeta", MCMETA)
-        write(f"{base}/models/item/armor/{tier}_helmet.json", HW.helmet_model(f"{ns}:item/armor/{tier}_parts"))
-        write(f"{base}/textures/item/armor/{tier}_armor_helmet.png", HW.icon())
+        write(f"{base}/models/item/armor/{tier}_helmet.json",
+              AE.hat_model(parts, f"{ns}:item/armor/{tier}_parts", 0.6))
+        write(f"{base}/textures/item/armor/{tier}_armor_helmet.png", hic["helmet"])
         return
     # 3D helmet: visor, gold crest and branches from the shoulder blades
     layer1 = Image.open(f"{src}/armor_layer_1.png").convert("RGBA")
