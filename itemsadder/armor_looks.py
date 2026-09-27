@@ -333,8 +333,8 @@ def ch_cloak(t, P, S, M, Sc):
     put(t, BODY["front"], 1, 1, P["t"])
     put(t, BODY["front"], 6, 1, P["t"])
     for v in range(12):
-        put(t, BODY["back"], 2, v, P["o"] if v % 3 else None)
-        put(t, BODY["back"], 5, v, P["o"] if v % 3 != 1 else None)
+        put(t, BODY["back"], 2, v, P["d"] if v % 3 else None)
+        put(t, BODY["back"], 5, v, P["d"] if v % 3 != 1 else None)
     return False
 
 
@@ -936,11 +936,11 @@ def bk_x(t, P, S):
 
 
 def bk_cape(t, P, S):
-    fill(t, BODY["back"], pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"])))
+    fill(t, BODY["back"], pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["d"])))
     for v in range(12):
         if v % 3:
-            put(t, BODY["back"], 2, v, P["o"])
-            put(t, BODY["back"], 5, v, P["o"])
+            put(t, BODY["back"], 2, v, P["d"])
+            put(t, BODY["back"], 5, v, P["d"])
     trim(t, BODY["back"], P, [0])
 
 

@@ -33,6 +33,7 @@ import armor_sets as AS  # noqa: E402
 import armor_sets2 as AS2  # noqa: E402
 import tool_forge as TF  # noqa: E402
 import cosmetics as COS  # noqa: E402
+import scroll_art as SA  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -331,6 +332,19 @@ def tier_items(ns, tier):
     return items, recs
 
 
+def _pal(o, d, b, m, l, t, t2, a, g):
+    return dict(o=o, d=d, b=b, m=m, l=l, t=t, t2=t2, a=a, g=g)
+
+
+SCROLL_PAL = {   # palettes for the Crimson-line scroll art
+    "crimson": _pal(TD.CR["out"], TD.CR["deep"], TD.CR["base"], TD.CR["mid"], TD.CR["hi"], TD.CR["gold"],
+                    TD.CR["gold_d"], TD.CR["bud"], TD.CR["vein"]),
+    "blue_crimson": _pal(TD.BL["out"], TD.BL["deep"], TD.BL["base"], TD.BL["mid"], TD.BL["hi"], TD.BL["silver"],
+                         TD.BL["silver_d"], TD.BL["shine"], TD.BL["glow"]),
+    "halloween": dict(AS.HALLOWEEN_STYLE["pal"]),
+}
+
+
 def gear_pack(base, ns, tiers, category, cat_name, cat_icon):
     write(f"{base}/configs/equipments.yml", f"""info:
   namespace: {ns}
@@ -352,9 +366,10 @@ equipments:
         if tier not in tiers:
             continue
         accent, seal = SC.ACCENT[tier], SC.SEAL[tier]
-        write(f"{base}/textures/item/scrolls/{tier}_scroll.png", SC.icon(seal))
+        style = dict(id=tier, pal=SCROLL_PAL[tier], seal=seal)
         for kind, scroll in scrolls.items():
             sid = f"{tier}_scroll_{kind}"
+            write(f"{base}/textures/item/scrolls/{sid}.png", SA.icon(style, kind))
             lore_yaml = "".join("      - '" + line.replace("'", "''") + "'\n" for line in SC.lore(TIERS[tier], scroll, accent))
             items.append(f"""  {sid}:
     enabled: true
@@ -365,7 +380,7 @@ equipments:
       material: PAPER
       generate: true
       textures:
-        - item/scrolls/{tier}_scroll""")
+        - item/scrolls/{sid}""")
             loots.append(f"""    {sid}:
       enabled: true
       type: {scroll[3]}
@@ -420,7 +435,7 @@ def crimson(base):
 
 
 def halloween_pack(base):
-    gear_pack(base, "halloween-gear", ["halloween"], "halloween", "&6Halloween", "halloween_armor_helmet")
+    gear_pack(base, "halloween-gear", ["halloween"], "halloween", "&6Halloween", "halloween_scroll_armor")
 
 
 # --- demon-gear -------------------------------------------------------------

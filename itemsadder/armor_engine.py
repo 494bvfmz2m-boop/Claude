@@ -689,7 +689,7 @@ def configs(S, ns):
       material: PAPER
       generate: true
       textures:
-        - item/{S['id']}_scroll""")
+        - item/{S['id']}_scroll_{kind}""")
         mob, chance = S["mob"]
         loots.append(f"""    {sid}:
       enabled: true
@@ -734,7 +734,7 @@ categories:
   {S['id']}:
     enabled: true
     name: '{S['color']}{S['name']}'
-    icon: {ns}:{S['id']}_helmet
+    icon: {ns}:{S['id']}_scroll_armor
     permission: ia.menu.{S['id']}
     items:
 """ + "".join(f"      - {ns}:{i}\n" for i in listed)
@@ -751,7 +751,6 @@ def build_set(S, base, write, animate, mcmeta):
     """Write one set's content folder; returns preview material."""
     import build_model
     import crimson_upgrade as CU
-    import scrolls as SC
     import tool_forge as TF
     from PIL import ImageOps
     ns = S["id"]
@@ -793,7 +792,9 @@ def build_set(S, base, write, animate, mcmeta):
         write(f"{base}/models/item/{name}.json", {
             "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
             "elements": CU.tool_elements(tex, flat=True, glow=P.glow_set()), "display": build_model.BOW_DISPLAY})
-    write(f"{base}/textures/item/{ns}_scroll.png", SC.icon(S["seal"]))
+    import scroll_art as SA
+    for kind in SCROLL_SHAPES:   # each set has its own scroll form; also the /ia category icon
+        write(f"{base}/textures/item/{ns}_scroll_{kind}.png", SA.icon(S, kind))
     items_yml, equip_yml, cat_yml, loots_yml = configs(S, ns)
     write(f"{base}/configs/items.yml", items_yml)
     write(f"{base}/configs/equipments.yml", equip_yml)

@@ -113,16 +113,24 @@ def solar():
 
 
 def lunar():
+    """Silver circlet with a teardrop gem and a glowing crescent moon floating behind the head."""
     p = ring("circlet", 29.8, 30.3, "t") + [
         part("tear", (-0.5, 28.6, -4.9), (0.5, 29.8, -4.6), "g", glow=True),
-        part("moon", (-1.6, 34, 3), (1.6, 37.2, 6.2), "a"),
-        part("crater0", (-0.8, 35, 2.95), (-0.2, 35.6, 3), "s2"),
-        part("crater1", (0.4, 36, 2.95), (1, 36.4, 3), "s2")]
+        part("tear_setting", (-0.8, 29.8, -4.9), (0.8, 30.4, -4.6), "t2")]
+    cy, cz = 33.5, 5.2
+    for i, (ang, (x0, y0, x1, y1)) in enumerate(((0, (-1.2, cy + 2.6, 1.2, cy + 3.4)),
+                                                   (45, (-3.3, cy + 1.4, -1.3, cy + 2.2)),
+                                                   (0, (-3.8, cy - 1.2, -3.0, cy + 1.2)),
+                                                   (-45, (-3.3, cy - 2.2, -1.3, cy - 1.4)),
+                                                   (0, (-1.2, cy - 3.4, 1.2, cy - 2.6)))):
+        rot = zr(ang, ((x0 + x1) / 2, (y0 + y1) / 2, cz)) if ang else None
+        p.append(part(f"moon{i}", (x0, y0, cz - 0.3), (x1, y1, cz + 0.3), "a", rot=rot))
+        p.append(part(f"moon_glow{i}", (x0 + 0.2, y0 + 0.15, cz - 0.35), (x1 - 0.2, y1 - 0.15, cz - 0.3), "g",
+                      glow=True, rot=rot))
     p += mirror([part("chain0", (4.5, 26, -2), (4.75, 30, -1.75), "t2"),
+                 part("chain_gem", (4.45, 25.4, -2.05), (4.8, 26, -1.7), "g", glow=True),
                  part("chain1", (4.5, 26.5, 1), (4.75, 30, 1.25), "t2"),
-                 part("wing_up", (0.8, 24, 4.4), (5.4, 29, 4.6), "s1", rot=zr(22.5, (0.8, 26, 4.5))),
-                 part("wing_low", (0.8, 20.5, 4.4), (4, 24, 4.6), "s2", rot=zr(-22.5, (0.8, 24, 4.5))),
-                 part("eyespot", (2.6, 26, 4.61), (3.4, 26.8, 4.66), "g", glow=True, rot=zr(22.5, (0.8, 26, 4.5)))])
+                 part("star", (2.2, 35.4, 4.9), (2.6, 35.8, 5.3), "g", glow=True)])
     return p
 
 
@@ -635,8 +643,8 @@ SETS2 = [
                   shovel="spade", hoe="scythe", bow="recurve", bow_tips="flame", bow_mat="metal",
                   string=(255, 250, 200))),
     dict(id="lunar", name="Moonlit", color="&7", pattern="feather", secondary="cloth",
-         pal=pal((20, 22, 34), (70, 76, 100), (130, 138, 164), (180, 188, 210), (230, 234, 245), (210, 214, 230),
-                 (140, 146, 170), (240, 240, 230), (170, 220, 255), (200, 206, 230), (120, 130, 160)),
+         pal=pal((10, 12, 28), (24, 30, 66), (38, 48, 98), (62, 76, 136), (140, 156, 206), (222, 226, 238),
+                 (150, 158, 184), (244, 240, 220), (170, 220, 255), (46, 56, 110), (84, 96, 150)),
          emblem=["..llll..", ".ll.....", "ll......", "ll......", ".ll.....", "..llll.."], helmet=lunar,
          recipe=dict(A="PHANTOM_MEMBRANE", B="DIAMOND", C="QUARTZ"), perk={"movementSpeed": 0.004},
          mob=("PHANTOM", 5), seal=(170, 190, 230),
