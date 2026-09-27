@@ -528,8 +528,7 @@ RECIPE_SHAPES = {"helmet": ["ABA", "ANA", "XXX"], "chestplate": ["ANA", "ABA", "
                  "sword": ["XBX", "XNX", "XCX"], "axe": ["ABX", "ASX", "XCX"], "pickaxe": ["ABA", "XSX", "XCX"],
                  "shovel": ["XBX", "XSX", "XCX"], "hoe": ["ABX", "XSX", "XCX"], "bow": ["XCT", "BNT", "XCT"]}
 SCROLL_SHAPES = {"armor": ["AXA", "PBP", "AXA"], "tools": ["CXC", "PBP", "CXC"], "weapons": ["BXB", "PCP", "BXB"]}
-# scrolls take a book, not paper: the server's banknote plugin cancels crafts with paper in them
-FIXED = {"N": "NETHERITE_INGOT", "S": "NETHERITE_SCRAP", "T": "STRING", "P": "BOOK"}
+FIXED = {"N": "NETHERITE_INGOT", "S": "NETHERITE_SCRAP", "T": "STRING", "P": "PAPER"}
 MAKES = {"armor": ("helmet", "chestplate", "leggings", "boots"), "tools": ("axe", "pickaxe", "shovel", "hoe"),
          "weapons": ("sword", "bow")}
 NAME_FIX = {"DRAGON_BREATH": "Dragon's Breath", "NETHERITE_INGOT": "Netherite Ingot", "TNT": "TNT",
