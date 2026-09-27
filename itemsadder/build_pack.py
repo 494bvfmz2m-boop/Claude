@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.join(ROOT, "itemsadder"))
 
 import build_model  # noqa: E402  (crimson cuboid model builder)
 import crimson_upgrade as CU  # noqa: E402
-import recipe_book as BOOK  # noqa: E402
+import recipe_book as BOOK  # noqa: E402  (recolour + icon helpers)
+import scrolls as SC  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -294,50 +295,40 @@ equipments:
         i, r = tier_items(ns, tier)
         items += i
         recs += r
-    # recipe book: an ItemsAdder item that IS the signed written book (pages set
-    # through the written_book_content component), crafted with an IA recipe
-    pages = BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
-    BOOK.write_commands(pages)
-    BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))  # fallback
-    write(f"{base}/textures/item/crimson_forge_book.png", BOOK.book_icon())
-    # fallback: right-click swaps the held book for the full written book
-    swap = f"item replace entity {{player}} weapon.mainhand with {BOOK.book_item(pages)}".replace("'", "''")
-    # component value in /give syntax (SNBT), which is what ItemsAdder passes on to Minecraft
-    content = BOOK.snbt({"title": "Crimson Forge", "author": "SlothSMP", "pages": pages}).replace("'", "''")
-    items.insert(0, f"""  crimson_forge_book:
+    # lore scrolls: story + recipe grid in the tooltip, dropped by mobs
+    loots = []
+    for tier, scrolls in SC.SCROLLS.items():
+        accent = "&c" if tier == "crimson" else "&b"
+        seal = (170, 20, 30) if tier == "crimson" else (30, 110, 200)
+        write(f"{base}/textures/item/scrolls/{tier}_scroll.png", SC.icon(seal))
+        for kind, scroll in scrolls.items():
+            sid = f"{tier}_scroll_{kind}"
+            lore_yaml = "".join("      - '" + line.replace("'", "''") + "'\n" for line in SC.lore(TIERS[tier], scroll, accent))
+            items.append(f"""  {sid}:
     enabled: true
-    display_name: '&6Crimson Forge'
+    display_name: '{accent}{scroll[0]}'
     lore:
-      - '&f'
-      - '&7The recipes of the Crimson forge.'
+{lore_yaml.rstrip(chr(10))}
     resource:
-      material: WRITTEN_BOOK
+      material: PAPER
       generate: true
       textures:
-        - item/crimson_forge_book
-    components:
-      minecraft:written_book_content: '{content}'
-      minecraft:enchantment_glint_override: 'true'
-    events:
-      interact:
-        right:
-          execute_commands:
-            - command: '{swap}'
-              as_console: true""")
-    recs.insert(0, f"""    crimson_forge_book:
-      permission: itemsadder.craft.crimson_forge_book
+        - item/scrolls/{tier}_scroll""")
+            loots.append(f"""    {sid}:
       enabled: true
-      pattern:
-        - XXX
-        - ABC
-        - XXX
-      ingredients:
-        A: WRITABLE_BOOK
-        B: GHAST_TEAR
-        C: REDSTONE
-      result:
-        item: {ns}:crimson_forge_book
-        amount: 1""")
+      type: {scroll[3]}
+      items:
+        scroll:
+          item: {ns}:{sid}
+          min_amount: 1
+          max_amount: 1
+          chance: {scroll[4]}""")
+    write(f"{base}/configs/loots.yml", f"""info:
+  namespace: {ns}
+loots:
+  mobs:
+{chr(10).join(loots)}
+""")
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 recipes:
@@ -347,13 +338,14 @@ items:
 {chr(10).join(items)}
 """)
     listed = [i.split(":")[0].strip() for i in items]
+    listed = [i for i in listed if "_scroll_" in i] + [i for i in listed if "_scroll_" not in i]
     write(f"{base}/configs/categories.yml", f"""info:
   namespace: {ns}
 categories:
   crimson_forge:
     enabled: true
     name: '&cCrimson Forge'
-    icon: {ns}:crimson_forge_book
+    icon: {ns}:crimson_scroll_armor
     permission: ia.menu.crimson_forge
     items:
 """ + "".join(f"      - {ns}:{i}\n" for i in listed))
