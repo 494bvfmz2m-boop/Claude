@@ -632,7 +632,16 @@ def build():
     for wid, (fn, _, scale, *_rest) in WEAPONS.items():
         parts = fn()
         weapon_parts[wid] = parts
-        W(f"{base}/models/item/galactus_{wid}.json", weapon_model(parts, ref, scale, centre_of(parts)))
+        model = weapon_model(parts, ref, scale, centre_of(parts))
+        W(f"{base}/models/item/galactus_{wid}.json", model)
+        if wid == "trident":   # ItemsAdder also loads <model>_throwing for the trident's charge-up pose
+            k = scale
+            throw = dict(model, display=dict(model["display"], **{
+                "thirdperson_righthand": {"rotation": [0, -90, 145], "translation": [0, 8, 1.5], "scale": [k, k, k]},
+                "thirdperson_lefthand": {"rotation": [0, 90, -145], "translation": [0, 8, 1.5], "scale": [k, k, k]},
+                "firstperson_righthand": {"rotation": [0, -90, 70], "translation": [1.13, 6, 1.13], "scale": [k * 0.8] * 3},
+                "firstperson_lefthand": {"rotation": [0, 90, -70], "translation": [1.13, 6, 1.13], "scale": [k * 0.8] * 3}}))
+            W(f"{base}/models/item/galactus_trident_throwing.json", throw)
     img = atlas(0)
     # bow
     P = TF.Pal(BOW)
