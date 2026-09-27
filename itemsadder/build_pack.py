@@ -27,6 +27,7 @@ import recipe_book as BOOK  # noqa: E402  (recolour + icon helpers)
 import scrolls as SC  # noqa: E402
 import halloween as HW  # noqa: E402
 import accessories as ACC  # noqa: E402
+import tool_designs as TD  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -193,36 +194,38 @@ def tier_assets(base, ns, tier):
     for piece in PIECES:
         write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png",
               recolor(Image.open(f"{src}/items/crimson_{piece}.png").convert("RGBA"), kind))
+    # hand-designed tools per tier (tool_designs.py), animated, with depth + glow
+    sets = dict(glow=TD.GLOW_SETS[tier], thick=TD.THICK_SETS[tier], grip=TD.GRIP_SETS[tier])
     for tool in TOOL_MATERIALS:
-        tex = Image.open(f"{src}/items/crimson_{tool}.png").convert("RGBA")
+        tex = TD.tool(tier, tool)
         ref = f"{ns}:item/tools/{tier}_{tool}"
         write(f"{base}/textures/item/tools/{tier}_{tool}.png",
-              recolor(animate(tex, CRIMSON_GLOW, CRIMSON_BLADE), kind))
+              animate(tex, TD.GLOW_SETS[tier], TD.SHIMMER_SETS[tier]))
         write(f"{base}/textures/item/tools/{tier}_{tool}.png.mcmeta", MCMETA)
-        write(f"{base}/textures/item/tools/{tier}_{tool}_icon.png", recolor(tex, kind))
+        write(f"{base}/textures/item/tools/{tier}_{tool}_icon.png", tex)
         write(f"{base}/models/item/tools/{tier}_{tool}.json", {
             "texture_size": list(tex.size),
             "textures": {"layer0": ref, "particle": ref},
             "gui_light": "front",
-            "elements": CU.tool_elements(tex),   # geometry/glow classified on the crimson colours
+            "elements": CU.tool_elements(tex, **sets),
             "display": TOOL_DISPLAY[tool],
         })
     # bow: ItemsAdder picks up <model>_0/_1/_2 as the pulling states
     for state, suffix in (("bow", ""), ("bow_pulling_0", "_0"), ("bow_pulling_1", "_1"), ("bow_pulling_2", "_2")):
         # mirrored: vanilla bow textures point the arrow to the top-left, and the
         # first-person draw animation is built around that orientation
-        tex = ImageOps.mirror(Image.open(f"{src}/items/crimson_{state}.png").convert("RGBA"))
+        tex = ImageOps.mirror(TD.bow(state, tier))
         name = f"{tier}_bow{suffix}"
         ref = f"{ns}:item/tools/{name}"
-        write(f"{base}/textures/item/tools/{name}.png", recolor(animate(tex, CRIMSON_GLOW, CRIMSON_BLADE), kind))
+        write(f"{base}/textures/item/tools/{name}.png", animate(tex, TD.GLOW_SETS[tier], TD.SHIMMER_SETS[tier]))
         write(f"{base}/textures/item/tools/{name}.png.mcmeta", MCMETA)
         if not suffix:
-            write(f"{base}/textures/item/tools/{name}_icon.png", recolor(tex, kind))
+            write(f"{base}/textures/item/tools/{name}_icon.png", tex)
         write(f"{base}/models/item/tools/{name}.json", {
             "texture_size": list(tex.size),
             "textures": {"layer0": ref, "particle": ref},
             "gui_light": "front",
-            "elements": CU.tool_elements(tex, flat=True),
+            "elements": CU.tool_elements(tex, flat=True, glow=TD.GLOW_SETS[tier]),
             "display": build_model.BOW_DISPLAY,
         })
 

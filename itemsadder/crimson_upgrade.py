@@ -23,19 +23,19 @@ def r(v):
     return round(v, 4)
 
 
-def depth(c):
-    """Front/back z per colour class: gold fittings stand proud, grips are
-    rounder, the blade stays a thin 1px slab."""
-    if c in GOLDS:
+def depth(c, thick=GOLDS | POMMEL, grip=GRIP):
+    """Front/back z per colour class: fittings stand proud, grips are rounder,
+    the blade stays a thin 1px slab."""
+    if c in thick:
         return 7.0, 9.0
-    if c in POMMEL:
-        return 7.1, 8.9
-    if c in GRIP:
+    if c in grip:
         return 7.25, 8.75
     return 7.5, 8.5
 
 
-def tool_elements(tex, flat=False):
+def tool_elements(tex, flat=False, glow=GLOW, thick=GOLDS | POMMEL, grip=GRIP):
+    """One cuboid per run of same-depth pixels, plus emissive overlays for the
+    glow colours. glow/thick/grip are colour sets for the texture's palette."""
     n = tex.size[0]
     u = 16 / n
     px = tex.load()
@@ -46,7 +46,7 @@ def tool_elements(tex, flat=False):
             if px[x, y][3] == 0:
                 x += 1
                 continue
-            dz = (lambda c: (7.5, 8.5)) if flat else depth
+            dz = (lambda c: (7.5, 8.5)) if flat else (lambda c: depth(c, thick, grip))
             z0, z1 = dz(px[x, y][:3])
             x0 = x
             while x < n and px[x, y][3] and dz(px[x, y][:3]) == (z0, z1):
@@ -68,13 +68,13 @@ def tool_elements(tex, flat=False):
     for y in range(n):
         x = 0
         while x < n:
-            if not (px[x, y][3] and px[x, y][:3] in GLOW):
+            if not (px[x, y][3] and px[x, y][:3] in glow):
                 x += 1
                 continue
             x0 = x
-            while x < n and px[x, y][3] and px[x, y][:3] in GLOW:
+            while x < n and px[x, y][3] and px[x, y][:3] in glow:
                 x += 1
-            z0, z1 = (7.5, 8.5) if flat else depth(px[x0, y][:3])
+            z0, z1 = (7.5, 8.5) if flat else depth(px[x0, y][:3], thick, grip)
             strip = [r(x0 * u), r(y * u), r(x * u), r((y + 1) * u)]
             y0, y1 = r(16 - (y + 1) * u), r(16 - y * u)
             els.append({"from": [r(x0 * u), y0, z1 + 0.01], "to": [r(x * u), y1, z1 + 0.01],
