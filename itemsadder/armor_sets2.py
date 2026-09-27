@@ -642,7 +642,7 @@ SETS2 = [
                   guard="disc", pommel="gem", deco="core", grip="bands", axe="flared", pick="winged",
                   shovel="spade", hoe="scythe", bow="recurve", bow_tips="flame", bow_mat="metal",
                   string=(255, 250, 200))),
-    dict(id="lunar", name="Moonlit", color="&7", pattern="feather", secondary="cloth",
+    dict(id="moonlit", name="Moonlit", color="&7", pattern="feather", secondary="cloth",
          pal=pal((10, 12, 28), (24, 30, 66), (38, 48, 98), (62, 76, 136), (140, 156, 206), (222, 226, 238),
                  (150, 158, 184), (244, 240, 220), (170, 220, 255), (46, 56, 110), (84, 96, 150)),
          emblem=["..llll..", ".ll.....", "ll......", "ll......", ".ll.....", "..llll.."], helmet=lunar,

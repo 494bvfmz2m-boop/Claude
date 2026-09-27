@@ -19,7 +19,7 @@ STYLE = {   # set id -> scroll form
     "frostborn": "crystal", "druid": "leaf", "samurai": "rods", "pharaoh": "tablet", "atlantean": "rune_stone",
     "paladin": "tome", "clockwork": "datapad", "shadow": "letter", "dragon": "rolled", "mushroom": "quill",
     "obsidian": "crystal", "magma": "tablet", "storm": "banner", "void": "rune_stone", "celestial": "map",
-    "solar": "banner", "lunar": "rods", "viking": "rune_stone", "spartan": "tablet", "jaguar": "leaf",
+    "solar": "banner", "moonlit": "rods", "viking": "rune_stone", "spartan": "tablet", "jaguar": "leaf",
     "bone": "bone", "pirate": "map", "neon": "datapad", "amethyst": "crystal", "jade": "rods", "sculk": "tome",
     "sakura": "quill", "hive": "rolled", "nomad": "map", "plague": "letter", "necro": "bone", "royal": "banner",
     "arcane": "tome", "seraph": "quill", "toxic": "datapad", "kraken": "rolled", "phoenix": "rolled",

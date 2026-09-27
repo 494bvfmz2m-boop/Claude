@@ -808,7 +808,7 @@ LOOKS = {  # chest, shoulders, arms, belt, legs, boots, cover
  "void": ("robe", "crystal", "sleeve", "skirt", "robe", "buckled", "standard"),
  "celestial": ("tabard", "crystal", "sleeve", "skirt", "striped", "greave", "standard"),
  "solar": ("chevron", "epaulette", "gauntlet", "skirt", "robe", "greave", "full"),
- "lunar": ("cloak", "cap", "sleeve", "sash", "robe", "tall", "light"),
+ "moonlit": ("cloak", "cap", "sleeve", "sash", "robe", "tall", "light"),
  "viking": ("fur_vest", "fur", "bracer", "buckle", "wrapped", "fur", "light"),
  "spartan": ("cuirass", "none", "bare", "tassets", "greaves", "wrapped", "light"),
  "jaguar": ("fur_vest", "spiked", "wrapped", "loincloth", "wrapped", "wrapped", "light"),
