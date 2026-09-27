@@ -3,7 +3,7 @@
 Keeps the layout of the server's existing crimson-gear pack (configs/,
 models/, textures/ directly in the content folder) and its item IDs.
 Tools get animated textures (.png strip + .mcmeta), 3D depth and emissive
-glow; both helmets are head-worn 3D models (PAPER + hat behaviour): Crimson
+glow; both helmets are head-worn 3D models (hat behaviour): Crimson
 with branches from the shoulder blades, Demon with horns and wings.
 Run: python3 itemsadder/build_pack.py
 """

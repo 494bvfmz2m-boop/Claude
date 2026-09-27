@@ -1,6 +1,6 @@
 """50 more webstore cosmetics (on top of accessories.py): hats, ears, halos,
 floating orbitals, back items and little companions. All head-worn 3D
-models (PAPER + hat behaviour) sharing one swatch atlas; no stats."""
+models (hat behaviour) sharing one swatch atlas; no stats."""
 from PIL import Image
 
 import armor_engine as AE
