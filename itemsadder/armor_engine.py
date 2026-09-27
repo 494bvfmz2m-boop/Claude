@@ -701,8 +701,11 @@ def configs(S, ns):
           chance: {chance}""")
     recs = []
     for item, shape, ing in all_recipes(S, ns):
+        # ItemsAdder checks ia.user.recipe.<permission> (".null" when unset), so every recipe uses
+        # one shared permission: players need ia.user.recipe.slothsmp
         recs.append(f"""    {item}:
       enabled: true
+      permission: slothsmp
       pattern:
 """ + "".join(f"        - {r}\n" for r in shape) + "      ingredients:\n"
             + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
