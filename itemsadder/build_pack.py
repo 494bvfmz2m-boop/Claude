@@ -300,7 +300,10 @@ equipments:
     BOOK.write_commands(pages)
     BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))  # fallback
     write(f"{base}/textures/item/crimson_forge_book.png", BOOK.book_icon())
-    content = json.dumps({"title": "Crimson Forge", "author": "SlothSMP", "pages": pages}, ensure_ascii=True)
+    # fallback: right-click swaps the held book for the full written book
+    swap = f"item replace entity {{player}} weapon.mainhand with {BOOK.book_item(pages)}".replace("'", "''")
+    # component value in /give syntax (SNBT), which is what ItemsAdder passes on to Minecraft
+    content = BOOK.snbt({"title": "Crimson Forge", "author": "SlothSMP", "pages": pages}).replace("'", "''")
     items.insert(0, f"""  crimson_forge_book:
     enabled: true
     display_name: '&6Crimson Forge'
@@ -313,8 +316,14 @@ equipments:
       textures:
         - item/crimson_forge_book
     components:
-      minecraft:written_book_content: {content}
-      minecraft:enchantment_glint_override: true""")
+      minecraft:written_book_content: '{content}'
+      minecraft:enchantment_glint_override: 'true'
+    events:
+      interact:
+        right:
+          execute_commands:
+            - command: '{swap}'
+              as_console: true""")
     recs.insert(0, f"""    crimson_forge_book:
       permission: itemsadder.craft.crimson_forge_book
       enabled: true
