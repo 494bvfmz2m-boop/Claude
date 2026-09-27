@@ -211,13 +211,29 @@ def pat_slime(P, u, v, w, hh, x, y):
     return P["l"] if r > 0.85 else P["m"] if r > 0.35 else P["b"]
 
 
+def pat_nebula(P, u, v, w, hh, x, y):
+    """Deep space: magenta and blue clouds with stars (Galactus)."""
+    r = h(x, y, 50)
+    if r > 0.96:
+        return P["g"]
+    if r > 0.92:
+        return P["l"]
+    m = math.sin(x * 0.7 + y * 0.3) + math.sin(y * 0.9 - x * 0.4 + h(x // 4, y // 4, 51) * 3)
+    b = math.sin(x * 0.4 - y * 0.6 + 2) + math.sin(x * 0.8 + y * 0.5 + h(x // 5, y // 5, 52) * 2)
+    if m > 1.2:
+        return P["s1"]
+    if b > 1.2:
+        return P["s2"]
+    return P["m"] if m > 0.4 else P["b"] if b > -0.4 else P["d"]
+
+
 PATTERNS = {"plate": pat_plate, "fur": pat_fur, "scale": pat_scale, "cloth": pat_cloth, "bark": pat_bark,
             "stripes": pat_stripes, "lamellar": pat_lamellar, "brass": pat_brass, "pumpkin": pat_pumpkin,
             "cap": pat_cap, "chain": pat_chain, "hex": pat_hex, "crystal": pat_crystal, "bone": pat_bone,
             "leather": pat_leather, "rune": pat_rune, "flame": pat_flame, "wave": pat_wave, "stars": pat_stars,
             "circuit": pat_circuit, "quilt": pat_quilt, "feather": pat_feather, "marble": pat_marble,
             "plaid": pat_plaid, "patina": pat_patina, "obsidian": pat_obsidian, "spots": pat_spots,
-            "candy": pat_candy, "petal": pat_petal, "slime": pat_slime}
+            "candy": pat_candy, "petal": pat_petal, "slime": pat_slime, "nebula": pat_nebula}
 
 
 # --- flat armor layers ---------------------------------------------------------------

@@ -1,0 +1,7 @@
+info:
+  namespace: galactus
+equipments:
+  galactus_armor:
+    type: armor
+    layer_1: armor/galactus_armor/layer_1
+    layer_2: armor/galactus_armor/layer_2
