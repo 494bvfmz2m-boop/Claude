@@ -1,8 +1,8 @@
 """Galactus: an admin-only cosmic set, shipped as its own zip (galactus_set.zip).
 
-Armor: nebula plate painted by the armor-set painter, with a 3D helmet
-(a closed faceplate with glowing eye slits, towering side fins topped with
-fire, a blinking eye, an orbit ring with a planet and a halo ring behind). Weapons: sword, axe, pickaxe, shovel, hoe, mace, spear and
+Armor: nebula plate painted by the armor-set painter, with a 3D 'Singularity'
+helmet (a sleek closed void helm, a wraparound scanner visor, swept-back gold
+horns and a hovering black hole with an accretion disk). Weapons: sword, axe, pickaxe, shovel, hoe, mace, spear and
 trident as real cuboid models on the handheld diagonal (like mace.py), plus a
 cosmic bow. Glowing parts use light_emission and an animated nebula texture.
 Run: python3 itemsadder/galactus.py
@@ -451,56 +451,58 @@ def cross_flame(name, x, y, z, w=1.6, hgt=3.0, mat="flame"):
 
 
 def helmet_parts():
-    p = [part("shell_back", (-4.9, 24, 4.4), (4.9, 32, 4.9), "nebula", glow=True),
-         part("faceplate", (-4.7, 24, -5.05), (4.7, 29.8, -4.6), "steel"),
-         part("brow", (-4.8, 29.1, -5.15), (4.8, 29.8, -4.7), "gold"),
-         part("nose_guard", (-0.5, 25.6, -5.35), (0.5, 29.8, -5.05), "gold"),
-         part("chin", (-4.8, 23.6, -5.15), (4.8, 24.3, 1), "gold"),
-         part("grille0", (-2.2, 25, -5.12), (2.2, 25.35, -5.05), "glow_m", glow=True),
-         part("grille1", (-1.8, 25.8, -5.12), (1.8, 26.15, -5.05), "glow_m", glow=True),
-         part("halo_top", (-5.6, 40, 6.2), (5.6, 40.5, 6.5), "ring", glow=True),
-         part("halo_bottom", (-5.6, 28.2, 6.2), (5.6, 28.7, 6.5), "ring", glow=True),
-         part("halo_l", (-5.6, 28.7, 6.2), (-5.1, 40, 6.5), "ring", glow=True),
-         part("halo_r", (5.1, 28.7, 6.2), (5.6, 40, 6.5), "ring", glow=True),
-         part("halo_core", (-1.2, 33.2, 6.25), (1.2, 35.6, 6.45), "plasma", glow=True),
-         part("band_f", (-4.7, 29.8, -4.9), (4.7, 31, -4.5), "gold"),
-         part("band_b", (-4.7, 29.8, 4.5), (4.7, 31, 4.9), "gold"),
-         part("cap", (-4.6, 32, -4.6), (4.6, 32.8, 4.6), "nebula2", glow=True),
-         part("ridge", (-0.6, 32.8, -4.9), (0.6, 34.2, 4.9), "gold"),
-         part("ridge_runes", (-0.25, 34.2, -4.5), (0.25, 34.5, 4.5), "runes", glow=True),
-         part("eye_setting", (-1.7, 29.6, -4.98), (1.7, 32.3, -4.8), "gold"),
-         part("eye", (-1.2, 30, -5.08), (1.2, 31.9, -4.98), "eye", glow=True),
-         part("planet", (6.4, 35, 2.8), (8.4, 37, 4.8), "planet"),
-         part("planet_ring", (5.6, 35.85, 2), (9.2, 36.15, 5.6), "ring", glow=True),
-         ]
-    for i, (x, y, z) in enumerate(((-6.6, 35.6, 2.6), (6.8, 31.2, -3.6))):
-        p.append(part(f"shard{i}", (x - 0.4, y - 0.9, z - 0.4), (x + 0.4, y + 0.9, z + 0.4), "crystal", glow=True,
-                      rot=("y", 45, (x, y, z))))
-        p.append(part(f"spark{i}", (x + 0.9, y + 1.2, z - 0.15), (x + 1.2, y + 1.5, z + 0.15), "glow_w", glow=True))
-    for nm, frm, to in (("n", (-6.4, 32.8, -6.4), (6.4, 33.2, -6)), ("s", (-6.4, 32.8, 6), (6.4, 33.2, 6.4)),
-                        ("w", (-6.4, 32.8, -6), (-6, 33.2, 6)), ("e", (6, 32.8, -6), (6.4, 33.2, 6))):
-        p.append(part(f"orbit_a_{nm}", frm, to, "ring", glow=True, rot=("x", 22.5, (0, 33, 0))))
+    """'Singularity': a sleek closed void helm, one wraparound scanner visor, two swept-back
+    horns, a hovering black hole with an accretion disk, a high gorget and angular pauldrons."""
+    p = [
+        # closed helm: void steel, slightly rounded top
+        part("helm_front", (-4.7, 24.4, -5), (4.7, 32, -4.6), "steel"),
+        part("helm_back", (-4.7, 24.4, 4.6), (4.7, 32, 5), "steel"),
+        part("helm_top", (-4.7, 32, -4.7), (4.7, 32.6, 4.7), "steel"),
+        part("helm_crest", (-3.6, 32.6, -3.6), (3.6, 33.1, 3.6), "steel"),
+        # nebula inlay stripe from brow over the crown to the neck
+        part("inlay_front", (-0.8, 29.4, -5.08), (0.8, 32, -5), "nebula", glow=True),
+        part("inlay_top", (-0.8, 33.1, -3.6), (0.8, 33.25, 3.6), "nebula", glow=True),
+        part("inlay_crest", (-0.8, 32.6, -4.75), (0.8, 33.1, 4.75), "nebula", glow=True),
+        part("inlay_back", (-0.8, 25.6, 5), (0.8, 32, 5.08), "nebula", glow=True),
+        # wraparound scanner visor
+        part("visor_front", (-4.75, 27.3, -5.12), (4.75, 28.5, -4.98), "ring", glow=True),
+        part("visor_rim_top", (-4.8, 28.5, -5.1), (4.8, 28.8, -4.9), "gold"),
+        part("visor_rim_bot", (-4.8, 27, -5.1), (4.8, 27.3, -4.9), "gold"),
+        # high gorget
+        part("gorget_front", (-4.4, 23.2, -4.4), (4.4, 24.6, -3.2), "gold"),
+        part("gorget_back", (-4.4, 23.2, 3.2), (4.4, 24.6, 4.4), "gold"),
+        part("gorget_glow", (-3.6, 23.5, -4.45), (3.6, 23.8, -4.4), "glow_c", glow=True),
+        # the black hole hovering above the head
+        part("chin_point", (-1.3, 23.3, -5.35), (1.3, 24.4, -4.9), "gold"),
+        part("chin_glow", (-0.4, 23.5, -5.4), (0.4, 24.1, -5.35), "glow_c", glow=True),
+        part("singularity", (-1.3, 37.4, -1.3), (1.3, 40, 1.3), "steel"),
+        part("singularity_glow", (-0.7, 38.1, -1.35), (0.7, 39.3, -1.3), "glow_w", glow=True),
+    ]
+    o = (0, 38.7, 0)                                          # double accretion disk, tilted
+    for ring_name, r, t, mat in (("disk", 4.2, 0.6, "ring"), ("disk_inner", 2.6, 0.4, "plasma")):
+        for nm, frm, to in (("n", (-r, 38.55, -r), (r, 38.85, -r + t)), ("s", (-r, 38.55, r - t), (r, 38.85, r)),
+                            ("w", (-r, 38.55, -r + t), (-r + t, 38.85, r - t)),
+                            ("e", (r - t, 38.55, -r + t), (r, 38.85, r - t))):
+            p.append(part(f"{ring_name}_{nm}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
     p += mirror([
-        part("shell_side", (4.4, 24, -4.6), (4.9, 32, 4.4), "nebula", glow=True),
-        part("eye_slit", (0.8, 27.5, -5.18), (3.8, 28.3, -5.05), "glow_c", glow=True),
-        part("eye_slit_tail", (3.8, 27.9, -5.18), (4.6, 28.3, -5.05), "glow_c", glow=True),
-        part("mandible", (4.5, 23.8, -5.6), (5.2, 26.2, -3.6), "gold"),
-        part("mandible_tip", (4.6, 22.8, -5.9), (5.1, 23.8, -5.2), "glow_w", glow=True),
-        part("band_s", (4.5, 29.8, -4.5), (4.9, 31, 4.5), "gold"),
-        part("fin0", (4.6, 29.6, -1.8), (5.4, 34.6, 1.6), "nebula", glow=True),
-        part("fin0_edge", (5.4, 30, -0.3), (5.55, 34.6, 0.3), "glow_c", glow=True),
-        part("fin1", (5.1, 34.4, -1.4), (5.9, 38.6, 1.2), "nebula2", glow=True),
-        part("fin1_edge", (5.9, 34.8, -0.3), (6.05, 38.6, 0.3), "glow_c", glow=True),
-        part("fin1_gold", (5.05, 34.4, 1.2), (5.95, 38.6, 1.5), "gold"),
-        part("fin2", (5.6, 38.4, -1), (6.4, 41.6, 0.8), "nebula", glow=True),
-        part("fin2_edge", (6.4, 38.8, -0.25), (6.55, 41.6, 0.25), "glow_c", glow=True),
-        part("fin3", (6.1, 41.4, -0.6), (6.8, 43.4, 0.4), "plasma", glow=True),
-        *cross_flame("fin_fire", 6.45, 43.4, -0.1, 1.8, 3.4),
-        part("pauldron", (4.6, 25, -2.8), (9.4, 26.4, 2.8), "nebula", glow=True),
-        part("pauldron_top", (5.2, 26.4, -2.2), (8.8, 27.2, 2.2), "gold"),
-        part("pauldron_core", (6.4, 27.2, -0.7), (7.6, 27.8, 0.7), "plasma", glow=True),
-        part("pauldron_spike", (8.6, 26.4, -0.4), (9.8, 29, 0.4), "gold", rot=("z", -22.5, (9.2, 26.4, 0))),
-        part("pauldron_edge", (9.4, 25, -2.8), (9.55, 26.4, 2.8), "glow_c", glow=True)])
+        part("helm_side", (4.4, 24.4, -4.6), (4.9, 32, 4.6), "steel"),
+        part("visor_side", (4.9, 27.3, -4.7), (5.02, 28.5, 1.5), "ring", glow=True),
+        part("gorget_side", (3.2, 23.2, -3.2), (4.4, 24.6, 3.2), "gold"),
+        part("side_panel", (4.9, 28.9, -3.2), (5.02, 31.7, 3.2), "nebula", glow=True),
+        part("side_frame", (4.9, 31.7, -3.4), (5.05, 32, 3.4), "gold"),
+        # big swept-back horns from the temples
+        part("horn0", (4.5, 29.2, -1.6), (6.4, 31.6, 2), "gold"),
+        part("horn1", (5, 30.5, 1.6), (6.4, 32.3, 6.4), "gold", rot=("x", -22.5, (5.7, 31.4, 1.6))),
+        part("horn2", (5.3, 32.2, 5.8), (6.2, 33.6, 10), "gold_d", rot=("x", -45, (5.75, 32.9, 5.8))),
+        part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "gold_d"),
+        part("horn_tip", (5.5, 38.4, 7.9), (6, 39.6, 8.5), "glow_c", glow=True),
+        part("horn_edge", (6.4, 29.5, -1.2), (6.55, 31.3, 1.6), "glow_c", glow=True),
+        # angular pauldrons with glowing edge lines
+        part("pauldron", (4.4, 25, -2.6), (8.9, 26.2, 2.6), "steel"),
+        part("pauldron_upper", (5, 26.2, -2), (8.3, 27, 2), "steel_l"),
+        part("pauldron_edge", (8.9, 24.4, -2.6), (9.1, 26.2, 2.6), "glow_c", glow=True),
+        part("pauldron_line", (5, 27, -0.25), (8.3, 27.15, 0.25), "glow_m", glow=True),
+        part("pauldron_trim", (4.4, 24.7, -2.7), (8.9, 25, 2.7), "gold")])
     return p
 
 
