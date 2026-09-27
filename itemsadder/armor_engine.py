@@ -9,6 +9,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "demon_armor"))
+sys.path.insert(0, os.path.join(ROOT, "crimson_armor"))
 import demon  # noqa: E402  (to_item_space, ITEM_K, Tex)
 
 from preview import ARM, BODY, HEAD, LEG  # noqa: E402
@@ -93,9 +94,130 @@ def pat_cap(P, u, v, w, hh, x, y):
     return P["t"] if v < hh - 1 else P["t2"]
 
 
+def pat_chain(P, u, v, w, hh, x, y):
+    if (u + v) % 2 == 0:
+        return P["l"] if v % 2 == 0 else P["m"]
+    return P["d"] if v % 2 else P["b"]
+
+
+def pat_hex(P, u, v, w, hh, x, y):
+    r = v % 3
+    off = (v // 3) % 2 * 2
+    if r == 0 and (u + off) % 4 in (0, 1):
+        return P["d"]
+    if r != 0 and (u + off) % 4 == 3:
+        return P["d"]
+    return P["l"] if r == 1 and (u + off) % 4 == 0 else P["b"]
+
+
+def pat_crystal(P, u, v, w, hh, x, y):
+    k = ((u + v) // 2 + (u - v + 20) // 3) % 3
+    if h(x, y, 6) > 0.93:
+        return P["g"]
+    return (P["l"], P["m"], P["b"])[k]
+
+
+def pat_bone(P, u, v, w, hh, x, y):
+    if v % 3 == 0 and 0 < u < w - 1:
+        return P["a"] if u % 2 else P["s2"]
+    return P["d"] if h(x, y, 7) > 0.7 else P["b"]
+
+
+def pat_leather(P, u, v, w, hh, x, y):
+    if u in (0, w - 1) and v % 2 == 0:
+        return P["t"]
+    return P["m"] if h(x, y, 8) > 0.8 else P["b"]
+
+
+def pat_rune(P, u, v, w, hh, x, y):
+    if h(x, y, 9) > 0.9:
+        return P["g"]
+    return P["m"] if (u + v) % 5 == 0 else P["b"]
+
+
+def pat_flame(P, u, v, w, hh, x, y):
+    t = v / max(1, hh - 1) + (h(x, y, 10) - 0.5) * 0.5
+    return P["g"] if t < 0.15 else P["l"] if t < 0.4 else P["m"] if t < 0.7 else P["b"]
+
+
+def pat_wave(P, u, v, w, hh, x, y):
+    k = (v + round(math.sin(u * 1.3) * 1.2)) % 4
+    return (P["l"], P["m"], P["b"], P["m"])[k]
+
+
+def pat_stars(P, u, v, w, hh, x, y):
+    r = h(x, y, 11)
+    return P["g"] if r > 0.94 else P["l"] if r > 0.88 else P["b"] if r > 0.3 else P["d"]
+
+
+def pat_circuit(P, u, v, w, hh, x, y):
+    if (v % 4 == 1 and h(x // 3, y, 12) > 0.4) or (u % 4 == 2 and h(x, y // 3, 13) > 0.6):
+        return P["g"] if h(x, y, 14) > 0.8 else P["a"]
+    return P["b"] if (u + v) % 2 else P["d"]
+
+
+def pat_quilt(P, u, v, w, hh, x, y):
+    if (u + v) % 4 == 0 or (u - v) % 4 == 0:
+        return P["d"]
+    return P["m"] if (u + v) % 4 == 2 else P["b"]
+
+
+def pat_feather(P, u, v, w, hh, x, y):
+    k = (v + abs(u % 4 - 1.5)) % 3
+    return P["l"] if k < 1 else P["m"] if k < 2 else P["b"]
+
+
+def pat_marble(P, u, v, w, hh, x, y):
+    if abs(math.sin((u + v * 0.6) * 0.9 + h(x // 3, y // 3, 15) * 3)) < 0.15:
+        return P["t"]
+    return P["l"] if h(x, y, 16) > 0.6 else P["m"]
+
+
+def pat_plaid(P, u, v, w, hh, x, y):
+    a, b = u % 4 == 1, v % 4 == 1
+    return P["t"] if a and b else P["d"] if a or b else P["b"]
+
+
+def pat_patina(P, u, v, w, hh, x, y):
+    r = h(x // 2, y // 2, 17) + h(x, y, 18) * 0.3
+    return P["t"] if r > 0.95 else P["t2"] if r > 0.7 else P["m"] if r > 0.4 else P["b"]
+
+
+def pat_obsidian(P, u, v, w, hh, x, y):
+    if abs(math.sin(u * 0.7 + v * 1.1 + h(x // 4, y // 4, 19) * 4)) < 0.12:
+        return P["g"]
+    return P["m"] if h(x, y, 20) > 0.85 else P["b"] if h(x, y, 21) > 0.4 else P["d"]
+
+
+def pat_spots(P, u, v, w, hh, x, y):
+    r = h(x // 2, y // 2, 22)
+    if r > 0.78:
+        return P["d"] if (x + y) % 2 else P["o"]
+    return P["l"] if h(x, y, 23) > 0.7 else P["m"]
+
+
+def pat_candy(P, u, v, w, hh, x, y):
+    return P["a"] if ((u + v) // 2) % 2 else P["t"]
+
+
+def pat_petal(P, u, v, w, hh, x, y):
+    if h(x, y, 24) > 0.9:
+        return P["a"]
+    return P["l"] if (u * 2 + v) % 5 == 0 else P["m"] if (u + v) % 3 else P["b"]
+
+
+def pat_slime(P, u, v, w, hh, x, y):
+    r = h(x, y, 25)
+    return P["l"] if r > 0.85 else P["m"] if r > 0.35 else P["b"]
+
+
 PATTERNS = {"plate": pat_plate, "fur": pat_fur, "scale": pat_scale, "cloth": pat_cloth, "bark": pat_bark,
             "stripes": pat_stripes, "lamellar": pat_lamellar, "brass": pat_brass, "pumpkin": pat_pumpkin,
-            "cap": pat_cap}
+            "cap": pat_cap, "chain": pat_chain, "hex": pat_hex, "crystal": pat_crystal, "bone": pat_bone,
+            "leather": pat_leather, "rune": pat_rune, "flame": pat_flame, "wave": pat_wave, "stars": pat_stars,
+            "circuit": pat_circuit, "quilt": pat_quilt, "feather": pat_feather, "marble": pat_marble,
+            "plaid": pat_plaid, "patina": pat_patina, "obsidian": pat_obsidian, "spots": pat_spots,
+            "candy": pat_candy, "petal": pat_petal, "slime": pat_slime}
 
 
 # --- flat armor layers ---------------------------------------------------------------
@@ -175,7 +297,7 @@ def layers(S):
     if S.get("leg_art"):
         t2.stamp(LEG["right"], S["leg_art"], P)
         t2.stamp(LEG["front"], S["leg_art"], P)
-    cutouts(t1.img, t2.img)
+    cutouts(t1.img, t2.img, S.get("cover", "standard"))
     return t1.img, t2.img
 
 
@@ -186,19 +308,68 @@ def clear(img, rect, cells):
         img.putpixel((x0 + u, y0 + v), (0, 0, 0, 0))
 
 
-def cutouts(l1, l2):
-    """Open the armor up: bare upper arms, a V-neck, open sides, and leggings
-    that only wrap the front and outside of the leg."""
-    for k in ("right", "front", "left", "back"):
-        clear(l1, ARM[k], [(u, v) for u in range(4) for v in range(4, 8)])       # bare upper arm
-    clear(l1, BODY["front"], [(u, 0) for u in range(2, 6)] + [(3, 1), (4, 1)])   # V-neck
-    for k in ("right", "left"):                                                 # open sides, one strap
-        clear(l1, BODY[k], [(u, v) for u in range(4) for v in range(2, 10) if v != 5])
-    clear(l1, BODY["back"], [(u, v) for u in range(2, 6) for v in range(1, 3)] + [(3, 3), (4, 3)])
-    clear(l2, LEG["left"], [(u, v) for u in range(4) for v in range(12) if v not in (0, 5)])  # inner leg
-    clear(l2, LEG["back"], [(u, v) for u in range(4) for v in range(6, 12)])  # back of the knee down
-    clear(l2, LEG["front"], [(u, v) for u in (1, 2) for v in (7, 8, 9)])      # shin slit
-    clear(l2, LEG["top"], [(u, v) for u in range(4) for v in range(4)])       # no cap over the hip
+def keep_only(img, rect, keep):
+    x0, y0, w, hh = rect
+    clear(img, rect, [(u, v) for u in range(w) for v in range(hh) if not keep(u, v)])
+
+
+def cutouts(l1, l2, cover="standard"):
+    """Open the armor up so the skin shows. How much depends on the set:
+    full (robes, heavy plate) < standard < light < wraps < harness."""
+    if cover == "full":
+        clear(l1, ARM["left"], [(u, v) for u in range(4) for v in (5, 6)])       # armpit only
+        clear(l2, LEG["left"], [(u, v) for u in range(4) for v in (2, 3)])
+        return
+    if cover == "standard":
+        for k in ("right", "front", "left", "back"):
+            clear(l1, ARM[k], [(u, v) for u in range(4) for v in range(4, 8)])    # bare upper arm
+        clear(l1, BODY["front"], [(u, 0) for u in range(2, 6)] + [(3, 1), (4, 1)])  # V-neck
+        for k in ("right", "left"):                                              # open sides, one strap
+            clear(l1, BODY[k], [(u, v) for u in range(4) for v in range(2, 10) if v != 5])
+        clear(l1, BODY["back"], [(u, v) for u in range(2, 6) for v in range(1, 3)] + [(3, 3), (4, 3)])
+        clear(l2, LEG["left"], [(u, v) for u in range(4) for v in range(12) if v not in (0, 5)])
+        clear(l2, LEG["back"], [(u, v) for u in range(4) for v in range(6, 12)])
+        clear(l2, LEG["front"], [(u, v) for u in (1, 2) for v in (7, 8, 9)])
+    elif cover == "light":
+        for k in ("right", "front", "left", "back"):
+            clear(l1, ARM[k], [(u, v) for u in range(4) for v in range(2, 9)])    # pauldron cap + bracer
+        keep_only(l1, BODY["front"], lambda u, v: v >= 10 or (v <= 6 and not (2 <= u <= 5 and v <= 3)
+                                                                 and not (v == 0 and u in (0, 7))))
+        keep_only(l1, BODY["back"], lambda u, v: v >= 10 or (3 <= v <= 6))
+        for k in ("right", "left"):
+            keep_only(l1, BODY[k], lambda u, v: v >= 10 or v in (4, 5))
+        clear(l2, LEG["left"], [(u, v) for u in range(4) for v in range(1, 12)])
+        clear(l2, LEG["back"], [(u, v) for u in range(4) for v in range(4, 12)])
+        clear(l2, LEG["front"], [(u, v) for u in range(4) for v in (6, 7, 8)])
+    elif cover == "wraps":
+        for k in ("right", "front", "left", "back"):
+            clear(l1, ARM[k], [(u, v) for u in range(4) for v in range(0, 8)])    # bare arms, wrapped wrists
+        clear(l1, ARM["top"], [(u, v) for u in range(4) for v in range(4)])
+        sash = lambda u, v: v >= 10 or abs(u - (1 + v * 0.6)) <= 1.1               # one-shoulder sash
+        keep_only(l1, BODY["front"], sash)
+        keep_only(l1, BODY["back"], lambda u, v: v >= 10 or abs(u - (6 - v * 0.6)) <= 1.1)
+        for k in ("right", "left"):
+            keep_only(l1, BODY[k], lambda u, v: v >= 10)
+        clear(l1, BODY["top"], [(u, v) for u in range(8) for v in range(4) if u > 2])
+        clear(l2, LEG["back"], [(u, v) for u in range(4) for v in range(9, 12)])
+    elif cover == "harness":
+        for k in ("right", "front", "left", "back"):
+            keep_only(l1, ARM[k], lambda u, v: v >= 9 or (v <= 1 and k in ("right", "front", "back")))
+        straps = lambda u, v: v >= 10 or abs(u - (0.5 + v * 0.65)) <= 0.8 or abs(u - (6.5 - v * 0.65)) <= 0.8
+        keep_only(l1, BODY["front"], straps)
+        keep_only(l1, BODY["back"], straps)
+        for k in ("right", "left"):
+            keep_only(l1, BODY[k], lambda u, v: v >= 10)
+        clear(l1, BODY["top"], [(u, v) for u in range(2, 6) for v in range(4)])
+        for k in ("front", "back"):                                              # loincloth flaps
+            keep_only(l2, BODY[k], lambda u, v: v in (7, 8) or (2 <= u <= 5 and v >= 9))
+        for k in ("right", "left"):
+            keep_only(l2, BODY[k], lambda u, v: v in (7, 8))
+        keep_only(l2, LEG["front"], lambda u, v: v <= 1 or v >= 9)
+        keep_only(l2, LEG["right"], lambda u, v: v <= 1 or v >= 9)
+        keep_only(l2, LEG["left"], lambda u, v: v >= 10)
+        keep_only(l2, LEG["back"], lambda u, v: v <= 1)
+        keep_only(l2, LEG["top"], lambda u, v: False)
 
 
 # --- icons (16x16 on the Lode Studio template silhouettes) ------------------------------
@@ -333,24 +504,113 @@ def hat_model(parts, ref, gui_scale=0.6):
 
 
 # --- ItemsAdder configs ---------------------------------------------------------------------
-RECIPE_SHAPES = {"helmet": ["ABA", "AXA", "XXX"], "chestplate": ["AXA", "ABA", "AAA"],
-                 "leggings": ["ABA", "AXA", "AXA"], "boots": ["XXX", "AXA", "BXB"]}
+# All sets sit a step above netherite (armor 3/8/6/3, toughness 3, 407/592/555/481 durability,
+# sword 8): heavier coverage gives more armor, lighter sets lean on their perk.
+COVER_STATS = {"full": ((4, 8, 7, 3), 4.0), "standard": ((3, 8, 7, 3), 3.5), "light": ((3, 8, 6, 3), 3.0),
+               "wraps": ((3, 8, 6, 3), 3.0), "harness": ((3, 8, 6, 3), 3.0)}
+ARMOR_DURA = (480, 700, 655, 570)
+TOOLS = ("sword", "axe", "pickaxe", "shovel", "hoe")
+TOOL_DAMAGE = {"sword": 9, "axe": 11, "pickaxe": 7, "shovel": 7.5, "hoe": 1}
+TOOL_SPEED = {"sword": 1.6, "axe": 1.0, "pickaxe": 1.2, "shovel": 1.0, "hoe": 4.0}
+TOOL_DURA, BOW_DURA = 2600, 700
+# every recipe uses the set's own materials: A (main), B (rare), C (handle) + netherite
+RECIPE_SHAPES = {"helmet": ["ABA", "ANA", "XXX"], "chestplate": ["ANA", "ABA", "AAA"],
+                 "leggings": ["ABA", "ANA", "AXA"], "boots": ["XNX", "AXA", "BXB"],
+                 "sword": ["XBX", "XNX", "XCX"], "axe": ["ABX", "ASX", "XCX"], "pickaxe": ["ABA", "XSX", "XCX"],
+                 "shovel": ["XBX", "XSX", "XCX"], "hoe": ["ABX", "XSX", "XCX"], "bow": ["XCT", "BNT", "XCT"]}
+SCROLL_SHAPES = {"armor": ["AXA", "PBP", "AXA"], "tools": ["CXC", "PBP", "CXC"], "weapons": ["BXB", "PCP", "BXB"]}
+FIXED = {"N": "NETHERITE_INGOT", "S": "NETHERITE_SCRAP", "T": "STRING", "P": "PAPER"}
+MAKES = {"armor": ("helmet", "chestplate", "leggings", "boots"), "tools": ("axe", "pickaxe", "shovel", "hoe"),
+         "weapons": ("sword", "bow")}
+NAME_FIX = {"DRAGON_BREATH": "Dragon's Breath", "NETHERITE_INGOT": "Netherite Ingot", "TNT": "TNT",
+            "HONEY_BOTTLE": "Honey Bottle", "JACK_O_LANTERN": "Jack o'Lantern"}
+
+
+def mat_name(m):
+    return NAME_FIX.get(m) or m.replace("_", " ").title()
 
 
 def esc(s):
     return s.replace("'", "''")
 
 
-def configs(S, ns):
-    st = S["stats"]
-    lore = "    lore:\n" + "".join(f"      - '{esc(line)}'\n" for line in ["&f"] + S["lore"] + ["&f", S["perk_text"]])
+def ingredients(S, shape):
+    keys = sorted({ch for row in shape for ch in row if ch != "X"})
+    return {k: FIXED.get(k) or S["recipe"][k] for k in keys}
 
-    def extra(slot_indent):
-        return "".join(f"\n{slot_indent}{k}: {v}" for k, v in st.get("extra", {}).items())
+
+def all_recipes(S, ns):
+    """[(item id, pattern, ingredients)] for the set, scrolls included."""
+    out = []
+    for item in PIECES + TOOLS + ("bow",):
+        shape = RECIPE_SHAPES[item]
+        out.append((f"{S['id']}_{item}", shape, ingredients(S, shape)))
+    for kind, shape in SCROLL_SHAPES.items():
+        out.append((f"{S['id']}_scroll_{kind}", shape, ingredients(S, shape)))
+    return out
+
+
+def recipe_lore(shape, ing):
+    lines = []
+    for label, row in zip(("Top", "Middle", "Bottom"), shape):
+        cells = [mat_name(ing[ch]) if ch in ing else "empty" for ch in row]
+        lines.append("&7" + label + ": &f" + "&7, &f".join(cells))
+    return lines
+
+
+def wrap(text, width=30):
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    return lines + [cur] if cur else lines
+
+
+def scroll_lore(S, kind, story):
+    out = ["&f"] + [f"&o&7{line}" for line in wrap(story)]
+    c = S["color"]
+    for item in MAKES[kind]:
+        shape = RECIPE_SHAPES[item]
+        out += ["&f", f"{c}Makes: &f{S['name']} {item.capitalize()}"]
+        out += recipe_lore(shape, ingredients(S, shape))
+    mob, chance = S["mob"]
+    out += ["&f", f"&8Craft this scroll, or take it from a {mat_name(mob)}."]
+    return out
+
+
+def ylist(lines, indent="      "):
+    return "".join(f"{indent}- '{esc(line)}'\n" for line in lines)
+
+
+def stats_of(S):
+    armor, tough = COVER_STATS[S.get("cover", "standard")]
+    return {p: (a, d) for p, a, d in zip(PIECES, armor, ARMOR_DURA)}, tough
+
+
+PERK_TEXT = {"knockbackResistance": lambda v: f"+{v * 100:g}% knockback resistance",
+             "maxHealth": lambda v: f"+{v / 2:g} heart" + ("s" if v > 2 else ""),
+             "attackDamage": lambda v: f"+{v:g} attack damage", "luck": lambda v: f"+{v:g} luck",
+             "movementSpeed": lambda v: f"+{v / 0.1 * 100:g}% speed", "attackSpeed": lambda v: f"+{v:g} attack speed"}
+
+
+def perk_text(S):
+    perks = ", ".join(PERK_TEXT[k](v) for k, v in S.get("perk", {}).items())
+    return f"{S['color']}Perk: &f{perks} per piece"
+
+
+def configs(S, ns):
+    armor, tough = stats_of(S)
+    extra = S.get("perk", {})
+    lore = "    lore:\n" + ylist(["&f"] + S["lore"] + ["&f", perk_text(S), "&8A step above netherite"])
 
     items = []
     for piece in PIECES:
-        armor, dura = st["armor"][piece]
+        a, dura = armor[piece]
+        stat = "".join(f"\n        {k}: {v}" for k, v in
+                       {"armor": a, "armorToughness": tough, "knockbackResistance": 0.1, **extra}.items())
         name = f"'{S['color']}{S['name']} {piece.capitalize()}'"
         if piece == "helmet":
             items.append(f"""  {S['id']}_helmet:
@@ -366,16 +626,14 @@ def configs(S, ns):
     durability:
       max_custom_durability: {dura}
     attribute_modifiers:
-      head:
-        armor: {armor}
-        armorToughness: {st['toughness']}{extra('        ')}""")
+      head:{stat}""")
         else:
             items.append(f"""  {S['id']}_{piece}:
     enabled: true
     display_name: {name}
 {lore}    permission: {ns}.{piece}
     resource:
-      material: {S.get('material', 'DIAMOND')}_{piece.upper()}
+      material: NETHERITE_{piece.upper()}
       generate: true
       textures:
         - item/{S['id']}_{piece}
@@ -384,20 +642,66 @@ def configs(S, ns):
     equipment:
       id: {ns}:{S['id']}_armor
       slot: {SLOTS[piece]}
-      slot_attribute_modifiers:
-        armor: {armor}
-        armorToughness: {st['toughness']}{extra('        ')}""")
+      slot_attribute_modifiers:{stat}""")
+    tlore = "    lore:\n" + ylist(["&f"] + S["lore"])
+    for tool in TOOLS:
+        items.append(f"""  {S['id']}_{tool}:
+    enabled: true
+    display_name: '{S['color']}{S['name']} {tool.capitalize()}'
+{tlore}    permission: {ns}.{tool}
+    resource:
+      material: NETHERITE_{tool.upper()}
+      model_path: item/{S['id']}_{tool}
+      icon: item/{S['id']}_{tool}_icon
+    durability:
+      max_custom_durability: {TOOL_DURA}
+    attribute_modifiers:
+      mainhand:
+        attackDamage: {TOOL_DAMAGE[tool]}
+        attackSpeed: {TOOL_SPEED[tool]}""")
+    items.append(f"""  {S['id']}_bow:
+    enabled: true
+    display_name: '{S['color']}{S['name']} Bow'
+{tlore}    permission: {ns}.bow
+    resource:
+      material: BOW
+      generate: false
+      model_path: item/{S['id']}_bow
+      icon: item/{S['id']}_bow_icon
+    durability:
+      max_custom_durability: {BOW_DURA}""")
+    loots = []
+    for (kind, title), story in zip((("armor", "Armor"), ("tools", "Tools"), ("weapons", "Weapons")), S["story"]):
+        sid = f"{S['id']}_scroll_{kind}"
+        items.append(f"""  {sid}:
+    enabled: true
+    display_name: '{S['color']}Scroll of {S['name']} {title}'
+    lore:
+{ylist(scroll_lore(S, kind, story)).rstrip(chr(10))}
+    resource:
+      material: PAPER
+      generate: true
+      textures:
+        - item/{S['id']}_scroll""")
+        mob, chance = S["mob"]
+        loots.append(f"""    {sid}:
+      enabled: true
+      type: {mob}
+      items:
+        scroll:
+          item: {ns}:{sid}
+          min_amount: 1
+          max_amount: 1
+          chance: {chance}""")
     recs = []
-    for piece in PIECES:
-        recs.append(f"""    {S['id']}_{piece}:
-      permission: itemsadder.craft.{S['id']}_{piece}
+    for item, shape, ing in all_recipes(S, ns):
+        recs.append(f"""    {item}:
+      permission: itemsadder.craft.{item}
       enabled: true
       pattern:
-""" + "".join(f"        - {r}\n" for r in RECIPE_SHAPES[piece]) + f"""      ingredients:
-        A: {S['recipe']['A']}
-        B: {S['recipe']['B']}
-      result:
-        item: {ns}:{S['id']}_{piece}
+""" + "".join(f"        - {r}\n" for r in shape) + "      ingredients:\n"
+            + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
+        item: {ns}:{item}
         amount: 1""")
     items_yml = f"""info:
   namespace: {ns}
@@ -415,21 +719,34 @@ equipments:
     layer_1: armor/{S['id']}_armor/layer_1
     layer_2: armor/{S['id']}_armor/layer_2
 """
+    listed = [f"{S['id']}_scroll_{k}" for k in SCROLL_SHAPES] + [f"{S['id']}_{p}" for p in PIECES] + \
+        [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow"]
     cat_yml = f"""info:
   namespace: {ns}
 categories:
   {S['id']}:
     enabled: true
-    name: '{S['color']}{S['name']} Armor'
+    name: '{S['color']}{S['name']}'
     icon: {ns}:{S['id']}_helmet
     permission: ia.menu.{S['id']}
     items:
-""" + "".join(f"      - {ns}:{S['id']}_{p}\n" for p in PIECES)
-    return items_yml, equip_yml, cat_yml
+""" + "".join(f"      - {ns}:{i}\n" for i in listed)
+    loots_yml = f"""info:
+  namespace: {ns}
+loots:
+  mobs:
+{chr(10).join(loots)}
+"""
+    return items_yml, equip_yml, cat_yml, loots_yml
 
 
 def build_set(S, base, write, animate, mcmeta):
-    """Write one set's content folder; returns (layer1, layer2, atlas, parts, icons) for previews."""
+    """Write one set's content folder; returns preview material."""
+    import build_model
+    import crimson_upgrade as CU
+    import scrolls as SC
+    import tool_forge as TF
+    from PIL import ImageOps
     ns = S["id"]
     l1, l2 = layers(S)
     write(f"{base}/textures/armor/{ns}_armor/layer_1.png", l1)
@@ -439,12 +756,40 @@ def build_set(S, base, write, animate, mcmeta):
         write(f"{base}/textures/item/{ns}_{piece}.png", ics[piece])
     at, sw = atlas(S, l1)
     parts = resolve(S["helmet"](), sw)
-    glow = {S["pal"]["g"]}
-    write(f"{base}/textures/item/{ns}_parts.png", animate(at, glow))
+    write(f"{base}/textures/item/{ns}_parts.png", animate(at, {S["pal"]["g"]}))
     write(f"{base}/textures/item/{ns}_parts.png.mcmeta", mcmeta)
     write(f"{base}/models/item/{ns}_helmet.json", hat_model(parts, f"{ns}:item/{ns}_parts", S.get("gui_scale", 0.6)))
-    items_yml, equip_yml, cat_yml = configs(S, ns)
+    # tools + bow, drawn by the tool forge in the set's own style
+    T = S["tools"]
+    P = TF.Pal(T)
+    sets = dict(glow=P.glow_set(), thick=P.thick_set(), grip=P.grip_set())
+    tool_imgs = {}
+    for tool in TOOLS:
+        tex = TF.tool(T, tool)
+        tool_imgs[tool] = tex
+        ref = f"{ns}:item/{ns}_{tool}"
+        write(f"{base}/textures/item/{ns}_{tool}.png", animate(tex, P.glow_set(), P.shimmer_set()))
+        write(f"{base}/textures/item/{ns}_{tool}.png.mcmeta", mcmeta)
+        write(f"{base}/textures/item/{ns}_{tool}_icon.png", tex)
+        write(f"{base}/models/item/{ns}_{tool}.json", {
+            "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
+            "elements": CU.tool_elements(tex, **sets), "display": build_model.handheld()})
+    for state, suffix in (("bow", ""), ("bow_pulling_0", "_0"), ("bow_pulling_1", "_1"), ("bow_pulling_2", "_2")):
+        tex = ImageOps.mirror(TF.bow(T, state))   # vanilla orientation: arrow to the top-left
+        name = f"{ns}_bow{suffix}"
+        ref = f"{ns}:item/{name}"
+        if not suffix:
+            tool_imgs["bow"] = TF.bow(T, state)
+            write(f"{base}/textures/item/{name}_icon.png", tex)
+        write(f"{base}/textures/item/{name}.png", animate(tex, P.glow_set(), P.shimmer_set()))
+        write(f"{base}/textures/item/{name}.png.mcmeta", mcmeta)
+        write(f"{base}/models/item/{name}.json", {
+            "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
+            "elements": CU.tool_elements(tex, flat=True, glow=P.glow_set()), "display": build_model.BOW_DISPLAY})
+    write(f"{base}/textures/item/{ns}_scroll.png", SC.icon(S["seal"]))
+    items_yml, equip_yml, cat_yml, loots_yml = configs(S, ns)
     write(f"{base}/configs/items.yml", items_yml)
     write(f"{base}/configs/equipments.yml", equip_yml)
     write(f"{base}/configs/categories.yml", cat_yml)
-    return l1, l2, at, parts, [ics[p] for p in PIECES]
+    write(f"{base}/configs/loots.yml", loots_yml)
+    return l1, l2, at, parts, [ics[p] for p in PIECES], tool_imgs

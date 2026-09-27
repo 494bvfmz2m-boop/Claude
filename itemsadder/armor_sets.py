@@ -410,3 +410,96 @@ HALLOWEEN_STYLE = {
     "belt_art": ["...gg...."],
     "helmet": halloween,
 }
+
+
+# ----------------------------------------------------------------------------- upgrades
+# Every set is a step above netherite and crafts from its own materials (see
+# armor_engine.RECIPE_SHAPES); coverage decides how much skin shows.
+def TS(metal, handle, accent, glow, **kw):
+    """Tool style for the tool forge."""
+    return dict(metal=metal, handle=handle, accent=accent, glow=glow, **kw)
+
+
+UPGRADES = {
+    "frostborn": dict(cover="standard", C="BREEZE_ROD", perk={"knockbackResistance": 0.05}, mob=("STRAY", 5),
+                      seal=(90, 200, 255),
+                      story=["Chipped from the heart of a glacier that swallowed a whole army.",
+                             "The picks ring like bells when they strike stone.",
+                             "The blade is so cold it burns."],
+                      tools=TS((170, 215, 240), (70, 90, 120), (236, 236, 240), (150, 245, 255), sword="crystal",
+                               guard="horns", pommel="gem", deco="facets", grip="bands", axe="double",
+                               pick="crystal", shovel="pointed", hoe="sickle", bow="angular", bow_tips="spike",
+                               bow_mat="metal", string=(200, 240, 255))),
+    "druid": dict(cover="light", C="FLOWERING_AZALEA", perk={"maxHealth": 1}, mob=("BOGGED", 5), seal=(90, 170, 60),
+                  story=["Grown from a seed the forest gave willingly.", "Each tool still has a leaf on it. It grows back.",
+                         "The bow is a living branch. Be nice to it."],
+                  tools=TS((120, 180, 80), (92, 66, 40), (170, 134, 86), (230, 90, 140), sword="leaf", guard="fins",
+                           pommel="crescent", deco="vein", grip="plain", axe="moon", pick="winged", shovel="trowel",
+                           hoe="claw", bow="branch", bow_tips="leaf", bow_mat="handle", string=(200, 230, 150))),
+    "samurai": dict(cover="standard", C="BAMBOO", perk={"attackDamage": 0.5}, mob=("PILLAGER", 5), seal=(190, 40, 44),
+                    story=["Folded a thousand times, lacquered red.", "Even the hoe has a proper name.",
+                           "Draw it only when you mean it."],
+                    tools=TS((220, 224, 232), (40, 30, 34), (214, 170, 60), (255, 90, 80), sword="katana",
+                             guard="disc", pommel="tassel", deco="edge", grip="wrap", axe="bearded", pick="straight",
+                             shovel="spade", hoe="blade", bow="long", bow_tips="spike", bow_mat="handle",
+                             string=(240, 236, 226))),
+    "pharaoh": dict(cover="light", C="CHISELED_SANDSTONE", perk={"luck": 1}, mob=("HUSK", 5), seal=(30, 70, 170),
+                    story=["Taken from a tomb. The curse was included for free.", "Gold heads on lapis handles.",
+                           "The khopesh remembers every king."],
+                    tools=TS((236, 196, 80), (30, 70, 170), (40, 160, 150), (255, 240, 160), sword="scimitar",
+                             guard="crescent", pommel="gem", deco="stripes", grip="bands", axe="moon", pick="single",
+                             shovel="spade", hoe="sickle", bow="recurve", bow_tips="gem", bow_mat="accent",
+                             alt=(30, 70, 170), string=(255, 236, 150))),
+    "atlantean": dict(cover="standard", C="PRISMARINE_CRYSTALS", perk={"movementSpeed": 0.003}, mob=("DROWNED", 5),
+                      seal=(40, 160, 150),
+                      story=["Scales of the deep city, still wet.", "Coral handles, pearl heads.",
+                             "The trident's little brother."],
+                      tools=TS((70, 180, 170), (240, 130, 150), (250, 230, 200), (120, 255, 230), sword="forked",
+                               guard="fins", pommel="orb", deco="core", grip="plain", axe="halberd", pick="arched",
+                               shovel="scoop", hoe="rake", bow="double", bow_tips="gem", bow_mat="metal",
+                               string=(120, 255, 230))),
+    "paladin": dict(cover="full", C="END_ROD", perk={"knockbackResistance": 0.05}, mob=("VINDICATOR", 5),
+                    seal=(230, 190, 70),
+                    story=["Blessed plate for those who hold the line.", "Tools for rebuilding after the siege.",
+                           "A holy sword and a bow that never misses the wicked."],
+                    tools=TS((235, 236, 244), (60, 110, 200), (230, 190, 70), (255, 245, 200), sword="greatsword",
+                             guard="bar_gem", pommel="gem", deco="fuller", grip="wrap", axe="flared", pick="arched",
+                             shovel="spade", hoe="blade", bow="recurve", bow_tips="feather", bow_mat="accent",
+                             string=(255, 250, 230))),
+    "clockwork": dict(cover="full", C="LIGHTNING_ROD", perk={"knockbackResistance": 0.05}, mob=("IRON_GOLEM", 6),
+                      seal=(200, 150, 60),
+                      story=["Tick, tock. Heavy, but nothing gets through.", "Every tool has a tiny gear that spins.",
+                             "The bow is spring-loaded. Mind your fingers."],
+                      tools=TS((206, 150, 70), (60, 56, 60), (200, 170, 70), (120, 230, 255), sword="cleaver",
+                               guard="ring", pommel="ring", deco="runes", grip="bands", axe="cleaver", pick="hammer",
+                               shovel="spade", hoe="rake", bow="angular", bow_tips="spike", bow_mat="accent",
+                               bow_studs=True, string=(90, 90, 96))),
+    "shadow": dict(cover="light", C="COAL_BLOCK", perk={"movementSpeed": 0.005}, mob=("ENDERMAN", 5), seal=(110, 14, 22),
+                   story=["You didn't see it. That's the point.", "Quiet tools for quiet work.",
+                          "Twin blades and a bow that makes no sound."],
+                   tools=TS((60, 56, 76), (20, 18, 28), (170, 24, 34), (200, 60, 255), sword="needle",
+                            guard="collar", pommel="tassel", deco="edge", grip="wrap", axe="hatchet", pick="single",
+                            shovel="trowel", hoe="sickle", bow="long", bow_tips="spike", bow_mat="metal",
+                            string=(170, 24, 34))),
+    "dragon": dict(cover="standard", C="FIRE_CHARGE", perk={"attackDamage": 0.5}, mob=("BLAZE", 5), seal=(210, 80, 30),
+                   story=["Shed scales of an old dragon, still warm.", "Claws make good picks.",
+                          "It breathes a little when you swing it."],
+                   tools=TS((210, 80, 30), (60, 40, 36), (240, 220, 180), (255, 200, 60), sword="serrated",
+                            guard="wings", pommel="claw", deco="cracks", grip="wrap", axe="bearded", pick="winged",
+                            shovel="pointed", hoe="claw", bow="recurve", bow_tips="flame", bow_mat="metal",
+                            string=(255, 190, 80))),
+    "mushroom": dict(cover="light", C="MUSHROOM_STEM", perk={"maxHealth": 1}, mob=("MOOSHROOM", 20), seal=(200, 30, 30),
+                     story=["Grows back when damaged. Mostly.", "Tools with little caps on. Adorable.",
+                            "The spores are only mildly dangerous."],
+                     tools=TS((200, 40, 40), (240, 220, 190), (250, 250, 240), (255, 240, 150), sword="leaf",
+                              guard="disc", pommel="orb", deco="stars", grip="plain", axe="moon", pick="arched",
+                              shovel="round", hoe="blade", bow="smooth", bow_tips="gem", bow_mat="handle",
+                              string=(240, 220, 190))),
+}
+
+for _S in SETS:
+    _u = dict(UPGRADES[_S["id"]])
+    _S["recipe"]["C"] = _u.pop("C")
+    for _k in ("stats", "material", "perk_text"):
+        _S.pop(_k, None)
+    _S.update(_u)

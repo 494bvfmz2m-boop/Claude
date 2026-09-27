@@ -30,6 +30,9 @@ import accessories as ACC  # noqa: E402
 import tool_designs as TD  # noqa: E402
 import armor_engine as AE  # noqa: E402
 import armor_sets as AS  # noqa: E402
+import armor_sets2 as AS2  # noqa: E402
+import tool_forge as TF  # noqa: E402
+import cosmetics as COS  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -456,6 +459,71 @@ def demon_hat_model(parts, ref):
     }
 
 
+def forge_weapons(base, ns, prefix, T, folder="item/tools", display_scale=1.0):
+    """Write tool-forge textures/models for the five tools + bow. Returns the tool icons."""
+    P = TF.Pal(T)
+    sets = dict(glow=P.glow_set(), thick=P.thick_set(), grip=P.grip_set())
+    for tool in TOOL_MATERIALS:
+        tex = TF.tool(T, tool)
+        ref = f"{ns}:{folder}/{prefix}_{tool}"
+        write(f"{base}/textures/{folder}/{prefix}_{tool}.png", animate(tex, P.glow_set(), P.shimmer_set()))
+        write(f"{base}/textures/{folder}/{prefix}_{tool}.png.mcmeta", MCMETA)
+        write(f"{base}/textures/{folder}/{prefix}_{tool}_icon.png", tex)
+        write(f"{base}/models/{folder}/{prefix}_{tool}.json", {
+            "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
+            "elements": CU.tool_elements(tex, **sets), "display": build_model.handheld(display_scale)})
+    for state, suffix in (("bow", ""), ("bow_pulling_0", "_0"), ("bow_pulling_1", "_1"), ("bow_pulling_2", "_2")):
+        tex = ImageOps.mirror(TF.bow(T, state))
+        name = f"{prefix}_bow{suffix}"
+        ref = f"{ns}:{folder}/{name}"
+        if not suffix:
+            write(f"{base}/textures/{folder}/{name}_icon.png", tex)
+        write(f"{base}/textures/{folder}/{name}.png", animate(tex, P.glow_set(), P.shimmer_set()))
+        write(f"{base}/textures/{folder}/{name}.png.mcmeta", MCMETA)
+        write(f"{base}/models/{folder}/{name}.json", {
+            "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
+            "elements": CU.tool_elements(tex, flat=True, glow=P.glow_set()), "display": build_model.BOW_DISPLAY})
+
+
+def weapon_items(ns, prefix, name, color, lore, damage, dura, bow_dura, folder="item/tools"):
+    lore_y = "    lore:\n" + "".join(f"      - '{line}'\n" for line in lore)
+    items = []
+    for tool, mat in TOOL_MATERIALS.items():
+        items.append(f"""  {prefix}_{tool}:
+    enabled: true
+    display_name: '{color}{name} {tool.capitalize()}'
+{lore_y}    permission: {ns}.{tool}
+    resource:
+      material: {mat}
+      model_path: {folder}/{prefix}_{tool}
+      icon: {folder}/{prefix}_{tool}_icon
+    durability:
+      max_custom_durability: {dura}
+    attribute_modifiers:
+      mainhand:
+        attackDamage: {damage[tool]}
+        attackSpeed: {TOOL_SPEED[tool]}""")
+    items.append(f"""  {prefix}_bow:
+    enabled: true
+    display_name: '{color}{name} Bow'
+{lore_y}    permission: {ns}.bow
+    resource:
+      material: BOW
+      generate: false
+      model_path: {folder}/{prefix}_bow
+      icon: {folder}/{prefix}_bow_icon
+    durability:
+      max_custom_durability: {bow_dura}""")
+    return items
+
+
+DEMON_TOOLS = dict(metal=(60, 16, 14), handle=(30, 10, 10), accent=(150, 30, 20), glow=(255, 120, 30),
+                              outline=(18, 4, 4), sword="serrated", guard="horns", pommel="skull", deco="cracks",
+                              grip="spiral", axe="double", pick="winged", shovel="pointed", hoe="scythe",
+                              bow="recurve", bow_tips="flame", bow_mat="metal", string=(255, 120, 30))
+DEMON_DAMAGE = {"sword": 15, "axe": 17, "pickaxe": 10, "shovel": 10.5, "hoe": 1}
+
+
 def demon_pack(base):
     ns = "demon-gear"
     src = os.path.join(ROOT, "demon_armor")
@@ -537,6 +605,10 @@ equipments:
         armorToughness: 5
         knockbackResistance: 0.25
         maxHealth: 2{fire}""")
+    # admin-only demon weapons: no recipes, no scrolls
+    forge_weapons(base, ns, "demon", DEMON_TOOLS)
+    items += weapon_items(ns, "demon", "Demon", "&4", ["&f", "&4Forged in hellfire", "&8Admin only"],
+                          DEMON_DAMAGE, 9999, 3000)
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 items:
@@ -551,7 +623,89 @@ categories:
     icon: {ns}:demon_armor_helmet
     permission: ia.menu.demon_forge
     items:
-""" + "".join(f"      - {ns}:demon_armor_{p}\n" for p in ("helmet", "chestplate", "leggings", "boots")))
+""" + "".join(f"      - {ns}:demon_armor_{p}\n" for p in ("helmet", "chestplate", "leggings", "boots"))
+          + "".join(f"      - {ns}:demon_{t}\n" for t in list(TOOL_MATERIALS) + ["bow"]))
+
+
+# --- the one legendary weapon: needs the Dragon Egg, so only one can exist ------
+ENDERFANG = dict(metal=(46, 26, 60), handle=(20, 12, 26), accent=(220, 180, 255), glow=(230, 90, 255),
+                 outline=(10, 4, 14), alt=(120, 60, 170), sword="katana", guard="disc", pommel="tassel",
+                 deco="edge_runes", grip="spiral")
+
+
+def legendary_pack(base):
+    ns = "slothsmp-legendary"
+    P = TF.Pal(ENDERFANG)
+    tex = TF.enderfang()
+    glow = {(230, 90, 255), (255, 200, 255), (200, 80, 255)}
+    ref = f"{ns}:item/enderfang"
+    write(f"{base}/textures/item/enderfang.png", animate(tex, glow, {(170, 110, 230), (76, 46, 104)}))
+    write(f"{base}/textures/item/enderfang.png.mcmeta", MCMETA)
+    write(f"{base}/textures/item/enderfang_icon.png", tex)
+    write(f"{base}/models/item/enderfang.json", {
+        "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
+        "elements": CU.tool_elements(tex, glow=glow, thick={(220, 180, 120), (250, 230, 180), (150, 110, 60)},
+                                     grip={(40, 20, 56), (120, 60, 170)}),
+        "display": build_model.handheld(1.3)})
+    write(f"{base}/configs/items.yml", f"""info:
+  namespace: {ns}
+recipes:
+  crafting_table:
+    enderfang:
+      permission: itemsadder.craft.enderfang
+      enabled: true
+      pattern:
+        - XEX
+        - DKD
+        - SBS
+      ingredients:
+        E: DRAGON_EGG
+        D: DRAGON_BREATH
+        K: NETHERITE_SWORD
+        S: NETHER_STAR
+        B: END_ROD
+      result:
+        item: {ns}:enderfang
+        amount: 1
+items:
+  enderfang:
+    enabled: true
+    display_name: '&5&lEnderfang'
+    lore:
+      - '&f'
+      - '&o&7Forged around the heart of the'
+      - '&o&7Ender Dragon. Its egg is the hilt.'
+      - '&f'
+      - '&dLegendary &8- only one can exist'
+      - '&7Needs the Dragon Egg to craft.'
+      - '&f'
+      - '&5+20 attack damage, +2 hearts, +10% speed'
+    permission: {ns}.enderfang
+    resource:
+      material: NETHERITE_SWORD
+      model_path: item/enderfang
+      icon: item/enderfang_icon
+    durability:
+      max_custom_durability: 20000
+    attribute_modifiers:
+      mainhand:
+        attackDamage: 20
+        attackSpeed: 1.8
+        maxHealth: 4
+        movementSpeed: 0.01
+""")
+    write(f"{base}/configs/categories.yml", f"""info:
+  namespace: {ns}
+categories:
+  legendary:
+    enabled: true
+    name: '&5&lLegendary'
+    icon: {ns}:enderfang
+    permission: ia.menu.legendary
+    items:
+      - {ns}:enderfang
+""")
+    return tex
 
 
 def main():
@@ -559,8 +713,10 @@ def main():
     crimson(f"{OUT}/crimson-gear")
     halloween_pack(f"{OUT}/halloween-gear")
     demon_pack(f"{OUT}/demon-gear")
+    legendary_pack(f"{OUT}/slothsmp-legendary")
     ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
-    for S in AS.SETS:   # the ten themed armor sets, one content folder + category each
+    COS.build(f"{OUT}/{COS.NS}", write, animate, MCMETA)
+    for S in AS.SETS + AS2.SETS2:   # the themed armor sets, one content folder + category each
         AE.build_set(S, f"{OUT}/{S['id']}", write, animate, MCMETA)
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
         for folder, _, files in sorted(os.walk(OUT)):
