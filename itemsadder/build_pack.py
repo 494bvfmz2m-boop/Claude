@@ -181,7 +181,11 @@ equipments:
     h_armor, h_dura = CRIMSON_ARMOR["helmet"]
     items = [f"""  crimson_armor_helmet:
     enabled: true
-    display_name: Crimson Armor Helmet
+    display_name: '&cCrimson Helmet'
+    lore:
+      - '&f'
+      - '&6Forged from netherite, dragon''s breath'
+      - '&6and ghast tears in the crimson forest'
     behaviours:
       hat: true
     resource:
@@ -200,7 +204,11 @@ equipments:
             continue
         items.append(f"""  crimson_armor_{piece}:
     enabled: true
-    display_name: Crimson Armor {piece.capitalize()}
+    display_name: '&cCrimson {piece.capitalize()}'
+    lore:
+      - '&f'
+      - '&6Forged from netherite, dragon''s breath'
+      - '&6and ghast tears in the crimson forest'
     resource:
       material: IRON_{piece.upper()}
       generate: true
@@ -217,7 +225,11 @@ equipments:
     for name, (mat, dmg, spd, _) in TOOLS.items():
         items.append(f"""  crimson_{name}:
     enabled: true
-    display_name: Crimson {name.capitalize()}
+    display_name: '&cCrimson {name.capitalize()}'
+    lore:
+      - '&f'
+      - '&6Forged from netherite, dragon''s breath'
+      - '&6and ghast tears in the crimson forest'
     resource:
       material: {mat}
       model_path: item/tools/crimson_{name}
@@ -302,6 +314,10 @@ equipments:
     items = [f"""  demon_armor_helmet:
     enabled: true
     display_name: "&4Demon Helmet"
+    lore:
+      - '&f'
+      - '&4Forged in hellfire'
+      - '&8Admin only'
     permission: {ns}.helmet
     behaviours:
       hat: true
@@ -332,6 +348,10 @@ equipments:
         items.append(f"""  demon_armor_{piece}:
     enabled: true
     display_name: "&4Demon {piece.capitalize()}"
+    lore:
+      - '&f'
+      - '&4Forged in hellfire'
+      - '&8Admin only'
     permission: {ns}.{piece}
     resource:
       material: IRON_{piece.upper()}
