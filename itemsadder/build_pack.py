@@ -268,7 +268,7 @@ def tier_items(ns, tier):
 {lore}    behaviours:
       hat: true
     resource:
-      material: PAPER
+      material: LEATHER_HORSE_ARMOR
       generate: false
       model_path: item/armor/{tier}_helmet
     durability:
@@ -377,7 +377,7 @@ equipments:
     lore:
 {lore_yaml.rstrip(chr(10))}
     resource:
-      material: PAPER
+      material: FLINT
       generate: true
       textures:
         - item/scrolls/{sid}""")
@@ -574,7 +574,7 @@ equipments:
     behaviours:
       hat: true
     resource:
-      material: PAPER
+      material: LEATHER_HORSE_ARMOR
       generate: false
       model_path: item/armor/demon_helmet
     durability:
@@ -729,6 +729,8 @@ def main():
     halloween_pack(f"{OUT}/halloween-gear")
     demon_pack(f"{OUT}/demon-gear")
     legendary_pack(f"{OUT}/slothsmp-legendary")
+    import mace   # admin-only Cataclysm mace (also shipped alone by mace.py)
+    mace.write_pack(f"{OUT}/{mace.NS}")
     ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
     COS.build(f"{OUT}/{COS.NS}", write, animate, MCMETA)
     for S in AS.SETS + AS2.SETS2:   # the themed armor sets, one content folder + category each

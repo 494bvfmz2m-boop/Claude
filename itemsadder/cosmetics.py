@@ -667,7 +667,7 @@ def build(base, write, animate, mcmeta):
     behaviours:
       hat: true
     resource:
-      material: PAPER
+      material: LEATHER_HORSE_ARMOR
       generate: false
       model_path: item/cosmetics/{cid}""")
     write(f"{base}/configs/items.yml", f"""info:

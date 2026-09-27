@@ -511,6 +511,8 @@ def hat_model(parts, ref, gui_scale=0.6):
 
 
 # --- ItemsAdder configs ---------------------------------------------------------------------
+# 3D hats use LEATHER_HORSE_ARMOR and scrolls FLINT rather than PAPER: the server's banknote
+# plugin treats every right-clicked PAPER item as a (forged) note.
 # All sets sit a step above netherite (armor 3/8/6/3, toughness 3, 407/592/555/481 durability,
 # sword 8): heavier coverage gives more armor, lighter sets lean on their perk.
 COVER_STATS = {"full": ((4, 8, 7, 3), 4.0), "standard": ((3, 8, 7, 3), 3.5), "light": ((3, 8, 6, 3), 3.0),
@@ -627,7 +629,7 @@ def configs(S, ns):
     behaviours:
       hat: true
     resource:
-      material: PAPER
+      material: LEATHER_HORSE_ARMOR
       generate: false
       model_path: item/{S['id']}_helmet
     durability:
@@ -686,7 +688,7 @@ def configs(S, ns):
     lore:
 {ylist(scroll_lore(S, kind, story)).rstrip(chr(10))}
     resource:
-      material: PAPER
+      material: FLINT
       generate: true
       textures:
         - item/{S['id']}_scroll_{kind}""")

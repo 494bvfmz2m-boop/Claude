@@ -281,9 +281,8 @@ categories:
 """
 
 
-def build():
-    shutil.rmtree(OUT, ignore_errors=True)
-    base = f"{OUT}/{NS}"
+def write_pack(base):
+    """Write the content folder (also called by build_pack for the full zip)."""
     img = atlas()
     parts = build_geometry()
     B.write(f"{base}/textures/item/cataclysm.png", B.animate(img, GLOW_SET))
@@ -291,6 +290,13 @@ def build():
     B.write(f"{base}/models/item/cataclysm.json", model(parts, f"{NS}:item/cataclysm"))
     B.write(f"{base}/configs/items.yml", items_yml())
     B.write(f"{base}/configs/categories.yml", categories_yml())
+    return img, parts
+
+
+def build():
+    """The mace on its own: build_mace/ and cataclysm_mace.zip."""
+    shutil.rmtree(OUT, ignore_errors=True)
+    img, parts = write_pack(f"{OUT}/{NS}")
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
         for folder, _, files in sorted(os.walk(OUT)):
             rel = os.path.relpath(folder, OUT)
