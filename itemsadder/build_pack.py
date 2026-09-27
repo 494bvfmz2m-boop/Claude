@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "itemsadder"))
 
 import build_model  # noqa: E402  (crimson cuboid model builder)
 import crimson_upgrade as CU  # noqa: E402
+import recipe_book as BOOK  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -80,177 +81,193 @@ MCMETA = {"animation": {"frametime": FRAMETIME}}
 SLOTS = {"chestplate": "CHEST", "leggings": "LEGS", "boots": "FEET"}
 
 
-# --- crimson-gear ---------------------------------------------------------
-TOOLS = {  # name: (material, attackDamage, attackSpeed, display)
-    "sword": ("NETHERITE_SWORD", 10, 1.6, build_model.SWORD_DISPLAY),
-    "axe": ("NETHERITE_AXE", 12, 1.0, build_model.handheld()),
-    "pickaxe": ("NETHERITE_PICKAXE", 7, 1.2, build_model.handheld()),
-    "shovel": ("NETHERITE_SHOVEL", 7.5, 1.0, build_model.handheld()),
-    "hoe": ("NETHERITE_HOE", 1, 4.0, build_model.handheld()),
+# --- crimson-gear: Crimson and Blue Crimson tiers ----------------------------
+TOOL_MATERIALS = {"sword": "NETHERITE_SWORD", "axe": "NETHERITE_AXE", "pickaxe": "NETHERITE_PICKAXE",
+                  "shovel": "NETHERITE_SHOVEL", "hoe": "NETHERITE_HOE"}
+TOOL_SPEED = {"sword": 1.6, "axe": 1.0, "pickaxe": 1.2, "shovel": 1.0, "hoe": 4.0}
+TOOL_DISPLAY = {"sword": build_model.SWORD_DISPLAY, "axe": build_model.handheld(),
+                "pickaxe": build_model.handheld(), "shovel": build_model.handheld(),
+                "hoe": build_model.handheld()}
+PIECES = ("helmet", "chestplate", "leggings", "boots")
+
+# Recipes: pattern + ingredients; "{piece}" / "{tool}" / "{PIECE}" / "{TOOL}" are filled per item.
+TIERS = {
+    "crimson": {
+        "name": "Crimson", "color": "&c", "recolor": None,
+        "lore": ["&f", "&6Forged from netherite,", "&6dragon''s breath and ghast tears"],
+        # piece: (armor points, durability) -- a tier above netherite (407/592/555/481)
+        "armor": {"helmet": (4, 610), "chestplate": (9, 888), "leggings": (7, 832), "boots": (4, 721)},
+        "toughness": 4, "knockback": 0.15,
+        "damage": {"sword": 10, "axe": 12, "pickaxe": 7, "shovel": 7.5, "hoe": 1},
+        "tool_durability": 3000,   # netherite: 2031
+        "armor_recipe": (["ABA", "CDC", "EBE"], {"A": "GHAST_TEAR", "B": "REDSTONE_BLOCK", "C": "DRAGON_BREATH",
+                                                "D": "NETHERITE_{PIECE}", "E": "END_STONE"}),
+        "tool_recipe": (["XAX", "XBX", "XCX"], {"A": "REDSTONE_BLOCK", "B": "NETHERITE_{TOOL}", "C": "BLAZE_ROD"}),
+        "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "DRAGON_BREATH", "B": "DIAMOND_BLOCK",
+                                                "C": "NETHERITE_SWORD", "D": "BLAZE_ROD"}),
+    },
+    "blue_crimson": {
+        "name": "Blue Crimson", "color": "&b", "recolor": "blue",
+        "lore": ["&f", "&3Crimson gear reforged", "&3with echo shards and lapis"],
+        "armor": {"helmet": (5, 814), "chestplate": (10, 1184), "leggings": (8, 1110), "boots": (5, 962)},
+        "toughness": 5, "knockback": 0.2,
+        "damage": {"sword": 11, "axe": 13, "pickaxe": 8, "shovel": 8.5, "hoe": 1},
+        "tool_durability": 4000,
+        "armor_recipe": (["ABA", "CDC", "EBE"], {"A": "ECHO_SHARD", "B": "LAPIS_BLOCK", "C": "DRAGON_BREATH",
+                                                "D": "crimson-gear:crimson_armor_{piece}", "E": "DIAMOND_BLOCK"}),
+        "tool_recipe": (["XAX", "XBX", "XCX"], {"A": "LAPIS_BLOCK", "B": "crimson-gear:crimson_{tool}",
+                                                "C": "ECHO_SHARD"}),
+        "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "DIAMOND_BLOCK",
+                                                "C": "crimson-gear:crimson_sword", "D": "BLAZE_ROD"}),
+    },
 }
-CRIMSON_ARMOR = {  # piece: (armor points, custom durability) -- a tier above netherite
-    "helmet": (4, 610), "chestplate": (9, 888), "leggings": (7, 832), "boots": (4, 721),
-}
-TOOL_DURABILITY = 3000   # netherite: 2031
 
 
-def crimson(base):
-    ns = "crimson-gear"
+def fill(ingredients, piece=None, tool=None):
+    return {k: v.format(piece=piece, PIECE=(piece or "").upper(), tool=tool, TOOL=(tool or "").upper())
+            for k, v in ingredients.items()}
+
+
+def recipes_of(tier):
+    """[(item id, pattern, ingredients)] for one tier."""
+    t, out = TIERS[tier], []
+    for piece in PIECES:
+        pat, ing = t["armor_recipe"]
+        out.append((f"{tier}_armor_{piece}", pat, fill(ing, piece=piece)))
+    for tool in ("axe", "pickaxe", "shovel", "hoe"):
+        pat, ing = t["tool_recipe"]
+        out.append((f"{tier}_{tool}", pat, fill(ing, tool=tool)))
+    pat, ing = t["sword_recipe"]
+    out.append((f"{tier}_sword", pat, dict(ing)))
+    return out
+
+
+def recolor(img, kind):
+    return img if kind is None else BOOK.recolor_blue(img)
+
+
+def tier_assets(base, ns, tier):
+    t = TIERS[tier]
     src = os.path.join(ROOT, "crimson_armor")
-    write(f"{base}/configs/equipments.yml", f"""info:
-  namespace: {ns}
-equipments:
-  crimson_armor:
-    type: armor
-    layer_1: armor/crimson_armor/layer_1
-    layer_2: armor/crimson_armor/layer_2
-""")
-    write(f"{base}/textures/armor/crimson_armor/layer_1.png", Image.open(f"{src}/armor_layer_1.png"))
-    write(f"{base}/textures/armor/crimson_armor/layer_2.png", Image.open(f"{src}/armor_layer_2.png"))
-    for piece in CRIMSON_ARMOR:
-        write(f"{base}/textures/item/armor/crimson_armor_{piece}.png", Image.open(f"{src}/items/crimson_{piece}.png"))
-
-    for name, (_, _, _, display) in TOOLS.items():
-        tex = Image.open(f"{src}/items/crimson_{name}.png").convert("RGBA")
-        ref = f"{ns}:item/tools/crimson_{name}"
-        write(f"{base}/textures/item/tools/crimson_{name}.png", animate(tex, CRIMSON_GLOW, CRIMSON_BLADE))
-        write(f"{base}/textures/item/tools/crimson_{name}.png.mcmeta", MCMETA)
-        write(f"{base}/textures/item/tools/crimson_{name}_icon.png", tex)   # static menu icon
-        write(f"{base}/models/item/tools/crimson_{name}.json", {
+    kind = t["recolor"]
+    for n in (1, 2):
+        write(f"{base}/textures/armor/{tier}_armor/layer_{n}.png",
+              recolor(Image.open(f"{src}/armor_layer_{n}.png").convert("RGBA"), kind))
+    for piece in PIECES:
+        write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png",
+              recolor(Image.open(f"{src}/items/crimson_{piece}.png").convert("RGBA"), kind))
+    for tool in TOOL_MATERIALS:
+        tex = Image.open(f"{src}/items/crimson_{tool}.png").convert("RGBA")
+        ref = f"{ns}:item/tools/{tier}_{tool}"
+        write(f"{base}/textures/item/tools/{tier}_{tool}.png",
+              recolor(animate(tex, CRIMSON_GLOW, CRIMSON_BLADE), kind))
+        write(f"{base}/textures/item/tools/{tier}_{tool}.png.mcmeta", MCMETA)
+        write(f"{base}/textures/item/tools/{tier}_{tool}_icon.png", recolor(tex, kind))
+        write(f"{base}/models/item/tools/{tier}_{tool}.json", {
             "texture_size": list(tex.size),
             "textures": {"layer0": ref, "particle": ref},
             "gui_light": "front",
-            "elements": CU.tool_elements(tex),
-            "display": display,
+            "elements": CU.tool_elements(tex),   # geometry/glow classified on the crimson colours
+            "display": TOOL_DISPLAY[tool],
         })
-
-    # 3D helmet: visor, gold crest and crimson branches from the shoulder blades
+    # 3D helmet: visor, gold crest and branches from the shoulder blades
     layer1 = Image.open(f"{src}/armor_layer_1.png").convert("RGBA")
-    parts_ref = f"{ns}:item/armor/crimson_parts"
-    write(f"{base}/textures/item/armor/crimson_parts.png", animate(CU.atlas(layer1), CU.GLOW))
-    write(f"{base}/textures/item/armor/crimson_parts.png.mcmeta", MCMETA)
-    write(f"{base}/models/item/armor/crimson_helmet.json", CU.helmet_model(parts_ref))
+    write(f"{base}/textures/item/armor/{tier}_parts.png", recolor(animate(CU.atlas(layer1), CU.GLOW), kind))
+    write(f"{base}/textures/item/armor/{tier}_parts.png.mcmeta", MCMETA)
+    write(f"{base}/models/item/armor/{tier}_helmet.json", CU.helmet_model(f"{ns}:item/armor/{tier}_parts"))
 
-    armor_pattern = ["ABA", "CDC", "EBE"]
-    rec = []
-    for piece in CRIMSON_ARMOR:
-        rec.append(f"""    crimson_armor_{piece}:
-      permission: itemsadder.craft.crimson_armor_{piece}
-      enabled: true
-      pattern:
-{chr(10).join('        - ' + r for r in armor_pattern)}
-      ingredients:
-        A: GHAST_TEAR
-        B: CRIMSON_NYLIUM
-        C: DRAGON_BREATH
-        D: NETHERITE_{piece.upper()}
-        E: END_STONE
-      result:
-        item: {ns}:crimson_armor_{piece}
-        amount: 1""")
-    for name in ("axe", "pickaxe", "shovel", "hoe"):
-        rec.append(f"""    crimson_{name}:
-      permission: itemsadder.craft.crimson_{name}
-      enabled: true
-      pattern:
-        - XAX
-        - XBX
-        - XCX
-      ingredients:
-        A: CRIMSON_NYLIUM
-        B: NETHERITE_{name.upper()}
-        C: BLAZE_ROD
-      result:
-        item: {ns}:crimson_{name}
-        amount: 1""")
-    rec.append(f"""    crimson_sword:
-      permission: itemsadder.craft.crimson_sword
-      enabled: true
-      pattern:
-        - XAX
-        - BCB
-        - XDX
-      ingredients:
-        A: DRAGON_BREATH
-        B: DIAMOND_BLOCK
-        C: NETHERITE_SWORD
-        D: BLAZE_ROD
-      result:
-        item: {ns}:crimson_sword
-        amount: 1""")
 
-    h_armor, h_dura = CRIMSON_ARMOR["helmet"]
-    items = [f"""  crimson_armor_helmet:
+def tier_items(ns, tier):
+    t = TIERS[tier]
+    lore = "    lore:\n" + "".join(f"      - '{line}'\n" for line in t["lore"])
+    stats = f"""        armorToughness: {t["toughness"]}
+        knockbackResistance: {t["knockback"]}"""
+    h_armor, h_dura = t["armor"]["helmet"]
+    items = [f"""  {tier}_armor_helmet:
     enabled: true
-    display_name: '&cCrimson Helmet'
-    lore:
-      - '&f'
-      - '&6Forged from netherite, dragon''s breath'
-      - '&6and ghast tears in the crimson forest'
-    behaviours:
+    display_name: '{t["color"]}{t["name"]} Helmet'
+{lore}    behaviours:
       hat: true
     resource:
       material: PAPER
       generate: false
-      model_path: item/armor/crimson_helmet
+      model_path: item/armor/{tier}_helmet
     durability:
       max_custom_durability: {h_dura}
     attribute_modifiers:
       head:
         armor: {h_armor}
-        armorToughness: 4
-        knockbackResistance: 0.15"""]
-    for piece, (armor, dura) in CRIMSON_ARMOR.items():
-        if piece == "helmet":
-            continue
-        items.append(f"""  crimson_armor_{piece}:
+{stats}"""]
+    for piece in PIECES[1:]:
+        armor, dura = t["armor"][piece]
+        items.append(f"""  {tier}_armor_{piece}:
     enabled: true
-    display_name: '&cCrimson {piece.capitalize()}'
-    lore:
-      - '&f'
-      - '&6Forged from netherite, dragon''s breath'
-      - '&6and ghast tears in the crimson forest'
-    resource:
+    display_name: '{t["color"]}{t["name"]} {piece.capitalize()}'
+{lore}    resource:
       material: NETHERITE_{piece.upper()}
       generate: true
       textures:
-        - item/armor/crimson_armor_{piece}
+        - item/armor/{tier}_armor_{piece}
     durability:
       max_custom_durability: {dura}
     equipment:
-      id: {ns}:crimson_armor
+      id: {ns}:{tier}_armor
       slot: {SLOTS[piece]}
       slot_attribute_modifiers:
         armor: {armor}
-        armorToughness: 4
-        knockbackResistance: 0.15""")
-    for name, (mat, dmg, spd, _) in TOOLS.items():
-        items.append(f"""  crimson_{name}:
+{stats.replace("        ", "        ")}""")
+    for tool, mat in TOOL_MATERIALS.items():
+        items.append(f"""  {tier}_{tool}:
     enabled: true
-    display_name: '&cCrimson {name.capitalize()}'
-    lore:
-      - '&f'
-      - '&6Forged from netherite, dragon''s breath'
-      - '&6and ghast tears in the crimson forest'
-    resource:
+    display_name: '{t["color"]}{t["name"]} {tool.capitalize()}'
+{lore}    resource:
       material: {mat}
-      model_path: item/tools/crimson_{name}
-      icon: item/tools/crimson_{name}_icon
+      model_path: item/tools/{tier}_{tool}
+      icon: item/tools/{tier}_{tool}_icon
     durability:
-      max_custom_durability: {TOOL_DURABILITY}
+      max_custom_durability: {t["tool_durability"]}
     attribute_modifiers:
       mainhand:
-        attackDamage: {dmg}
-        attackSpeed: {spd}""")
+        attackDamage: {t["damage"][tool]}
+        attackSpeed: {TOOL_SPEED[tool]}""")
+    recs = []
+    for item, pat, ing in recipes_of(tier):
+        recs.append(f"""    {item}:
+      permission: itemsadder.craft.{item}
+      enabled: true
+      pattern:
+""" + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
+            + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
+        item: {ns}:{item}
+        amount: 1""")
+    return items, recs
 
+
+def crimson(base):
+    ns = "crimson-gear"
+    write(f"{base}/configs/equipments.yml", f"""info:
+  namespace: {ns}
+equipments:
+""" + "".join(f"""  {tier}_armor:
+    type: armor
+    layer_1: armor/{tier}_armor/layer_1
+    layer_2: armor/{tier}_armor/layer_2
+""" for tier in TIERS))
+    items, recs = [], []
+    for tier in TIERS:
+        tier_assets(base, ns, tier)
+        i, r = tier_items(ns, tier)
+        items += i
+        recs += r
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 recipes:
   crafting_table:
-{chr(10).join(rec)}
+{chr(10).join(recs)}
 items:
 {chr(10).join(items)}
 """)
+    BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
 
 
 # --- demon-gear -------------------------------------------------------------
