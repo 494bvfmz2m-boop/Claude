@@ -44,13 +44,7 @@ def h(x, y, k=0):
 
 
 FRAMES = 16          # hand-made animation loop for every Galactus texture
-ATLAS = 128          # atlas size: the base regions fill the top-left 64x64, pose regions sit below
-# The helmet "moves" like a flipbook: each moving part is modelled once per pose, and a pose's
-# texture region is only opaque during that pose's frames (see-through pixels don't render).
-POSES = 3
-POSE_OF_FRAME = [0] * 4 + [1] * 4 + [2] * 4 + [1] * 4       # rest, shift, full, shift (ping-pong)
-ORBITS = 4
-ORBIT_OF_FRAME = [f // 4 for f in range(16)]                 # a moon stepping round the black hole
+ATLAS = 128          # atlas size (the regions use the top-left 64x64, the rest is room to grow)
 FIRE = [(255, 255, 255), (190, 250, 255), (90, 200, 255), (70, 110, 255), (130, 60, 230), (90, 30, 170)]
 
 
@@ -169,61 +163,69 @@ def atlas(f=0):
     region("plasma", 40, 24, 8, 8, plasma)
     region("flame2", 48, 24, 16, 16, lambda x, y, w, hh: flame((x + 5) % w, y, w, hh))
 
-    def visor(x, y, w, hh):                                   # colour-shifting visor with a sweeping scan line
-        base = lerp(GLOW_C[0], GLOW_M[0], 0.5 + 0.5 * math.sin(2 * math.pi * (f / FRAMES) + x * 0.15))
-        d = (x - f * 2) % 16
+    swing = 0.5 - 0.5 * math.cos(2 * math.pi * f / FRAMES)   # 0 -> 1 -> 0 over the loop
+    hold = min(1, max(0, (swing - 0.3) / 0.4))                # same, but resting on each end colour
+
+    def visor(x, y, w, hh):                                   # blue -> red -> blue, with a white pixel sweeping across
+        blue = GLOW_C[0] if y else GLOW_C[1]
+        red = (235, 30, 50) if y else (255, 110, 110)
+        base = lerp(blue, red, hold)
+        d = (x - f * 2) % 32
         if d == 0:
-            return STAR[1]
-        if d in (1, 15):
-            return lerp(base, STAR[1], 0.6)
+            return (255, 255, 255)
+        if d == 31:
+            return lerp(base, (255, 255, 255), 0.5)           # a short fading trail behind it
         return base
 
-    def horn(x, y, w, hh):                                    # gold horn with energy pulsing base to tip
-        d = (x - f) % 8
-        if d == 0:
-            return GLOW_C[1]
-        if d == 1:
-            return lerp(GOLD[3], GLOW_C[0], 0.5)
-        return GOLD[2] if (x + y) % 5 else GOLD[1]
+    SILVER = [(96, 100, 118), (160, 166, 184), (212, 216, 230), (246, 248, 255)]
 
-    def disk(x, y, w, hh):                                    # accretion disk: hot streaks racing round
+    def horn(x, y, w, hh):                                    # gold -> silver -> gold, with a soft shine running up
+        ramp = [lerp(g, sv, hold) for g, sv in zip(GOLD, SILVER)]
+        d = (x - f * 2) % 32
+        if d in (0, 1):
+            return lerp(ramp[3], (255, 255, 255), 0.5)
+        if y == 0:
+            return ramp[3]
+        if y == hh - 1:
+            return ramp[1]
+        return ramp[2] if (x + y) % 5 else ramp[1]
+
+    def disk(x, y, w, hh):                                    # accretion disk: hot streaks racing round, the whole
+        hot = [STAR[1], (255, 220, 170), (255, 150, 90), (255, 110, 60),   # disk cooling from fire-orange to
+               (170, 50, 40), (255, 110, 60), (255, 150, 90), (255, 220, 170)]   # cosmic violet and back
+        cold = [STAR[1], (200, 230, 255), GLOW_C[0], GLOW_M[0], (110, 40, 180), GLOW_M[0], GLOW_C[0], (200, 230, 255)]
         d = (x + f * 2) % 8
-        return [STAR[1], (255, 220, 170), (255, 150, 90), GLOW_M[0], (150, 50, 200), GLOW_M[0], (255, 150, 90),
-                (255, 220, 170)][d]
+        return lerp(hot[d], cold[d], swing)
 
-    def void(x, y, w, hh):                                    # the black hole: a rotating two-armed spiral
+    def void(x, y, w, hh):
+        """The black hole eating stars: a breathing black core, a photon ring that flares when it
+        swells, a spiral of violet gas turning inward, and specks of starlight spiralling in."""
         cx, cy = (w - 1) / 2, (hh - 1) / 2
         r = math.hypot(x - cx, y - cy)
-        a = math.atan2(y - cy, x - cx) + f * 2 * math.pi / FRAMES
-        arm = math.sin(2 * a - r * 0.9)
-        if r < 1.6:
+        a = math.atan2(y - cy, x - cx)
+        core = 2.0 + 1.6 * swing                              # swells, then shrinks back
+        for i in range(5):                                    # starlight falling in on a spiral
+            t = (f / FRAMES + i / 5) % 1
+            rr = (w / 2) * (1 - t) + core * t
+            aa = i * 2 * math.pi / 5 + t * 4
+            if math.hypot(x - cx - rr * math.cos(aa), y - cy - rr * math.sin(aa)) < 0.75:
+                return STAR[1] if t < 0.7 else GLOW_C[1]
+        if r < core:
             return (0, 0, 0)
-        if arm > 0.75:
-            return GLOW_M[1] if r < 4 else NEB_M[1]
-        if arm > 0.4:
-            return (60, 20, 90)
-        return (6, 2, 12)
+        if r < core + 1.2:                                    # photon ring
+            return lerp(GLOW_M[1], (255, 255, 255), swing) if (int(a * 3 + f)) % 3 else (255, 240, 200)
+        arm = math.sin(2 * (a + f * 2 * math.pi / FRAMES) + r * 0.9)   # gas spiralling inward
+        if arm > 0.7:
+            return GLOW_M[0] if r < 5 else NEB_M[1]
+        if arm > 0.3:
+            return (70, 24, 110)
+        return (6, 2, 12) if h(x, y, 90) > 0.08 else STAR[0]  # a few background stars
 
     region("visor", 0, 40, 32, 4, visor)
     region("horn", 0, 44, 32, 4, horn)
     region("disk", 0, 48, 32, 4, disk)
     region("void", 32, 40, 16, 16, void)
 
-    def only(fn, on):                                         # a region that is see-through outside its frames
-        return lambda x, y, w, hh: fn(x, y, w, hh) if on else None
-
-    glow_c = lambda *a: lerp(GLOW_C[0], GLOW_C[1], pulse)     # noqa: E731
-    moon = lambda x, y, w, hh: (230, 230, 250) if h(x, y, 70) > 0.3 else (160, 170, 220)   # noqa: E731
-    for k in range(POSES):
-        on = POSE_OF_FRAME[f] == k
-        region(f"visor_p{k}", 32 * k, 64, 32, 4, only(visor, on))
-        region(f"horn_p{k}", 32 * k, 68, 32, 4, only(horn, on))
-        region(f"disk_p{k}", 32 * k, 72, 32, 4, only(disk, on))
-        region(f"void_p{k}", 16 * k, 80, 16, 16, only(void, on))
-        region(f"plasma_p{k}", 48 + 8 * k, 80, 8, 8, only(plasma, on))
-        region(f"glow_c_p{k}", 72 + 8 * k, 80, 8, 8, only(glow_c, on))
-    for k in range(ORBITS):
-        region(f"moon_o{k}", 96 + 8 * k, 80, 8, 8, only(moon, ORBIT_OF_FRAME[f] == k))
     return img
 
 
@@ -269,6 +271,8 @@ def embers_strip(size=32, count=12):
 
 def face_px(p, f):
     x0, y0, w, hh = REG[p["mat"]]
+    if p.get("full"):                                         # stretch the whole region over the face
+        return x0, y0, w, hh
     (a, b, c), (d, e, g) = p["from"], p["to"]
     dx, dy, dz = d - a, e - b, g - c
     fw, fh = {"north": (dx, dy), "south": (dx, dy), "east": (dz, dy), "west": (dz, dy),
@@ -576,9 +580,12 @@ def helmet_parts():
         part("inlay_crest", (-0.8, 32.6, -4.75), (0.8, 33.1, 4.75), "nebula", glow=True),
         part("inlay_back", (-0.8, 25.6, 5), (0.8, 32, 5.08), "nebula", glow=True),
         # V-shaped scanner visor, swept up towards the temples
+        part("visor_r", (0, 27.3, -5.14), (4.9, 28.4, -4.98), "visor", glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
+        part("visor_l", (-4.9, 27.3, -5.14), (0, 28.4, -4.98), "visor", glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
         part("visor_rim_r", (0, 26.9, -5.1), (4.9, 27.3, -4.95), "gold", rot=("z", 22.5, (0, 27.85, -5.06))),
         part("visor_rim_l", (-4.9, 26.9, -5.1), (0, 27.3, -4.95), "gold", rot=("z", -22.5, (0, 27.85, -5.06))),
         part("prow", (-0.35, 24.4, -5.25), (0.35, 27, -5.02), "gold"),
+        part("beam", (-0.12, 33.25, -0.12), (0.12, 37.4, 0.12), "glow_c", glow=True),
         # high gorget
         part("gorget_front", (-4.4, 23.2, -4.4), (4.4, 24.6, -3.2), "gold"),
         part("gorget_back", (-4.4, 23.2, 3.2), (4.4, 24.6, 4.4), "gold"),
@@ -586,48 +593,28 @@ def helmet_parts():
         # the black hole hovering above the head
         part("chin_point", (-1.3, 23.3, -5.35), (1.3, 24.4, -4.9), "gold"),
         part("chin_glow", (-0.4, 23.5, -5.4), (0.4, 24.1, -5.35), "glow_c", glow=True),
+        dict(part("singularity", (-1.3, 37.4, -1.3), (1.3, 40, 1.3), "void", glow=True), full=True),
     ]
-    tilt = math.radians(22.5)
-    for k in range(POSES):                                    # flipbook poses (see POSE_OF_FRAME)
-        v, hn, gc = f"visor_p{k}", f"horn_p{k}", f"glow_c_p{k}"
-        vy = 28.0 + 0.45 * k                                  # the visor slit opens wider
-        bob = 0.6 * k                                         # the black hole rises and sinks
-        p += [part(f"visor_r_p{k}", (0, 27.3, -5.14), (4.9, vy, -4.98), v, glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
-              part(f"visor_l_p{k}", (-4.9, 27.3, -5.14), (0, vy, -4.98), v, glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
-              part(f"beam_p{k}", (-0.12, 33.25, -0.12), (0.12, 37.4 + bob, 0.12), gc, glow=True),
-              part(f"singularity_p{k}", (-1.3, 37.4 + bob, -1.3), (1.3, 40 + bob, 1.3), f"void_p{k}", glow=True)]
-        yc = 38.7 + bob
-        o = (0, yc, 0)                                        # double accretion disk, tilted
-        for ring_name, r, t, mat in (("disk", 4.2, 0.6, f"disk_p{k}"), ("disk_inner", 2.6, 0.4, f"plasma_p{k}")):
-            for nm, frm, to in (("n", (-r, yc - 0.15, -r), (r, yc + 0.15, -r + t)),
-                                ("s", (-r, yc - 0.15, r - t), (r, yc + 0.15, r)),
-                                ("w", (-r, yc - 0.15, -r + t), (-r + t, yc + 0.15, r - t)),
-                                ("e", (r - t, yc - 0.15, -r + t), (r, yc + 0.15, r - t))):
-                p.append(part(f"{ring_name}_{nm}_p{k}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
-        # horns sweep back and up, and grow, pose by pose
-        dz, dy = 1.0 * k, 0.55 * k
-        p += mirror([
-            part(f"visor_side_p{k}", (4.9, 27.3, -4.7), (5.02, vy + 0.1, 1.5), v, glow=True),
-            part(f"horn1_p{k}", (5, 30.5, 1.6), (6.4, 32.3, 6.4 + dz), hn, glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
-            part(f"horn_line_p{k}", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2 + dz), gc, glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
-            part(f"horn2_p{k}", (5.3, 32.2 + dy, 5.8 + dz), (6.2, 33.6 + dy, 10 + dz), hn, glow=True,
-                 rot=("x", -45, (5.75, 32.9 + dy, 5.8 + dz))),
-            part(f"horn3_p{k}", (5.45, 35 + dy, 7.8 + dz), (6.05, 38.4 + 2 * dy, 8.6 + dz), hn, glow=True),
-            part(f"horn_tip_p{k}", (5.5, 38.4 + 2 * dy, 7.9 + dz), (6, 39.6 + 2 * dy, 8.5 + dz), gc, glow=True)])
-    for k in range(ORBITS):                                   # a small moon orbiting on the disk's plane
-        a = math.pi / 4 + k * math.pi / 2
-        x, z = 5.6 * math.cos(a), 5.6 * math.sin(a)
-        y = 38.7 - z * math.sin(tilt)                         # follow the tilted disk (bob-neutral height)
-        z = z * math.cos(tilt)
-        p.append(part(f"moon_o{k}", (x - 0.6, y - 0.6, z - 0.6), (x + 0.6, y + 0.6, z + 0.6), f"moon_o{k}", glow=True))
+    o = (0, 38.7, 0)                                          # double accretion disk, tilted
+    for ring_name, r, t, mat in (("disk", 4.2, 0.6, "disk"), ("disk_inner", 2.6, 0.4, "plasma")):
+        for nm, frm, to in (("n", (-r, 38.55, -r), (r, 38.85, -r + t)), ("s", (-r, 38.55, r - t), (r, 38.85, r)),
+                            ("w", (-r, 38.55, -r + t), (-r + t, 38.85, r - t)),
+                            ("e", (r - t, 38.55, -r + t), (r, 38.85, r - t))):
+            p.append(part(f"{ring_name}_{nm}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
     p += mirror([
         part("helm_side", (4.4, 24.4, -4.6), (4.9, 32, 4.6), "steel"),
+        part("visor_side", (4.9, 27.3, -4.7), (5.02, 28.5, 1.5), "visor", glow=True),
         part("gorget_side", (3.2, 23.2, -3.2), (4.4, 24.6, 3.2), "gold"),
         part("side_panel", (4.9, 28.9, -3.2), (5.02, 31.7, 3.2), "nebula", glow=True),
         part("side_frame", (4.9, 31.7, -3.4), (5.05, 32, 3.4), "gold"),
         # big swept-back horns from the temples
         part("horn0", (4.5, 29.2, -1.6), (6.4, 31.6, 2), "horn", glow=True),
+        part("horn1", (5, 30.5, 1.6), (6.4, 32.3, 6.4), "horn", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
+        part("horn2", (5.3, 32.2, 5.8), (6.2, 33.6, 10), "horn", glow=True, rot=("x", -45, (5.75, 32.9, 5.8))),
+        part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "horn", glow=True),
+        part("horn_tip", (5.5, 38.4, 7.9), (6, 39.6, 8.5), "glow_c", glow=True),
         part("horn_edge", (6.4, 29.5, -1.2), (6.55, 31.3, 1.6), "glow_c", glow=True),
+        part("horn_line", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2), "glow_c", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
         part("horn_low", (4.8, 26.8, 0.6), (5.6, 27.8, 3.8), "horn", glow=True, rot=("x", -22.5, (5.2, 27.3, 0.6))),
         part("horn_low_tip", (4.95, 28.7, 3.6), (5.45, 29.5, 4.1), "glow_c", glow=True),
         part("jaw", (3.1, 24.4, -5.5), (4.9, 27, -4.9), "steel_l", rot=("y", 22.5, (4.9, 25.7, -4.9))),
