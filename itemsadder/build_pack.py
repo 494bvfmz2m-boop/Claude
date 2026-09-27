@@ -323,7 +323,6 @@ def tier_items(ns, tier):
     for item, pat, ing in recipes_of(tier):
         recs.append(f"""    {item}:
       enabled: true
-      permission: slothsmp
       pattern:
 """ + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
             + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
@@ -395,7 +394,6 @@ equipments:
             continue
         recs.append(f"""    {sid}:
       enabled: true
-      permission: slothsmp
       pattern:
 """ + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
             + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
@@ -668,7 +666,6 @@ recipes:
   crafting_table:
     enderfang:
       enabled: true
-      permission: slothsmp
       pattern:
         - XEX
         - DKD
