@@ -1,8 +1,8 @@
 """Galactus: an admin-only cosmic set, shipped as its own zip (galactus_set.zip).
 
 Armor: nebula plate painted by the armor-set painter, with a 3D helmet
-(towering side fins topped with fire, a crown of cosmic fire, a blinking eye,
-two crossed orbit rings, planets and a fan of crystal shards). Weapons: sword, axe, pickaxe, shovel, hoe, mace, spear and
+(a closed faceplate with glowing eye slits, towering side fins topped with
+fire, a blinking eye, an orbit ring with a planet and a halo ring behind). Weapons: sword, axe, pickaxe, shovel, hoe, mace, spear and
 trident as real cuboid models on the handheld diagonal (like mace.py), plus a
 cosmic bow. Glowing parts use light_emission and an animated nebula texture.
 Run: python3 itemsadder/galactus.py
@@ -472,40 +472,20 @@ def helmet_parts():
          part("eye", (-1.2, 30, -5.08), (1.2, 31.9, -4.98), "eye", glow=True),
          part("planet", (6.4, 35, 2.8), (8.4, 37, 4.8), "planet"),
          part("planet_ring", (5.6, 35.85, 2), (9.2, 36.15, 5.6), "ring", glow=True),
-         part("moon", (-7.6, 31.4, -3.2), (-6.4, 32.6, -2), "moon"),
-         part("moon2", (-3.2, 38.4, -6.4), (-2.4, 39.2, -5.6), "moon")]
-    for i, (x, y, z) in enumerate(((-6.6, 35.6, 2.6), (6.8, 31.2, -3.6), (-2.8, 36.8, 6.4),
-                                   (3.6, 38.6, -5.2), (-7.4, 28.6, 1.4), (7.8, 33.4, 0.6))):
+         ]
+    for i, (x, y, z) in enumerate(((-6.6, 35.6, 2.6), (6.8, 31.2, -3.6))):
         p.append(part(f"shard{i}", (x - 0.4, y - 0.9, z - 0.4), (x + 0.4, y + 0.9, z + 0.4), "crystal", glow=True,
                       rot=("y", 45, (x, y, z))))
         p.append(part(f"spark{i}", (x + 0.9, y + 1.2, z - 0.15), (x + 1.2, y + 1.5, z + 0.15), "glow_w", glow=True))
-    o = (0, 33, 5.4)                                          # fan of crystal shards behind the head
-    for i, ang in enumerate((-45, -22.5, 0, 22.5, 45)):
-        ln = 4.4 if ang == 0 else 3.8 if abs(ang) < 30 else 3.2
-        p.append(part(f"fan{i}", (-0.45, 35, 5.15), (0.45, 35 + ln, 5.65), "crystal", glow=True, rot=("z", ang, o)))
-        p.append(part(f"fan_tip{i}", (-0.25, 35 + ln, 5.2), (0.25, 36 + ln, 5.6), "glow_w", glow=True,
-                      rot=("z", ang, o)))
     for nm, frm, to in (("n", (-6.4, 32.8, -6.4), (6.4, 33.2, -6)), ("s", (-6.4, 32.8, 6), (6.4, 33.2, 6.4)),
                         ("w", (-6.4, 32.8, -6), (-6, 33.2, 6)), ("e", (6, 32.8, -6), (6.4, 33.2, 6))):
         p.append(part(f"orbit_a_{nm}", frm, to, "ring", glow=True, rot=("x", 22.5, (0, 33, 0))))
-    for nm, frm, to in (("n", (-7, 32.8, -7), (7, 33.2, -6.6)), ("s", (-7, 32.8, 6.6), (7, 33.2, 7)),
-                        ("w", (-7, 32.8, -6.6), (-6.6, 33.2, 6.6)), ("e", (6.6, 32.8, -6.6), (7, 33.2, 6.6))):
-        p.append(part(f"orbit_b_{nm}", frm, to, "runes", glow=True, rot=("z", -22.5, (0, 33, 0))))
-    for i in range(8):                                        # crown of cosmic fire
-        t = math.radians(i * 45 + 22.5)
-        p += cross_flame(f"crown_fire{i}", 4 * math.sin(t), 32.6, 4 * math.cos(t), 1.6, 2.6 + (i % 2) * 1.2,
-                         "flame" if i % 2 else "flame2")
-    for i in range(12):                                       # ring of gold spikes around the crown
-        t = math.radians(i * 30 + 15)
-        x, z = 4.3 * math.sin(t), 4.3 * math.cos(t)
-        p.append(part(f"crown_spike{i}", (x - 0.3, 32.8, z - 0.3), (x + 0.3, 34 + (i % 2) * 0.8, z + 0.3), "gold"))
     p += mirror([
         part("shell_side", (4.4, 24, -4.6), (4.9, 32, 4.4), "nebula", glow=True),
         part("eye_slit", (0.8, 27.5, -5.18), (3.8, 28.3, -5.05), "glow_c", glow=True),
         part("eye_slit_tail", (3.8, 27.9, -5.18), (4.6, 28.3, -5.05), "glow_c", glow=True),
         part("mandible", (4.5, 23.8, -5.6), (5.2, 26.2, -3.6), "gold"),
         part("mandible_tip", (4.6, 22.8, -5.9), (5.1, 23.8, -5.2), "glow_w", glow=True),
-        part("cheek_spike", (4.9, 25.6, -3.4), (6.2, 26.2, -2.8), "gold", rot=("y", 22.5, (4.9, 25.9, -3.1))),
         part("band_s", (4.5, 29.8, -4.5), (4.9, 31, 4.5), "gold"),
         part("fin0", (4.6, 29.6, -1.8), (5.4, 34.6, 1.6), "nebula", glow=True),
         part("fin0_edge", (5.4, 30, -0.3), (5.55, 34.6, 0.3), "glow_c", glow=True),
@@ -519,7 +499,6 @@ def helmet_parts():
         part("pauldron", (4.6, 25, -2.8), (9.4, 26.4, 2.8), "nebula", glow=True),
         part("pauldron_top", (5.2, 26.4, -2.2), (8.8, 27.2, 2.2), "gold"),
         part("pauldron_core", (6.4, 27.2, -0.7), (7.6, 27.8, 0.7), "plasma", glow=True),
-        *cross_flame("pauldron_fire", 7, 27.8, 0, 1.4, 2.4, "flame2"),
         part("pauldron_spike", (8.6, 26.4, -0.4), (9.8, 29, 0.4), "gold", rot=("z", -22.5, (9.2, 26.4, 0))),
         part("pauldron_edge", (9.4, 25, -2.8), (9.55, 26.4, 2.8), "glow_c", glow=True)])
     return p
