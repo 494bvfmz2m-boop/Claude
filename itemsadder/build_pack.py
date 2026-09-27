@@ -77,6 +77,7 @@ def write(path, data):
 
 
 MCMETA = {"animation": {"frametime": FRAMETIME}}
+SLOTS = {"chestplate": "CHEST", "leggings": "LEGS", "boots": "FEET"}
 
 
 # --- crimson-gear ---------------------------------------------------------
@@ -210,7 +211,7 @@ equipments:
       - '&6Forged from netherite, dragon''s breath'
       - '&6and ghast tears in the crimson forest'
     resource:
-      material: IRON_{piece.upper()}
+      material: NETHERITE_{piece.upper()}
       generate: true
       textures:
         - item/armor/crimson_armor_{piece}
@@ -218,6 +219,7 @@ equipments:
       max_custom_durability: {dura}
     equipment:
       id: {ns}:crimson_armor
+      slot: {SLOTS[piece]}
       slot_attribute_modifiers:
         armor: {armor}
         armorToughness: 4
@@ -354,7 +356,7 @@ equipments:
       - '&8Admin only'
     permission: {ns}.{piece}
     resource:
-      material: IRON_{piece.upper()}
+      material: NETHERITE_{piece.upper()}
       generate: true
       textures:
         - item/armor/demon_armor_{piece}
@@ -362,6 +364,7 @@ equipments:
       max_custom_durability: {dura}
     equipment:
       id: {ns}:demon_armor
+      slot: {SLOTS[piece]}
       slot_attribute_modifiers:
         armor: {armor}
         armorToughness: 5
