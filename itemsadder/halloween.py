@@ -62,7 +62,10 @@ FACE = _face()
 # front-bulge footprint on the 16x16 front face: x -3.2..3.2, y 23.6..32.4 of the 10-unit head
 BULGE_UV = (2.88, 0.96, 10.24, 14.08)
 REG = {"front": (0, 0), "side": (16, 0), "top": (32, 0), "glow": (48, 0),
-       "stem": (0, 16), "vine": (8, 16), "leaf": (16, 16)}
+       "stem": (0, 16), "vine": (8, 16), "leaf": (16, 16), "membrane": (24, 16), "bone": (32, 16),
+       "mini": (40, 16), "mini_face": (48, 16)}
+MEMBRANE = [(40, 16, 56), (70, 30, 90)]
+BONE = [(230, 220, 195), (180, 170, 145)]
 
 
 def rind(t, x0, y0, carved=False, top=False):
@@ -100,6 +103,16 @@ def atlas():
     for y in range(8):
         for x in range(8):
             t.put(lx + x, ly + y, VINE[2] if (x + y) % 3 == 0 else VINE[1])
+    for name, fn in (("membrane", lambda x, y: MEMBRANE[1] if (x + y) % 4 else MEMBRANE[0]),
+                     ("bone", lambda x, y: BONE[0] if y < 6 else BONE[1]),
+                     ("mini", lambda x, y: ORANGE[1] if x % 3 == 0 else ORANGE[2]),
+                     ("mini_face", lambda x, y: CANDLE[1] if (x, y) in {(1, 2), (2, 2), (5, 2), (6, 2), (1, 5), (2, 6),
+                                                                      (3, 6), (4, 6), (5, 6), (6, 5)}
+                      else (ORANGE[1] if x % 3 == 0 else ORANGE[2]))):
+        sx, sy = REG[name]
+        for y in range(8):
+            for x in range(8):
+                t.put(sx + x, sy + y, fn(x, y))
     return t.img
 
 
@@ -135,6 +148,24 @@ def parts():
         add(f"vine_{i}", f, t, mat="vine")
     add("leaf_0", (1.4, 34.1, -1.4), (2.8, 34.5, 0.2), mat="leaf")
     add("leaf_1", (-2.6, 34.1, 0.2), (-1.2, 34.5, 1.6), mat="leaf")
+    M = {f: _uv("mini", 8, 8) for f in ("south", "east", "west", "up", "down")}
+    for sx in (1, -1):      # extensions: bat wings on the back, mini jack-o'-lanterns on the shoulders
+        def X(a, b):
+            return (a, b) if sx > 0 else (-b, -a)
+        x0, x1 = X(3.8, 8.6)
+        add(f"shoulder_pumpkin_{sx}", (x0, 25, -2.4), (x1, 28.4, 2.4), {**M, "north": _uv("mini_face", 8, 8)})
+        x0, x1 = X(5.8, 6.6)
+        add(f"shoulder_stem_{sx}", (x0, 28.4, -0.4), (x1, 29.4, 0.4), mat="stem")
+        x0, x1 = X(1.5, 9)
+        add(f"wing_bone_{sx}", (x0, 25.6, 3.4), (x1, 26.4, 4.2), mat="bone")
+        x0, x1 = X(8.5, 10.5)
+        add(f"wing_tip_{sx}", (x0, 26, 3.4), (x1, 29.5, 4.2), mat="bone")
+        x0, x1 = X(1.5, 9)
+        add(f"wing_membrane_{sx}", (x0, 20.5, 3.6), (x1, 25.6, 4), mat="membrane")
+        x0, x1 = X(9, 10.5)
+        add(f"wing_membrane_outer_{sx}", (x0, 22.5, 3.6), (x1, 26, 4), mat="membrane")
+        x0, x1 = X(4.8, 5.4)
+        add(f"wing_finger_{sx}", (x0, 21, 3.5), (x1, 25.6, 4.1), mat="bone")
     return P
 
 

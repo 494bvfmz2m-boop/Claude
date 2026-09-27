@@ -28,6 +28,8 @@ import scrolls as SC  # noqa: E402
 import halloween as HW  # noqa: E402
 import accessories as ACC  # noqa: E402
 import tool_designs as TD  # noqa: E402
+import armor_engine as AE  # noqa: E402
+import armor_sets as AS  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -185,12 +187,20 @@ def tier_assets(base, ns, tier):
     t = TIERS[tier]
     src = os.path.join(ROOT, "crimson_armor")
     kind = t["recolor"]
-    for n in (1, 2):
-        write(f"{base}/textures/armor/{tier}_armor/layer_{n}.png",
-              recolor(Image.open(f"{src}/armor_layer_{n}.png").convert("RGBA"), kind))
-    for piece in PIECES:
-        write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png",
-              recolor(Image.open(f"{src}/items/crimson_{piece}.png").convert("RGBA"), kind))
+    if tier == "halloween":   # pumpkin-knight armor painted by the armor-set engine
+        hl1, hl2 = AE.layers(AS.HALLOWEEN_STYLE)
+        write(f"{base}/textures/armor/{tier}_armor/layer_1.png", hl1)
+        write(f"{base}/textures/armor/{tier}_armor/layer_2.png", hl2)
+        hic = AE.icons(AS.HALLOWEEN_STYLE)
+        for piece in PIECES[1:]:
+            write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png", hic[piece])
+    else:
+        for n in (1, 2):
+            write(f"{base}/textures/armor/{tier}_armor/layer_{n}.png",
+                  recolor(Image.open(f"{src}/armor_layer_{n}.png").convert("RGBA"), kind))
+        for piece in PIECES:
+            write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png",
+                  recolor(Image.open(f"{src}/items/crimson_{piece}.png").convert("RGBA"), kind))
     # hand-designed tools per tier (tool_designs.py), animated, with depth + glow
     sets = dict(glow=TD.GLOW_SETS[tier], thick=TD.THICK_SETS[tier], grip=TD.GRIP_SETS[tier])
     for tool in TOOL_MATERIALS:
@@ -547,6 +557,8 @@ def main():
     halloween_pack(f"{OUT}/halloween-gear")
     demon_pack(f"{OUT}/demon-gear")
     ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
+    for S in AS.SETS:   # the ten themed armor sets, one content folder + category each
+        AE.build_set(S, f"{OUT}/{S['id']}", write, animate, MCMETA)
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
         for folder, _, files in sorted(os.walk(OUT)):
             rel = os.path.relpath(folder, OUT)
