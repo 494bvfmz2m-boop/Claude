@@ -89,7 +89,7 @@ SLOTS = {"chestplate": "CHEST", "leggings": "LEGS", "boots": "FEET"}
 TOOL_MATERIALS = {"sword": "NETHERITE_SWORD", "axe": "NETHERITE_AXE", "pickaxe": "NETHERITE_PICKAXE",
                   "shovel": "NETHERITE_SHOVEL", "hoe": "NETHERITE_HOE"}
 TOOL_SPEED = {"sword": 1.6, "axe": 1.0, "pickaxe": 1.2, "shovel": 1.0, "hoe": 4.0}
-TOOL_DISPLAY = {"sword": build_model.SWORD_DISPLAY, "axe": build_model.handheld(),
+TOOL_DISPLAY = {"sword": build_model.handheld(), "axe": build_model.handheld(),
                 "pickaxe": build_model.handheld(), "shovel": build_model.handheld(),
                 "hoe": build_model.handheld()}
 PIECES = ("helmet", "chestplate", "leggings", "boots")
@@ -138,19 +138,16 @@ TIERS = {
         "damage": {"sword": 12, "axe": 14, "pickaxe": 9, "shovel": 9.5, "hoe": 1},
         "tool_durability": 5000,
         "armor_recipe": (["WNW", "JBJ", "DDD"], {"W": "WITHER_SKELETON_SKULL", "N": "NETHER_STAR",
-                                                "J": "JACK_O_LANTERN",
-                                                "B": "crimson-gear:blue_crimson_armor_{piece}",
+                                                "J": "JACK_O_LANTERN", "B": "NETHERITE_{PIECE}",
                                                 "D": "DIAMOND_BLOCK"}),
         "tool_recipe": (["XNX", "JBJ", "XWX"], {"N": "NETHER_STAR", "J": "JACK_O_LANTERN",
-                                                "B": "crimson-gear:blue_crimson_{tool}",
-                                                "W": "WITHER_SKELETON_SKULL"}),
+                                                "B": "NETHERITE_{TOOL}", "W": "WITHER_SKELETON_SKULL"}),
         "sword_recipe": (["WNW", "JBJ", "XIX"], {"W": "WITHER_SKELETON_SKULL", "N": "NETHER_STAR",
-                                                "J": "JACK_O_LANTERN", "B": "crimson-gear:blue_crimson_sword",
+                                                "J": "JACK_O_LANTERN", "B": "NETHERITE_SWORD",
                                                 "I": "NETHERITE_INGOT"}),
         "bow_durability": 1536,
         "bow_recipe": (["XNX", "JBJ", "XWX"], {"N": "NETHER_STAR", "J": "JACK_O_LANTERN",
-                                              "B": "crimson-gear:blue_crimson_bow",
-                                              "W": "WITHER_SKELETON_SKULL"}),
+                                              "B": "BOW", "W": "WITHER_SKELETON_SKULL"}),
     },
 }
 
@@ -318,8 +315,7 @@ def tier_items(ns, tier):
     return items, recs
 
 
-def crimson(base):
-    ns = "crimson-gear"
+def gear_pack(base, ns, tiers, category, cat_name, cat_icon):
     write(f"{base}/configs/equipments.yml", f"""info:
   namespace: {ns}
 equipments:
@@ -327,9 +323,9 @@ equipments:
     type: armor
     layer_1: armor/{tier}_armor/layer_1
     layer_2: armor/{tier}_armor/layer_2
-""" for tier in TIERS))
+""" for tier in tiers))
     items, recs = [], []
-    for tier in TIERS:
+    for tier in tiers:
         tier_assets(base, ns, tier)
         i, r = tier_items(ns, tier)
         items += i
@@ -337,6 +333,8 @@ equipments:
     # lore scrolls: story + recipe grid in the tooltip, dropped by mobs
     loots = []
     for tier, scrolls in SC.SCROLLS.items():
+        if tier not in tiers:
+            continue
         accent, seal = SC.ACCENT[tier], SC.SEAL[tier]
         write(f"{base}/textures/item/scrolls/{tier}_scroll.png", SC.icon(seal))
         for kind, scroll in scrolls.items():
@@ -362,6 +360,8 @@ equipments:
           max_amount: 1
           chance: {scroll[4]}""")
     for sid, (pat, ing) in SC.SCROLL_RECIPES.items():
+        if not any(sid.startswith(t + "_scroll_") for t in tiers):
+            continue
         recs.append(f"""    {sid}:
       permission: itemsadder.craft.{sid}
       enabled: true
@@ -389,13 +389,22 @@ items:
     write(f"{base}/configs/categories.yml", f"""info:
   namespace: {ns}
 categories:
-  crimson_forge:
+  {category}:
     enabled: true
-    name: '&cCrimson Forge'
-    icon: {ns}:crimson_scroll_armor
-    permission: ia.menu.crimson_forge
+    name: '{cat_name}'
+    icon: {ns}:{cat_icon}
+    permission: ia.menu.{category}
     items:
 """ + "".join(f"      - {ns}:{i}\n" for i in listed))
+
+
+def crimson(base):
+    gear_pack(base, "crimson-gear", ["crimson", "blue_crimson"], "crimson_forge", "&cCrimson Forge",
+              "crimson_scroll_armor")
+
+
+def halloween_pack(base):
+    gear_pack(base, "halloween-gear", ["halloween"], "halloween", "&6Halloween", "halloween_armor_helmet")
 
 
 # --- demon-gear -------------------------------------------------------------
@@ -535,6 +544,7 @@ categories:
 def main():
     shutil.rmtree(OUT, ignore_errors=True)
     crimson(f"{OUT}/crimson-gear")
+    halloween_pack(f"{OUT}/halloween-gear")
     demon_pack(f"{OUT}/demon-gear")
     ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:

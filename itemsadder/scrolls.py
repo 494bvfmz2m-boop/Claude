@@ -49,13 +49,12 @@ SCROLL_RECIPES = {
                                                           "S": "crimson-gear:crimson_scroll_tools"}),
     "blue_crimson_scroll_weapons": (["ALA", "PSP", "ALA"], {"A": "AMETHYST_SHARD", "L": "LAPIS_LAZULI",
                                                             "P": "PAPER", "S": "crimson-gear:crimson_scroll_weapons"}),
-    "halloween_scroll_armor": (["JWJ", "PSP", "JWJ"], {"J": "JACK_O_LANTERN", "W": "WITHER_SKELETON_SKULL",
-                                                       "P": "PAPER", "S": "crimson-gear:blue_crimson_scroll_armor"}),
-    "halloween_scroll_tools": (["JCJ", "PSP", "JCJ"], {"J": "JACK_O_LANTERN", "C": "CARVED_PUMPKIN",
-                                                       "P": "PAPER", "S": "crimson-gear:blue_crimson_scroll_tools"}),
-    "halloween_scroll_weapons": (["JWJ", "PSP", "JWJ"], {"J": "JACK_O_LANTERN", "W": "WITHER_ROSE",
-                                                         "P": "PAPER",
-                                                         "S": "crimson-gear:blue_crimson_scroll_weapons"}),
+    "halloween_scroll_armor": (["JWJ", "PCP", "JWJ"], {"J": "JACK_O_LANTERN", "W": "WITHER_SKELETON_SKULL",
+                                                       "P": "PAPER", "C": "CARVED_PUMPKIN"}),
+    "halloween_scroll_tools": (["JSJ", "PCP", "JSJ"], {"J": "JACK_O_LANTERN", "S": "SPIDER_EYE",
+                                                       "P": "PAPER", "C": "CARVED_PUMPKIN"}),
+    "halloween_scroll_weapons": (["JRJ", "PCP", "JRJ"], {"J": "JACK_O_LANTERN", "R": "WITHER_ROSE",
+                                                         "P": "PAPER", "C": "CARVED_PUMPKIN"}),
 }
 MOB_NAMES = {"GHAST": "Ghasts", "BLAZE": "Blazes", "WITHER_SKELETON": "Wither Skeletons",
              "WARDEN": "the Warden", "ELDER_GUARDIAN": "Elder Guardians", "WITHER": "the Wither",
@@ -71,7 +70,7 @@ NAMES = {"GHAST_TEAR": "Ghast Tear", "REDSTONE_BLOCK": "Redstone Block", "REDSTO
          "PAPER": "Paper", "NETHERITE_SCRAP": "Netherite Scrap", "NETHERITE_INGOT": "Netherite Ingot",
          "MAGMA_CREAM": "Magma Cream", "FIRE_CHARGE": "Fire Charge", "PRISMARINE_SHARD": "Prismarine Shard",
          "AMETHYST_SHARD": "Amethyst Shard", "NETHER_STAR": "Nether Star", "JACK_O_LANTERN": "Jack o'Lantern",
-         "WITHER_SKELETON_SKULL": "Wither Skull", "CARVED_PUMPKIN": "Carved Pumpkin", "WITHER_ROSE": "Wither Rose",
+         "WITHER_SKELETON_SKULL": "Wither Skull", "CARVED_PUMPKIN": "Carved Pumpkin", "WITHER_ROSE": "Wither Rose", "SPIDER_EYE": "Spider Eye",
          "NETHERITE_SWORD": "Netherite Sword"}
 TIER_NAMES = {"crimson": "Crimson", "blue_crimson": "Blue Crimson", "halloween": "Halloween"}
 
