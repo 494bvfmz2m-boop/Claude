@@ -214,6 +214,31 @@ def strip():
 
 
 MCMETA = {"animation": {"frametime": 2}}
+EMBER_COLS = [STAR[1], GLOW_C[1], GLOW_C[0], GLOW_M[1], GLOW_M[0], NEB_B[2], (255, 200, 120)]
+
+
+def embers_strip(size=32):
+    """Fake particles (the trick from the pumpkin-set sword): sparks rising on see-through
+    sheets, 16 frames that loop seamlessly (each spark climbs exactly one frame height per loop)."""
+    sparks = []
+    for i in range(46):
+        x = int(h(i, 1, 80) * size)
+        base = h(i, 2, 81) * size
+        col = EMBER_COLS[int(h(i, 3, 82) * len(EMBER_COLS))]
+        tall = 1 + int(h(i, 4, 83) * 2.5)
+        wob = h(i, 5, 84) * 6.28
+        sparks.append((x, base, col, tall, wob))
+    out = Image.new("RGBA", (size, size * FRAMES), (0, 0, 0, 0))
+    for f in range(FRAMES):
+        for x, base, col, tall, wob in sparks:
+            y = (base - f * size / FRAMES) % size
+            xx = int(x + math.sin(wob + f * 0.8)) % size
+            for k in range(tall):
+                yy = int(y) + k
+                if 0 <= yy < size:
+                    c = col if k == 0 else lerp(col, (40, 20, 90), 0.4 * k)
+                    out.putpixel((xx, f * size + yy), c + (255,))
+    return out
 
 
 def face_px(p, f):
@@ -281,6 +306,15 @@ def sword():
     p.plate("fuller", 7.8, 8.2, 4, 19, "glow_w", True, t=0.75)
     p.plate("tip0", 7.2, 8.8, 23, 25, "nebula2", True, t=0.7)
     p.plate("tip1", 7.6, 8.4, 25, 26.6, "glow_c", True, t=0.6)
+    y0, y1, r = 3.5, 27, 2.4                                  # cage of ember sheets around the blade
+    p.append({"name": "embers_n", "from": [8 - r, y0, 8 - r], "to": [8 + r, y1, 8 - r + 0.01], "mat": "embers",
+              "glow": True, "strip": 0, "axis": "z"})
+    p.append({"name": "embers_s", "from": [8 - r, y0, 8 + r - 0.01], "to": [8 + r, y1, 8 + r], "mat": "embers",
+              "glow": True, "strip": 1, "axis": "z"})
+    p.append({"name": "embers_w", "from": [8 - r, y0, 8 - r], "to": [8 - r + 0.01, y1, 8 + r], "mat": "embers",
+              "glow": True, "strip": 2, "axis": "x"})
+    p.append({"name": "embers_e", "from": [8 + r - 0.01, y0, 8 - r], "to": [8 + r, y1, 8 + r], "mat": "embers",
+              "glow": True, "strip": 3, "axis": "x"})
     for i, y in enumerate((5, 10, 15)):                       # blue fire licking up both edges
         p.fire(f"fire_l{i}", 6.0, y, 4.2, 1.2, "flame" if i % 2 else "flame2")
         p.fire(f"fire_r{i}", 10.0, y + 2, 4.2, 1.2, "flame2" if i % 2 else "flame")
@@ -447,16 +481,24 @@ def weapon_model(parts, ref, scale, centre):
     for p in parts:
         el = {"name": p["name"], "from": [round(v, 3) for v in p["from"]], "to": [round(v, 3) for v in p["to"]],
               "rotation": {"angle": -45, "axis": "z", "origin": [8, centre, 8]}, "faces": {}}
-        for f in FACES:
-            x, y, w, hh = face_px(p, f)
-            el["faces"][f] = {"uv": [round(x / 4, 3), round(y / 4, 3), round((x + w) / 4, 3), round((y + hh) / 4, 3)],
-                              "texture": "#tex"}
+        if p["mat"] == "embers":                              # only the two big sides, a strip of the ember sheet each
+            u = p["strip"] * 4
+            sides = ("north", "south") if p["axis"] == "z" else ("east", "west")
+            el["faces"] = {f: {"uv": [u, 0, u + 4, 16], "texture": "#embers"} for f in sides}
+        else:
+            for f in FACES:
+                x, y, w, hh = face_px(p, f)
+                el["faces"][f] = {"uv": [round(x / 4, 3), round(y / 4, 3), round((x + w) / 4, 3),
+                                         round((y + hh) / 4, 3)], "texture": "#tex"}
         if p["glow"]:
             el["light_emission"] = 15
         elements.append(el)
     k = scale
+    textures = {"tex": ref, "particle": ref}
+    if any(p["mat"] == "embers" for p in parts):
+        textures["embers"] = ref.replace("galactus_fx", "galactus_embers")
     return {
-        "texture_size": [64, 64], "textures": {"tex": ref, "particle": ref}, "gui_light": "front",
+        "texture_size": [64, 64], "textures": textures, "gui_light": "front",
         "elements": elements,
         "display": {
             "thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 6, 1.5], "scale": [k, k, k]},
@@ -672,6 +714,8 @@ def build():
     atlas(0)                                                  # fills REG
     W(f"{base}/textures/item/galactus_fx.png", strip())
     W(f"{base}/textures/item/galactus_fx.png.mcmeta", MCMETA)
+    W(f"{base}/textures/item/galactus_embers.png", embers_strip())
+    W(f"{base}/textures/item/galactus_embers.png.mcmeta", MCMETA)
     ref = f"{NS}:item/galactus_fx"
     hparts = resolve_faces(helmet_parts())
     W(f"{base}/models/item/galactus_helmet.json", AE.hat_model(hparts, ref, 0.4))
@@ -748,7 +792,10 @@ categories:
 
 
 # ------------------------------------------------------------------ previews (not part of the pack)
-def render_weapon(img, parts, yaw=-30, tilt=14, size=560, scale=13, diagonal=True):
+EMBERS = None
+
+
+def render_weapon(img, parts, yaw=-30, tilt=14, size=560, scale=13, diagonal=True, frame=0):
     import preview as PV
     c = centre_of(parts)
     yr, pr = math.radians(yaw), math.radians(tilt)
@@ -760,8 +807,25 @@ def render_weapon(img, parts, yaw=-30, tilt=14, size=560, scale=13, diagonal=Tru
         return x1, Y * math.cos(pr) - z1 * math.sin(pr), Y * math.sin(pr) + z1 * math.cos(pr)
 
     rot = ("z", -45, (8, c, 8)) if diagonal else None
+    global EMBERS
+    if EMBERS is None:
+        EMBERS = embers_strip()
+    ember = EMBERS.crop((0, frame * 32, 32, frame * 32 + 32))
     polys = []
     for p in parts:
+        if p["mat"] == "embers":
+            sides = ("north", "south") if p["axis"] == "z" else ("east", "west")
+            for f in sides:
+                P = PV.face_fn(f, (p["from"], p["to"]))
+                u0 = p["strip"] * 8
+                for i in range(8):
+                    for j in range(32):
+                        col = ember.getpixel((u0 + i, j))
+                        if col[3] == 0:
+                            continue
+                        pts = [cam(PV.rotate(P(a / 8, b / 32), rot)) for a, b in ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))]
+                        polys.append((sum(q[2] for q in pts) / 4, [(q[0], q[1]) for q in pts], col[:3]))
+            continue
         for f in FACES:
             n1 = PV.rotate(PV.NORMALS[f], (rot[0], rot[1], (0, 0, 0))) if rot else PV.NORMALS[f]
             if cam(n1)[2] - cam((0, 0, 0))[2] >= 0:
