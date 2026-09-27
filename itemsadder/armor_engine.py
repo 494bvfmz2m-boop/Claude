@@ -626,8 +626,7 @@ def configs(S, ns):
             items.append(f"""  {S['id']}_helmet:
     enabled: true
     display_name: {name}
-{lore}    permission: {ns}.helmet
-    behaviours:
+{lore}    behaviours:
       hat: true
     resource:
       material: LEATHER_HORSE_ARMOR
@@ -641,8 +640,7 @@ def configs(S, ns):
             items.append(f"""  {S['id']}_{piece}:
     enabled: true
     display_name: {name}
-{lore}    permission: {ns}.{piece}
-    resource:
+{lore}    resource:
       material: NETHERITE_{piece.upper()}
       generate: true
       textures:
@@ -658,8 +656,7 @@ def configs(S, ns):
         items.append(f"""  {S['id']}_{tool}:
     enabled: true
     display_name: '{S['color']}{S['name']} {tool.capitalize()}'
-{tlore}    permission: {ns}.{tool}
-    resource:
+{tlore}    resource:
       material: NETHERITE_{tool.upper()}
       model_path: item/{S['id']}_{tool}
       icon: item/{S['id']}_{tool}_icon
@@ -672,8 +669,7 @@ def configs(S, ns):
     items.append(f"""  {S['id']}_bow:
     enabled: true
     display_name: '{S['color']}{S['name']} Bow'
-{tlore}    permission: {ns}.bow
-    resource:
+{tlore}    resource:
       material: BOW
       generate: false
       model_path: item/{S['id']}_bow

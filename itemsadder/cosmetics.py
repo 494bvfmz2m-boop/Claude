@@ -663,7 +663,6 @@ def build(base, write, animate, mcmeta):
       - '&f'
       - '&dWebstore Exclusive'
       - '&8Cosmetic - no stats'
-    permission: {NS}.{cid}
     behaviours:
       hat: true
     resource:

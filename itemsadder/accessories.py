@@ -258,7 +258,6 @@ def build(base, write, animate, mcmeta):
       - '&f'
       - '&dWebstore Exclusive'
       - '&8Cosmetic - no stats'
-    permission: {NS}.{aid}
     behaviours:
       hat: true
     resource:

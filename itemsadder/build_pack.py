@@ -692,7 +692,6 @@ items:
       - '&7Needs the Dragon Egg to craft.'
       - '&f'
       - '&5+20 attack damage, +2 hearts, +10% speed'
-    permission: {ns}.enderfang
     resource:
       material: NETHERITE_SWORD
       model_path: item/enderfang
