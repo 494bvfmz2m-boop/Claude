@@ -294,10 +294,41 @@ equipments:
         i, r = tier_items(ns, tier)
         items += i
         recs += r
-    # recipe book: crafted as a signed written book via the crimson_forge datapack
+    # recipe book: an ItemsAdder item that IS the signed written book (pages set
+    # through the written_book_content component), crafted with an IA recipe
     pages = BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
     BOOK.write_commands(pages)
-    BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))
+    BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))  # fallback
+    write(f"{base}/textures/item/crimson_forge_book.png", BOOK.book_icon())
+    content = json.dumps({"title": "Crimson Forge", "author": "SlothSMP", "pages": pages}, ensure_ascii=True)
+    items.insert(0, f"""  crimson_forge_book:
+    enabled: true
+    display_name: '&6Crimson Forge'
+    lore:
+      - '&f'
+      - '&7The recipes of the Crimson forge.'
+    resource:
+      material: WRITTEN_BOOK
+      generate: true
+      textures:
+        - item/crimson_forge_book
+    components:
+      minecraft:written_book_content: {content}
+      minecraft:enchantment_glint_override: true""")
+    recs.insert(0, f"""    crimson_forge_book:
+      permission: itemsadder.craft.crimson_forge_book
+      enabled: true
+      pattern:
+        - XXX
+        - ABC
+        - XXX
+      ingredients:
+        A: WRITABLE_BOOK
+        B: GHAST_TEAR
+        C: REDSTONE
+      result:
+        item: {ns}:crimson_forge_book
+        amount: 1""")
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 recipes:
@@ -313,7 +344,7 @@ categories:
   crimson_forge:
     enabled: true
     name: '&cCrimson Forge'
-    icon: {ns}:crimson_sword
+    icon: {ns}:crimson_forge_book
     permission: ia.menu.crimson_forge
     items:
 """ + "".join(f"      - {ns}:{i}\n" for i in listed))
