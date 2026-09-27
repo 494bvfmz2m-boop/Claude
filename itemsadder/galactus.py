@@ -441,7 +441,7 @@ PAL = dict(o=(6, 4, 16), d=(18, 12, 44), b=(34, 22, 84), m=(80, 40, 150), l=(200
 SET = dict(id="galactus", name="Galactus", color="&5&l", pattern="nebula", secondary="stars", cover="full",
            pal=PAL, emblem=["...gg...", "..g..g..", ".g.aa.g.", "..g..g..", "...gg..."],
            look=dict(chest="core", shoulders="layered", arms="gauntlet", belt="tassets", legs="greaves",
-                     boots="sabaton", trim="gem", back="circle"))
+                     boots="sabaton", trim="gem", back="circle"), arm_cut="both")
 
 
 def cross_flame(name, x, y, z, w=1.6, hgt=3.0, mat="flame"):
@@ -594,6 +594,20 @@ def items_yml():
       icon: item/galactus_bow_icon
     durability:
       max_custom_durability: 99999""")
+    out.append(f"""  galactus_shield:
+    enabled: true
+    display_name: '&5&lEvent Horizon Shield'
+{lore_yml(LORE[:4] + ["&d+50% knockback resistance, +4 toughness in the offhand"] + LORE[3:])}    permission: galactus.shield
+    resource:
+      material: SHIELD
+      generate: false
+      model_path: item/galactus_shield
+    durability:
+      max_custom_durability: 99999
+    attribute_modifiers:
+      offhand:
+        knockbackResistance: 0.5
+        armorToughness: 4""")
     return f"info:\n  namespace: {NS}\nitems:\n" + "\n".join(out) + "\n"
 
 
@@ -633,6 +647,17 @@ def build():
         W(f"{base}/models/item/{name}.json", {
             "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
             "elements": B.CU.tool_elements(tex, flat=True, glow=P.glow_set()), "display": B.build_model.BOW_DISPLAY})
+    # shield: nebula face animated over the same 16-frame loop
+    import shield_forge as SF
+    sh_frames = [SF.texture(SET, "spiked", lambda x, y, f=f: nebula_px(x, y, 7, f)) for f in range(FRAMES)]
+    sh_strip = Image.new("RGBA", (64, 64 * FRAMES), (0, 0, 0, 0))
+    for i, fr in enumerate(sh_frames):
+        sh_strip.paste(fr, (0, i * 64))
+    W(f"{base}/textures/item/galactus_shield.png", sh_strip)
+    W(f"{base}/textures/item/galactus_shield.png.mcmeta", MCMETA)
+    held, blocking = SF.models(f"{NS}:item/galactus_shield", glow=True)
+    W(f"{base}/models/item/galactus_shield.json", held)
+    W(f"{base}/models/item/galactus_shield_blocking.json", blocking)
     # configs
     W(f"{base}/configs/items.yml", items_yml())
     W(f"{base}/configs/equipments.yml", f"""info:
@@ -643,7 +668,7 @@ equipments:
     layer_1: armor/galactus_armor/layer_1
     layer_2: armor/galactus_armor/layer_2
 """)
-    ids = [f"galactus_{p}" for p in ARMOR] + [f"galactus_{w}" for w in WEAPONS] + ["galactus_bow"]
+    ids = [f"galactus_{p}" for p in ARMOR] + [f"galactus_{w}" for w in WEAPONS] + ["galactus_bow", "galactus_shield"]
     W(f"{base}/configs/categories.yml", f"""info:
   namespace: {NS}
 categories:

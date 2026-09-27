@@ -537,17 +537,18 @@ ARMOR_DURA = (480, 700, 655, 570)
 TOOLS = ("sword", "axe", "pickaxe", "shovel", "hoe")
 TOOL_DAMAGE = {"sword": 9, "axe": 11, "pickaxe": 7, "shovel": 7.5, "hoe": 1}
 TOOL_SPEED = {"sword": 1.6, "axe": 1.0, "pickaxe": 1.2, "shovel": 1.0, "hoe": 4.0}
-TOOL_DURA, BOW_DURA = 2600, 700
+TOOL_DURA, BOW_DURA, SHIELD_DURA = 2600, 700, 1200
 # every recipe uses the set's own materials: A (main), B (rare), C (handle) + netherite
 RECIPE_SHAPES = {"helmet": ["ABA", "ANA", "XXX"], "chestplate": ["ANA", "ABA", "AAA"],
                  "leggings": ["ABA", "ANA", "AXA"], "boots": ["XNX", "AXA", "BXB"],
                  "sword": ["XBX", "XNX", "XCX"], "axe": ["ABX", "ASX", "XCX"], "pickaxe": ["ABA", "XSX", "XCX"],
-                 "shovel": ["XBX", "XSX", "XCX"], "hoe": ["ABX", "XSX", "XCX"], "bow": ["XCT", "BNT", "XCT"]}
+                 "shovel": ["XBX", "XSX", "XCX"], "hoe": ["ABX", "XSX", "XCX"], "bow": ["XCT", "BNT", "XCT"],
+                 "shield": ["ABA", "ACA", "XAX"]}
 SCROLL_SHAPES = {"armor": ["AXA", "PBP", "AXA"], "tools": ["CXC", "PBP", "CXC"], "weapons": ["BXB", "PCP", "BXB"]}
 # scrolls take a book, not paper: the server's banknote plugin cancels non-op crafts containing paper
 FIXED = {"N": "NETHERITE_INGOT", "S": "NETHERITE_SCRAP", "T": "STRING", "P": "BOOK"}
 MAKES = {"armor": ("helmet", "chestplate", "leggings", "boots"), "tools": ("axe", "pickaxe", "shovel", "hoe"),
-         "weapons": ("sword", "bow")}
+         "weapons": ("sword", "bow", "shield")}
 NAME_FIX = {"DRAGON_BREATH": "Dragon's Breath", "NETHERITE_INGOT": "Netherite Ingot", "TNT": "TNT",
             "HONEY_BOTTLE": "Honey Bottle", "JACK_O_LANTERN": "Jack o'Lantern"}
 
@@ -568,7 +569,7 @@ def ingredients(S, shape):
 def all_recipes(S, ns):
     """[(item id, pattern, ingredients)] for the set, scrolls included."""
     out = []
-    for item in PIECES + TOOLS + ("bow",):
+    for item in PIECES + TOOLS + ("bow", "shield"):
         shape = RECIPE_SHAPES[item]
         out.append((f"{S['id']}_{item}", shape, ingredients(S, shape)))
     for kind, shape in SCROLL_SHAPES.items():
@@ -692,6 +693,18 @@ def configs(S, ns):
       icon: item/{S['id']}_bow_icon
     durability:
       max_custom_durability: {BOW_DURA}""")
+    items.append(f"""  {S['id']}_shield:
+    enabled: true
+    display_name: '{S['color']}{S['name']} Shield'
+{tlore}    resource:
+      material: SHIELD
+      generate: false
+      model_path: item/{S['id']}_shield
+    durability:
+      max_custom_durability: {SHIELD_DURA}
+    attribute_modifiers:
+      offhand:
+        knockbackResistance: 0.1""")
     loots = []
     for (kind, title), story in zip((("armor", "Armor"), ("tools", "Tools"), ("weapons", "Weapons")), S["story"]):
         sid = f"{S['id']}_scroll_{kind}"
@@ -741,7 +754,7 @@ equipments:
     layer_2: armor/{S['id']}_armor/layer_2
 """
     listed = [f"{S['id']}_scroll_{k}" for k in SCROLL_SHAPES] + [f"{S['id']}_{p}" for p in PIECES] + \
-        [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow"]
+        [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow", f"{S['id']}_shield"]
     cat_yml = f"""info:
   namespace: {ns}
 categories:
@@ -806,6 +819,14 @@ def build_set(S, base, write, animate, mcmeta):
         write(f"{base}/models/item/{name}.json", {
             "texture_size": list(tex.size), "textures": {"layer0": ref, "particle": ref}, "gui_light": "front",
             "elements": CU.tool_elements(tex, flat=True, glow=P.glow_set()), "display": build_model.BOW_DISPLAY})
+    import shield_forge as SF   # 3D shield in the set's colours; <id>_shield_blocking is the blocking pose
+    shield_tex = SF.texture(S, S.get("shield", "heater"))
+    tool_imgs["shield"] = shield_tex.crop((0, 0, SF.W, SF.H))
+    write(f"{base}/textures/item/{ns}_shield.png", animate(shield_tex, {S["pal"]["g"]}))
+    write(f"{base}/textures/item/{ns}_shield.png.mcmeta", mcmeta)
+    held, blocking = SF.models(f"{ns}:item/{ns}_shield")
+    write(f"{base}/models/item/{ns}_shield.json", held)
+    write(f"{base}/models/item/{ns}_shield_blocking.json", blocking)
     import scroll_art as SA
     for kind in SCROLL_SHAPES:   # each set has its own scroll form; also the /ia category icon
         write(f"{base}/textures/item/{ns}_scroll_{kind}.png", SA.icon(S, kind))

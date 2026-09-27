@@ -115,6 +115,8 @@ TIERS = {
         "tool_recipe": (["XAX", "XBX", "XCX"], {"A": "REDSTONE_BLOCK", "B": "NETHERITE_{TOOL}", "C": "BLAZE_ROD"}),
         "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "DRAGON_BREATH", "B": "DIAMOND_BLOCK",
                                                 "C": "NETHERITE_SWORD", "D": "BLAZE_ROD"}),
+        "shield_durability": 1600,   # vanilla shield: 336
+        "shield_recipe": (["ABA", "ASA", "XAX"], {"A": "REDSTONE_BLOCK", "B": "DRAGON_BREATH", "S": "SHIELD"}),
         "bow_durability": 768,   # vanilla bow: 384
         "bow_recipe": (["XAX", "BCB", "XDX"], {"A": "DRAGON_BREATH", "B": "REDSTONE_BLOCK",
                                               "C": "BOW", "D": "GHAST_TEAR"}),
@@ -132,6 +134,9 @@ TIERS = {
                                                 "C": "ECHO_SHARD"}),
         "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "DIAMOND_BLOCK",
                                                 "C": "crimson-gear:crimson_sword", "D": "BLAZE_ROD"}),
+        "shield_durability": 2400,
+        "shield_recipe": (["ABA", "ASA", "XAX"], {"A": "LAPIS_BLOCK", "B": "ECHO_SHARD",
+                                                  "S": "crimson-gear:crimson_shield"}),
         "bow_durability": 1152,
         "bow_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "LAPIS_BLOCK",
                                               "C": "crimson-gear:crimson_bow", "D": "DRAGON_BREATH"}),
@@ -151,6 +156,8 @@ TIERS = {
         "sword_recipe": (["WNW", "JBJ", "XIX"], {"W": "WITHER_SKELETON_SKULL", "N": "NETHER_STAR",
                                                 "J": "JACK_O_LANTERN", "B": "NETHERITE_SWORD",
                                                 "I": "NETHERITE_INGOT"}),
+        "shield_durability": 3200,
+        "shield_recipe": (["ABA", "ASA", "XAX"], {"A": "JACK_O_LANTERN", "B": "NETHER_STAR", "S": "SHIELD"}),
         "bow_durability": 1536,
         "bow_recipe": (["XNX", "JBJ", "XWX"], {"N": "NETHER_STAR", "J": "JACK_O_LANTERN",
                                               "B": "BOW", "W": "WITHER_SKELETON_SKULL"}),
@@ -176,7 +183,20 @@ def recipes_of(tier):
     out.append((f"{tier}_sword", pat, dict(ing)))
     pat, ing = t["bow_recipe"]
     out.append((f"{tier}_bow", pat, dict(ing)))
+    pat, ing = t["shield_recipe"]
+    out.append((f"{tier}_shield", pat, dict(ing)))
     return out
+
+
+def slim_arms(layer1):
+    """Remove the middle of the armored sleeves (keep shoulders and gloves) on a drawn layer_1."""
+    img = layer1.copy()
+    for k in ("right", "front", "left", "back"):
+        x0, y0, w, hh = AE.ARM[k]
+        for v in range(3, 9):
+            for u in range(w):
+                img.putpixel((x0 + u, y0 + v), (0, 0, 0, 0))
+    return img
 
 
 def recolor(img, kind):
@@ -200,8 +220,8 @@ def tier_assets(base, ns, tier):
             write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png", hic[piece])
     else:
         for n in (1, 2):
-            write(f"{base}/textures/armor/{tier}_armor/layer_{n}.png",
-                  recolor(Image.open(f"{src}/armor_layer_{n}.png").convert("RGBA"), kind))
+            layer = recolor(Image.open(f"{src}/armor_layer_{n}.png").convert("RGBA"), kind)
+            write(f"{base}/textures/armor/{tier}_armor/layer_{n}.png", slim_arms(layer) if n == 1 else layer)
         for piece in PIECES:
             write(f"{base}/textures/item/armor/{tier}_armor_{piece}.png",
                   recolor(Image.open(f"{src}/items/crimson_{piece}.png").convert("RGBA"), kind))
@@ -239,6 +259,8 @@ def tier_assets(base, ns, tier):
             "elements": CU.tool_elements(tex, flat=True, glow=TD.GLOW_SETS[tier]),
             "display": build_model.BOW_DISPLAY,
         })
+
+    write_shield(base, ns, "item/tools", f"{tier}_shield", SHIELD_STYLE[tier], SCROLL_PAL[tier])
 
     if tier == "halloween":   # open witch hat with a carved pumpkin, built by the armor-set engine
         at, sw = AE.atlas(AS.HALLOWEEN_STYLE, hl1)
@@ -319,6 +341,7 @@ def tier_items(ns, tier):
       icon: item/tools/{tier}_bow_icon
     durability:
       max_custom_durability: {t["bow_durability"]}""")
+    items.append(shield_item(ns, f"{tier}_shield", f'{t["color"]}{t["name"]} Shield', lore, t["shield_durability"]))
     recs = []
     for item, pat, ing in recipes_of(tier):
         recs.append(f"""    {item}:
@@ -342,6 +365,49 @@ SCROLL_PAL = {   # palettes for the Crimson-line scroll art
                          TD.BL["silver_d"], TD.BL["shine"], TD.BL["glow"]),
     "halloween": dict(AS.HALLOWEEN_STYLE["pal"]),
 }
+
+
+SHIELD_STYLE = {   # shields for the Crimson line and Demon: palette, face pattern, emblem, outline
+    "crimson": dict(pattern="bark", shape="spiked",
+                    emblem=["..tt....", ".tggt...", "tggggt..", ".tggt...", "..tt...."]),
+    "blue_crimson": dict(pattern="crystal", shape="kite",
+                         emblem=["...g....", "..glg...", ".glllg..", "..glg...", "...g...."]),
+    "halloween": dict(pattern="pumpkin", shape="crescent",
+                      emblem=[".g....g.", "ggg..ggg", "...gg...", "g......g", ".gggggg."]),
+    "demon": dict(pattern="obsidian", shape="spiked",
+                  emblem=["t......t", "tt....tt", ".tggggt.", "..tggt..", "...tt..."]),
+}
+DEMON_PAL = dict(o=(18, 4, 4), d=(50, 10, 8), b=(80, 16, 12), m=(120, 26, 18), l=(170, 60, 40), t=(150, 30, 20),
+                 t2=(90, 16, 10), a=(255, 170, 60), g=(255, 120, 30), s1=(60, 16, 14), s2=(30, 10, 8))
+
+
+def write_shield(base, ns, folder, sid, style, pal):
+    """3D shield (held + blocking models) with a painted, glowing face."""
+    import shield_forge as SF
+    S = dict(style, pal=dict(pal, s1=pal.get("s1", pal["m"]), s2=pal.get("s2", pal["d"])))
+    tex = SF.texture(S, style["shape"])
+    write(f"{base}/textures/{folder}/{sid}.png", animate(tex, {S["pal"]["g"]}))
+    write(f"{base}/textures/{folder}/{sid}.png.mcmeta", MCMETA)
+    held, blocking = SF.models(f"{ns}:{folder}/{sid}")
+    write(f"{base}/models/{folder}/{sid}.json", held)
+    write(f"{base}/models/{folder}/{sid}_blocking.json", blocking)
+    return tex
+
+
+def shield_item(ns, sid, name, lore_y, dura, folder="item/tools", admin=False):
+    perm = f"\n    permission: {ns}.shield" if admin else ""
+    return f"""  {sid}:
+    enabled: true
+    display_name: '{name}'
+{lore_y}{perm.lstrip(chr(10)) + chr(10) if admin else ""}    resource:
+      material: SHIELD
+      generate: false
+      model_path: {folder}/{sid}
+    durability:
+      max_custom_durability: {dura}
+    attribute_modifiers:
+      offhand:
+        knockbackResistance: 0.1"""
 
 
 def gear_pack(base, ns, tiers, category, cat_name, cat_icon):
@@ -548,7 +614,8 @@ equipments:
     layer_1: armor/demon_armor/layer_1
     layer_2: armor/demon_armor/layer_2
 """)
-    write(f"{base}/textures/armor/demon_armor/layer_1.png", Image.open(f"{src}/demon_layer_1.png"))
+    write(f"{base}/textures/armor/demon_armor/layer_1.png",
+          slim_arms(Image.open(f"{src}/demon_layer_1.png").convert("RGBA")))
     write(f"{base}/textures/armor/demon_armor/layer_2.png", Image.open(f"{src}/demon_layer_2.png"))
     for piece in DEMON_ARMOR:
         write(f"{base}/textures/item/armor/demon_armor_{piece}.png", Image.open(f"{src}/items/demon_{piece}.png"))
@@ -622,6 +689,10 @@ equipments:
     forge_weapons(base, ns, "demon", DEMON_TOOLS)
     items += weapon_items(ns, "demon", "Demon", "&4", ["&f", "&4Forged in hellfire", "&8Admin only"],
                           DEMON_DAMAGE, 9999, 3000)
+    write_shield(base, ns, "item/tools", "demon_shield", SHIELD_STYLE["demon"], DEMON_PAL)
+    items.append(shield_item(ns, "demon_shield", "&4Demon Shield",
+                             "    lore:\n      - '&f'\n      - '&4Forged in hellfire'\n      - '&8Admin only'\n",
+                             99999, admin=True))
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 items:
@@ -637,7 +708,7 @@ categories:
     permission: ia.menu.demon_forge
     items:
 """ + "".join(f"      - {ns}:demon_armor_{p}\n" for p in ("helmet", "chestplate", "leggings", "boots"))
-          + "".join(f"      - {ns}:demon_{t}\n" for t in list(TOOL_MATERIALS) + ["bow"]))
+          + "".join(f"      - {ns}:demon_{t}\n" for t in list(TOOL_MATERIALS) + ["bow", "shield"]))
 
 
 # --- the one legendary weapon: needs the Dragon Egg, so only one can exist ------

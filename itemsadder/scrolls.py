@@ -13,7 +13,7 @@ SCROLLS = {
         "tools": ("Scroll of Crimson Tools", ["Scrawled in ash by a", "blaze that forgot its name."],
                   ["tool_recipe"], "BLAZE", 6),
         "weapons": ("Scroll of Crimson Weapons", ["Wrapped around a wither", "skeleton's blackened spine."],
-                    ["sword_recipe", "bow_recipe"], "WITHER_SKELETON", 5),
+                    ["sword_recipe", "bow_recipe", "shield_recipe"], "WITHER_SKELETON", 5),
     },
     "blue_crimson": {
         "armor": ("Scroll of Blue Crimson Armor", ["Cold to the touch. Found", "inside the Warden's chest."],
@@ -21,7 +21,7 @@ SCROLLS = {
         "tools": ("Scroll of Blue Crimson Tools", ["Salt-stained, sealed in lapis.", "Guarded by the Elder."],
                   ["tool_recipe"], "ELDER_GUARDIAN", 50),
         "weapons": ("Scroll of Blue Crimson Weapons", ["It hums like an echo", "in the deep dark."],
-                    ["sword_recipe", "bow_recipe"], "WARDEN", 100),
+                    ["sword_recipe", "bow_recipe", "shield_recipe"], "WARDEN", 100),
     },
     "halloween": {
         "armor": ("Scroll of Halloween Armor", ["Carved into a pumpkin rind", "on the night the Wither woke."],
@@ -29,7 +29,7 @@ SCROLLS = {
         "tools": ("Scroll of Halloween Tools", ["A witch's shopping list.", "Most of it is screaming."],
                   ["tool_recipe"], "WITCH", 8),
         "weapons": ("Scroll of Halloween Weapons", ["The candle inside never", "went out. Neither did he."],
-                    ["sword_recipe", "bow_recipe"], "WITHER", 100),
+                    ["sword_recipe", "bow_recipe", "shield_recipe"], "WITHER", 100),
     },
 }
 ACCENT = {"crimson": "&c", "blue_crimson": "&b", "halloween": "&6"}
@@ -60,14 +60,14 @@ MOB_NAMES = {"GHAST": "Ghasts", "BLAZE": "Blazes", "WITHER_SKELETON": "Wither Sk
              "WARDEN": "the Warden", "ELDER_GUARDIAN": "Elder Guardians", "WITHER": "the Wither",
              "WITCH": "Witches"}
 MAKES = {"armor_recipe": "Helmet, Chestplate, Leggings, Boots", "tool_recipe": "Pickaxe, Axe, Shovel, Hoe",
-         "sword_recipe": "Sword", "bow_recipe": "Bow"}
+         "sword_recipe": "Sword", "bow_recipe": "Bow", "shield_recipe": "Shield"}
 BASE_NOTE = {"armor_recipe": "Middle: use the piece you are upgrading.",
              "tool_recipe": "Middle: use the tool you are upgrading."}
 NAMES = {"GHAST_TEAR": "Ghast Tear", "REDSTONE_BLOCK": "Redstone Block", "REDSTONE": "Redstone",
          "LAPIS_BLOCK": "Lapis Block", "LAPIS_LAZULI": "Lapis Lazuli", "END_STONE": "End Stone",
          "DIAMOND_BLOCK": "Diamond Block", "DIAMOND": "Diamond", "DRAGON_BREATH": "Dragon's Breath",
          "BLAZE_ROD": "Blaze Rod", "BLAZE_POWDER": "Blaze Powder", "ECHO_SHARD": "Echo Shard", "BOW": "Bow",
-         "PAPER": "Paper", "BOOK": "Book", "NETHERITE_SCRAP": "Netherite Scrap", "NETHERITE_INGOT": "Netherite Ingot",
+         "PAPER": "Paper", "BOOK": "Book", "SHIELD": "Shield", "NETHERITE_SCRAP": "Netherite Scrap", "NETHERITE_INGOT": "Netherite Ingot",
          "MAGMA_CREAM": "Magma Cream", "FIRE_CHARGE": "Fire Charge", "PRISMARINE_SHARD": "Prismarine Shard",
          "AMETHYST_SHARD": "Amethyst Shard", "NETHER_STAR": "Nether Star", "JACK_O_LANTERN": "Jack o'Lantern",
          "WITHER_SKELETON_SKULL": "Wither Skull", "CARVED_PUMPKIN": "Carved Pumpkin", "WITHER_ROSE": "Wither Rose", "SPIDER_EYE": "Spider Eye",

@@ -990,6 +990,18 @@ def cover_cuts(t1, t2, cover, look):
                 clear(t1, ARM[k], [(u, v) for u in range(4) for v in (5, 6)])             # a band of upper arm
 
 
+def trim_arms(t1, style):
+    """Slim chestplates: no full armored sleeves. 'pads' keeps the shoulder plates, 'gloves' keeps the
+    forearm and hand, 'both' keeps both with the middle of the arm bare."""
+    keep = {"pads": range(0, 4), "gloves": range(8, 12), "both": list(range(0, 3)) + list(range(9, 12))}[style]
+    for k in SIDES:
+        clear(t1, ARM[k], [(u, v) for u in range(4) for v in range(12) if v not in keep])
+    if style == "gloves":
+        clear(t1, ARM["top"], [(u, v) for u in range(4) for v in range(4)])
+    if style == "pads":
+        clear(t1, ARM["bottom"], [(u, v) for u in range(4) for v in range(4)])
+
+
 def paint(S):
     P = S["pal"]
     L = S["look"]
@@ -1021,6 +1033,7 @@ def paint(S):
     fill(t2, LEG["bottom"], solid(P["o"]))
     LEGS[L["legs"]](t2, P, M, Sc)
     cover_cuts(t1, t2, S.get("cover", "standard"), L)
+    trim_arms(t1, S.get("arm_cut", "both"))
     shade(t1.img, P)
     shade(t2.img, P)
     return t1.img, t2.img

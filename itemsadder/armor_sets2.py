@@ -1050,3 +1050,8 @@ for _S in SETS2:
 import tool_forge as _TF  # noqa: E402
 from armor_sets import SETS as _SETS1  # noqa: E402
 _TF.diversify([_S["tools"] for _S in _SETS1 + SETS2])
+# each set's shield outline, cycling through every shape
+import shield_forge as _SF  # noqa: E402
+for _i, _S in enumerate(_SETS1 + SETS2):
+    _S["shield"] = _SF.shape_for(_i)
+    _S["arm_cut"] = ("pads", "gloves", "both")[_i % 3]   # no full armored sleeves on any chestplate
