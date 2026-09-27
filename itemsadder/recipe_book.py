@@ -106,6 +106,12 @@ def vanilla_icons():
             ".....oyo........", "....oyo.........", "...oyo..........", "..oyo...........",
             "..oo............", "................", "................", "................"],
             {"o": (150, 70, 10), "y": (255, 210, 60)}),
+        "BOW": grid([
+            "................", "..........ooo...", ".........obbso..", "........ob..so..",
+            ".......ob...s...", "......ob....s...", ".....ob.....s...", "....ob......s...",
+            "...ob.......s...", "..ob........s...", "..ob.......s....", "...oo.....s.....",
+            ".....ooo.s......", "........oo......", "................", "................"],
+            {"o": (70, 40, 20), "b": (150, 100, 50), "s": (230, 230, 230)}),
         "ECHO_SHARD": grid([
             "................", "...........oo...", "..........occo...", ".........octco..",
             "........octto...", ".......octto....", "......octto.....", ".....octto......",
@@ -173,7 +179,7 @@ def icon_for(ingredient, van):
 
 NAMES = {"GHAST_TEAR": "Ghast Tear", "REDSTONE_BLOCK": "Redstone Block", "LAPIS_BLOCK": "Lapis Block",
          "END_STONE": "End Stone", "DIAMOND_BLOCK": "Diamond Block", "DRAGON_BREATH": "Dragon's Breath",
-         "BLAZE_ROD": "Blaze Rod", "ECHO_SHARD": "Echo Shard"}
+         "BLAZE_ROD": "Blaze Rod", "ECHO_SHARD": "Echo Shard", "BOW": "Bow"}
 
 
 def ingredient_name(ingredient):
@@ -219,7 +225,7 @@ def recipe_picture(pattern, ingredients, result_icon, van):
 
 # --- book -----------------------------------------------------------------------
 ORDER = ("armor_helmet", "armor_chestplate", "armor_leggings", "armor_boots",
-         "sword", "axe", "pickaxe", "shovel", "hoe")
+         "sword", "axe", "pickaxe", "shovel", "hoe", "bow")
 LABELS = {"crimson": ("Crimson", "dark_red"), "blue_crimson": ("Blue Crimson", "dark_aqua")}
 SHORT = {"crimson": "Crimson", "blue_crimson": "Blue"}   # page titles must fit one book line
 
@@ -313,10 +319,39 @@ def book_item(pages):
             'author:"SlothSMP",pages:[' + ",".join(snbt(p) for p in pages) + "]}]")
 
 
+DATAPACK = "crimson_forge"
+
+
+def write_datapack(pages, out_zip):
+    """Vanilla datapack: /trigger recipebook gives the book to anyone, and
+    function crimson_forge:swap_book turns the held /ia book into it."""
+    import zipfile
+    book = book_item(pages)
+    files = {
+        "pack.mcmeta": json.dumps({"pack": {
+            "description": "Crimson Forge recipe book",
+            "pack_format": 88, "supported_formats": [71, 999], "min_format": 71, "max_format": 999}}, indent=1),
+        f"data/{DATAPACK}/function/load.mcfunction":
+            "scoreboard objectives add recipebook trigger\n",
+        f"data/{DATAPACK}/function/tick.mcfunction":
+            "scoreboard players enable @a recipebook\n"
+            f"execute as @a[scores={{recipebook=1..}}] run function {DATAPACK}:give_book\n"
+            "scoreboard players set @a[scores={recipebook=1..}] recipebook 0\n",
+        f"data/{DATAPACK}/function/give_book.mcfunction": f"give @s {book}\n",
+        f"data/{DATAPACK}/function/swap_book.mcfunction": f"item replace entity @s weapon.mainhand with {book}\n",
+        "data/minecraft/tags/function/load.json": json.dumps({"values": [f"{DATAPACK}:load"]}),
+        "data/minecraft/tags/function/tick.json": json.dumps({"values": [f"{DATAPACK}:tick"]}),
+    }
+    with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, text in files.items():
+            z.writestr(name, text)
+
+
 def write_commands(pages):
     path = os.path.join(ROOT, "itemsadder", "recipe_book_commands.txt")
     with open(path, "w") as f:
-        f.write("# Crimson Forge recipe book (Minecraft 26.x / 1.21.5+). Normally players get it by\n"
-                "# right-clicking the Crimson Forge Recipe Book item from /ia. To hand one out\n"
-                "# directly, run this from the server console (too long for chat):\n\n")
+        f.write("# Crimson Forge recipe book (Minecraft 26.x / 1.21.5+).\n"
+                "# With the crimson_forge datapack installed, players type:  /trigger recipebook\n"
+                "# or right-click the Crimson Forge Recipe Book from /ia.\n"
+                "# To hand one out without the datapack, run this from the server console:\n\n")
         f.write("give @p " + book_item(pages) + "\n")

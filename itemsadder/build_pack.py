@@ -105,6 +105,9 @@ TIERS = {
         "tool_recipe": (["XAX", "XBX", "XCX"], {"A": "REDSTONE_BLOCK", "B": "NETHERITE_{TOOL}", "C": "BLAZE_ROD"}),
         "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "DRAGON_BREATH", "B": "DIAMOND_BLOCK",
                                                 "C": "NETHERITE_SWORD", "D": "BLAZE_ROD"}),
+        "bow_durability": 768,   # vanilla bow: 384
+        "bow_recipe": (["XAX", "BCB", "XDX"], {"A": "DRAGON_BREATH", "B": "REDSTONE_BLOCK",
+                                              "C": "BOW", "D": "GHAST_TEAR"}),
     },
     "blue_crimson": {
         "name": "Blue Crimson", "color": "&b", "recolor": "blue",
@@ -119,6 +122,9 @@ TIERS = {
                                                 "C": "ECHO_SHARD"}),
         "sword_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "DIAMOND_BLOCK",
                                                 "C": "crimson-gear:crimson_sword", "D": "BLAZE_ROD"}),
+        "bow_durability": 1152,
+        "bow_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "LAPIS_BLOCK",
+                                              "C": "crimson-gear:crimson_bow", "D": "DRAGON_BREATH"}),
     },
 }
 
@@ -139,6 +145,8 @@ def recipes_of(tier):
         out.append((f"{tier}_{tool}", pat, fill(ing, tool=tool)))
     pat, ing = t["sword_recipe"]
     out.append((f"{tier}_sword", pat, dict(ing)))
+    pat, ing = t["bow_recipe"]
+    out.append((f"{tier}_bow", pat, dict(ing)))
     return out
 
 
@@ -170,6 +178,23 @@ def tier_assets(base, ns, tier):
             "elements": CU.tool_elements(tex),   # geometry/glow classified on the crimson colours
             "display": TOOL_DISPLAY[tool],
         })
+    # bow: ItemsAdder picks up <model>_0/_1/_2 as the pulling states
+    for state, suffix in (("bow", ""), ("bow_pulling_0", "_0"), ("bow_pulling_1", "_1"), ("bow_pulling_2", "_2")):
+        tex = Image.open(f"{src}/items/crimson_{state}.png").convert("RGBA")
+        name = f"{tier}_bow{suffix}"
+        ref = f"{ns}:item/tools/{name}"
+        write(f"{base}/textures/item/tools/{name}.png", recolor(animate(tex, CRIMSON_GLOW, CRIMSON_BLADE), kind))
+        write(f"{base}/textures/item/tools/{name}.png.mcmeta", MCMETA)
+        if not suffix:
+            write(f"{base}/textures/item/tools/{name}_icon.png", recolor(tex, kind))
+        write(f"{base}/models/item/tools/{name}.json", {
+            "texture_size": list(tex.size),
+            "textures": {"layer0": ref, "particle": ref},
+            "gui_light": "front",
+            "elements": CU.tool_elements(tex),
+            "display": build_model.BOW_DISPLAY,
+        })
+
     # 3D helmet: visor, gold crest and branches from the shoulder blades
     layer1 = Image.open(f"{src}/armor_layer_1.png").convert("RGBA")
     write(f"{base}/textures/item/armor/{tier}_parts.png", recolor(animate(CU.atlas(layer1), CU.GLOW), kind))
@@ -230,6 +255,16 @@ def tier_items(ns, tier):
       mainhand:
         attackDamage: {t["damage"][tool]}
         attackSpeed: {TOOL_SPEED[tool]}""")
+    items.append(f"""  {tier}_bow:
+    enabled: true
+    display_name: '{t["color"]}{t["name"]} Bow'
+{lore}    resource:
+      material: BOW
+      generate: false
+      model_path: item/tools/{tier}_bow
+      icon: item/tools/{tier}_bow_icon
+    durability:
+      max_custom_durability: {t["bow_durability"]}""")
     recs = []
     for item, pat, ing in recipes_of(tier):
         recs.append(f"""    {item}:
@@ -263,7 +298,8 @@ equipments:
     pages = BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
     BOOK.write_commands(pages)
     write(f"{base}/textures/item/crimson_recipe_book.png", BOOK.book_icon())
-    command = f"item replace entity {{player}} weapon.mainhand with {BOOK.book_item(pages)}".replace("'", "''")
+    BOOK.write_datapack(pages, os.path.join(ROOT, "itemsadder", "crimson_forge_datapack.zip"))
+    command = f"execute as {{player}} run function {BOOK.DATAPACK}:swap_book"
     items.append(f"""  crimson_recipe_book:
     enabled: true
     display_name: '&6Crimson Forge Recipe Book'
@@ -271,6 +307,7 @@ equipments:
       - '&f'
       - '&7Every Crimson and Blue Crimson recipe.'
       - '&eRight-click to open'
+      - '&8or type /trigger recipebook'
     resource:
       material: BOOK
       generate: true
