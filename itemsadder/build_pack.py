@@ -2,8 +2,9 @@
 
 Keeps the layout of the server's existing crimson-gear pack (configs/,
 models/, textures/ directly in the content folder) and its item IDs.
-Tools get animated textures (.png strip + .mcmeta); the Demon helmet is a
-head-worn 3D model (PAPER + hat behaviour) carrying the horns and wings.
+Tools get animated textures (.png strip + .mcmeta), 3D depth and emissive
+glow; both helmets are head-worn 3D models (PAPER + hat behaviour): Crimson
+with branches from the shoulder blades, Demon with horns and wings.
 Run: python3 itemsadder/build_pack.py
 """
 import json
@@ -18,8 +19,10 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "crimson_armor"))
 sys.path.insert(0, os.path.join(ROOT, "demon_armor"))
+sys.path.insert(0, os.path.join(ROOT, "itemsadder"))
 
 import build_model  # noqa: E402  (crimson cuboid model builder)
+import crimson_upgrade as CU  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -116,9 +119,16 @@ equipments:
             "texture_size": list(tex.size),
             "textures": {"layer0": ref, "particle": ref},
             "gui_light": "front",
-            "elements": build_model.elements_for(tex),
+            "elements": CU.tool_elements(tex),
             "display": display,
         })
+
+    # 3D helmet: visor, gold crest and crimson branches from the shoulder blades
+    layer1 = Image.open(f"{src}/armor_layer_1.png").convert("RGBA")
+    parts_ref = f"{ns}:item/armor/crimson_parts"
+    write(f"{base}/textures/item/armor/crimson_parts.png", animate(CU.atlas(layer1), CU.GLOW))
+    write(f"{base}/textures/item/armor/crimson_parts.png.mcmeta", MCMETA)
+    write(f"{base}/models/item/armor/crimson_helmet.json", CU.helmet_model(parts_ref))
 
     armor_pattern = ["ABA", "CDC", "EBE"]
     rec = []
@@ -168,8 +178,26 @@ equipments:
         item: {ns}:crimson_sword
         amount: 1""")
 
-    items = []
+    h_armor, h_dura = CRIMSON_ARMOR["helmet"]
+    items = [f"""  crimson_armor_helmet:
+    enabled: true
+    display_name: Crimson Armor Helmet
+    behaviours:
+      hat: true
+    resource:
+      material: PAPER
+      generate: false
+      model_path: item/armor/crimson_helmet
+    durability:
+      max_custom_durability: {h_dura}
+    attribute_modifiers:
+      head:
+        armor: {h_armor}
+        armorToughness: 4
+        knockbackResistance: 0.15"""]
     for piece, (armor, dura) in CRIMSON_ARMOR.items():
+        if piece == "helmet":
+            continue
         items.append(f"""  crimson_armor_{piece}:
     enabled: true
     display_name: Crimson Armor {piece.capitalize()}
