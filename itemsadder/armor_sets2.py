@@ -1037,3 +1037,8 @@ SETS2 = [
 import armor_looks  # noqa: E402
 for _S in SETS2:
     armor_looks.apply(_S)
+
+# spread tool styles so no two sets share a toolkit (each pair differs in 5+ of 10 choices)
+import tool_forge as _TF  # noqa: E402
+from armor_sets import SETS as _SETS1  # noqa: E402
+_TF.diversify([_S["tools"] for _S in _SETS1 + SETS2])

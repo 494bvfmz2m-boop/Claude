@@ -156,7 +156,56 @@ def bl_needle(a):   # thin stiletto with a wide base
     return (0, w, w)
 
 
-BLADES = {"broad": bl_broad, "katana": bl_katana, "rapier": bl_rapier, "cleaver": bl_cleaver,
+def bl_khopesh(a):   # straight neck, then a hooked sickle blade
+    if not 0 <= a <= 26:
+        return None
+    if a < 9:
+        return (0, 1.4, 1.6)
+    t = (a - 9) / 17
+    return (-7 * t * t, 1.3, min(5, 1.8 + t * 6) * (1 if a < 23 else (26 - a) / 3))
+
+
+def bl_sawtooth(a):
+    if not 0 <= a <= 27:
+        return None
+    tooth = 1.6 if (a < 23 and a % 3 == 0) else 0
+    return (0, _taper(a, 27, 22, 3.2) + tooth, _taper(a, 27, 22, 3.2) + tooth)
+
+
+def bl_falchion(a):
+    if not 0 <= a <= 25:
+        return None
+    wr = 2.4 + min(a, 20) * 0.13
+    if a > 20:
+        wr = 5 - (a - 20) * 1.1
+    return (0, 2.1 if a < 23 else 2.1 - (a - 23) * 1, wr)
+
+
+def bl_zweihander(a):
+    if not 0 <= a <= 30:
+        return None
+    if 5 <= a <= 6:
+        return (0, 6, 6)                         # parrying hooks
+    w = 2.4 if a < 5 else 3.6
+    return (0, _taper(a, 30, 24, w), _taper(a, 30, 24, w))
+
+
+def bl_kris(a):
+    if not 0 <= a <= 27:
+        return None
+    w = 3.4 - a * 0.07
+    return (2 * math.sin(a / 1.8), _taper(a, 27, 23, w), _taper(a, 27, 23, w))
+
+
+def bl_cutlass(a):
+    if not 0 <= a <= 25:
+        return None
+    c = 1.8 * (a / 25) ** 2
+    return (c, _taper(a, 25, 20, 2.2), _taper(a, 25, 20, 3.4))
+
+
+BLADES = {"khopesh": bl_khopesh, "sawtooth": bl_sawtooth, "falchion": bl_falchion, "zweihander": bl_zweihander,
+          "kris": bl_kris, "cutlass": bl_cutlass, "broad": bl_broad, "katana": bl_katana, "rapier": bl_rapier, "cleaver": bl_cleaver,
           "scimitar": bl_scimitar, "greatsword": bl_greatsword, "crystal": bl_crystal,
           "serrated": bl_serrated, "leaf": bl_leaf, "wavy": bl_wavy, "gladius": bl_gladius,
           "forked": bl_forked, "bone": bl_bone, "needle": bl_needle}
@@ -243,6 +292,17 @@ def guard_colour(P, T, a, p):
             return lit
         if math.hypot(a + 5, p) <= 3:
             return P.g
+    elif g == "knuckle":                                 # knuckle bow sweeping to the pommel
+        r = math.hypot(a + 13, p - 1)
+        if 7.2 <= r <= 8.6 and p > 1.5:
+            return lit
+        if -6.5 <= a <= -3.5 and ap <= 5:
+            return lit
+    elif g == "sweep":                                   # swept hilt: curled quillons
+        for sgn in (-1, 1):
+            r = math.hypot(a + 5 + 2.5 * sgn, p - 4.5 * sgn)
+            if 2 <= r <= 3.2:
+                return lit
     elif g == "fins":
         if 2 <= ap <= 8 and -9 + ap * 0.2 <= a <= -3 - (ap - 2) * 0.7:
             return lit
@@ -293,6 +353,16 @@ def pommel_colour(P, T, a, p, ac=-21.5):
         r = math.hypot(a - ac - 3, p)
         if 2.4 <= r <= 4 and a <= ac + 1.5:
             return P.al if p < 0 else P.am
+    elif kind == "star":
+        da = abs(a - ac)
+        if (da <= 0.6 and ap <= 3.2) or (ap <= 0.6 and da <= 3.2) or da + ap <= 1.6:
+            return P.gl if da + ap <= 1 else P.g
+    elif kind == "hook":
+        r = math.hypot(a - ac + 1, p - 2)
+        if 1.4 <= r <= 2.8 and not (p > 2 and a > ac - 1):
+            return P.al if p < 0 else P.am
+        if ac - 1 <= a <= ac + 1 and ap <= 1.5:
+            return P.am
     elif kind == "claw":
         for k in (-2.5, 0, 2.5):
             if abs(p - k * (1 + (ac - a) * 0.12)) <= 0.6 and ac - 5 <= a <= ac + 1:
@@ -315,13 +385,57 @@ def sword(T, P):
 
 # ------------------------------------------------------------------ tool heads
 def handle(P, T, a, p, a0, a1, w=1.4):
+    shaft = T.get("shaft", "wood")
+    if shaft == "knotted" and a0 <= a <= a1 and a % 9 == 4 and abs(p) <= 2.2:
+        return P.hd                                       # knots
     if a0 <= a <= a1 and abs(p) <= w:
         if T.get("grip") == "spiral" and (a + p) % 7 == 0:
             return P.g
         if a < a0 + 5 and (a + p) % 3 == 0:
             return P.hd                                   # wrapped grip end
+        if shaft == "twisted":
+            return P.hl if (a + p * 2) % 4 < 2 else P.hd
+        if shaft == "bone":
+            return (236, 228, 206) if a % 5 else (196, 186, 162)
+        if shaft == "crystal":
+            return P.gl if p < 0 else P.g
+        if shaft == "chain":
+            return P.s if (a + p) % 2 else P.d
+        if shaft == "banded":
+            return P.am if a % 6 in (0, 1) else (P.hl if p < 0 else P.hm)
+        if shaft == "metal":
+            return P.h if p < 0 else P.b
+        if shaft == "vine":
+            return (110, 180, 70) if (a - p * 2) % 5 == 0 else (P.hl if p < 0 else P.hm)
         return P.hl if p < 0 else P.hm
     return None
+
+
+SOCKET = {"axe": 15, "pickaxe": 18, "shovel": 8.5, "hoe": 19}
+
+
+def ornament(fn, T, P, name):
+    """Per-set extras on the tool heads: a gem, a ribbon, a top spike or rings."""
+    orn, A = T.get("orn"), SOCKET.get(name)
+    if not orn or A is None:
+        return fn
+
+    def f(a, p):
+        if orn == "gem" and abs(a - A) + abs(p) <= 1.2:
+            return P.g
+        c = fn(a, p)
+        if c:
+            return c
+        if orn == "ribbon" and A - 11 <= a <= A - 2:
+            k = 2.4 + (A - 2 - a) * 0.4
+            if abs(p - k) <= 0.55 or abs(p - k - 1.3) <= 0.45:
+                return P.al if (a // 2) % 2 else P.g
+        if orn == "tip" and name != "shovel" and A + 2 <= a <= A + 8 and abs(p) <= (A + 8 - a) * 0.3:
+            return P.s if p < 0 else P.h
+        if orn == "rings" and abs(p) <= 1.9 and a in (A - 5, A - 9):
+            return P.am
+        return None
+    return f
 
 
 def metal(P, t, lit=True, edge=False, T=None, a=0, p=0):
@@ -342,7 +456,7 @@ def axe(T, P):
         depth = -p if side < 0 else p
         if depth < 1.5:
             return None
-        D = 8.5 if kind == "hatchet" else 12
+        D = 8.5 if kind == "hatchet" else 13 if kind == "reaper" else 12
         t = (depth - 1.5) / (D - 1.5)
         if t > 1:
             return None
@@ -352,6 +466,18 @@ def axe(T, P):
             lo, hi = A - 3 - t * t * 9, A + 3 + t * 2
         elif kind == "cleaver":
             lo, hi = A - 4, A + 4.5
+        elif kind == "tomahawk":
+            if depth > 7.5:
+                return None
+            lo, hi = A - 2 - t * 3, A + 2 + t * 3
+        elif kind == "beak":
+            lo, hi = A - 2 - t * t * 10, A + 1.5 - t * 1.5
+        elif kind in ("labrys", "reaper"):
+            big = kind == "reaper"
+            r1, r2 = math.hypot(a - A, depth - 1), math.hypot(a - A, depth - (7 if big else 6))
+            if r1 <= (13 if big else 10) and r2 >= (8.5 if big else 6.5) and depth <= (13 if big else 11):
+                return metal(P, t, side < 0, r1 > (12 if big else 9), T, a, p)
+            return None
         elif kind == "moon":
             r1, r2 = math.hypot(a - A, depth - 1), math.hypot(a - A, depth - 6)
             if r1 <= 10.5 and r2 >= 6.5:
@@ -367,10 +493,12 @@ def axe(T, P):
         c = bit(a, p, -1)
         if c:
             return c
-        if kind == "double":
+        if kind in ("double", "labrys"):
             c = bit(a, p, 1)
             if c:
                 return c
+        elif kind == "tomahawk" and 1.5 < p <= 9 and abs(a - A) <= 2.2 - (p - 1.5) * 0.28:
+            return P.s if a > A else P.h                   # long back spike
         elif 1.5 < p <= 5.5 and abs(a - A) <= 3 - (p - 1.5) * 0.7:
             return P.ad if p > 3 else P.am                 # back spike
         if kind == "halberd" and 18 <= a <= 27 and abs(p) <= 1.3 - max(0, a - 24) * 0.4:
@@ -408,6 +536,31 @@ def pickaxe(T, P):
                     ac = A - (p / 11) ** 2 * 5
                     if abs(a - ac) <= 2.5 - p * 0.17:
                         return metal(P, 0, a > ac, p > 10, T, a, p)
+            elif kind == "mattock":
+                if p < 0:
+                    t = ap / 9
+                    if ap <= 9 and abs(a - A) <= 1.6 + t * 1.8:
+                        return metal(P, 0, a > A, ap > 8, T, a, p)
+                else:
+                    ac = A - (p / 11) ** 2 * 6
+                    if abs(a - ac) <= 2.5 - p * 0.18:
+                        return metal(P, 0, a > ac, p > 10, T, a, p)
+            elif kind == "claw":
+                ac = A - (ap / 11) ** 1.5 * 10
+                if abs(a - ac) <= 2.4 - ap * 0.15:
+                    return metal(P, 0, a > ac, ap > 10, T, a, p)
+            elif kind == "trident":
+                if ap <= 6.5 and A - 1.5 <= a <= A + 1:
+                    return metal(P, 0, True, False, T, a, p)
+                for k in (-5.5, 0, 5.5):
+                    if A + 1 < a <= A + 8 and abs(p - k) <= 1.3 - (a - A - 1) * 0.16:
+                        return metal(P, 0, p < k, a > A + 6.5, T, a, p)
+            elif kind == "star":
+                ac = A - (ap / 11) ** 2 * 3
+                if abs(a - ac) <= 2.2 - ap * 0.15:
+                    return metal(P, 0, a > ac, ap > 10, T, a, p)
+                if ap <= 1.4 - (a - A - 2) * 0.2 and A + 2 < a <= A + 8:
+                    return P.g if a > A + 6 else P.s
             elif kind == "single":
                 if p >= 0:
                     ac = A - (p / 11) ** 2 * 7
@@ -435,6 +588,17 @@ def shovel(T, P):
             inside = 10 <= a <= 26 and ap <= 4.8 * min(1, (26 - a) / 9)
         elif kind == "trowel":
             inside = 10 <= a <= 26 and ap <= 1 + 3 * math.sin(math.pi * (a - 10) / 16)
+        elif kind == "heart":
+            lobe = ((a - 14) / 4.5) ** 2 + ((ap - 2.4) / 2.8) ** 2 <= 1
+            inside = a >= 10 and (lobe or (14 <= a <= 25 and ap <= 5.2 * (25 - a) / 11))
+        elif kind == "shield":
+            inside = 10 <= a <= 25 and ap <= (5 if a < 16 else 5 * (25 - a) / 9)
+            if inside and (ap > (3.9 if a < 16 else 5 * (25 - a) / 9 - 1.1) or a < 11):
+                return P.al if p < 0 else P.am
+        elif kind == "fork":
+            if 10 <= a <= 12 and ap <= 4.4:
+                return P.al if p < 0 else P.am
+            inside = 12 < a <= 25 and any(abs(p - k) <= 0.7 - max(0, a - 23) * 0.3 for k in (-3.6, 0, 3.6))
         elif kind == "scoop":
             inside = a >= 10 and ((a - 17) / 7.5) ** 2 + (p / 5.2) ** 2 <= 1
             if inside and ((a - 17) / 5.8) ** 2 + (p / 3.6) ** 2 > 1:
@@ -475,6 +639,22 @@ def hoe(T, P):
                 return metal(P, 0, True, False, T, a, p)
             if A - 5 <= a < A - 0.2 and any(abs(p - k) <= 0.6 for k in (-6.5, -3.25, 0, 3.25, 6.5)):
                 return metal(P, 0, False, a < A - 4, T, a, p)
+        elif kind == "adze":
+            if -9 <= p <= -1:
+                t = -p / 9
+                if A - 1.5 - t * 2.4 <= a <= A + 1.5:
+                    return metal(P, 0, a > A, t > 0.85, T, a, p)
+        elif kind == "hook":
+            if -7 <= p <= -1 and A - 0.2 <= a <= A + 1.8:
+                return metal(P, 0, True, False, T, a, p)
+            r = math.hypot(a - (A - 3), p + 7)
+            if 2.2 <= r <= 3.8 and a < A:
+                return metal(P, 0, r > 3.1, r < 2.7, T, a, p)
+        elif kind == "fork":
+            if -8.5 <= p <= -1 and A - 0.2 <= a <= A + 1.8:
+                return metal(P, 0, True, False, T, a, p)
+            if A - 6 <= a < A - 0.2 and any(abs(p - k) <= 0.6 for k in (-2.6, -5.2, -7.8)):
+                return metal(P, 0, False, a < A - 5, T, a, p)
         elif kind == "claw":
             for k, ln in ((-3.2, 9), (-6.2, 7.5), (-9, 5.5)):
                 t = (A + 2 - a) / ln
@@ -495,7 +675,7 @@ MAKERS = {"sword": sword, "axe": axe, "pickaxe": pickaxe, "shovel": shovel, "hoe
 def tool(T, name):
     P = Pal(T)
     cv = Canvas(P.o)
-    cv.paint(MAKERS[name](T, P), SHIFT[name])
+    cv.paint(ornament(MAKERS[name](T, P), T, P, name), SHIFT[name])
     return cv.image()
 
 
@@ -521,6 +701,8 @@ def bow(T, state):
             return tip + (APEX - tip) * (1 - t ** 1.6)
         if style == "double":
             return tip + (APEX - tip) * (1 - t * t) + 1.6 * math.sin(t * math.pi * 2)
+        if style == "horn":
+            return tip + (APEX - tip) * (1 - t ** 1.3) + (2.2 * (t - 0.7) / 0.3 if t > 0.7 else 0)
         return tip + (APEX - tip) * (1 - t * t)
 
     def limb(a, p):
@@ -543,6 +725,10 @@ def bow(T, state):
                 return P.al if (a + p) % 2 else P.am
             if tips == "flame":
                 return P.gl if da > 0.5 else P.g
+        if style == "segmented" and ap > 3.5 and ap % 6 < 1:
+            return None if abs(da) > 0.6 else P.g
+        if style == "wing" and da > 1 and ap > 5 and ap % 3 == 0 and da <= 1 + (ap / H) * 2.2:
+            return P.al                                        # feather ticks
         if style == "bone":
             joint = min(abs(ap - j) for j in (8, 15))
             if joint <= 1 and abs(da) <= 2:
@@ -551,7 +737,8 @@ def bow(T, state):
             return P.g
         if style == "branch" and ap in (10, 17) and -3.2 <= da < -1.5:
             return (90, 170, 70)                               # leaves
-        w = 1.6 if style != "long" else 1.3
+        t = min(ap, H) / H
+        w = {"long": 1.3, "horn": 2.8 - t * 1.8, "wing": 1.2 + t * 0.8}.get(style, 1.6)
         if abs(da) <= w:
             return mat[0] if da > 0.6 else (mat[3] if da < -0.6 else mat[2])
         return None
@@ -628,3 +815,38 @@ def enderfang():
 
     cv.paint(fn, 0)
     return cv.image()
+
+
+# ------------------------------------------------------------------ spreading styles across sets
+OPTIONS = {
+    "sword": list(BLADES), "guard": ["cross", "wings", "droop", "disc", "collar", "horns", "ring", "crescent",
+                                     "bar_gem", "fins", "knuckle", "sweep"],
+    "pommel": ["gem", "orb", "ring", "skull", "spike", "tassel", "crescent", "claw", "star", "hook"],
+    "shaft": ["wood", "twisted", "knotted", "bone", "crystal", "chain", "banded", "metal", "vine"],
+    "orn": ["gem", "ribbon", "tip", "rings", None],
+    "axe": ["flared", "double", "halberd", "hatchet", "bearded", "cleaver", "moon", "tomahawk", "beak", "labrys",
+            "reaper"],
+    "pick": ["arched", "straight", "hammer", "crystal", "single", "winged", "mattock", "claw", "trident", "star"],
+    "shovel": ["round", "spade", "pointed", "trowel", "scoop", "heart", "shield", "fork"],
+    "hoe": ["blade", "scythe", "sickle", "rake", "claw", "adze", "hook", "fork"],
+    "bow": ["smooth", "angular", "recurve", "long", "double", "bone", "branch", "horn", "wing", "segmented"],
+}
+
+
+def diversify(styles):
+    """Keep each set's themed choice unless that option is already used by its fair share of
+    sets; then hand it the least-used option. Every option ends up used about equally."""
+    import math as _m
+    counts = {k: {o: 0 for o in v} for k, v in OPTIONS.items()}
+    n = len(styles)
+    for i, T in enumerate(styles):
+        for k, opts in OPTIONS.items():
+            cap = _m.ceil(n / len(opts))
+            cur = T.get(k, opts[0] if k != "orn" else None)
+            if cur not in counts[k] or counts[k][cur] >= cap:
+                low = min(counts[k].values())
+                cands = [o for o in opts if counts[k][o] == low]
+                cur = cands[(i * 7 + len(k)) % len(cands)]
+            T[k] = cur
+            counts[k][cur] += 1
+    return styles

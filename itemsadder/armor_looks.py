@@ -42,11 +42,41 @@ def clear(t, rect, cells):
             t.img.putpixel((x0 + u, y0 + v), (0, 0, 0, 0))
 
 
+# ============================================================ trims
+STYLE = {"trim": "line"}
+
+
+def trim(t, rect, P, rows):
+    """Edge bands in the set's own trim style."""
+    kind = STYLE["trim"]
+    fur = pat("fur", dict(P, b=P["t2"], m=P["t"], l=P["a"]))
+
+    def f(u, v, w, hh, x, y):
+        if kind == "rope":
+            return P["t"] if (u + v) % 2 else P["t2"]
+        if kind == "zigzag":
+            return P["t2"] if u % 3 == 0 else P["t"]
+        if kind == "studs":
+            return P["l"] if u % 2 == 0 else P["d"]
+        if kind == "dots":
+            return P["a"] if u % 3 == 1 else P["t"]
+        if kind == "checker":
+            return P["t"] if (u + v) % 2 else P["o"]
+        if kind == "gem":
+            return P["g"] if u % 4 == 1 else P["t"]
+        if kind == "segment":
+            return P["t2"] if u % 4 == 3 else P["t"]
+        if kind == "fur":
+            return fur(u, v, w, hh, x, y)
+        return P["t"]
+    fill(t, rect, f, rows=rows)
+
+
 # ============================================================ chests (layer 1 body)
 def ch_cuirass(t, P, S, M, Sc):
     for k in SIDES:
         fill(t, BODY[k], M)
-        fill(t, BODY[k], solid(P["t"]), rows=[0])
+        trim(t, BODY[k], P, [0])
     for v in range(1, 9):                                     # centre ridge + curved shading
         put(t, BODY["front"], 3, v, P["l"])
         put(t, BODY["front"], 4, v, P["m"])
@@ -66,7 +96,7 @@ def ch_scale(t, P, S, M, Sc):
     sc = pat("scale", P)
     for k in SIDES:
         fill(t, BODY[k], sc)
-        fill(t, BODY[k], solid(P["t"]), rows=[0])
+        trim(t, BODY[k], P, [0])
     for u, v in ((2, 1), (3, 2), (4, 2), (5, 1), (3, 1), (4, 1)):   # V collar
         put(t, BODY["front"], u, v, P["t"])
     for k in SIDES:
@@ -91,7 +121,7 @@ def ch_brigandine(t, P, S, M, Sc):
 def ch_robe(t, P, S, M, Sc):
     for k in SIDES:
         fill(t, BODY[k], M)
-        fill(t, BODY[k], solid(P["t"]), rows=[0])
+        trim(t, BODY[k], P, [0])
     for v in range(12):                                       # sash across the chest
         for u in range(8):
             if abs(u - (v * 0.7)) < 1.0:
@@ -151,7 +181,7 @@ def ch_crystal(t, P, S, M, Sc):
     for u, v in ((3, 2), (4, 2), (2, 4), (5, 4), (2, 6), (5, 6), (3, 7), (4, 7)):
         put(t, BODY["front"], u, v, P["l"])
     for k in SIDES:
-        fill(t, BODY[k], solid(P["t"]), rows=[0])
+        trim(t, BODY[k], P, [0])
         fill(t, BODY[k], M, rows=[10, 11])
     return False
 
@@ -162,7 +192,7 @@ def ch_tabard(t, P, S, M, Sc):
         fill(t, BODY[k], chain)
     for k in ("front", "back"):
         fill(t, BODY[k], lambda u, v, *a: (P["t"] if u in (1, 6) else M(u, v, *a)) if 1 <= u <= 6 else None)
-        fill(t, BODY[k], solid(P["t"]), rows=[11])
+        trim(t, BODY[k], P, [11])
     return True
 
 
@@ -214,7 +244,7 @@ def ch_mech(t, P, S, M, Sc):
 def ch_uniform(t, P, S, M, Sc):
     for k in SIDES:
         fill(t, BODY[k], M)
-        fill(t, BODY[k], solid(P["t"]), rows=[0])
+        trim(t, BODY[k], P, [0])
     for v in (2, 4, 6):
         put(t, BODY["front"], 2, v, P["t"])
         put(t, BODY["front"], 5, v, P["t"])
@@ -271,7 +301,78 @@ def ch_bandolier(t, P, S, M, Sc):
     return False
 
 
-CHESTS = {"cuirass": ch_cuirass, "scale": ch_scale, "brigandine": ch_brigandine, "robe": ch_robe,
+def ch_chevron(t, P, S, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], M)
+    for k in ("front", "back"):
+        fill(t, BODY[k], lambda u, v, *a: P["t"] if (v - abs(u - 3.5) * 0.9) % 3 < 0.9 else None, rows=range(1, 11))
+    for k in SIDES:
+        fill(t, BODY[k], solid(P["d"]), rows=[11])
+    return False
+
+
+def ch_studded(t, P, S, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], pat("leather", P))
+        fill(t, BODY[k], lambda u, v, *a: P["l"] if (u % 2 == 1 and v % 2 == 1) else None, rows=range(1, 10))
+    for v in range(1, 10):                                    # front lacing
+        put(t, BODY["front"], 3 + (v % 2), v, P["o"])
+        put(t, BODY["front"], 4 - (v % 2), v, P["t2"])
+    for k in SIDES:
+        trim(t, BODY[k], P, [0, 11])
+    return False
+
+
+def ch_cloak(t, P, S, M, Sc):
+    cloth = pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"]))
+    for k in SIDES:
+        fill(t, BODY[k], cloth)
+    fill(t, BODY["front"], lambda u, v, *a: M(u, v, *a) if 2 <= u <= 5 else None)
+    for u in range(2, 6):
+        put(t, BODY["front"], u, 1, P["t2"])
+    put(t, BODY["front"], 1, 1, P["t"])
+    put(t, BODY["front"], 6, 1, P["t"])
+    for v in range(12):
+        put(t, BODY["back"], 2, v, P["o"] if v % 3 else None)
+        put(t, BODY["back"], 5, v, P["o"] if v % 3 != 1 else None)
+    return False
+
+
+def ch_core(t, P, S, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], M)
+    for v in range(12):
+        for u in range(8):
+            if abs(abs(u - 3.5) - abs(v - 4.5) * 0.8) < 0.5 and not (2 <= u <= 5 and 3 <= v <= 6):
+                put(t, BODY["front"], u, v, P["l"])
+    for u in range(2, 6):
+        for v in range(3, 7):
+            edge = u in (2, 5) or v in (3, 6)
+            put(t, BODY["front"], u, v, P["t"] if edge else P["g"])
+    for k in SIDES:
+        trim(t, BODY[k], P, [11])
+    return False
+
+
+def ch_segmented(t, P, S, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], M)
+        fill(t, BODY[k], lambda u, v, *a: P["l"] if v % 2 == 0 else (P["d"] if v % 4 == 3 else None))
+        fill(t, BODY[k], lambda u, v, w, *a: P["o"] if u in (0, w - 1) and v % 2 else None)
+    return True
+
+
+def ch_patchwork(t, P, S, M, Sc):
+    pats = [M, Sc, pat("leather", P), pat("quilt", P)]
+    for i, k in enumerate(SIDES):
+        fill(t, BODY[k], lambda u, v, w, hh, x, y, i=i: pats[(i + (u >= w // 2) + 2 * (v >= 6)) % 4](u, v, w, hh, x, y))
+        fill(t, BODY[k], lambda u, v, w, *a: P["o"] if ((u == w // 2 or v == 6) and (u + v) % 2 == 0) else None)
+        trim(t, BODY[k], P, [0])
+    return False
+
+
+CHESTS = {"chevron": ch_chevron, "studded": ch_studded, "cloak": ch_cloak, "core": ch_core,
+          "segmented": ch_segmented, "patchwork": ch_patchwork, "cuirass": ch_cuirass, "scale": ch_scale, "brigandine": ch_brigandine, "robe": ch_robe,
           "coat": ch_coat, "ribcage": ch_ribcage, "crystal": ch_crystal, "tabard": ch_tabard,
           "quilted": ch_quilted, "organic": ch_organic, "mech": ch_mech, "uniform": ch_uniform,
           "wraps": ch_wraps, "fur_vest": ch_fur_vest, "lamellar": ch_lamellar, "bandolier": ch_bandolier}
@@ -281,7 +382,7 @@ CHESTS = {"cuirass": ch_cuirass, "scale": ch_scale, "brigandine": ch_brigandine,
 def sh_round(t, P, k, M):
     fill(t, ARM[k], M, rows=range(4))
     fill(t, ARM[k], solid(P["l"]), rows=[0])
-    fill(t, ARM[k], solid(P["t"]), rows=[3])
+    trim(t, ARM[k], P, [3])
 
 
 def sh_layered(t, P, k, M):
@@ -305,11 +406,11 @@ def sh_fur(t, P, k, M):
 
 def sh_cap(t, P, k, M):
     fill(t, ARM[k], M, rows=range(2))
-    fill(t, ARM[k], solid(P["t"]), rows=[1])
+    trim(t, ARM[k], P, [1])
 
 
 def sh_epaulette(t, P, k, M):
-    fill(t, ARM[k], solid(P["t"]), rows=[0, 1])
+    trim(t, ARM[k], P, [0, 1])
     fill(t, ARM[k], lambda u, *a: P["t2"] if u % 2 == 0 else None, rows=[2])
 
 
@@ -323,20 +424,40 @@ def sh_none(t, P, k, M):
     pass
 
 
-SHOULDERS = {"round": sh_round, "layered": sh_layered, "spiked": sh_spiked, "fur": sh_fur, "cap": sh_cap,
+def sh_horned(t, P, k, M):
+    sh_round(t, P, k, M)
+    if k in ("right", "front"):
+        for u, v in ((1, 0), (2, 0), (1, 1), (0, 1)):
+            put(t, ARM[k], u, v, P["a"])
+
+
+def sh_stacked(t, P, k, M):
+    for v in range(4):
+        fill(t, ARM[k], solid(P["l"] if v % 2 == 0 else P["m"]), rows=[v])
+        put(t, ARM[k], 0, v, P["t"])
+        put(t, ARM[k], 3, v, P["t"])
+
+
+def sh_drape(t, P, k, M):
+    cloth = pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"]))
+    fill(t, ARM[k], cloth, rows=range(6))
+    trim(t, ARM[k], P, [5])
+
+
+SHOULDERS = {"horned": sh_horned, "stacked": sh_stacked, "drape": sh_drape, "round": sh_round, "layered": sh_layered, "spiked": sh_spiked, "fur": sh_fur, "cap": sh_cap,
              "epaulette": sh_epaulette, "crystal": sh_crystal, "none": sh_none}
 
 
 # ============================================================ arms (rows 4-11)
 def ar_sleeve(t, P, k, M, Sc):
     fill(t, ARM[k], Sc, rows=range(4, 12))
-    fill(t, ARM[k], solid(P["t"]), rows=[11])
+    trim(t, ARM[k], P, [11])
 
 
 def ar_chain(t, P, k, M, Sc):
     fill(t, ARM[k], pat("chain", dict(P, l=P["s1"], m=P["s2"], b=P["s2"], d=P["o"])), rows=range(4, 10))
     fill(t, ARM[k], M, rows=[10, 11])
-    fill(t, ARM[k], solid(P["t"]), rows=[10])
+    trim(t, ARM[k], P, [10])
 
 
 def ar_bracer(t, P, k, M, Sc):
@@ -348,7 +469,7 @@ def ar_bracer(t, P, k, M, Sc):
 def ar_gauntlet(t, P, k, M, Sc):
     fill(t, ARM[k], Sc, rows=range(4, 8))
     fill(t, ARM[k], M, rows=range(8, 12))
-    fill(t, ARM[k], solid(P["t"]), rows=[8])
+    trim(t, ARM[k], P, [8])
     fill(t, ARM[k], lambda u, *a: P["l"] if u % 2 else P["d"], rows=[11])
 
 
@@ -360,23 +481,43 @@ def ar_puffy(t, P, k, M, Sc):
     fill(t, ARM[k], Sc, rows=range(4, 9))
     fill(t, ARM[k], lambda u, *a: P["a"] if u % 2 == 0 else None, rows=range(5, 8))
     fill(t, ARM[k], M, rows=range(9, 12))
-    fill(t, ARM[k], solid(P["t"]), rows=[9])
+    trim(t, ARM[k], P, [9])
 
 
 def ar_plate(t, P, k, M, Sc):
     fill(t, ARM[k], M, rows=range(4, 12))
-    fill(t, ARM[k], solid(P["t"]), rows=[7])
+    trim(t, ARM[k], P, [7])
     put(t, ARM[k], 1, 7, P["l"])
     fill(t, ARM[k], solid(P["d"]), rows=[11])
 
 
 def ar_bare(t, P, k, M, Sc):
     fill(t, ARM[k], M, rows=range(8, 12))
-    fill(t, ARM[k], solid(P["t"]), rows=[8])
+    trim(t, ARM[k], P, [8])
     clear(t, ARM[k], [(u, v) for u in range(4) for v in range(4, 8)])
 
 
-ARMS = {"sleeve": ar_sleeve, "chain": ar_chain, "bracer": ar_bracer, "gauntlet": ar_gauntlet,
+def ar_studded(t, P, k, M, Sc):
+    fill(t, ARM[k], pat("leather", P), rows=range(4, 12))
+    fill(t, ARM[k], lambda u, v, *a: P["l"] if (u % 2 == 1 and v % 2 == 0) else None, rows=range(4, 11))
+    trim(t, ARM[k], P, [11])
+
+
+def ar_spiked(t, P, k, M, Sc):
+    fill(t, ARM[k], M, rows=range(4, 12))
+    trim(t, ARM[k], P, [8])
+    if k in ("right", "back"):
+        for v in (6, 10):
+            put(t, ARM[k], 1, v, P["a"])
+            put(t, ARM[k], 2, v, P["a"])
+
+
+def ar_striped(t, P, k, M, Sc):
+    fill(t, ARM[k], Sc, rows=range(4, 12))
+    fill(t, ARM[k], lambda u, v, *a: P["t"] if v % 2 == 0 else None, rows=range(5, 11))
+
+
+ARMS = {"studded": ar_studded, "spiked": ar_spiked, "striped": ar_striped, "sleeve": ar_sleeve, "chain": ar_chain, "bracer": ar_bracer, "gauntlet": ar_gauntlet,
         "wrapped": ar_wrapped, "puffy": ar_puffy, "plate": ar_plate, "bare": ar_bare}
 
 
@@ -401,7 +542,7 @@ def be_sash(t, P, M, Sc):
 def be_tassets(t, P, M, Sc):
     for k in SIDES:
         fill(t, BODY[k], M, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["t"]), rows=[7])
+        trim(t, BODY[k], P, [7])
         fill(t, BODY[k], solid(P["d"]), rows=[11])
     for v in range(8, 12):
         put(t, BODY["front"], 3, v, P["o"])
@@ -418,7 +559,7 @@ def be_chain(t, P, M, Sc):
 def be_skirt(t, P, M, Sc):
     for k in SIDES:
         fill(t, BODY[k], M, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["t"]), rows=[7])
+        trim(t, BODY[k], P, [7])
 
 
 def be_loincloth(t, P, M, Sc):
@@ -431,7 +572,34 @@ def be_loincloth(t, P, M, Sc):
             put(t, BODY["back"], u, v, P["t"])
 
 
-BELTS = {"buckle": be_buckle, "sash": be_sash, "tassets": be_tassets, "chain": be_chain, "skirt": be_skirt,
+def be_rope(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], Sc, rows=range(7, 12))
+        fill(t, BODY[k], lambda u, v, *a: P["a"] if (u + v) % 2 else P["t2"], rows=[7, 8])
+    for v in (9, 10):
+        put(t, BODY["front"], 2, v, P["a"])
+        put(t, BODY["front"], 3, v, P["t2"] if v == 10 else P["a"])
+
+
+def be_pouches(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], Sc, rows=range(7, 12))
+        fill(t, BODY[k], solid(P["o"]), rows=[8])
+    for u0 in (1, 5):
+        for u in (u0, u0 + 1):
+            put(t, BODY["front"], u, 9, P["t"])
+            put(t, BODY["front"], u, 10, P["s1"])
+            put(t, BODY["front"], u, 11, P["s1"])
+
+
+def be_studded(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, BODY[k], Sc, rows=range(7, 12))
+        fill(t, BODY[k], lambda u, *a: P["l"] if u % 2 == 0 else P["d"], rows=[8])
+        fill(t, BODY[k], solid(P["d"]), rows=[7])
+
+
+BELTS = {"rope": be_rope, "pouches": be_pouches, "studded": be_studded, "buckle": be_buckle, "sash": be_sash, "tassets": be_tassets, "chain": be_chain, "skirt": be_skirt,
          "loincloth": be_loincloth}
 
 
@@ -439,7 +607,7 @@ BELTS = {"buckle": be_buckle, "sash": be_sash, "tassets": be_tassets, "chain": b
 def lg_greaves(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M)
-        fill(t, LEG[k], solid(P["t"]), rows=[5])
+        trim(t, LEG[k], P, [5])
     put(t, LEG["front"], 1, 5, P["l"])
     put(t, LEG["front"], 2, 5, P["l"])
     for v in range(6, 12):
@@ -456,7 +624,7 @@ def lg_pants(t, P, M, Sc):
 def lg_robe(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M, rows=range(0, 10))
-        fill(t, LEG[k], solid(P["t"]), rows=[9])
+        trim(t, LEG[k], P, [9])
         fill(t, LEG[k], Sc, rows=[10, 11])
 
 
@@ -465,14 +633,14 @@ def lg_chain(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], ch)
         fill(t, LEG[k], M, rows=[4, 5])
-        fill(t, LEG[k], solid(P["t"]), rows=[4])
+        trim(t, LEG[k], P, [4])
 
 
 def lg_scale(t, P, M, Sc):
     sc = pat("scale", P)
     for k in SIDES:
         fill(t, LEG[k], sc)
-        fill(t, LEG[k], solid(P["t"]), rows=[0])
+        trim(t, LEG[k], P, [0])
 
 
 def lg_wrapped(t, P, M, Sc):
@@ -486,7 +654,7 @@ def lg_armored(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], Sc, rows=range(0, 6))
         fill(t, LEG[k], M, rows=range(6, 12))
-        fill(t, LEG[k], solid(P["t"]), rows=[6])
+        trim(t, LEG[k], P, [6])
     for v in range(7, 12):
         put(t, LEG["front"], 1, v, P["l"])
         put(t, LEG["front"], 2, v, P["m"])
@@ -500,7 +668,33 @@ def lg_striped(t, P, M, Sc):
         put(t, LEG["right"], 2, v, P["t"])
 
 
-LEGS = {"greaves": lg_greaves, "pants": lg_pants, "robe": lg_robe, "chain": lg_chain, "scale": lg_scale,
+def lg_tassets(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], Sc)
+        fill(t, LEG[k], lambda u, v, *a: P["l"] if v % 2 == 0 else P["d"], rows=range(0, 6))
+        fill(t, LEG[k], M, rows=[1, 3])
+
+
+def lg_quilted(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], pat("quilt", P))
+        trim(t, LEG[k], P, [5])
+
+
+def lg_patched(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], Sc)
+    for u in range(4):
+        for v in range(2, 6):
+            put(t, LEG["front"], u, v, P["m"] if (u + v) % 2 else P["b"])
+    for u, v in ((0, 2), (3, 2), (0, 5), (3, 5)):
+        put(t, LEG["front"], u, v, P["o"])
+    for v in range(7, 10):
+        put(t, LEG["right"], 1, v, P["m"])
+        put(t, LEG["right"], 2, v, P["m"])
+
+
+LEGS = {"tassets": lg_tassets, "quilted": lg_quilted, "patched": lg_patched, "greaves": lg_greaves, "pants": lg_pants, "robe": lg_robe, "chain": lg_chain, "scale": lg_scale,
         "wrapped": lg_wrapped, "armored": lg_armored, "striped": lg_striped}
 
 
@@ -508,7 +702,7 @@ LEGS = {"greaves": lg_greaves, "pants": lg_pants, "robe": lg_robe, "chain": lg_c
 def bo_sabaton(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M, rows=range(6, 12))
-        fill(t, LEG[k], solid(P["t"]), rows=[6])
+        trim(t, LEG[k], P, [6])
         fill(t, LEG[k], solid(P["d"]), rows=[9, 11])
         fill(t, LEG[k], solid(P["l"]), rows=[10])
 
@@ -523,7 +717,7 @@ def bo_fur(t, P, M, Sc):
 def bo_tall(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M, rows=range(3, 12))
-        fill(t, LEG[k], solid(P["t"]), rows=[3])
+        trim(t, LEG[k], P, [3])
         fill(t, LEG[k], solid(P["t2"]), rows=[4])
         fill(t, LEG[k], solid(P["o"]), rows=[11])
 
@@ -538,7 +732,7 @@ def bo_wrapped(t, P, M, Sc):
 def bo_clawed(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M, rows=range(6, 12))
-        fill(t, LEG[k], solid(P["t"]), rows=[6])
+        trim(t, LEG[k], P, [6])
     for u in (0, 2):
         put(t, LEG["front"], u, 11, P["a"])
         put(t, LEG["front"], u, 10, P["a"])
@@ -557,13 +751,41 @@ def bo_buckled(t, P, M, Sc):
 def bo_greave(t, P, M, Sc):
     for k in SIDES:
         fill(t, LEG[k], M, rows=range(4, 12))
-        fill(t, LEG[k], solid(P["t"]), rows=[4])
+        trim(t, LEG[k], P, [4])
         fill(t, LEG[k], solid(P["d"]), rows=[11])
     put(t, LEG["front"], 1, 5, P["l"])
     put(t, LEG["front"], 2, 5, P["l"])
 
 
-BOOTS = {"sabaton": bo_sabaton, "fur": bo_fur, "tall": bo_tall, "wrapped": bo_wrapped, "clawed": bo_clawed,
+def bo_pointed(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], M, rows=range(6, 12))
+        trim(t, LEG[k], P, [6])
+    for v in range(7, 12):
+        put(t, LEG["front"], 1, v, P["l"])
+    put(t, LEG["front"], 1, 11, P["a"])
+    put(t, LEG["front"], 2, 11, P["a"])
+
+
+def bo_cuffed(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], pat("leather", P), rows=range(5, 12))
+        fill(t, LEG[k], solid(P["l"]), rows=[5])
+        trim(t, LEG[k], P, [6])
+        fill(t, LEG[k], solid(P["o"]), rows=[11])
+
+
+def bo_spiked(t, P, M, Sc):
+    for k in SIDES:
+        fill(t, LEG[k], M, rows=range(6, 12))
+        trim(t, LEG[k], P, [6])
+        fill(t, LEG[k], solid(P["d"]), rows=[11])
+    for k in ("back", "right"):
+        put(t, LEG[k], 1, 8, P["a"])
+        put(t, LEG[k], 2, 8, P["a"])
+
+
+BOOTS = {"pointed": bo_pointed, "cuffed": bo_cuffed, "spiked": bo_spiked, "sabaton": bo_sabaton, "fur": bo_fur, "tall": bo_tall, "wrapped": bo_wrapped, "clawed": bo_clawed,
          "buckled": bo_buckled, "greave": bo_greave}
 
 
@@ -579,14 +801,14 @@ LOOKS = {  # chest, shoulders, arms, belt, legs, boots, cover
  "clockwork": ("mech", "layered", "gauntlet", "buckle", "armored", "sabaton", "full"),
  "shadow": ("wraps", "layered", "wrapped", "chain", "wrapped", "buckled", "standard"),
  "dragon": ("cuirass", "spiked", "gauntlet", "tassets", "scale", "clawed", "standard"),
- "mushroom": ("quilted", "cap", "puffy", "skirt", "pants", "fur", "standard"),
+ "mushroom": ("patchwork", "cap", "puffy", "skirt", "pants", "fur", "standard"),
  "obsidian": ("crystal", "spiked", "plate", "tassets", "greaves", "greave", "full"),
- "magma": ("cuirass", "round", "gauntlet", "chain", "armored", "sabaton", "standard"),
- "storm": ("brigandine", "layered", "plate", "chain", "chain", "tall", "full"),
+ "magma": ("segmented", "round", "gauntlet", "chain", "armored", "sabaton", "standard"),
+ "storm": ("core", "layered", "plate", "chain", "chain", "tall", "full"),
  "void": ("robe", "crystal", "sleeve", "skirt", "robe", "buckled", "standard"),
  "celestial": ("tabard", "crystal", "sleeve", "skirt", "striped", "greave", "standard"),
- "solar": ("cuirass", "epaulette", "gauntlet", "skirt", "robe", "greave", "full"),
- "lunar": ("coat", "cap", "sleeve", "sash", "robe", "tall", "light"),
+ "solar": ("chevron", "epaulette", "gauntlet", "skirt", "robe", "greave", "full"),
+ "lunar": ("cloak", "cap", "sleeve", "sash", "robe", "tall", "light"),
  "viking": ("fur_vest", "fur", "bracer", "buckle", "wrapped", "fur", "light"),
  "spartan": ("cuirass", "none", "bare", "tassets", "greaves", "wrapped", "light"),
  "jaguar": ("fur_vest", "spiked", "wrapped", "loincloth", "wrapped", "wrapped", "light"),
@@ -604,28 +826,152 @@ LOOKS = {  # chest, shoulders, arms, belt, legs, boots, cover
  "royal": ("uniform", "epaulette", "sleeve", "buckle", "striped", "tall", "full"),
  "arcane": ("tabard", "cap", "puffy", "sash", "robe", "buckled", "standard"),
  "seraph": ("scale", "layered", "plate", "sash", "robe", "greave", "standard"),
- "toxic": ("quilted", "none", "sleeve", "chain", "pants", "buckled", "full"),
+ "toxic": ("core", "none", "sleeve", "chain", "pants", "buckled", "full"),
  "kraken": ("organic", "crystal", "chain", "skirt", "scale", "clawed", "standard"),
  "phoenix": ("scale", "spiked", "bracer", "tassets", "robe", "clawed", "light"),
- "werewolf": ("fur_vest", "fur", "bare", "loincloth", "pants", "fur", "light"),
+ "werewolf": ("studded", "fur", "bare", "loincloth", "pants", "fur", "light"),
  "rose": ("organic", "layered", "gauntlet", "sash", "armored", "tall", "standard"),
  "prism": ("crystal", "epaulette", "bracer", "skirt", "striped", "buckled", "standard"),
  "cowboy": ("bandolier", "cap", "sleeve", "buckle", "pants", "tall", "light"),
- "monk": ("robe", "none", "bare", "sash", "pants", "wrapped", "light"),
+ "monk": ("wraps", "none", "bare", "sash", "pants", "wrapped", "light"),
  "redstone": ("brigandine", "epaulette", "plate", "buckle", "striped", "sabaton", "full"),
- "oxidized": ("cuirass", "layered", "chain", "buckle", "chain", "sabaton", "full"),
+ "oxidized": ("segmented", "layered", "chain", "buckle", "chain", "sabaton", "full"),
  "candy": ("uniform", "spiked", "puffy", "skirt", "striped", "fur", "light"),
  "vampire": ("uniform", "layered", "puffy", "chain", "robe", "tall", "standard"),
  "halloween": ("brigandine", "spiked", "gauntlet", "chain", "armored", "clawed", "standard"),
 }
 PARTS = ("chest", "shoulders", "arms", "belt", "legs", "boots")
+# themed trims and back designs; everything not listed is spread automatically
+THEMED = {"paladin": ("gem", "cross"), "seraph": ("gem", "wings"), "vampire": ("line", "cape"),
+          "royal": ("rope", "none"), "viking": ("fur", "x"), "bone": ("studs", "spine"), "dragon": ("zigzag", "spine"),
+          "pirate": ("rope", "cape"), "celestial": ("dots", "circle"), "phoenix": ("zigzag", "wings"),
+          "necro": ("checker", "spine"), "clockwork": ("segment", "circle"), "samurai": ("rope", "emblem")}
+BALANCED = ("shoulders", "arms", "belt", "legs", "boots", "trim", "back")
+
+
+def _balanced_looks():
+    import math
+    opts = {"shoulders": list(SHOULDERS), "arms": [a for a in ARMS if a != "bare"], "belt": list(BELTS),
+            "legs": list(LEGS), "boots": list(BOOTS), "trim": TRIMS, "back": list(BACKS)}
+    counts = {k: {o: 0 for o in v} for k, v in opts.items()}
+    out = {}
+    ids = list(LOOKS)
+    for i, sid in enumerate(ids):
+        row = LOOKS[sid]
+        look = dict(zip(PARTS, row[:6]))
+        look["trim"], look["back"] = THEMED.get(sid, (None, None))
+        for k in BALANCED:
+            cap = math.ceil(len(ids) / len(opts[k]))
+            cur = look.get(k)
+            if k == "arms" and cur == "bare":
+                out.setdefault(sid, look)
+                continue
+            if cur not in counts[k] or counts[k][cur] >= cap:
+                low = min(counts[k].values())
+                cands = [o for o in opts[k] if counts[k][o] == low]
+                cur = cands[(i * 5 + len(k)) % len(cands)]
+            look[k] = cur
+            counts[k][cur] += 1
+        out[sid] = (look, row[6])
+    return out
+
+
+_BALANCED = None
 
 
 def apply(S):
-    row = LOOKS[S["id"]]
-    S["look"] = dict(zip(PARTS, row[:6]))
-    S["cover"] = row[6]
+    global _BALANCED
+    if _BALANCED is None:
+        _BALANCED = _balanced_looks()
+    look, cover = _BALANCED[S["id"]]
+    S["look"] = dict(look)
+    S["cover"] = cover
     return S
+
+
+# ============================================================ back designs (layer 1 body back)
+def bk_spine(t, P, S):
+    for v in range(1, 10):
+        put(t, BODY["back"], 3, v, P["d"])
+        put(t, BODY["back"], 4, v, P["l"] if v % 2 else P["d"])
+
+
+def bk_cross(t, P, S):
+    for v in range(1, 10):
+        put(t, BODY["back"], 3, v, P["t"])
+        put(t, BODY["back"], 4, v, P["t"])
+    for u in range(1, 7):
+        put(t, BODY["back"], u, 3, P["t"])
+
+
+def bk_wings(t, P, S):
+    for v in range(1, 8):
+        for u in range(8):
+            d = abs(u - 3.5)
+            if abs(d - (4 - v * 0.5)) < 0.5 or (v in (3, 5) and 1 < d < 4 - v * 0.4):
+                put(t, BODY["back"], u, v, P["a"])
+
+
+def bk_circle(t, P, S):
+    for v in range(12):
+        for u in range(8):
+            r = ((u - 3.5) ** 2 + (v - 4.5) ** 2) ** 0.5
+            if 2 <= r <= 2.9:
+                put(t, BODY["back"], u, v, P["t"])
+            elif r < 1:
+                put(t, BODY["back"], u, v, P["g"])
+
+
+def bk_stripes(t, P, S):
+    for v in range(0, 11):
+        put(t, BODY["back"], 1, v, P["t2"])
+        put(t, BODY["back"], 6, v, P["t2"])
+
+
+def bk_x(t, P, S):
+    for v in range(1, 10):
+        u = round((v - 1) * 0.8)
+        put(t, BODY["back"], u, v, P["o"])
+        put(t, BODY["back"], 7 - u, v, P["o"])
+
+
+def bk_cape(t, P, S):
+    fill(t, BODY["back"], pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"])))
+    for v in range(12):
+        if v % 3:
+            put(t, BODY["back"], 2, v, P["o"])
+            put(t, BODY["back"], 5, v, P["o"])
+    trim(t, BODY["back"], P, [0])
+
+
+def bk_emblem(t, P, S):
+    if S.get("emblem"):
+        t.stamp(BODY["back"], S["emblem"], P, dy=2)
+
+
+BACKS = {"spine": bk_spine, "cross": bk_cross, "wings": bk_wings, "circle": bk_circle, "stripes": bk_stripes,
+         "x": bk_x, "cape": bk_cape, "emblem": bk_emblem, "none": lambda *a: None}
+TRIMS = ["line", "rope", "zigzag", "studs", "dots", "checker", "gem", "segment", "fur"]
+
+
+def shade(img, P):
+    """Depth: lit top edge, shadowed bottom and right edge on every armor face."""
+    keep = {P["g"]}
+    px = img.load()
+    for net in (BODY, ARM, LEG):
+        for k in SIDES:
+            x0, y0, w, hh = net[k]
+            for v in range(hh):
+                for u in range(w):
+                    c = px[x0 + u, y0 + v]
+                    if c[3] == 0 or c[:3] in keep:
+                        continue
+                    f = 1.12 if v == 0 else 0.78 if v == hh - 1 else 0.9 if v == hh - 2 else 1.0
+                    if u == w - 1:
+                        f *= 0.9
+                    elif u == 0:
+                        f *= 1.05
+                    px[x0 + u, y0 + v] = tuple(max(0, min(255, int(ch * f))) for ch in c[:3]) + (255,)
 
 
 # ============================================================ painter
@@ -654,9 +1000,11 @@ def paint(S):
     fill(t1, HEAD["bottom"], solid(P["o"]))
     fill(t1, BODY["top"], M)
     fill(t1, BODY["bottom"], solid(P["o"]))
+    STYLE["trim"] = L.get("trim", "line")
     emblem = CHESTS[L["chest"]](t1, P, S, M, Sc)
     if emblem and S.get("emblem"):
         t1.stamp(BODY["front"], S["emblem"], P, dy=2)
+    BACKS[L.get("back", "none")](t1, P, S)
     fill(t1, ARM["top"], M)
     fill(t1, ARM["bottom"], solid(P["o"]))
     for k in SIDES:
@@ -673,6 +1021,8 @@ def paint(S):
     fill(t2, LEG["bottom"], solid(P["o"]))
     LEGS[L["legs"]](t2, P, M, Sc)
     cover_cuts(t1, t2, S.get("cover", "standard"), L)
+    shade(t1.img, P)
+    shade(t2.img, P)
     return t1.img, t2.img
 
 
