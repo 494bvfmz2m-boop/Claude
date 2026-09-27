@@ -44,6 +44,13 @@ def h(x, y, k=0):
 
 
 FRAMES = 16          # hand-made animation loop for every Galactus texture
+ATLAS = 128          # atlas size: the base regions fill the top-left 64x64, pose regions sit below
+# The helmet "moves" like a flipbook: each moving part is modelled once per pose, and a pose's
+# texture region is only opaque during that pose's frames (see-through pixels don't render).
+POSES = 3
+POSE_OF_FRAME = [0] * 4 + [1] * 4 + [2] * 4 + [1] * 4       # rest, shift, full, shift (ping-pong)
+ORBITS = 4
+ORBIT_OF_FRAME = [f // 4 for f in range(16)]                 # a moon stepping round the black hole
 FIRE = [(255, 255, 255), (190, 250, 255), (90, 200, 255), (70, 110, 255), (130, 60, 230), (90, 30, 170)]
 
 
@@ -79,8 +86,8 @@ REG = {}
 
 
 def atlas(f=0):
-    """One animation frame of the shared 64x64 Galactus atlas."""
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    """One animation frame of the shared 128x128 Galactus atlas."""
+    img = Image.new("RGBA", (ATLAS, ATLAS), (0, 0, 0, 0))
     px = img.load()
     pulse = 0.5 + 0.5 * math.sin(2 * math.pi * f / FRAMES)
 
@@ -201,15 +208,31 @@ def atlas(f=0):
     region("horn", 0, 44, 32, 4, horn)
     region("disk", 0, 48, 32, 4, disk)
     region("void", 32, 40, 16, 16, void)
+
+    def only(fn, on):                                         # a region that is see-through outside its frames
+        return lambda x, y, w, hh: fn(x, y, w, hh) if on else None
+
+    glow_c = lambda *a: lerp(GLOW_C[0], GLOW_C[1], pulse)     # noqa: E731
+    moon = lambda x, y, w, hh: (230, 230, 250) if h(x, y, 70) > 0.3 else (160, 170, 220)   # noqa: E731
+    for k in range(POSES):
+        on = POSE_OF_FRAME[f] == k
+        region(f"visor_p{k}", 32 * k, 64, 32, 4, only(visor, on))
+        region(f"horn_p{k}", 32 * k, 68, 32, 4, only(horn, on))
+        region(f"disk_p{k}", 32 * k, 72, 32, 4, only(disk, on))
+        region(f"void_p{k}", 16 * k, 80, 16, 16, only(void, on))
+        region(f"plasma_p{k}", 48 + 8 * k, 80, 8, 8, only(plasma, on))
+        region(f"glow_c_p{k}", 72 + 8 * k, 80, 8, 8, only(glow_c, on))
+    for k in range(ORBITS):
+        region(f"moon_o{k}", 96 + 8 * k, 80, 8, 8, only(moon, ORBIT_OF_FRAME[f] == k))
     return img
 
 
 def strip():
     """All frames stacked vertically (read by the .mcmeta animation)."""
     frames = [atlas(f) for f in range(FRAMES)]
-    out = Image.new("RGBA", (64, 64 * FRAMES), (0, 0, 0, 0))
+    out = Image.new("RGBA", (ATLAS, ATLAS * FRAMES), (0, 0, 0, 0))
     for i, fr in enumerate(frames):
-        out.paste(fr, (0, i * 64))
+        out.paste(fr, (0, i * ATLAS))
     return out
 
 
@@ -217,26 +240,29 @@ MCMETA = {"animation": {"frametime": 2}}
 EMBER_COLS = [STAR[1], GLOW_C[1], GLOW_C[0], GLOW_M[1], GLOW_M[0], NEB_B[2], (255, 200, 120)]
 
 
-def embers_strip(size=32):
-    """Fake particles (the trick from the pumpkin-set sword): sparks rising on see-through
-    sheets, 16 frames that loop seamlessly (each spark climbs exactly one frame height per loop)."""
+def embers_strip(size=32, count=12):
+    """Fake particles (the trick from the pumpkin-set sword): a few sparks rising on see-through
+    sheets, 16 frames that loop seamlessly (each spark climbs exactly one frame height per loop).
+    Each 8px column feeds one sheet; its sparks are spread evenly up the column so they never clump."""
     sparks = []
-    for i in range(46):
-        x = int(h(i, 1, 80) * size)
-        base = h(i, 2, 81) * size
+    per = count // 4
+    for i in range(count):
+        col_i, n = i % 4, i // 4
+        x = col_i * 8 + 2 + int(h(i, 1, 80) * 4)
+        base = (n + 0.25 + h(i, 2, 81) * 0.5) * size / per
         col = EMBER_COLS[int(h(i, 3, 82) * len(EMBER_COLS))]
-        tall = 1 + int(h(i, 4, 83) * 2.5)
+        tall = 1 + int(h(i, 4, 83) * 2)
         wob = h(i, 5, 84) * 6.28
         sparks.append((x, base, col, tall, wob))
     out = Image.new("RGBA", (size, size * FRAMES), (0, 0, 0, 0))
     for f in range(FRAMES):
         for x, base, col, tall, wob in sparks:
             y = (base - f * size / FRAMES) % size
-            xx = int(x + math.sin(wob + f * 0.8)) % size
+            xx = int(x + math.sin(wob + f * 0.8))
             for k in range(tall):
                 yy = int(y) + k
                 if 0 <= yy < size:
-                    c = col if k == 0 else lerp(col, (40, 20, 90), 0.4 * k)
+                    c = col if k == 0 else lerp(col, (40, 20, 90), 0.45 * k)
                     out.putpixel((xx, f * size + yy), c + (255,))
     return out
 
@@ -290,23 +316,23 @@ class Parts(list):
 # ------------------------------------------------------------------ weapon designs (upright, then turned -45)
 def sword():
     p = Parts()
-    p.handle(-6, 1.5)
-    p.plate("guard", 3.4, 12.6, 1.5, 3, "gold")
-    p.plate("guard_lo", 4.6, 11.4, 1, 1.5, "gold_d")
+    p.handle(-10, -2.5)                                       # the hilt sits low so the blade can run long
+    p.plate("guard", 3.4, 12.6, -2.5, -1, "gold")
+    p.plate("guard_lo", 4.6, 11.4, -3, -2.5, "gold_d")
     for sx in (-1, 1):                                        # crescent guard tips curling up
         x = 8 + sx * 4.6
-        p.plate(f"guard_tip{sx}", min(x, x + sx * 1.2), max(x, x + sx * 1.2), 3, 4.4, "gold")
-        p.plate(f"guard_tip2{sx}", min(x + sx * 0.8, x + sx * 1.6), max(x + sx * 0.8, x + sx * 1.6), 4.4, 5.6, "glow_c", True)
-    p.column("planet", 1.1, 3.9, 2.4, "planet", d=1.6)
-    p.ring("planet_ring", 2.3, 2.6, 2.2, 0.3, "ring", True)
-    # blade: nebula core, glowing edges and fuller, stepped point
-    p.plate("blade", 6.9, 9.1, 3, 23, "nebula", True, t=0.7)
-    p.plate("edge_l", 6.5, 6.9, 3.4, 22.4, "glow_c", True, t=0.5)
-    p.plate("edge_r", 9.1, 9.5, 3.4, 22.4, "glow_c", True, t=0.5)
-    p.plate("fuller", 7.8, 8.2, 4, 19, "glow_w", True, t=0.75)
-    p.plate("tip0", 7.2, 8.8, 23, 25, "nebula2", True, t=0.7)
-    p.plate("tip1", 7.6, 8.4, 25, 26.6, "glow_c", True, t=0.6)
-    y0, y1, r = 3.5, 27, 2.4                                  # cage of ember sheets around the blade
+        p.plate(f"guard_tip{sx}", min(x, x + sx * 1.2), max(x, x + sx * 1.2), -1, 0.4, "gold")
+        p.plate(f"guard_tip2{sx}", min(x + sx * 0.8, x + sx * 1.6), max(x + sx * 0.8, x + sx * 1.6), 0.4, 1.6, "glow_c", True)
+    p.column("planet", -2.9, -0.1, 2.4, "planet", d=1.6)
+    p.ring("planet_ring", -1.7, -1.4, 2.2, 0.3, "ring", True)
+    # long blade: nebula core, glowing edges and fuller, stepped point
+    p.plate("blade", 6.9, 9.1, -1, 27, "nebula", True, t=0.7)
+    p.plate("edge_l", 6.5, 6.9, -0.6, 26.4, "glow_c", True, t=0.5)
+    p.plate("edge_r", 9.1, 9.5, -0.6, 26.4, "glow_c", True, t=0.5)
+    p.plate("fuller", 7.8, 8.2, 0, 23, "glow_w", True, t=0.75)
+    p.plate("tip0", 7.2, 8.8, 27, 29.4, "nebula2", True, t=0.7)
+    p.plate("tip1", 7.6, 8.4, 29.4, 31.2, "glow_c", True, t=0.6)
+    y0, y1, r = 0, 30, 2.4                                    # cage of ember sheets around the blade
     p.append({"name": "embers_n", "from": [8 - r, y0, 8 - r], "to": [8 + r, y1, 8 - r + 0.01], "mat": "embers",
               "glow": True, "strip": 0, "axis": "z"})
     p.append({"name": "embers_s", "from": [8 - r, y0, 8 + r - 0.01], "to": [8 + r, y1, 8 + r], "mat": "embers",
@@ -315,11 +341,11 @@ def sword():
               "glow": True, "strip": 2, "axis": "x"})
     p.append({"name": "embers_e", "from": [8 + r - 0.01, y0, 8 - r], "to": [8 + r, y1, 8 + r], "mat": "embers",
               "glow": True, "strip": 3, "axis": "x"})
-    for i, y in enumerate((5, 10, 15)):                       # blue fire licking up both edges
+    for i, y in enumerate((2, 9, 16)):                        # blue fire licking up both edges
         p.fire(f"fire_l{i}", 6.0, y, 4.2, 1.2, "flame" if i % 2 else "flame2")
-        p.fire(f"fire_r{i}", 10.0, y + 2, 4.2, 1.2, "flame2" if i % 2 else "flame")
-    p.column("pommel_eye", -8.6, -7.8, 1.0, "eye", True)
-    for i, (x, y) in enumerate(((5.2, 12), (10.6, 16), (5.6, 19.5), (10.3, 9))):   # stars drifting off the blade
+        p.fire(f"fire_r{i}", 10.0, y + 3, 4.2, 1.2, "flame2" if i % 2 else "flame")
+    p.column("pommel_eye", -12.6, -11.8, 1.0, "eye", True)
+    for i, (x, y) in enumerate(((5.2, 11), (10.6, 18), (5.6, 23.5), (10.3, 6))):   # stars drifting off the blade
         p.box(f"star{i}", (x - 0.3, y - 0.3, 7.7), (x + 0.3, y + 0.3, 8.3), "glow_w", True)
     return p
 
@@ -476,6 +502,9 @@ WEAPONS = {  # id: (builder, material, display scale, damage, speed, extra, name
 }
 
 
+UV = 16 / ATLAS         # atlas pixels to model uv units
+
+
 def weapon_model(parts, ref, scale, centre):
     elements = []
     for p in parts:
@@ -488,8 +517,8 @@ def weapon_model(parts, ref, scale, centre):
         else:
             for f in FACES:
                 x, y, w, hh = face_px(p, f)
-                el["faces"][f] = {"uv": [round(x / 4, 3), round(y / 4, 3), round((x + w) / 4, 3),
-                                         round((y + hh) / 4, 3)], "texture": "#tex"}
+                el["faces"][f] = {"uv": [round(x * UV, 3), round(y * UV, 3), round((x + w) * UV, 3),
+                                         round((y + hh) * UV, 3)], "texture": "#tex"}
         if p["glow"]:
             el["light_emission"] = 15
         elements.append(el)
@@ -498,7 +527,7 @@ def weapon_model(parts, ref, scale, centre):
     if any(p["mat"] == "embers" for p in parts):
         textures["embers"] = ref.replace("galactus_fx", "galactus_embers")
     return {
-        "texture_size": [64, 64], "textures": textures, "gui_light": "front",
+        "texture_size": [ATLAS, ATLAS], "textures": textures, "gui_light": "front",
         "elements": elements,
         "display": {
             "thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 6, 1.5], "scale": [k, k, k]},
@@ -547,12 +576,9 @@ def helmet_parts():
         part("inlay_crest", (-0.8, 32.6, -4.75), (0.8, 33.1, 4.75), "nebula", glow=True),
         part("inlay_back", (-0.8, 25.6, 5), (0.8, 32, 5.08), "nebula", glow=True),
         # V-shaped scanner visor, swept up towards the temples
-        part("visor_r", (0, 27.3, -5.14), (4.9, 28.4, -4.98), "visor", glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
-        part("visor_l", (-4.9, 27.3, -5.14), (0, 28.4, -4.98), "visor", glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
         part("visor_rim_r", (0, 26.9, -5.1), (4.9, 27.3, -4.95), "gold", rot=("z", 22.5, (0, 27.85, -5.06))),
         part("visor_rim_l", (-4.9, 26.9, -5.1), (0, 27.3, -4.95), "gold", rot=("z", -22.5, (0, 27.85, -5.06))),
         part("prow", (-0.35, 24.4, -5.25), (0.35, 27, -5.02), "gold"),
-        part("beam", (-0.12, 33.25, -0.12), (0.12, 37.4, 0.12), "glow_c", glow=True),
         # high gorget
         part("gorget_front", (-4.4, 23.2, -4.4), (4.4, 24.6, -3.2), "gold"),
         part("gorget_back", (-4.4, 23.2, 3.2), (4.4, 24.6, 4.4), "gold"),
@@ -560,28 +586,48 @@ def helmet_parts():
         # the black hole hovering above the head
         part("chin_point", (-1.3, 23.3, -5.35), (1.3, 24.4, -4.9), "gold"),
         part("chin_glow", (-0.4, 23.5, -5.4), (0.4, 24.1, -5.35), "glow_c", glow=True),
-        part("singularity", (-1.3, 37.4, -1.3), (1.3, 40, 1.3), "void", glow=True),
     ]
-    o = (0, 38.7, 0)                                          # double accretion disk, tilted
-    for ring_name, r, t, mat in (("disk", 4.2, 0.6, "disk"), ("disk_inner", 2.6, 0.4, "plasma")):
-        for nm, frm, to in (("n", (-r, 38.55, -r), (r, 38.85, -r + t)), ("s", (-r, 38.55, r - t), (r, 38.85, r)),
-                            ("w", (-r, 38.55, -r + t), (-r + t, 38.85, r - t)),
-                            ("e", (r - t, 38.55, -r + t), (r, 38.85, r - t))):
-            p.append(part(f"{ring_name}_{nm}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
+    tilt = math.radians(22.5)
+    for k in range(POSES):                                    # flipbook poses (see POSE_OF_FRAME)
+        v, hn, gc = f"visor_p{k}", f"horn_p{k}", f"glow_c_p{k}"
+        vy = 28.0 + 0.45 * k                                  # the visor slit opens wider
+        bob = 0.6 * k                                         # the black hole rises and sinks
+        p += [part(f"visor_r_p{k}", (0, 27.3, -5.14), (4.9, vy, -4.98), v, glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
+              part(f"visor_l_p{k}", (-4.9, 27.3, -5.14), (0, vy, -4.98), v, glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
+              part(f"beam_p{k}", (-0.12, 33.25, -0.12), (0.12, 37.4 + bob, 0.12), gc, glow=True),
+              part(f"singularity_p{k}", (-1.3, 37.4 + bob, -1.3), (1.3, 40 + bob, 1.3), f"void_p{k}", glow=True)]
+        yc = 38.7 + bob
+        o = (0, yc, 0)                                        # double accretion disk, tilted
+        for ring_name, r, t, mat in (("disk", 4.2, 0.6, f"disk_p{k}"), ("disk_inner", 2.6, 0.4, f"plasma_p{k}")):
+            for nm, frm, to in (("n", (-r, yc - 0.15, -r), (r, yc + 0.15, -r + t)),
+                                ("s", (-r, yc - 0.15, r - t), (r, yc + 0.15, r)),
+                                ("w", (-r, yc - 0.15, -r + t), (-r + t, yc + 0.15, r - t)),
+                                ("e", (r - t, yc - 0.15, -r + t), (r, yc + 0.15, r - t))):
+                p.append(part(f"{ring_name}_{nm}_p{k}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
+        # horns sweep back and up, and grow, pose by pose
+        dz, dy = 1.0 * k, 0.55 * k
+        p += mirror([
+            part(f"visor_side_p{k}", (4.9, 27.3, -4.7), (5.02, vy + 0.1, 1.5), v, glow=True),
+            part(f"horn1_p{k}", (5, 30.5, 1.6), (6.4, 32.3, 6.4 + dz), hn, glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
+            part(f"horn_line_p{k}", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2 + dz), gc, glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
+            part(f"horn2_p{k}", (5.3, 32.2 + dy, 5.8 + dz), (6.2, 33.6 + dy, 10 + dz), hn, glow=True,
+                 rot=("x", -45, (5.75, 32.9 + dy, 5.8 + dz))),
+            part(f"horn3_p{k}", (5.45, 35 + dy, 7.8 + dz), (6.05, 38.4 + 2 * dy, 8.6 + dz), hn, glow=True),
+            part(f"horn_tip_p{k}", (5.5, 38.4 + 2 * dy, 7.9 + dz), (6, 39.6 + 2 * dy, 8.5 + dz), gc, glow=True)])
+    for k in range(ORBITS):                                   # a small moon orbiting on the disk's plane
+        a = math.pi / 4 + k * math.pi / 2
+        x, z = 5.6 * math.cos(a), 5.6 * math.sin(a)
+        y = 38.7 - z * math.sin(tilt)                         # follow the tilted disk (bob-neutral height)
+        z = z * math.cos(tilt)
+        p.append(part(f"moon_o{k}", (x - 0.6, y - 0.6, z - 0.6), (x + 0.6, y + 0.6, z + 0.6), f"moon_o{k}", glow=True))
     p += mirror([
         part("helm_side", (4.4, 24.4, -4.6), (4.9, 32, 4.6), "steel"),
-        part("visor_side", (4.9, 27.3, -4.7), (5.02, 28.5, 1.5), "visor", glow=True),
         part("gorget_side", (3.2, 23.2, -3.2), (4.4, 24.6, 3.2), "gold"),
         part("side_panel", (4.9, 28.9, -3.2), (5.02, 31.7, 3.2), "nebula", glow=True),
         part("side_frame", (4.9, 31.7, -3.4), (5.05, 32, 3.4), "gold"),
         # big swept-back horns from the temples
         part("horn0", (4.5, 29.2, -1.6), (6.4, 31.6, 2), "horn", glow=True),
-        part("horn1", (5, 30.5, 1.6), (6.4, 32.3, 6.4), "horn", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
-        part("horn2", (5.3, 32.2, 5.8), (6.2, 33.6, 10), "horn", glow=True, rot=("x", -45, (5.75, 32.9, 5.8))),
-        part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "horn", glow=True),
-        part("horn_tip", (5.5, 38.4, 7.9), (6, 39.6, 8.5), "glow_c", glow=True),
         part("horn_edge", (6.4, 29.5, -1.2), (6.55, 31.3, 1.6), "glow_c", glow=True),
-        part("horn_line", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2), "glow_c", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
         part("horn_low", (4.8, 26.8, 0.6), (5.6, 27.8, 3.8), "horn", glow=True, rot=("x", -22.5, (5.2, 27.3, 0.6))),
         part("horn_low_tip", (4.95, 28.7, 3.6), (5.45, 29.5, 4.1), "glow_c", glow=True),
         part("jaw", (3.1, 24.4, -5.5), (4.9, 27, -4.9), "steel_l", rot=("y", 22.5, (4.9, 25.7, -4.9))),
@@ -590,8 +636,20 @@ def helmet_parts():
         part("pauldron_upper", (5, 26.2, -2), (8.3, 27, 2), "steel_l"),
         part("pauldron_edge", (8.9, 24.4, -2.6), (9.1, 26.2, 2.6), "glow_c", glow=True),
         part("pauldron_line", (5, 27, -0.25), (8.3, 27.15, 0.25), "glow_m", glow=True),
-        part("pauldron_trim", (4.4, 24.7, -2.7), (8.9, 25, 2.7), "gold")])
+        part("pauldron_trim", (4.4, 24.7, -2.7), (8.9, 25, 2.7), "gold"),
+        *cross_flame("pauldron_fire", 7.4, 27.15, 1.2, 1.4, 2.6, "flame"),
+        *cross_flame("pauldron_fire2", 6.2, 27.15, -1.2, 1.1, 1.8, "flame2")])
     return p
+
+
+def helmet_model(parts, ref):
+    """The shared hat model, re-mapped onto the 128px atlas."""
+    m = AE.hat_model(parts, ref, 0.4)                         # writes uv for a 64px sheet
+    for el in m["elements"]:
+        for face in el["faces"].values():
+            face["uv"] = [round(v * 4 * UV, 4) for v in face["uv"]]  # x/4 -> x*UV
+    m["texture_size"] = [ATLAS, ATLAS]
+    return m
 
 
 def resolve_faces(parts):
@@ -718,7 +776,7 @@ def build():
     W(f"{base}/textures/item/galactus_embers.png.mcmeta", MCMETA)
     ref = f"{NS}:item/galactus_fx"
     hparts = resolve_faces(helmet_parts())
-    W(f"{base}/models/item/galactus_helmet.json", AE.hat_model(hparts, ref, 0.4))
+    W(f"{base}/models/item/galactus_helmet.json", helmet_model(hparts, ref))
     weapon_parts = {}
     for wid, (fn, _, scale, *_rest) in WEAPONS.items():
         parts = fn()
@@ -835,7 +893,7 @@ def render_weapon(img, parts, yaw=-30, tilt=14, size=560, scale=13, diagonal=Tru
             nu, nv = max(1, round(w)), max(1, round(hh))
             for i in range(nu):
                 for j in range(nv):
-                    col = img.getpixel((min(63, int(x0 + (i + 0.5) * w / nu)), min(63, int(y0 + (j + 0.5) * hh / nv))))
+                    col = img.getpixel((min(ATLAS - 1, int(x0 + (i + 0.5) * w / nu)), min(ATLAS - 1, int(y0 + (j + 0.5) * hh / nv))))
                     if col[3] == 0:
                         continue                                  # see-through (fire outline)
                     pts = [cam(PV.rotate(P(a / nu, b / nv), rot)) for a, b in ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))]
