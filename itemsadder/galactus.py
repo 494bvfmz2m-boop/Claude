@@ -161,6 +161,46 @@ def atlas(f=0):
     region("eye", 32, 24, 8, 8, eye)
     region("plasma", 40, 24, 8, 8, plasma)
     region("flame2", 48, 24, 16, 16, lambda x, y, w, hh: flame((x + 5) % w, y, w, hh))
+
+    def visor(x, y, w, hh):                                   # colour-shifting visor with a sweeping scan line
+        base = lerp(GLOW_C[0], GLOW_M[0], 0.5 + 0.5 * math.sin(2 * math.pi * (f / FRAMES) + x * 0.15))
+        d = (x - f * 2) % 16
+        if d == 0:
+            return STAR[1]
+        if d in (1, 15):
+            return lerp(base, STAR[1], 0.6)
+        return base
+
+    def horn(x, y, w, hh):                                    # gold horn with energy pulsing base to tip
+        d = (x - f) % 8
+        if d == 0:
+            return GLOW_C[1]
+        if d == 1:
+            return lerp(GOLD[3], GLOW_C[0], 0.5)
+        return GOLD[2] if (x + y) % 5 else GOLD[1]
+
+    def disk(x, y, w, hh):                                    # accretion disk: hot streaks racing round
+        d = (x + f * 2) % 8
+        return [STAR[1], (255, 220, 170), (255, 150, 90), GLOW_M[0], (150, 50, 200), GLOW_M[0], (255, 150, 90),
+                (255, 220, 170)][d]
+
+    def void(x, y, w, hh):                                    # the black hole: a rotating two-armed spiral
+        cx, cy = (w - 1) / 2, (hh - 1) / 2
+        r = math.hypot(x - cx, y - cy)
+        a = math.atan2(y - cy, x - cx) + f * 2 * math.pi / FRAMES
+        arm = math.sin(2 * a - r * 0.9)
+        if r < 1.6:
+            return (0, 0, 0)
+        if arm > 0.75:
+            return GLOW_M[1] if r < 4 else NEB_M[1]
+        if arm > 0.4:
+            return (60, 20, 90)
+        return (6, 2, 12)
+
+    region("visor", 0, 40, 32, 4, visor)
+    region("horn", 0, 44, 32, 4, horn)
+    region("disk", 0, 48, 32, 4, disk)
+    region("void", 32, 40, 16, 16, void)
     return img
 
 
@@ -465,8 +505,8 @@ def helmet_parts():
         part("inlay_crest", (-0.8, 32.6, -4.75), (0.8, 33.1, 4.75), "nebula", glow=True),
         part("inlay_back", (-0.8, 25.6, 5), (0.8, 32, 5.08), "nebula", glow=True),
         # V-shaped scanner visor, swept up towards the temples
-        part("visor_r", (0, 27.3, -5.14), (4.9, 28.4, -4.98), "glow_c", glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
-        part("visor_l", (-4.9, 27.3, -5.14), (0, 28.4, -4.98), "glow_c", glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
+        part("visor_r", (0, 27.3, -5.14), (4.9, 28.4, -4.98), "visor", glow=True, rot=("z", 22.5, (0, 27.85, -5.06))),
+        part("visor_l", (-4.9, 27.3, -5.14), (0, 28.4, -4.98), "visor", glow=True, rot=("z", -22.5, (0, 27.85, -5.06))),
         part("visor_rim_r", (0, 26.9, -5.1), (4.9, 27.3, -4.95), "gold", rot=("z", 22.5, (0, 27.85, -5.06))),
         part("visor_rim_l", (-4.9, 26.9, -5.1), (0, 27.3, -4.95), "gold", rot=("z", -22.5, (0, 27.85, -5.06))),
         part("prow", (-0.35, 24.4, -5.25), (0.35, 27, -5.02), "gold"),
@@ -478,30 +518,29 @@ def helmet_parts():
         # the black hole hovering above the head
         part("chin_point", (-1.3, 23.3, -5.35), (1.3, 24.4, -4.9), "gold"),
         part("chin_glow", (-0.4, 23.5, -5.4), (0.4, 24.1, -5.35), "glow_c", glow=True),
-        part("singularity", (-1.3, 37.4, -1.3), (1.3, 40, 1.3), "steel"),
-        part("singularity_glow", (-0.7, 38.1, -1.35), (0.7, 39.3, -1.3), "glow_w", glow=True),
+        part("singularity", (-1.3, 37.4, -1.3), (1.3, 40, 1.3), "void", glow=True),
     ]
     o = (0, 38.7, 0)                                          # double accretion disk, tilted
-    for ring_name, r, t, mat in (("disk", 4.2, 0.6, "ring"), ("disk_inner", 2.6, 0.4, "plasma")):
+    for ring_name, r, t, mat in (("disk", 4.2, 0.6, "disk"), ("disk_inner", 2.6, 0.4, "plasma")):
         for nm, frm, to in (("n", (-r, 38.55, -r), (r, 38.85, -r + t)), ("s", (-r, 38.55, r - t), (r, 38.85, r)),
                             ("w", (-r, 38.55, -r + t), (-r + t, 38.85, r - t)),
                             ("e", (r - t, 38.55, -r + t), (r, 38.85, r - t))):
             p.append(part(f"{ring_name}_{nm}", frm, to, mat, glow=True, rot=("x", 22.5, o)))
     p += mirror([
         part("helm_side", (4.4, 24.4, -4.6), (4.9, 32, 4.6), "steel"),
-        part("visor_side", (4.9, 27.3, -4.7), (5.02, 28.5, 1.5), "ring", glow=True),
+        part("visor_side", (4.9, 27.3, -4.7), (5.02, 28.5, 1.5), "visor", glow=True),
         part("gorget_side", (3.2, 23.2, -3.2), (4.4, 24.6, 3.2), "gold"),
         part("side_panel", (4.9, 28.9, -3.2), (5.02, 31.7, 3.2), "nebula", glow=True),
         part("side_frame", (4.9, 31.7, -3.4), (5.05, 32, 3.4), "gold"),
         # big swept-back horns from the temples
-        part("horn0", (4.5, 29.2, -1.6), (6.4, 31.6, 2), "gold"),
-        part("horn1", (5, 30.5, 1.6), (6.4, 32.3, 6.4), "gold", rot=("x", -22.5, (5.7, 31.4, 1.6))),
-        part("horn2", (5.3, 32.2, 5.8), (6.2, 33.6, 10), "gold_d", rot=("x", -45, (5.75, 32.9, 5.8))),
-        part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "gold_d"),
+        part("horn0", (4.5, 29.2, -1.6), (6.4, 31.6, 2), "horn", glow=True),
+        part("horn1", (5, 30.5, 1.6), (6.4, 32.3, 6.4), "horn", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
+        part("horn2", (5.3, 32.2, 5.8), (6.2, 33.6, 10), "horn", glow=True, rot=("x", -45, (5.75, 32.9, 5.8))),
+        part("horn3", (5.45, 35, 7.8), (6.05, 38.4, 8.6), "horn", glow=True),
         part("horn_tip", (5.5, 38.4, 7.9), (6, 39.6, 8.5), "glow_c", glow=True),
         part("horn_edge", (6.4, 29.5, -1.2), (6.55, 31.3, 1.6), "glow_c", glow=True),
         part("horn_line", (5.6, 32.3, 1.8), (5.8, 32.45, 6.2), "glow_c", glow=True, rot=("x", -22.5, (5.7, 31.4, 1.6))),
-        part("horn_low", (4.8, 26.8, 0.6), (5.6, 27.8, 3.8), "gold_d", rot=("x", -22.5, (5.2, 27.3, 0.6))),
+        part("horn_low", (4.8, 26.8, 0.6), (5.6, 27.8, 3.8), "horn", glow=True, rot=("x", -22.5, (5.2, 27.3, 0.6))),
         part("horn_low_tip", (4.95, 28.7, 3.6), (5.45, 29.5, 4.1), "glow_c", glow=True),
         part("jaw", (3.1, 24.4, -5.5), (4.9, 27, -4.9), "steel_l", rot=("y", 22.5, (4.9, 25.7, -4.9))),
         # angular pauldrons with glowing edge lines
