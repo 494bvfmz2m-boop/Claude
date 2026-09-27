@@ -259,6 +259,29 @@ equipments:
         i, r = tier_items(ns, tier)
         items += i
         recs += r
+    # recipe book: an /ia item that turns into the readable written book on right-click
+    pages = BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
+    BOOK.write_commands(pages)
+    write(f"{base}/textures/item/crimson_recipe_book.png", BOOK.book_icon())
+    command = f"item replace entity {{player}} weapon.mainhand with {BOOK.book_item(pages)}".replace("'", "''")
+    items.append(f"""  crimson_recipe_book:
+    enabled: true
+    display_name: '&6Crimson Forge Recipe Book'
+    lore:
+      - '&f'
+      - '&7Every Crimson and Blue Crimson recipe.'
+      - '&eRight-click to open'
+    resource:
+      material: BOOK
+      generate: true
+      textures:
+        - item/crimson_recipe_book
+    events:
+      interact:
+        right:
+          execute_commands:
+            - command: '{command}'
+              as_console: true""")
     write(f"{base}/configs/items.yml", f"""info:
   namespace: {ns}
 recipes:
@@ -267,7 +290,17 @@ recipes:
 items:
 {chr(10).join(items)}
 """)
-    BOOK.build(base, ns, {tier: recipes_of(tier) for tier in TIERS})
+    listed = ["crimson_recipe_book"] + [i.split(":")[0].strip() for i in items if not i.strip().startswith("crimson_recipe_book")]
+    write(f"{base}/configs/categories.yml", f"""info:
+  namespace: {ns}
+categories:
+  crimson_forge:
+    enabled: true
+    name: '&cCrimson Forge'
+    icon: {ns}:crimson_recipe_book
+    permission: ia.menu.crimson_forge
+    items:
+""" + "".join(f"      - {ns}:{i}\n" for i in listed))
 
 
 # --- demon-gear -------------------------------------------------------------
@@ -392,6 +425,16 @@ equipments:
 items:
 {chr(10).join(items)}
 """)
+    write(f"{base}/configs/categories.yml", f"""info:
+  namespace: {ns}
+categories:
+  demon_forge:
+    enabled: true
+    name: '&4Demon Armor'
+    icon: {ns}:demon_armor_helmet
+    permission: ia.menu.demon_forge
+    items:
+""" + "".join(f"      - {ns}:demon_armor_{p}\n" for p in ("helmet", "chestplate", "leggings", "boots")))
 
 
 def main():

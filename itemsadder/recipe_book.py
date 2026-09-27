@@ -115,6 +115,16 @@ def vanilla_icons():
     }
 
 
+def book_icon():
+    return grid([
+        "................", "................", "...oooooooooo...", "..oRRRRRRRRRRo..",
+        "..oRrrrrrrrrRo..", "..oRrGGGGGGrRo..", "..oRrGyyyyGrRo..", "..oRrGyggyGrRo..",
+        "..oRrGyyyyGrRo..", "..oRrGGGGGGrRo..", "..oRrrrrrrrrRo..", "..oRRRRRRRRRRo..",
+        "..owwwwwwwwwwo..", "...oooooooooo...", "................", "................"],
+        {"o": (40, 8, 12), "R": (150, 20, 30), "r": (120, 14, 24), "G": (246, 204, 96),
+         "y": (196, 142, 44), "g": (255, 90, 60), "w": (236, 226, 200)})
+
+
 def netherite(img):
     out = img.convert("RGBA").copy()
     px = out.load()
@@ -208,18 +218,14 @@ def recipe_picture(pattern, ingredients, result_icon, van):
 
 
 # --- book -----------------------------------------------------------------------
-TITLES = {"armor": "Armor", "tool": "Tools", "sword": "Sword"}
+ORDER = ("armor_helmet", "armor_chestplate", "armor_leggings", "armor_boots",
+         "sword", "axe", "pickaxe", "shovel", "hoe")
+LABELS = {"crimson": ("Crimson", "dark_red"), "blue_crimson": ("Blue Crimson", "dark_aqua")}
+SHORT = {"crimson": "Crimson", "blue_crimson": "Blue"}   # page titles must fit one book line
 
 
-def pages_for(tier_label, color, recipes):
-    """Pick the representative recipes: chestplate, pickaxe, sword."""
-    by_id = {item: (pat, ing) for item, pat, ing in recipes}
-    prefix = recipes[0][0].split("_armor_")[0]
-    return [
-        ("armor", f"{prefix}_armor_chestplate", "Same for every piece:\nuse the matching piece."),
-        ("tool", f"{prefix}_pickaxe", "Same for axe, shovel\nand hoe: use the\nmatching tool."),
-        ("sword", f"{prefix}_sword", ""),
-    ], by_id
+def item_title(tier, item):
+    return f"{SHORT[tier]} {item.rsplit('_', 1)[1].capitalize()}"
 
 
 def counts(pattern, ingredients):
@@ -232,46 +238,68 @@ def counts(pattern, ingredients):
 
 
 def build(base, ns, tier_recipes):
-    """Writes the font + pictures into <base>/resourcepack/ and the book
-    commands next to the builder."""
+    """Writes the font + pictures into <base>/resourcepack/ and returns the
+    book pages (text components). Page 1..n are indexes, then one page per item."""
     van = vanilla_icons()
     font_dir = f"{base}/resourcepack/assets/{ns}"
-    providers, pages, n = [], [], 0
-    labels = {"crimson": ("Crimson", "dark_red"), "blue_crimson": ("Blue Crimson", "dark_aqua")}
-    pages.append([
-        {"text": "Crimson Forge\n\n", "color": "dark_red", "bold": True},
-        {"text": "Recipes for Crimson and Blue Crimson gear.\n\nCraft them on a crafting table. Empty squares stay empty.\n\nBlue Crimson is made from Crimson gear.",
-         "color": "black", "bold": False},
-    ])
-    for tier, recipes in tier_recipes.items():
-        label, color = labels[tier]
-        picks, by_id = pages_for(label, color, recipes)
-        for kind, item, note in picks:
-            pat, ing = by_id[item]
-            pic = recipe_picture(pat, ing, item_icon(item), van)
-            os.makedirs(f"{font_dir}/textures/font", exist_ok=True)
-            pic.save(f"{font_dir}/textures/font/recipe_{n}.png")
-            ch = chr(FIRST_CHAR + n)
-            providers.append({"type": "bitmap", "file": f"{ns}:font/recipe_{n}.png",
-                              "height": GLYPH_H, "ascent": GLYPH_ASCENT, "chars": [ch]})
-            legend = "\n".join(f"{v}x {ingredient_name(k)}" for k, v in counts(pat, ing).items())
-            pages.append([
-                {"text": f"{label} {TITLES[kind]}\n", "color": color, "bold": True},
-                {"text": ch, "font": f"{ns}:recipes", "color": "white", "bold": False},
-                {"text": "\n" * 6, "bold": False},
-                {"text": legend + ("\n" + note if note else ""), "color": "black", "bold": False},
-            ])
-            n += 1
+    os.makedirs(f"{font_dir}/textures/font", exist_ok=True)
     os.makedirs(f"{font_dir}/font", exist_ok=True)
+    tiers = list(tier_recipes)
+    index_page = {t: i + 1 for i, t in enumerate(tiers)}
+    ordered = []   # (tier, item, pattern, ingredients)
+    for t in tiers:
+        by_id = {item: (pat, ing) for item, pat, ing in tier_recipes[t]}
+        for suffix in ORDER:
+            item = f"{t}_{suffix}"
+            ordered.append((t, item) + by_id[item])
+    first_recipe_page = len(tiers) + 1
+
+    pages = []
+    for i, t in enumerate(tiers):
+        label, color = LABELS[t]
+        page = []
+        if i == 0:
+            page.append({"text": "Crimson Forge\n", "color": "dark_red", "bold": True})
+            page.append({"text": "Click to open:\n", "color": "dark_gray", "bold": False})
+        page.append({"text": f"{label} gear\n", "color": color, "bold": True})
+        for n, (tt, item, _, _) in enumerate(ordered):
+            if tt == t:
+                page.append({"text": f" > {item.rsplit('_', 1)[1].capitalize()}\n", "color": "black", "bold": False,
+                             "underlined": False,
+                             "click_event": {"action": "change_page", "page": first_recipe_page + n},
+                             "hover_event": {"action": "show_text", "value": "Open recipe"}})
+        if i + 1 < len(tiers):
+            nl, nc = LABELS[tiers[i + 1]]
+            page.append({"text": f"{nl} >>", "color": nc, "bold": False,
+                         "click_event": {"action": "change_page", "page": i + 2}})
+        pages.append(page)
+
+    providers = []
+    for n, (t, item, pat, ing) in enumerate(ordered):
+        label, color = LABELS[t]
+        recipe_picture(pat, ing, item_icon(item), van).save(f"{font_dir}/textures/font/recipe_{n}.png")
+        ch = chr(FIRST_CHAR + n)
+        providers.append({"type": "bitmap", "file": f"{ns}:font/recipe_{n}.png",
+                          "height": GLYPH_H, "ascent": GLYPH_ASCENT, "chars": [ch]})
+        legend = "".join(f"{v}x {ingredient_name(k)}\n" for k, v in counts(pat, ing).items())
+        pages.append([
+            {"text": item_title(t, item) + "\n", "color": color, "bold": False, "underlined": True},
+            {"text": ch, "font": f"{ns}:recipes", "color": "white", "bold": False},
+            {"text": "\n" * 6, "bold": False},
+            {"text": legend, "color": "black", "bold": False},
+            {"text": "<< Index", "color": "dark_gray", "bold": False,
+             "click_event": {"action": "change_page", "page": index_page[t]}},
+        ])
     with open(f"{font_dir}/font/recipes.json", "w") as f:
         json.dump({"providers": providers}, f, indent=1, ensure_ascii=True)
-    write_commands(pages)
     return pages
 
 
 def snbt(v):
     if isinstance(v, bool):
         return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
     if isinstance(v, str):
         esc = "".join(f"\\u{ord(c):04x}" if ord(c) > 126 else c for c in v)
         return '"' + esc.replace('"', '\\"').replace("\n", "\\n") + '"'
@@ -280,15 +308,15 @@ def snbt(v):
     return "{" + ",".join(f"{k}:{snbt(x)}" for k, x in v.items()) + "}"
 
 
+def book_item(pages):
+    return ('minecraft:written_book[minecraft:written_book_content={title:"Crimson Forge",'
+            'author:"SlothSMP",pages:[' + ",".join(snbt(p) for p in pages) + "]}]")
+
+
 def write_commands(pages):
-    new = ("give @p minecraft:written_book[minecraft:written_book_content={title:\"Crimson Forge\","
-           "author:\"SlothSMP\",pages:[" + ",".join(snbt(p) for p in pages) + "]}]")
-    old = ("give @p minecraft:written_book[minecraft:written_book_content={title:\"Crimson Forge\","
-           "author:\"SlothSMP\",pages:[" + ",".join(
-               "'" + json.dumps(p, ensure_ascii=True).replace("\\", "\\\\").replace("'", "\\'") + "'"
-               for p in pages) + "]}]")
     path = os.path.join(ROOT, "itemsadder", "recipe_book_commands.txt")
     with open(path, "w") as f:
-        f.write("# Crimson Forge recipe book. Run from the server console (too long for chat).\n\n")
-        f.write("# Minecraft 1.21.5 and newer:\n" + new + "\n\n")
-        f.write("# Minecraft 1.20.5 - 1.21.4:\n" + old + "\n")
+        f.write("# Crimson Forge recipe book (Minecraft 26.x / 1.21.5+). Normally players get it by\n"
+                "# right-clicking the Crimson Forge Recipe Book item from /ia. To hand one out\n"
+                "# directly, run this from the server console (too long for chat):\n\n")
+        f.write("give @p " + book_item(pages) + "\n")
