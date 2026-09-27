@@ -705,7 +705,6 @@ def configs(S, ns):
     recs = []
     for item, shape, ing in all_recipes(S, ns):
         recs.append(f"""    {item}:
-      permission: itemsadder.craft.{item}
       enabled: true
       pattern:
 """ + "".join(f"        - {r}\n" for r in shape) + "      ingredients:\n"

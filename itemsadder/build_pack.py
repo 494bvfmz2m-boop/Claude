@@ -322,7 +322,6 @@ def tier_items(ns, tier):
     recs = []
     for item, pat, ing in recipes_of(tier):
         recs.append(f"""    {item}:
-      permission: itemsadder.craft.{item}
       enabled: true
       pattern:
 """ + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
@@ -394,7 +393,6 @@ equipments:
         if not any(sid.startswith(t + "_scroll_") for t in tiers):
             continue
         recs.append(f"""    {sid}:
-      permission: itemsadder.craft.{sid}
       enabled: true
       pattern:
 """ + "".join(f"        - {row}\n" for row in pat) + "      ingredients:\n"
@@ -667,7 +665,6 @@ def legendary_pack(base):
 recipes:
   crafting_table:
     enderfang:
-      permission: itemsadder.craft.enderfang
       enabled: true
       pattern:
         - XEX
