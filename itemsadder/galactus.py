@@ -451,7 +451,19 @@ def cross_flame(name, x, y, z, w=1.6, hgt=3.0, mat="flame"):
 
 
 def helmet_parts():
-    p = [part("band_f", (-4.7, 29.8, -4.9), (4.7, 31, -4.5), "gold"),
+    p = [part("shell_back", (-4.9, 24, 4.4), (4.9, 32, 4.9), "nebula", glow=True),
+         part("faceplate", (-4.7, 24, -5.05), (4.7, 29.8, -4.6), "steel"),
+         part("brow", (-4.8, 29.1, -5.15), (4.8, 29.8, -4.7), "gold"),
+         part("nose_guard", (-0.5, 25.6, -5.35), (0.5, 29.8, -5.05), "gold"),
+         part("chin", (-4.8, 23.6, -5.15), (4.8, 24.3, 1), "gold"),
+         part("grille0", (-2.2, 25, -5.12), (2.2, 25.35, -5.05), "glow_m", glow=True),
+         part("grille1", (-1.8, 25.8, -5.12), (1.8, 26.15, -5.05), "glow_m", glow=True),
+         part("halo_top", (-5.6, 40, 6.2), (5.6, 40.5, 6.5), "ring", glow=True),
+         part("halo_bottom", (-5.6, 28.2, 6.2), (5.6, 28.7, 6.5), "ring", glow=True),
+         part("halo_l", (-5.6, 28.7, 6.2), (-5.1, 40, 6.5), "ring", glow=True),
+         part("halo_r", (5.1, 28.7, 6.2), (5.6, 40, 6.5), "ring", glow=True),
+         part("halo_core", (-1.2, 33.2, 6.25), (1.2, 35.6, 6.45), "plasma", glow=True),
+         part("band_f", (-4.7, 29.8, -4.9), (4.7, 31, -4.5), "gold"),
          part("band_b", (-4.7, 29.8, 4.5), (4.7, 31, 4.9), "gold"),
          part("cap", (-4.6, 32, -4.6), (4.6, 32.8, 4.6), "nebula2", glow=True),
          part("ridge", (-0.6, 32.8, -4.9), (0.6, 34.2, 4.9), "gold"),
@@ -483,9 +495,17 @@ def helmet_parts():
         t = math.radians(i * 45 + 22.5)
         p += cross_flame(f"crown_fire{i}", 4 * math.sin(t), 32.6, 4 * math.cos(t), 1.6, 2.6 + (i % 2) * 1.2,
                          "flame" if i % 2 else "flame2")
+    for i in range(12):                                       # ring of gold spikes around the crown
+        t = math.radians(i * 30 + 15)
+        x, z = 4.3 * math.sin(t), 4.3 * math.cos(t)
+        p.append(part(f"crown_spike{i}", (x - 0.3, 32.8, z - 0.3), (x + 0.3, 34 + (i % 2) * 0.8, z + 0.3), "gold"))
     p += mirror([
-        part("cheek", (4.4, 26, -4.8), (5.0, 30, -1.8), "nebula", glow=True),
-        part("cheek_edge", (4.35, 25.6, -4.9), (5.05, 26.2, -1.7), "gold"),
+        part("shell_side", (4.4, 24, -4.6), (4.9, 32, 4.4), "nebula", glow=True),
+        part("eye_slit", (0.8, 27.5, -5.18), (3.8, 28.3, -5.05), "glow_c", glow=True),
+        part("eye_slit_tail", (3.8, 27.9, -5.18), (4.6, 28.3, -5.05), "glow_c", glow=True),
+        part("mandible", (4.5, 23.8, -5.6), (5.2, 26.2, -3.6), "gold"),
+        part("mandible_tip", (4.6, 22.8, -5.9), (5.1, 23.8, -5.2), "glow_w", glow=True),
+        part("cheek_spike", (4.9, 25.6, -3.4), (6.2, 26.2, -2.8), "gold", rot=("y", 22.5, (4.9, 25.9, -3.1))),
         part("band_s", (4.5, 29.8, -4.5), (4.9, 31, 4.5), "gold"),
         part("fin0", (4.6, 29.6, -1.8), (5.4, 34.6, 1.6), "nebula", glow=True),
         part("fin0_edge", (5.4, 30, -0.3), (5.55, 34.6, 0.3), "glow_c", glow=True),
@@ -634,6 +654,8 @@ def build():
         weapon_parts[wid] = parts
         model = weapon_model(parts, ref, scale, centre_of(parts))
         W(f"{base}/models/item/galactus_{wid}.json", model)
+        if wid in ("trident", "spear"):   # a holding variant, same as the held model
+            W(f"{base}/models/item/galactus_{wid}_holding.json", model)
         if wid == "trident":   # ItemsAdder also loads <model>_throwing for the trident's charge-up pose
             k = scale
             throw = dict(model, display=dict(model["display"], **{
