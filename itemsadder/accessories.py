@@ -94,7 +94,7 @@ def mirrored(parts):
 
 def wing_parts(img, key, glow=False):
     ax, ay = WINGS[key]
-    s, X0, Y0, Z0, Z1 = 0.5, 1.5, 33.0, 3.3, 3.8
+    s, X0, Y0, Z0, Z1 = 0.5, 1.5, 28.0, 3.3, 3.8   # wing root on the shoulder blades
     parts = []
     for r in range(32):
         c = 0

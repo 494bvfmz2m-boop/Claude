@@ -321,7 +321,7 @@ def wing_parts(atlas_img):
     """Membrane as thin slabs, one per horizontal run of wing texels."""
     ax, ay, n, _ = WING
     s = 0.5                          # model units per texel
-    X0, Y0, Z0, Z1 = 1.5, 33.0, 3.3, 3.8
+    X0, Y0, Z0, Z1 = 1.5, 28.0, 3.3, 3.8   # wing root sits on the shoulder blades
     parts = []
     for r in range(n):
         c = 0
