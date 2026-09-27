@@ -14,7 +14,7 @@ import shutil
 import sys
 import zipfile
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "crimson_armor"))
@@ -25,6 +25,8 @@ import build_model  # noqa: E402  (crimson cuboid model builder)
 import crimson_upgrade as CU  # noqa: E402
 import recipe_book as BOOK  # noqa: E402  (recolour + icon helpers)
 import scrolls as SC  # noqa: E402
+import halloween as HW  # noqa: E402
+import accessories as ACC  # noqa: E402
 import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
@@ -127,6 +129,28 @@ TIERS = {
         "bow_recipe": (["XAX", "BCB", "XDX"], {"A": "ECHO_SHARD", "B": "LAPIS_BLOCK",
                                               "C": "crimson-gear:crimson_bow", "D": "DRAGON_BREATH"}),
     },
+    "halloween": {   # the top craftable tier: armor and toughness at the game's caps
+        "name": "Halloween", "color": "&6", "recolor": "halloween",
+        "lore": ["&f", "&6Carved on the night the dead walk,", "&6lit by a candle that never dies"],
+        "armor": {"helmet": (5, 1221), "chestplate": (11, 1776), "leggings": (9, 1665), "boots": (5, 1443)},
+        "toughness": 5, "knockback": 0.25,
+        "damage": {"sword": 12, "axe": 14, "pickaxe": 9, "shovel": 9.5, "hoe": 1},
+        "tool_durability": 5000,
+        "armor_recipe": (["WNW", "JBJ", "DDD"], {"W": "WITHER_SKELETON_SKULL", "N": "NETHER_STAR",
+                                                "J": "JACK_O_LANTERN",
+                                                "B": "crimson-gear:blue_crimson_armor_{piece}",
+                                                "D": "DIAMOND_BLOCK"}),
+        "tool_recipe": (["XNX", "JBJ", "XWX"], {"N": "NETHER_STAR", "J": "JACK_O_LANTERN",
+                                                "B": "crimson-gear:blue_crimson_{tool}",
+                                                "W": "WITHER_SKELETON_SKULL"}),
+        "sword_recipe": (["WNW", "JBJ", "XIX"], {"W": "WITHER_SKELETON_SKULL", "N": "NETHER_STAR",
+                                                "J": "JACK_O_LANTERN", "B": "crimson-gear:blue_crimson_sword",
+                                                "I": "NETHERITE_INGOT"}),
+        "bow_durability": 1536,
+        "bow_recipe": (["XNX", "JBJ", "XWX"], {"N": "NETHER_STAR", "J": "JACK_O_LANTERN",
+                                              "B": "crimson-gear:blue_crimson_bow",
+                                              "W": "WITHER_SKELETON_SKULL"}),
+    },
 }
 
 
@@ -152,7 +176,11 @@ def recipes_of(tier):
 
 
 def recolor(img, kind):
-    return img if kind is None else BOOK.recolor_blue(img)
+    if kind == "blue":
+        return BOOK.recolor_blue(img)
+    if kind == "halloween":
+        return HW.recolor(img)
+    return img
 
 
 def tier_assets(base, ns, tier):
@@ -181,7 +209,9 @@ def tier_assets(base, ns, tier):
         })
     # bow: ItemsAdder picks up <model>_0/_1/_2 as the pulling states
     for state, suffix in (("bow", ""), ("bow_pulling_0", "_0"), ("bow_pulling_1", "_1"), ("bow_pulling_2", "_2")):
-        tex = Image.open(f"{src}/items/crimson_{state}.png").convert("RGBA")
+        # mirrored: vanilla bow textures point the arrow to the top-left, and the
+        # first-person draw animation is built around that orientation
+        tex = ImageOps.mirror(Image.open(f"{src}/items/crimson_{state}.png").convert("RGBA"))
         name = f"{tier}_bow{suffix}"
         ref = f"{ns}:item/tools/{name}"
         write(f"{base}/textures/item/tools/{name}.png", recolor(animate(tex, CRIMSON_GLOW, CRIMSON_BLADE), kind))
@@ -192,10 +222,16 @@ def tier_assets(base, ns, tier):
             "texture_size": list(tex.size),
             "textures": {"layer0": ref, "particle": ref},
             "gui_light": "front",
-            "elements": CU.tool_elements(tex),
+            "elements": CU.tool_elements(tex, flat=True),
             "display": build_model.BOW_DISPLAY,
         })
 
+    if tier == "halloween":   # glowing jack-o'-lantern helmet
+        write(f"{base}/textures/item/armor/{tier}_parts.png", animate(HW.atlas(), HW.GLOW))
+        write(f"{base}/textures/item/armor/{tier}_parts.png.mcmeta", MCMETA)
+        write(f"{base}/models/item/armor/{tier}_helmet.json", HW.helmet_model(f"{ns}:item/armor/{tier}_parts"))
+        write(f"{base}/textures/item/armor/{tier}_armor_helmet.png", HW.icon())
+        return
     # 3D helmet: visor, gold crest and branches from the shoulder blades
     layer1 = Image.open(f"{src}/armor_layer_1.png").convert("RGBA")
     write(f"{base}/textures/item/armor/{tier}_parts.png", recolor(animate(CU.atlas(layer1), CU.GLOW), kind))
@@ -298,8 +334,7 @@ equipments:
     # lore scrolls: story + recipe grid in the tooltip, dropped by mobs
     loots = []
     for tier, scrolls in SC.SCROLLS.items():
-        accent = "&c" if tier == "crimson" else "&b"
-        seal = (170, 20, 30) if tier == "crimson" else (30, 110, 200)
+        accent, seal = SC.ACCENT[tier], SC.SEAL[tier]
         write(f"{base}/textures/item/scrolls/{tier}_scroll.png", SC.icon(seal))
         for kind, scroll in scrolls.items():
             sid = f"{tier}_scroll_{kind}"
@@ -498,6 +533,7 @@ def main():
     shutil.rmtree(OUT, ignore_errors=True)
     crimson(f"{OUT}/crimson-gear")
     demon_pack(f"{OUT}/demon-gear")
+    ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
         for folder, _, files in sorted(os.walk(OUT)):
             rel = os.path.relpath(folder, OUT)

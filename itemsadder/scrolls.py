@@ -1,5 +1,6 @@
-"""Lore scrolls: each scroll carries a piece of the story and a recipe written
-as a 3x3 grid in its tooltip. Mobs drop them (ItemsAdder loots)."""
+"""Lore scrolls: each scroll carries a piece of the story and its recipes
+spelled out row by row in the tooltip. Mobs drop them (ItemsAdder loots) and
+they can be crafted."""
 from PIL import Image
 
 import recipe_book as RB
@@ -22,7 +23,17 @@ SCROLLS = {
         "weapons": ("Scroll of Blue Crimson Weapons", ["It hums like an echo", "in the deep dark."],
                     ["sword_recipe", "bow_recipe"], "WARDEN", 100),
     },
+    "halloween": {
+        "armor": ("Scroll of Halloween Armor", ["Carved into a pumpkin rind", "on the night the Wither woke."],
+                  ["armor_recipe"], "WITHER", 100),
+        "tools": ("Scroll of Halloween Tools", ["A witch's shopping list.", "Most of it is screaming."],
+                  ["tool_recipe"], "WITCH", 8),
+        "weapons": ("Scroll of Halloween Weapons", ["The candle inside never", "went out. Neither did he."],
+                    ["sword_recipe", "bow_recipe"], "WITHER", 100),
+    },
 }
+ACCENT = {"crimson": "&c", "blue_crimson": "&b", "halloween": "&6"}
+SEAL = {"crimson": (170, 20, 30), "blue_crimson": (30, 110, 200), "halloween": (230, 120, 20)}
 # crafting recipes for the scrolls themselves: paper + the materials of their story;
 # every Blue Crimson scroll is reforged from its Crimson scroll
 SCROLL_RECIPES = {
@@ -38,37 +49,70 @@ SCROLL_RECIPES = {
                                                           "S": "crimson-gear:crimson_scroll_tools"}),
     "blue_crimson_scroll_weapons": (["ALA", "PSP", "ALA"], {"A": "AMETHYST_SHARD", "L": "LAPIS_LAZULI",
                                                             "P": "PAPER", "S": "crimson-gear:crimson_scroll_weapons"}),
+    "halloween_scroll_armor": (["JWJ", "PSP", "JWJ"], {"J": "JACK_O_LANTERN", "W": "WITHER_SKELETON_SKULL",
+                                                       "P": "PAPER", "S": "crimson-gear:blue_crimson_scroll_armor"}),
+    "halloween_scroll_tools": (["JCJ", "PSP", "JCJ"], {"J": "JACK_O_LANTERN", "C": "CARVED_PUMPKIN",
+                                                       "P": "PAPER", "S": "crimson-gear:blue_crimson_scroll_tools"}),
+    "halloween_scroll_weapons": (["JWJ", "PSP", "JWJ"], {"J": "JACK_O_LANTERN", "W": "WITHER_ROSE",
+                                                         "P": "PAPER",
+                                                         "S": "crimson-gear:blue_crimson_scroll_weapons"}),
 }
 MOB_NAMES = {"GHAST": "Ghasts", "BLAZE": "Blazes", "WITHER_SKELETON": "Wither Skeletons",
-             "WARDEN": "the Warden", "ELDER_GUARDIAN": "Elder Guardians"}
-RECIPE_LABEL = {"armor_recipe": "Any armor piece", "tool_recipe": "Any tool",
-                "sword_recipe": "Sword", "bow_recipe": "Bow"}
-TEMPLATE_NAMES = {"NETHERITE_{PIECE}": "Netherite piece (same slot)", "NETHERITE_{TOOL}": "Netherite tool (same kind)",
-                  "crimson-gear:crimson_armor_{piece}": "Crimson piece (same slot)",
-                  "crimson-gear:crimson_{tool}": "Crimson tool (same kind)"}
+             "WARDEN": "the Warden", "ELDER_GUARDIAN": "Elder Guardians", "WITHER": "the Wither",
+             "WITCH": "Witches"}
+MAKES = {"armor_recipe": "Helmet, Chestplate, Leggings, Boots", "tool_recipe": "Pickaxe, Axe, Shovel, Hoe",
+         "sword_recipe": "Sword", "bow_recipe": "Bow"}
+BASE_NOTE = {"armor_recipe": "Middle: use the piece you are upgrading.",
+             "tool_recipe": "Middle: use the tool you are upgrading."}
+NAMES = {"GHAST_TEAR": "Ghast Tear", "REDSTONE_BLOCK": "Redstone Block", "REDSTONE": "Redstone",
+         "LAPIS_BLOCK": "Lapis Block", "LAPIS_LAZULI": "Lapis Lazuli", "END_STONE": "End Stone",
+         "DIAMOND_BLOCK": "Diamond Block", "DIAMOND": "Diamond", "DRAGON_BREATH": "Dragon's Breath",
+         "BLAZE_ROD": "Blaze Rod", "BLAZE_POWDER": "Blaze Powder", "ECHO_SHARD": "Echo Shard", "BOW": "Bow",
+         "PAPER": "Paper", "NETHERITE_SCRAP": "Netherite Scrap", "NETHERITE_INGOT": "Netherite Ingot",
+         "MAGMA_CREAM": "Magma Cream", "FIRE_CHARGE": "Fire Charge", "PRISMARINE_SHARD": "Prismarine Shard",
+         "AMETHYST_SHARD": "Amethyst Shard", "NETHER_STAR": "Nether Star", "JACK_O_LANTERN": "Jack o'Lantern",
+         "WITHER_SKELETON_SKULL": "Wither Skull", "CARVED_PUMPKIN": "Carved Pumpkin", "WITHER_ROSE": "Wither Rose",
+         "NETHERITE_SWORD": "Netherite Sword"}
+TIER_NAMES = {"crimson": "Crimson", "blue_crimson": "Blue Crimson", "halloween": "Halloween"}
 
 
 def ingredient(value):
-    return TEMPLATE_NAMES.get(value) or RB.ingredient_name(value)
+    if value in NAMES:
+        return NAMES[value]
+    if value.startswith("NETHERITE_{"):
+        return "Netherite " + ("piece" if "PIECE" in value else "tool")
+    item = value.split(":", 1)[1]
+    for tier in ("blue_crimson", "crimson", "halloween"):
+        if item.startswith(tier + "_"):
+            rest = item[len(tier) + 1:]
+            if rest.startswith("scroll_"):
+                return f"{TIER_NAMES[tier]} {rest[7:].capitalize()} Scroll"
+            if "{piece}" in rest:
+                return f"{TIER_NAMES[tier]} piece"
+            if "{tool}" in rest:
+                return f"{TIER_NAMES[tier]} tool"
+            return f"{TIER_NAMES[tier]} {rest.replace('armor_', '').capitalize()}"
+    return value
 
 
 def recipe_lines(pattern, ingredients, accent):
     lines = []
-    for row in pattern:
-        cells = [f"{accent}{ch}" if ch in ingredients else "&8·" for ch in row]
-        lines.append("&f   " + " ".join(cells))
-    for key, value in ingredients.items():
-        lines.append(f"&7 {accent}{key}&7 = {ingredient(value)}")
+    for label, row in zip(("Top", "Middle", "Bottom"), pattern):
+        cells = [ingredient(ingredients[ch]) if ch in ingredients else "empty" for ch in row]
+        lines.append(f"&7{label}: &f" + "&7, &f".join(cells))
     return lines
 
 
 def lore(tier_cfg, scroll, accent):
     title, story, keys, mob, chance = scroll
-    out = ["&f"] + [f"&o&7{s}" for s in story] + [f"&8Craft it, or take it from {MOB_NAMES[mob]}."]
+    out = ["&f"] + [f"&o&7{s}" for s in story]
     for key in keys:
         pattern, ingredients = tier_cfg[key]
-        out += ["&f", f"&6{RECIPE_LABEL[key]}:" if accent == "&c" else f"&b{RECIPE_LABEL[key]}:"]
+        out += ["&f", f"{accent}Makes: &f{MAKES[key]}", "&8(crafting table)"]
         out += recipe_lines(pattern, ingredients, accent)
+        if key in BASE_NOTE:
+            out.append(f"&8{BASE_NOTE[key]}")
+    out += ["&f", f"&8Craft this scroll, or take it from {MOB_NAMES[mob]}."]
     return out
 
 

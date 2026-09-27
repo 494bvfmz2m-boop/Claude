@@ -35,7 +35,7 @@ def depth(c):
     return 7.5, 8.5
 
 
-def tool_elements(tex):
+def tool_elements(tex, flat=False):
     n = tex.size[0]
     u = 16 / n
     px = tex.load()
@@ -46,9 +46,10 @@ def tool_elements(tex):
             if px[x, y][3] == 0:
                 x += 1
                 continue
-            z0, z1 = depth(px[x, y][:3])
+            dz = (lambda c: (7.5, 8.5)) if flat else depth
+            z0, z1 = dz(px[x, y][:3])
             x0 = x
-            while x < n and px[x, y][3] and depth(px[x, y][:3]) == (z0, z1):
+            while x < n and px[x, y][3] and dz(px[x, y][:3]) == (z0, z1):
                 x += 1
             strip = [r(x0 * u), r(y * u), r(x * u), r((y + 1) * u)]
             els.append({
@@ -73,7 +74,7 @@ def tool_elements(tex):
             x0 = x
             while x < n and px[x, y][3] and px[x, y][:3] in GLOW:
                 x += 1
-            z0, z1 = depth(px[x0, y][:3])
+            z0, z1 = (7.5, 8.5) if flat else depth(px[x0, y][:3])
             strip = [r(x0 * u), r(y * u), r(x * u), r((y + 1) * u)]
             y0, y1 = r(16 - (y + 1) * u), r(16 - y * u)
             els.append({"from": [r(x0 * u), y0, z1 + 0.01], "to": [r(x * u), y1, z1 + 0.01],
