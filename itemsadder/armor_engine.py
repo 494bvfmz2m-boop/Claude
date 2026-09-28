@@ -527,8 +527,10 @@ def hat_model(parts, ref, gui_scale=0.6):
 
 
 # --- ItemsAdder configs ---------------------------------------------------------------------
-# 3D hats use LEATHER_HORSE_ARMOR and scrolls FLINT rather than PAPER: the server's banknote
-# plugin treats every right-clicked PAPER item as a (forged) note.
+# 3D helmets are real NETHERITE_HELMETs with an `equipment` block that has no `id`: ItemsAdder then
+# shows the 3D model on the head, and vanilla sees a helmet, so it can be enchanted. (Cosmetic hats
+# use LEATHER_HORSE_ARMOR and scrolls FLINT rather than PAPER: the server's banknote plugin treats
+# every right-clicked PAPER item as a (forged) note.)
 # All sets sit a step above netherite (armor 3/8/6/3, toughness 3, 407/592/555/481 durability,
 # sword 8): heavier coverage gives more armor, lighter sets lean on their perk.
 COVER_STATS = {"full": ((4, 8, 7, 3), 4.0), "standard": ((3, 8, 7, 3), 3.5), "light": ((3, 8, 6, 3), 3.0),
@@ -643,16 +645,15 @@ def configs(S, ns):
             items.append(f"""  {S['id']}_helmet:
     enabled: true
     display_name: {name}
-{lore}    behaviours:
-      hat: true
-    resource:
-      material: LEATHER_HORSE_ARMOR
+{lore}    resource:
+      material: NETHERITE_HELMET
       generate: false
       model_path: item/{S['id']}_helmet
     durability:
       max_custom_durability: {dura}
-    attribute_modifiers:
-      head:{stat}""")
+    equipment:
+      slot: HEAD
+      slot_attribute_modifiers:{stat}""")
         else:
             items.append(f"""  {S['id']}_{piece}:
     enabled: true

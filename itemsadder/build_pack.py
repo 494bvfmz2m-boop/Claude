@@ -287,16 +287,15 @@ def tier_items(ns, tier):
     items = [f"""  {tier}_armor_helmet:
     enabled: true
     display_name: '{t["color"]}{t["name"]} Helmet'
-{lore}    behaviours:
-      hat: true
-    resource:
-      material: LEATHER_HORSE_ARMOR
+{lore}    resource:
+      material: NETHERITE_HELMET
       generate: false
       model_path: item/armor/{tier}_helmet
     durability:
       max_custom_durability: {h_dura}
-    attribute_modifiers:
-      head:
+    equipment:
+      slot: HEAD
+      slot_attribute_modifiers:
         armor: {h_armor}
 {stats}"""]
     for piece in PIECES[1:]:
@@ -636,16 +635,15 @@ equipments:
       - '&4Forged in hellfire'
       - '&8Admin only'
     permission: {ns}.helmet
-    behaviours:
-      hat: true
     resource:
-      material: LEATHER_HORSE_ARMOR
+      material: NETHERITE_HELMET
       generate: false
       model_path: item/armor/demon_helmet
     durability:
       max_custom_durability: {h_dura}
-    attribute_modifiers:
-      head:
+    equipment:
+      slot: HEAD
+      slot_attribute_modifiers:
         armor: {h_armor}
         armorToughness: 5
         knockbackResistance: 0.25

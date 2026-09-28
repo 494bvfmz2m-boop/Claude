@@ -673,16 +673,15 @@ def items_yml():
     enabled: true
     display_name: '&5&lGalactus Helmet'
 {lore_yml(LORE[:4] + perk[1:] + LORE[3:])}    permission: galactus.helmet
-    behaviours:
-      hat: true
     resource:
-      material: LEATHER_HORSE_ARMOR
+      material: NETHERITE_HELMET
       generate: false
       model_path: item/galactus_helmet
     durability:
       max_custom_durability: 99999
-    attribute_modifiers:
-      head:
+    equipment:
+      slot: HEAD
+      slot_attribute_modifiers:
         armor: {armor}{stats}""")
         else:
             out.append(f"""  galactus_{piece}:
