@@ -1,0 +1,12 @@
+{
+  "name": "hoe-wordt-een-auto-gemaakt",
+  "private": true,
+  "description": "Schoolproject-website met 3D-animatie van een auto die in een fabriek wordt opgebouwd.",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "three": "0.186.1"
+  }
+}

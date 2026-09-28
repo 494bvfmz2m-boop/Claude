@@ -46,7 +46,26 @@
       <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 16l1.5-5A2 2 0 0 1 6.4 9.5h11.2a2 2 0 0 1 1.9 1.5L21 16"/><path d="M3 16h18v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1V17H6.5v1.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V16z"/><circle cx="7" cy="16.5" r="1.4"/><circle cx="17" cy="16.5" r="1.4"/></svg></span>
       <h2>Van los onderdeel tot auto</h2>
     </div>
-    <p>Deze animatie laat in het klein zien hoe een auto op de productielijn wordt opgebouwd: eerst het chassis, dan het motorblok en de wielen, daarna plaatst de robotarm de carrosserie en tot slot gaan de ramen erin.</p>
+    <p>Kijk mee in een 3D-autofabriek: het chassis komt binnen op de lopende band, een takel laat de motor en de carrosserie zakken, robots lassen de carrosserie vast en monteren de deuren en wielen, en tot slot gaan de ruiten erin en de lichten aan.</p>
+
+    <div class="factory-stage" id="factoryStage" hidden>
+      <div class="factory-vignette" aria-hidden="true"></div>
+      <div class="factory-hud" aria-live="polite">
+        <div class="hud-top">
+          <span class="hud-live"><span class="hud-live-dot"></span>Productielijn</span>
+          <span class="hud-step" id="hudStep">Stap 1 / 7</span>
+        </div>
+        <div class="hud-caption">
+          <h3 id="hudTitle">Chassis</h3>
+          <p id="hudText">Het chassis komt binnen op de lopende band</p>
+        </div>
+        <div class="hud-progress" id="hudProgress"></div>
+      </div>
+      <div class="factory-loading" id="factoryLoading">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        3D-fabriek laden&hellip;
+      </div>
+    </div>
 
     <div class="car-stage" id="carStage">
       <svg id="carSvg" viewBox="0 0 500 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animatie van een auto die stap voor stap in elkaar wordt gezet door een robotarm">
@@ -265,6 +284,7 @@
 
 <footer class="site-footer">
   <p>Schoolproject &mdash; Hoe wordt een auto gemaakt?<br>Alle informatie op deze pagina is gebaseerd op de bronnen hierboven.</p>
+  <p class="credit">3D-automodel: &ldquo;Car Concept&rdquo; door Eric Chadwick / Darmstadt Graphics Group, via de <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Khronos glTF Sample Assets</a>, licentie <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Het model is voor de animatie in losse onderdelen opgedeeld.</p>
 </footer>
 
 <button type="button" id="toTop" class="to-top" aria-label="Naar boven">&uarr;</button>
@@ -274,6 +294,8 @@
   <span id="autoScrollText">Auto-scroll actief</span>
 </div>
 
+<script src="js/car-model.js"></script>
+<script src="js/car3d.js"></script>
 <script src="js/script.js"></script>
 </body>
 </html>

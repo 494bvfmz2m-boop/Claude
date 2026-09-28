@@ -2,11 +2,77 @@
   var svg = document.getElementById("carSvg");
   var replayBtn = document.getElementById("replayBtn");
   var stage = document.getElementById("carStage");
+  var factoryStage = document.getElementById("factoryStage");
   var robotArm = document.getElementById("robotArm");
   var sparkBurst = document.getElementById("sparkBurst");
   var doneBadge = document.getElementById("doneBadge");
   var stepLabel = document.getElementById("stepLabel");
   var dots = document.querySelectorAll("#progressDots .dot");
+
+  // Wie wil weten wanneer de auto af is (auto-scroll wacht hierop).
+  var buildDoneWaiters = [];
+
+  function onBuildDone(fn) {
+    buildDoneWaiters.push(fn);
+  }
+
+  function notifyBuildDone() {
+    var waiters = buildDoneWaiters;
+    buildDoneWaiters = [];
+    waiters.forEach(function (fn) {
+      fn();
+    });
+  }
+
+  // --- 3D-fabriek (met de SVG-animatie als reserve) ---
+
+  var use3D = false;
+  var hudStep = document.getElementById("hudStep");
+  var hudTitle = document.getElementById("hudTitle");
+  var hudText = document.getElementById("hudText");
+  var hudProgress = document.getElementById("hudProgress");
+  var factoryLoading = document.getElementById("factoryLoading");
+
+  function showHudStep(idx, total, step) {
+    var done = idx >= total;
+    hudStep.textContent = done ? "Klaar" : "Stap " + (idx + 1) + " / " + total;
+    hudTitle.textContent = step.title;
+    hudText.textContent = step.caption;
+    var caption = hudTitle.parentNode;
+    caption.classList.remove("swap");
+    void caption.offsetWidth;
+    caption.classList.add("swap");
+    var bars = hudProgress.children;
+    for (var i = 0; i < bars.length; i++) bars[i].classList.toggle("on", i <= idx);
+    hudProgress.classList.toggle("done", done);
+  }
+
+  function useSvgFallback() {
+    use3D = false;
+    if (factoryStage) factoryStage.hidden = true;
+    stage.hidden = false;
+    playAnimation();
+  }
+
+  if (factoryStage && window.Car3D) {
+    factoryStage.hidden = false;
+    for (var i = 0; i < window.Car3D.steps.length; i++) hudProgress.appendChild(document.createElement("span"));
+    use3D = window.Car3D.init(factoryStage, {
+      onReady: function () {
+        factoryLoading.classList.add("gone");
+      },
+      onStep: showHudStep,
+      onDone: notifyBuildDone,
+      onError: useSvgFallback,
+    });
+    if (use3D) {
+      stage.hidden = true;
+    } else {
+      factoryStage.hidden = true;
+    }
+  }
+
+  // --- SVG-animatie (reserve voor computers zonder WebGL) ---
 
   var timers = [];
 
@@ -50,7 +116,7 @@
     stepLabel.textContent = "Klaar om te bouwen…";
   }
 
-  function playAnimation() {
+  function playSvgAnimation() {
     resetStage();
     svg.classList.add("play");
 
@@ -108,11 +174,21 @@
       svg.classList.add("done");
       doneBadge.classList.add("show");
       stepLabel.textContent = "Klaar! De auto is compleet.";
+      notifyBuildDone();
     });
   }
 
+  function playAnimation() {
+    if (use3D) {
+      window.Car3D.play();
+    } else {
+      playSvgAnimation();
+    }
+  }
+
   var played = false;
-  if ("IntersectionObserver" in window && stage) {
+  var animTarget = use3D ? factoryStage : stage;
+  if ("IntersectionObserver" in window && animTarget) {
     var carObserver = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
@@ -124,7 +200,7 @@
       },
       { threshold: 0.4 }
     );
-    carObserver.observe(stage);
+    carObserver.observe(animTarget);
   } else {
     playAnimation();
   }
@@ -190,13 +266,14 @@
   }
 
   // Auto-scroll voor onbemande presentatie (markt/beamer): W toggelt aan/uit.
-  // Scrolt rustig naar beneden en begint daarna weer van boven, met de
-  // auto-animatie erbij, zodat het scherm zichzelf blijft laten zien.
+  // Scrolt rustig naar beneden; onderaan gaat hij terug naar boven, bouwt de
+  // auto opnieuw en wacht tot die af is voordat hij weer gaat scrollen.
   var autoScrollIndicator = document.getElementById("autoScrollIndicator");
   var autoScrollText = document.getElementById("autoScrollText");
   var autoScrollActive = false;
   var autoScrollRAF = null;
   var autoScrollLastTs = null;
+  var autoScrollGen = 0;
   var indicatorHideTimer = null;
   var PX_PER_SECOND = 42;
 
@@ -210,7 +287,32 @@
     }, 2600);
   }
 
+  function startScrolling(gen) {
+    if (!autoScrollActive || gen !== autoScrollGen) return;
+    if (autoScrollRAF) window.cancelAnimationFrame(autoScrollRAF);
+    autoScrollLastTs = null;
+    autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
+  }
+
+  function restartFromTop(gen) {
+    if (!autoScrollActive || gen !== autoScrollGen) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    buildDoneWaiters = [];
+    playAnimation();
+    var resumed = false;
+    var resume = function () {
+      if (resumed) return;
+      resumed = true;
+      startScrolling(gen);
+    };
+    onBuildDone(function () {
+      window.setTimeout(resume, 3000);
+    });
+    window.setTimeout(resume, 45000);
+  }
+
   function autoScrollTick(ts) {
+    autoScrollRAF = null;
     if (!autoScrollActive) return;
     if (autoScrollLastTs === null) autoScrollLastTs = ts;
     var dt = ts - autoScrollLastTs;
@@ -220,14 +322,9 @@
 
     if (maxScroll <= 0 || next >= maxScroll - 1) {
       window.scrollTo({ top: Math.max(maxScroll, 0), left: 0, behavior: "instant" });
+      var gen = autoScrollGen;
       window.setTimeout(function () {
-        if (!autoScrollActive) return;
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-        playAnimation();
-        autoScrollLastTs = null;
-        window.setTimeout(function () {
-          if (autoScrollActive) autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
-        }, 900);
+        restartFromTop(gen);
       }, 2200);
       return;
     }
@@ -238,19 +335,20 @@
 
   function setAutoScroll(on) {
     autoScrollActive = on;
-    autoScrollLastTs = null;
+    autoScrollGen++;
+    if (autoScrollRAF) window.cancelAnimationFrame(autoScrollRAF);
+    autoScrollRAF = null;
     if (on) {
       showAutoScrollMessage("Auto-scroll aan — druk op W om te stoppen");
-      autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
+      startScrolling(autoScrollGen);
     } else {
       showAutoScrollMessage("Auto-scroll uit");
-      if (autoScrollRAF) window.cancelAnimationFrame(autoScrollRAF);
     }
   }
 
   document.addEventListener("keydown", function (e) {
     var key = e.key ? e.key.toLowerCase() : "";
-    if (key === "w") {
+    if (key === "w" && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setAutoScroll(!autoScrollActive);
     }
   });
