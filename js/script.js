@@ -188,4 +188,70 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
+
+  // Auto-scroll voor onbemande presentatie (markt/beamer): W toggelt aan/uit.
+  // Scrolt rustig naar beneden en begint daarna weer van boven, met de
+  // auto-animatie erbij, zodat het scherm zichzelf blijft laten zien.
+  var autoScrollIndicator = document.getElementById("autoScrollIndicator");
+  var autoScrollText = document.getElementById("autoScrollText");
+  var autoScrollActive = false;
+  var autoScrollRAF = null;
+  var autoScrollLastTs = null;
+  var indicatorHideTimer = null;
+  var PX_PER_SECOND = 42;
+
+  function showAutoScrollMessage(text) {
+    if (!autoScrollIndicator || !autoScrollText) return;
+    autoScrollText.textContent = text;
+    autoScrollIndicator.classList.add("show");
+    window.clearTimeout(indicatorHideTimer);
+    indicatorHideTimer = window.setTimeout(function () {
+      autoScrollIndicator.classList.remove("show");
+    }, 2600);
+  }
+
+  function autoScrollTick(ts) {
+    if (!autoScrollActive) return;
+    if (autoScrollLastTs === null) autoScrollLastTs = ts;
+    var dt = ts - autoScrollLastTs;
+    autoScrollLastTs = ts;
+    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    var next = window.scrollY + (PX_PER_SECOND * dt) / 1000;
+
+    if (maxScroll <= 0 || next >= maxScroll - 1) {
+      window.scrollTo({ top: Math.max(maxScroll, 0), left: 0, behavior: "instant" });
+      window.setTimeout(function () {
+        if (!autoScrollActive) return;
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        playAnimation();
+        autoScrollLastTs = null;
+        window.setTimeout(function () {
+          if (autoScrollActive) autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
+        }, 900);
+      }, 2200);
+      return;
+    }
+
+    window.scrollTo({ top: next, left: 0, behavior: "instant" });
+    autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
+  }
+
+  function setAutoScroll(on) {
+    autoScrollActive = on;
+    autoScrollLastTs = null;
+    if (on) {
+      showAutoScrollMessage("Auto-scroll aan — druk op W om te stoppen");
+      autoScrollRAF = window.requestAnimationFrame(autoScrollTick);
+    } else {
+      showAutoScrollMessage("Auto-scroll uit");
+      if (autoScrollRAF) window.cancelAnimationFrame(autoScrollRAF);
+    }
+  }
+
+  document.addEventListener("keydown", function (e) {
+    var key = e.key ? e.key.toLowerCase() : "";
+    if (key === "w") {
+      setAutoScroll(!autoScrollActive);
+    }
+  });
 })();
