@@ -2,1043 +2,1601 @@
 leg and boot designs, so sets differ in shape and construction, not just in
 colour. Also builds the inventory icons straight from the painted textures.
 
+Painting works in two steps. Designs lay down cells of (material, light level,
+piece): materials are M (main metal/surface), S (secondary, from s1), C (second
+cloth, from s2), T (trim), U (second trim, from t2), A (accent), G (glow) and O (outline); levels run
+0 (outline dark) .. 3 (base) .. 5 (highlight). A shading pass then gives every
+piece a lit top rim and a shadowed underside, darkens edges next to skin and
+rounds the torso, and finally each cell is coloured from its material's ramp
+(shadows shift cool, highlights warm). Designs therefore only describe
+construction: plates, lames, straps, rivets, seams.
+
 Faces are addressed as (face rect, u, v): u across, v down (0 = top).
 """
 from PIL import Image
 
-import armor_engine as AE
-from armor_engine import ARM, BODY, HEAD, LEG, PATTERNS, Tex, h
+from armor_engine import ARM, BODY, HEAD, LEG, PATTERNS, h
 
 SIDES = ("front", "back", "right", "left")
 
-
-def put(t, rect, u, v, c):
-    x0, y0, w, hh = rect
-    if 0 <= u < w and 0 <= v < hh and c is not None:
-        t.put(x0 + u, y0 + v, c)
+# ============================================================ colour ramps
+WARM, COOL = (255, 246, 220), (16, 10, 36)
 
 
-def fill(t, rect, fn, rows=None):
-    """fn(u, v, w, h, x, y) -> colour or None (leave as is)."""
+def mix(a, b, t):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
+def tone(c, k):
+    """k > 0 lightens towards a warm white, k < 0 darkens towards a cool dark."""
+    return mix(c, WARM, k) if k > 0 else mix(c, COOL, -k)
+
+
+def ramp_of(c):
+    return [tone(c, -0.62), tone(c, -0.42), tone(c, -0.2), c, tone(c, 0.26), tone(c, 0.5)]
+
+
+def ramps(P):
+    return {
+        "M": [P["o"], P["d"], P["b"], P["m"], P["l"], tone(P["l"], 0.32)],
+        "S": ramp_of(P["s1"]),
+        "C": ramp_of(P["s2"]),
+        "T": ramp_of(P["t"]),
+        "U": ramp_of(P["t2"]),
+        "A": ramp_of(P["a"]),
+        "G": ramp_of(P["g"]),
+        "O": [P["o"]] * 6,
+    }
+
+
+# palette letters (emblems, stamps, old patterns) -> (material, level)
+KEYMAP = {"o": ("O", 0), "d": ("M", 1), "b": ("M", 2), "m": ("M", 3), "l": ("M", 4), "t": ("T", 3),
+          "t2": ("U", 3), "a": ("A", 3), "g": ("G", 3), "s1": ("S", 3), "s2": ("C", 3)}
+
+
+# ============================================================ cells
+class Layer:
+    def __init__(self):
+        self.c = {}           # (x, y) -> [mat, level, piece, fixed]
+
+
+_PIECE = [0]
+
+
+def new_piece():
+    _PIECE[0] += 1
+    return _PIECE[0]
+
+
+def fill(L, rect, fn, piece, rows=None, cols=None, where=None):
+    """fn(x, y, u, v, w, hh) -> (mat, level) or None (leave as is)."""
     x0, y0, w, hh = rect
     for v in range(hh) if rows is None else rows:
-        for u in range(w):
-            put(t, rect, u, v, fn(u, v, w, hh, x0 + u, y0 + v))
+        for u in range(w) if cols is None else cols:
+            if not (0 <= u < w and 0 <= v < hh) or (where and not where(u, v, w, hh)):
+                continue
+            r = fn(x0 + u, y0 + v, u, v, w, hh)
+            if r is not None:
+                L.c[(x0 + u, y0 + v)] = [r[0], r[1], piece, False]
 
 
-def pat(name, P):
-    f = PATTERNS[name]
-    return lambda u, v, w, hh, x, y: f(P, u, v, w, hh, x, y)
+def px(L, rect, u, v, mat, lv, fixed=True, piece=None):
+    """A single detail pixel (rivet, stitch, highlight): keeps the piece underneath."""
+    x0, y0, w, hh = rect
+    if not (0 <= u < w and 0 <= v < hh):
+        return
+    old = L.c.get((x0 + u, y0 + v))
+    pc = piece if piece is not None else (old[2] if old else new_piece())
+    L.c[(x0 + u, y0 + v)] = [mat, lv, pc, fixed]
 
 
-def solid(c):
-    return lambda *a: c
-
-
-def clear(t, rect, cells):
+def erase(L, rect, cells):
     x0, y0, w, hh = rect
     for u, v in cells:
         if 0 <= u < w and 0 <= v < hh:
-            t.img.putpixel((x0 + u, y0 + v), (0, 0, 0, 0))
+            L.c.pop((x0 + u, y0 + v), None)
 
 
-# ============================================================ trims
-STYLE = {"trim": "line"}
+def solid(mat, lv=3):
+    return lambda *a: (mat, lv)
 
 
-def trim(t, rect, P, rows):
-    """Edge bands in the set's own trim style."""
-    kind = STYLE["trim"]
-    fur = pat("fur", dict(P, b=P["t2"], m=P["t"], l=P["a"]))
+# ============================================================ surfaces
+# Each returns a level (on the surface's own material) or a (mat, level) pair.
+# They use texture x (continuous around a limb: right, front, left, back sit side by side).
+GLYPHS = [[".g.", "ggg", ".g."], ["g.g", ".g.", "g.g"], ["gg.", "g..", "ggg"], [".gg", "g.g", "gg."],
+          ["g..", "ggg", "..g"]]
 
-    def f(u, v, w, hh, x, y):
-        if kind == "rope":
-            return P["t"] if (u + v) % 2 else P["t2"]
-        if kind == "zigzag":
-            return P["t2"] if u % 3 == 0 else P["t"]
-        if kind == "studs":
-            return P["l"] if u % 2 == 0 else P["d"]
-        if kind == "dots":
-            return P["a"] if u % 3 == 1 else P["t"]
-        if kind == "checker":
-            return P["t"] if (u + v) % 2 else P["o"]
-        if kind == "gem":
-            return P["g"] if u % 4 == 1 else P["t"]
-        if kind == "segment":
-            return P["t2"] if u % 4 == 3 else P["t"]
-        if kind == "fur":
-            return fur(u, v, w, hh, x, y)
-        return P["t"]
-    fill(t, rect, f, rows=rows)
+
+def _plate(x, y, u, v, w, hh):
+    return 3
+
+
+def _cloth(x, y, u, v, w, hh):
+    if x % 4 == 1 and (y // 3 + x // 4) % 3 != 0:
+        return 2                                                  # soft vertical folds
+    return 4 if x % 4 == 2 and y % 5 == 1 else 3
+
+
+def _leather(x, y, u, v, w, hh):
+    if (x * 7 + y * 3) % 19 == 0:
+        return 2                                                  # the odd scuff in the hide
+    return 3
+
+
+def _scale(x, y, u, v, w, hh):
+    c = (x + (y // 3) % 2 * 2) % 4
+    return ((3, 4, 4, 3), (3, 3, 3, 3), (2, 3, 3, 2))[y % 3][c]
+
+
+def _chain(x, y, u, v, w, hh):
+    if y % 2 == 0:
+        return 4 if x % 2 == 0 else 3
+    return 3 if x % 2 else 2
+
+
+def _fur(x, y, u, v, w, hh):
+    c, r = x % 2, (y + (x // 2) % 2) % 3                          # tufts two wide, staggered
+    return ((4, 3), (3, 3), (3, 2))[r][c]
+
+
+def _feather(x, y, u, v, w, hh):
+    c = (x + (y // 3) % 2 * 2) % 4
+    return ((1, 4, 5, 2), (2, 4, 4, 2), (1, 2, 3, 1))[y % 3][c]
+
+
+def _quilt(x, y, u, v, w, hh):
+    if (x + y) % 6 == 0 or (x - y) % 6 == 0:
+        return 2
+    return 4 if (x + y) % 6 == 3 and (x - y) % 6 == 3 else 3
+
+
+def _lamellar(x, y, u, v, w, hh):
+    r = y % 3
+    if r == 2:
+        return ("U", 3) if x % 4 == 1 else 2                      # a row of lacing between the plate rows
+    return 4 if r == 0 else 3
+
+
+def _stripes(x, y, u, v, w, hh):
+    r = y % 4
+    return (4, 3, ("T", 3), ("T", 2))[r]
+
+
+def _brass(x, y, u, v, w, hh):
+    if u % 3 == 1 and v % 4 == 1:
+        return ("T", 5)
+    return 3
+
+
+def _crystal(x, y, u, v, w, hh):
+    k = ((x + y) // 4 + (x - y + 40) // 5) % 3
+    if k == 1 and (x * 3 + y) % 11 == 0:
+        return ("G", 4)                                           # a glint on the lit facet
+    return (3, 4, 2)[k]
+
+
+def _bone(x, y, u, v, w, hh):
+    if y % 3 == 0:
+        return 4
+    return 2 if x % 4 == 0 and y % 3 == 1 else 3
+
+
+def _rune(x, y, u, v, w, hh):
+    bx, by = x // 4, y // 4
+    if (bx + by) % 2 == 0:
+        g = GLYPHS[int(h(bx, by, 9) * len(GLYPHS))]
+        i, j = x % 4, y % 4
+        if i < 3 and j < 3 and g[j][i] == "g":
+            return ("G", 3)
+    return 2 if (x + y) % 5 == 0 else 3
+
+
+def _cracks(x, y, k):
+    import math
+    return abs(math.sin(x * 0.55 + y * 0.3 + k) + math.sin(y * 0.42 - x * 0.2 + k * 2))
+
+
+def _flame(x, y, u, v, w, hh):
+    d = _cracks(x, y, 0.0)
+    if d < 0.2:
+        return ("G", 4)                                           # molten seam
+    if d < 0.42:
+        return ("M", 4)                                           # heated rim of the crack
+    return 2                                                      # cooled basalt
+
+
+def _wave(x, y, u, v, w, hh):
+    import math
+    return (4, 3, 2, 3)[(y + round(math.sin(x * 0.9) * 1.3)) % 4]
+
+
+def _stars(x, y, u, v, w, hh):
+    import math
+    if (x * 7 + y * 13) % 29 == 0:
+        return ("G", 5)
+    if (x * 11 + y * 5) % 37 == 0:
+        return ("G", 3)
+    return 3 if math.sin(x * 0.45 + y * 0.3) + math.sin(y * 0.5 - x * 0.2) > 1.1 else 2   # soft nebula wisps
+
+
+def _circuit(x, y, u, v, w, hh):
+    if y % 6 == 2 and (x // 5) % 3 != 2:
+        return ("G", 4) if x % 5 == 0 else ("A", 3)               # traces with glowing nodes
+    if x % 5 == 0 and y % 6 in (3, 4, 5) and (x // 5 + y // 6) % 2 == 0:
+        return ("A", 3)
+    return 2
+
+
+def _obsidian(x, y, u, v, w, hh):
+    d = _cracks(x, y, 2.3)
+    if d < 0.16:
+        return ("G", 3)
+    if d < 0.36:
+        return 3
+    return 2
+
+
+def _marble(x, y, u, v, w, hh):
+    import math
+    if abs(math.sin((x + y * 0.6) * 0.9 + h(x // 3, y // 3, 15) * 3)) < 0.15:
+        return ("T", 2)
+    return 4
+
+
+def _patina(x, y, u, v, w, hh):
+    r = h(x // 3, y // 3, 17)
+    if r > 0.62:
+        return ("S", 4) if h(x, y, 18) > 0.5 else ("S", 3)       # verdigris patches
+    return 3
+
+
+def _spots(x, y, u, v, w, hh):
+    """Rosettes: a dark ring around a warm centre, set on an offset grid."""
+    cx, cy = x % 5, (y + (x // 5) % 2 * 2) % 5
+    r = abs(cx - 2) + abs(cy - 2)
+    if r == 2 and (cx, cy) not in ((0, 2), (4, 2)):
+        return 1
+    return 2 if r < 2 else 3
+
+
+def _candy(x, y, u, v, w, hh):
+    return ("A", 4) if ((x + y) // 2) % 2 else ("T", 4)
+
+
+def _petal(x, y, u, v, w, hh):
+    k = (x + (y // 3) % 2 * 2) % 4
+    if y % 3 == 0 and k == 1:
+        return ("A", 4)
+    return (3, 4, 3, 2)[k] if y % 3 else 3
+
+
+def _slime(x, y, u, v, w, hh):
+    if (x * 5 + y * 3) % 17 == 0:
+        return 5
+    return 4 if (x + y * 2) % 7 == 0 else 3
+
+
+def _hex(x, y, u, v, w, hh):
+    r, off = y % 3, (y // 3) % 2 * 2
+    if (r == 0 and (x + off) % 4 in (0, 1)) or (r != 0 and (x + off) % 4 == 3):
+        return 2
+    return 4 if r == 1 and (x + off) % 4 == 0 else 3
+
+
+def _bark(x, y, u, v, w, hh):
+    if x % 4 == 0 and (y + x) % 5 != 0:
+        return 2                                                  # deep grain, broken here and there
+    return 4 if x % 4 == 1 and y % 4 == 0 else 3
+
+
+def _nebula(x, y, u, v, w, hh):
+    import math
+    if (x * 7 + y * 13) % 29 == 0:
+        return ("G", 5)                                           # stars
+    if (x * 11 + y * 5) % 41 == 0:
+        return ("M", 5)
+    m = math.sin(x * 0.35 + y * 0.22) + math.sin(y * 0.3 - x * 0.18 + 1.3)
+    b = math.sin(x * 0.28 - y * 0.33 + 2.1) + math.sin(x * 0.4 + y * 0.25 + 0.4)
+    if m > 1.3:
+        return ("S", 3 if m < 1.7 else 4)                         # magenta cloud, brighter core
+    if b > 1.3:
+        return ("C", 3 if b < 1.7 else 4)                         # blue cloud
+    return 2 if m > 0.5 or b > 0.5 else 1
+
+
+SURFACES = {"nebula": _nebula, "plate": _plate, "cloth": _cloth, "leather": _leather, "scale": _scale, "chain": _chain, "fur": _fur,
+            "feather": _feather, "quilt": _quilt, "lamellar": _lamellar, "stripes": _stripes, "brass": _brass,
+            "crystal": _crystal, "bone": _bone, "rune": _rune, "flame": _flame, "wave": _wave, "stars": _stars,
+            "circuit": _circuit, "obsidian": _obsidian, "marble": _marble, "patina": _patina, "spots": _spots,
+            "candy": _candy, "petal": _petal, "slime": _slime, "hex": _hex, "bark": _bark}
+
+
+def surface(name, mat, P):
+    """A surface fn yielding (mat, level). Unknown names fall back to the old colour pattern."""
+    fn = SURFACES.get(name)
+    if fn is None:
+        old = PATTERNS[name]
+        inv = {P[k]: KEYMAP[k] for k in KEYMAP}
+
+        def fb(x, y, u, v, w, hh):
+            c = old(P, u, v, w, hh, x, y)
+            return inv.get(c, (mat, 3))
+        return fb
+
+    def f(x, y, u, v, w, hh):
+        r = fn(x, y, u, v, w, hh)
+        return r if isinstance(r, tuple) else (mat, r)
+    return f
+
+
+# ============================================================ context
+class Ctx:
+    def __init__(self, S):
+        self.S, self.P, self.L = S, S["pal"], S["look"]
+        self.L1, self.L2 = Layer(), Layer()
+        main = self.L.get("main") or (S["pattern"], "M")
+        sec = self.L.get("sec") or (S.get("secondary", "cloth"), "S")
+        self.M = surface(main[0], main[1], self.P)
+        self.Sc = surface(sec[0], sec[1], self.P)
+        self.trim_kind = self.L.get("trim", "line")
+        self._pc = {}
+
+    def pc(self, name):
+        """A named piece, shared by every side (so a band reads as one plate around the limb)."""
+        if name not in self._pc:
+            self._pc[name] = new_piece()
+        return self._pc[name]
+
+    def surf(self, name, mat):
+        return surface(name, mat, self.P)
+
+    def trim_fn(self):
+        kind = self.trim_kind
+
+        def f(x, y, u, v, w, hh):
+            if kind == "rope":
+                return ("T", 4 if (x + y) % 2 else 2)
+            if kind == "zigzag":
+                return ("T", 4) if (x + y) % 3 == 0 else ("T", 2)
+            if kind == "studs":
+                return ("T", 5) if x % 2 == 0 else ("M", 1)
+            if kind == "dots":
+                return ("A", 4) if x % 3 == 1 else ("T", 3)
+            if kind == "checker":
+                return ("T", 4) if (x + y) % 2 else ("O", 0)
+            if kind == "gem":
+                return ("G", 4) if x % 4 == 1 else ("T", 3)
+            if kind == "segment":
+                return ("T", 1) if x % 4 == 3 else ("T", 3)
+            if kind == "fur":
+                return ("C", _fur(x, y, u, v, w, hh))
+            return ("T", 3)
+        return f
+
+    def trim(self, L, rect, rows, piece=None):
+        fill(L, rect, self.trim_fn(), piece or new_piece(), rows=rows)
+
+    def stamp(self, L, rect, art, dy=0, dx=0):
+        for j, line in enumerate(art):
+            for i, ch in enumerate(line):
+                if ch != ".":
+                    key = {"t2": "t2"}.get(ch, ch)
+                    mat, lv = KEYMAP.get(key, ("M", 3))
+                    px(L, rect, dx + i, dy + j, mat, lv)
+
+
+def around(fn):
+    """Run fn(k) for every side of a limb or the torso."""
+    for k in SIDES:
+        fn(k)
 
 
 # ============================================================ chests (layer 1 body)
-def ch_cuirass(t, P, S, M, Sc):
+def ch_cuirass(c):
+    L, plate, plack = c.L1, new_piece(), new_piece()
+    lames = [new_piece() for _ in range(3)]
+    collar = new_piece()
     for k in SIDES:
-        fill(t, BODY[k], M)
-        trim(t, BODY[k], P, [0])
-    for v in range(1, 9):                                     # centre ridge + curved shading
-        put(t, BODY["front"], 3, v, P["l"])
-        put(t, BODY["front"], 4, v, P["m"])
-        put(t, BODY["front"], 0, v, P["d"])
-        put(t, BODY["front"], 7, v, P["d"])
-        put(t, BODY["back"], 3, v, P["d"])
-        put(t, BODY["back"], 4, v, P["d"])
-    for k in SIDES:                                           # fauld lames
-        for u in range(BODY[k][2]):
-            put(t, BODY[k], u, 9, P["t"])
-            put(t, BODY[k], u, 10, P["m"] if u % 2 else P["l"])
-            put(t, BODY[k], u, 11, P["d"])
+        fill(L, BODY[k], c.M, plate, rows=range(0, 9))
+        c.trim(L, BODY[k], [0], collar)
+        for i, v in enumerate((9, 10, 11)):
+            fill(L, BODY[k], c.M, lames[i], rows=[v])
+    # pointed plackart over the belly
+    fill(L, BODY["front"], c.M, plack, rows=range(5, 9), where=lambda u, v, w, hh: abs(u - 3.5) <= (v - 3.2) * 1.3)
+    for v in range(1, 9):                                          # the medial ridge
+        px(L, BODY["front"], 3, v, "M", 5)
+        px(L, BODY["front"], 4, v, "M", 4 if v < 5 else 3)
+        px(L, BODY["back"], 3, v, "M", 2)                          # backplate seam
+        px(L, BODY["back"], 4, v, "M", 4)
+    for u, v in ((0, 1), (7, 1), (1, 9), (6, 9)):
+        px(L, BODY["front"], u, v, "T", 5)
+    for k in ("right", "left"):                                    # side straps with buckles
+        for v in range(2, 8):
+            px(L, BODY[k], 1, v, "S", 2)
+        px(L, BODY[k], 1, 4, "T", 5)
+        px(L, BODY[k], 2, 4, "T", 3)
     return True
 
 
-def ch_scale(t, P, S, M, Sc):
-    sc = pat("scale", P)
+def ch_scale(c):
+    L, gorget, body, belt, hem = c.L1, new_piece(), new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], sc)
-        trim(t, BODY[k], P, [0])
-    for u, v in ((2, 1), (3, 2), (4, 2), (5, 1), (3, 1), (4, 1)):   # V collar
-        put(t, BODY["front"], u, v, P["t"])
-    for k in SIDES:
-        fill(t, BODY[k], M, rows=[10, 11])
-        fill(t, BODY[k], solid(P["t2"]), rows=[10])
+        fill(L, BODY[k], c.surf("scale", "M"), body, rows=range(2, 10))
+        fill(L, BODY[k], c.M if c.S["pattern"] != "scale" else solid("M"), gorget, rows=[0, 1])
+        c.trim(L, BODY[k], [0], gorget)
+        fill(L, BODY[k], solid("T", 3), belt, rows=[10])
+        fill(L, BODY[k], solid("M", 3), hem, rows=[11])
+    px(L, BODY["front"], 3, 10, "T", 5)
+    px(L, BODY["front"], 4, 10, "T", 5)
+    for u in (2, 3, 4, 5):                                         # V-shaped gorget point
+        px(L, BODY["front"], u, 2, "M", 3, fixed=False, piece=gorget)
+    px(L, BODY["front"], 3, 3, "M", 3, fixed=False, piece=gorget)
+    px(L, BODY["front"], 4, 3, "M", 3, fixed=False, piece=gorget)
     return True
 
 
-def ch_brigandine(t, P, S, M, Sc):
+def ch_brigandine(c):
+    L, body, collar, hem = c.L1, new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], Sc)
-        fill(t, BODY[k], lambda u, v, *a: P["t"] if (v % 2 == 1 and u % 2 == (v // 2) % 2) else None, rows=range(1, 10))
-        fill(t, BODY[k], solid(P["d"]), rows=[0, 10])
-        fill(t, BODY[k], M, rows=[11])
-    for v in range(0, 4):                                     # shoulder straps
+        fill(L, BODY[k], c.Sc, body, rows=range(1, 11))
+        fill(L, BODY[k], solid("M", 3), collar, rows=[0])
+        c.trim(L, BODY[k], [11], hem)
+        for v in (2, 5, 8):                                        # rows of rivet heads holding the hidden plates
+            for u in range(BODY[k][2]):
+                if (BODY[k][0] + u + v // 3) % 3 == 0:
+                    px(L, BODY[k], u, v, "T", 5)
+                    px(L, BODY[k], u, v + 1, "S", 2)
+    for v in range(0, 4):                                          # shoulder straps
         for u in (1, 6):
-            put(t, BODY["front"], u, v, P["o"])
-            put(t, BODY["back"], u, v, P["o"])
+            px(L, BODY["front"], u, v, "C", 2)
+            px(L, BODY["back"], u, v, "C", 2)
+    px(L, BODY["front"], 1, 3, "T", 4)
+    px(L, BODY["front"], 6, 3, "T", 4)
     return False
 
 
-def ch_robe(t, P, S, M, Sc):
+def ch_robe(c):
+    L, robe, mantle, stole = c.L1, new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], M)
-        trim(t, BODY[k], P, [0])
-    for v in range(12):                                       # sash across the chest
-        for u in range(8):
-            if abs(u - (v * 0.7)) < 1.0:
-                put(t, BODY["front"], u, v, P["a"])
-            if abs((7 - u) - (v * 0.7)) < 1.0:
-                put(t, BODY["back"], u, v, P["a"])
-    for u in (3, 4):
-        for v in range(1, 12):
-            put(t, BODY["front"], u, v, P["t2"] if v % 3 else P["t"])   # front seam with clasps
+        fill(L, BODY[k], c.Sc, robe)
+        fill(L, BODY[k], c.M, mantle, rows=[0, 1])
+        fill(L, BODY[k], c.M, mantle, rows=[2], where=lambda u, v, w, hh: u % 2 == 0)   # scalloped mantle edge
+    fill(L, BODY["front"], solid("A", 3), stole, rows=range(2, 12), cols=(3, 4))
+    for v in range(2, 12):
+        px(L, BODY["front"], 2, v, "T", 3)
+        px(L, BODY["front"], 5, v, "T", 3)
+    px(L, BODY["front"], 3, 2, "T", 5)
+    px(L, BODY["front"], 4, 2, "T", 5)
+    c.trim(L, BODY["front"], [11])
+    for u in range(2, 6):                                          # hood folded on the back
+        for v in range(0, 3):
+            px(L, BODY["back"], u, v, "S", 2 if v < 2 else 1)
     return False
 
 
-def ch_coat(t, P, S, M, Sc):
+def ch_coat(c):
+    L, coat, shirt, belt, tails = c.L1, new_piece(), new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], M)
-    shirt = pat("cloth", dict(P, b=P["s2"], m=P["l"], d=P["s1"]))
-    fill(t, BODY["front"], lambda u, v, *a: shirt(u, v, *a) if 3 <= u <= 4 else None)
-    for v in (2, 4, 6):
-        put(t, BODY["front"], 3, v, P["t"])
-    for u, v in ((2, 0), (2, 1), (2, 2), (5, 0), (5, 1), (5, 2), (1, 0), (6, 0)):   # lapels
-        put(t, BODY["front"], u, v, P["t"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["d"]), rows=[8])
-    put(t, BODY["front"], 3, 8, P["a"])
-    put(t, BODY["front"], 4, 8, P["a"])
-    for v in range(9, 12):                                    # coat tails split at the back
-        put(t, BODY["back"], 3, v, P["o"])
-        put(t, BODY["back"], 4, v, P["o"])
+        fill(L, BODY[k], c.M, coat, rows=range(0, 8))
+        fill(L, BODY[k], solid("O", 0), belt, rows=[8])
+        fill(L, BODY[k], c.M, tails, rows=range(9, 12))
+    fill(L, BODY["front"], lambda x, y, u, v, w, hh: ("C", 5 if v % 2 == 0 else 4), shirt, rows=range(0, 8), cols=(3, 4))
+    for u, v in ((2, 0), (2, 1), (2, 2), (1, 0), (5, 0), (5, 1), (5, 2), (6, 0)):   # lapels
+        px(L, BODY["front"], u, v, "T", 3 if v else 4)
+    for v in (3, 5, 7):
+        px(L, BODY["front"], 2, v, "T", 5)
+        px(L, BODY["front"], 5, v, "T", 5)
+    px(L, BODY["front"], 3, 8, "T", 5)
+    px(L, BODY["front"], 4, 8, "T", 4)
+    for u in (0, 1, 6, 7):                                         # pocket flaps
+        px(L, BODY["front"], u, 9, "T", 2)
+    for v in range(9, 12):                                         # tails split at the back
+        px(L, BODY["back"], 3, v, "O", 0)
+        px(L, BODY["back"], 4, v, "O", 0)
     return False
 
 
-def ch_ribcage(t, P, S, M, Sc):
+def ch_ribcage(c):
+    L, base = c.L1, new_piece()
     for k in SIDES:
-        fill(t, BODY[k], pat("leather", P))
-    for v in range(0, 10):
-        put(t, BODY["front"], 3, v, P["a"])
-        put(t, BODY["front"], 4, v, P["s2"])
-        put(t, BODY["back"], 3, v, P["a"] if v % 2 else P["s2"])
-        put(t, BODY["back"], 4, v, P["a"] if v % 2 else P["s2"])
-    for v in (1, 3, 5, 7):
+        fill(L, BODY[k], c.Sc, base)
+        fill(L, BODY[k], solid("S", 1), base, rows=[11])
+    ribs = new_piece()
+    for v in range(0, 10):                                         # sternum
+        px(L, BODY["front"], 3, v, "A", 4, piece=ribs)
+        px(L, BODY["front"], 4, v, "A", 3, piece=ribs)
+    for i, v in enumerate((1, 3, 5, 7)):
         for u in (0, 1, 2, 5, 6, 7):
-            put(t, BODY["front"], u, v + (1 if u in (0, 7) else 0), P["a"])
-        for u in range(4):
-            put(t, BODY["right"], u, v + 1, P["s2"])
-            put(t, BODY["left"], u, v + 1, P["s2"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["d"]), rows=[11])
+            vv = v + (1 if u in (0, 7) else 0)
+            px(L, BODY["front"], u, vv, "A", 4)
+            px(L, BODY["front"], u, vv + 1, "S", 1)
+        for k in ("right", "left"):
+            for u in range(4):
+                px(L, BODY[k], u, v + 1, "A", 3)
+    for v in range(0, 11):                                         # spine
+        px(L, BODY["back"], 3, v, "A", 4 if v % 2 else 2)
+        px(L, BODY["back"], 4, v, "A", 3 if v % 2 else 2)
+    for v in (2, 5, 8):
+        for u in (1, 2, 5, 6):
+            px(L, BODY["back"], u, v, "A", 3)
     return False
 
 
-def ch_crystal(t, P, S, M, Sc):
-    cr = pat("crystal", P)
+def ch_crystal(c):
+    L, plate, hem = c.L1, new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], cr)
-    for u, v in ((3, 4), (4, 4), (3, 5), (4, 5), (2, 5), (5, 5), (3, 6), (4, 6), (3, 3), (4, 3)):
-        put(t, BODY["front"], u, v, P["g"])
-    for u, v in ((3, 2), (4, 2), (2, 4), (5, 4), (2, 6), (5, 6), (3, 7), (4, 7)):
-        put(t, BODY["front"], u, v, P["l"])
-    for k in SIDES:
-        trim(t, BODY[k], P, [0])
-        fill(t, BODY[k], M, rows=[10, 11])
+        fill(L, BODY[k], c.surf("crystal", "M"), plate, rows=range(0, 10))
+        fill(L, BODY[k], c.M if c.S["pattern"] != "crystal" else solid("M"), hem, rows=[10, 11])
+        c.trim(L, BODY[k], [10], hem)
+    gem = new_piece()
+    for v in range(12):
+        for u in range(8):
+            d = abs(u - 3.5) + abs(v - 5) * 0.8
+            if d <= 2.6:
+                lv = 5 if d < 0.9 else 4 if d < 1.7 else 3
+                px(L, BODY["front"], u, v, "G", lv, piece=gem)
+            elif d <= 3.3:
+                px(L, BODY["front"], u, v, "T", 3 if u < 4 else 2, piece=gem)
+    for u, v in ((0, 1), (0, 0), (1, 0), (7, 1), (7, 0), (6, 0)):  # shards at the collar bones
+        px(L, BODY["front"], u, v, "A", 5 if v == 0 else 3)
     return False
 
 
-def ch_tabard(t, P, S, M, Sc):
-    chain = pat("chain", dict(P, l=P["s1"], m=P["s2"], b=P["s2"], d=P["o"]))
+def ch_tabard(c):
+    L, mail, tabard, belt = c.L1, new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], chain)
+        fill(L, BODY[k], c.surf("chain", "M"), mail)
     for k in ("front", "back"):
-        fill(t, BODY[k], lambda u, v, *a: (P["t"] if u in (1, 6) else M(u, v, *a)) if 1 <= u <= 6 else None)
-        trim(t, BODY[k], P, [11])
+        fill(L, BODY[k], c.Sc, tabard, cols=range(1, 7))
+        for v in range(12):
+            px(L, BODY[k], 1, v, "T", 3)
+            px(L, BODY[k], 6, v, "T", 3)
+        c.trim(L, BODY[k], [11], tabard)
+    for k in SIDES:
+        fill(L, BODY[k], solid("C", 2), belt, rows=[8])
+    px(L, BODY["front"], 3, 8, "T", 5)
+    px(L, BODY["front"], 4, 8, "T", 4)
     return True
 
 
-def ch_quilted(t, P, S, M, Sc):
-    q = pat("quilt", P)
+def ch_quilted(c):
+    L, body, collar, skirt = c.L1, new_piece(), new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], q)
+        fill(L, BODY[k], c.surf("quilt", "S"), body, rows=range(2, 10))
+        fill(L, BODY[k], c.M, collar, rows=[0, 1])
+        fill(L, BODY[k], c.Sc, skirt, rows=[10, 11])
+        c.trim(L, BODY[k], [10], skirt)
+    for v in range(2, 10):                                         # front lacing
+        px(L, BODY["front"], 3 + v % 2, v, "C", 4)
+        px(L, BODY["front"], 4 - v % 2, v, "S", 1)
+    return False
+
+
+def ch_organic(c):
+    L, body = c.L1, new_piece()
+    for k in SIDES:
+        fill(L, BODY[k], c.M, body)
+        c.trim(L, BODY[k], [11], body)
+    for k, off in (("front", 0), ("back", 2), ("right", 1), ("left", 3)):
+        w = BODY[k][2]
+        for v in range(12):                                        # a vine winding up
+            u = (1 + off + (v // 2) % 3) % w if w == 4 else 2 + ((v + off) // 2) % 4
+            px(L, BODY[k], u, v, "S", 3)
+            if v % 3 == 1:
+                px(L, BODY[k], u + 1, v, "S", 5)                   # leaves
+                px(L, BODY[k], u + 1, v - 1, "S", 4)
+            if v % 5 == 3 and k == "front":
+                px(L, BODY[k], u - 1, v, "A", 5)                   # flowers
+    return True
+
+
+def ch_mech(c):
+    L = c.L1
+    top, mid, low = new_piece(), new_piece(), new_piece()
+    for k in SIDES:
+        fill(L, BODY[k], c.M, top, rows=range(0, 4))
+        fill(L, BODY[k], c.M, mid, rows=range(4, 9))
+        fill(L, BODY[k], c.M, low, rows=range(9, 12))
+        for v in range(12):
+            px(L, BODY[k], 0, v, "M", 1)
+    core = new_piece()
+    for u in range(2, 6):
+        for v in range(4, 8):
+            edge = u in (2, 5) or v in (4, 7)
+            px(L, BODY["front"], u, v, "T", 4 if (edge and (u < 4 or v == 4)) else 2) if edge else \
+                px(L, BODY["front"], u, v, "G", 5 if (u, v) == (3, 5) else 4 if v == 5 else 3, piece=core)
+    for u, v in ((0, 1), (7, 1), (0, 10), (7, 10), (3, 1), (4, 1)):
+        px(L, BODY["front"], u, v, "T", 5)
+    for u in (1, 6):                                               # status lights
+        px(L, BODY["front"], u, 2, "G", 4)
+    for v in (9, 10):
+        for u in (1, 3, 5):
+            px(L, BODY["back"], u, v, "O", 0)                      # vents
+            px(L, BODY["back"], u + 1, v, "M", 4)
+    for k in ("right", "left"):                                    # side pistons
+        for v in range(4, 9):
+            px(L, BODY[k], 2, v, "T", 4 if v % 2 else 2)
+    return False
+
+
+def ch_uniform(c):
+    L, jacket, belt, skirt, collar = c.L1, new_piece(), new_piece(), new_piece(), new_piece()
+    for k in SIDES:
+        fill(L, BODY[k], c.M, jacket, rows=range(0, 9))
+        c.trim(L, BODY[k], [0], collar)
+        fill(L, BODY[k], solid("O", 0), belt, rows=[9])
+        fill(L, BODY[k], c.M, skirt, rows=[10, 11])
+    for v in (2, 4, 6, 8):                                         # double row of buttons
+        px(L, BODY["front"], 2, v, "T", 5)
+        px(L, BODY["front"], 5, v, "T", 5)
+    sash = new_piece()
+    for v in range(1, 10):                                         # sash from the right shoulder
+        u = round(v * 0.75)
+        px(L, BODY["front"], u, v, "A", 4, piece=sash)
+        px(L, BODY["front"], u + 1, v, "A", 2, piece=sash)
+    px(L, BODY["front"], 3, 9, "T", 5)
+    px(L, BODY["front"], 4, 9, "T", 4)
+    for k in ("right", "left"):
+        px(L, BODY[k], 1, 1, "T", 4)
+        px(L, BODY[k], 2, 1, "T", 4)
+    return False
+
+
+def ch_wraps(c):
+    L = c.L1
+    for k in SIDES:
+        x0 = BODY[k][0]
+        for v in range(11):
+            for u in range(BODY[k][2]):
+                band = (x0 + u + v) // 4
+                pc = 1000 + band                                   # each strip is its own piece
+                d = (x0 + u + v) % 4
+                mat = "M" if band % 2 else "S"
+                lv = (4, 3, 3, 2)[d]
+                L.c[(x0 + u, BODY[k][1] + v)] = [mat, lv, pc, True]
+        fill(L, BODY[k], solid("C", 2), new_piece(), rows=[11])
+    return False
+
+
+def ch_fur_vest(c):
+    L, vest, fur = c.L1, new_piece(), new_piece()
+    furf = c.surf("fur", "C")
+    for k in SIDES:
+        fill(L, BODY[k], c.M, vest)
+        fill(L, BODY[k], furf, fur, rows=[0, 1])
+    fill(L, BODY["front"], furf, fur, cols=(0, 1, 6, 7), rows=range(2, 11))
+    fill(L, BODY["back"], furf, fur, rows=[2])
+    for v in range(2, 11):                                         # laced front
+        px(L, BODY["front"], 3 + v % 2, v, "T", 3)
+        px(L, BODY["front"], 4 - v % 2, v, "S", 1)
+    for v in (4, 8):
+        px(L, BODY["front"], 2, v, "T", 5)
+        px(L, BODY["front"], 5, v, "T", 5)
+    c.trim(L, BODY["back"], [11])
+    return False
+
+
+def ch_lamellar(c):
+    L, body, collar, hem = c.L1, new_piece(), new_piece(), new_piece()
+    for k in SIDES:
+        fill(L, BODY[k], c.surf("lamellar", "M"), body, rows=range(1, 11))
+        fill(L, BODY[k], solid("T", 3), collar, rows=[0])
+        fill(L, BODY[k], solid("T", 2), hem, rows=[11])
+    for v in range(1, 11):                                         # braided cords down the front
+        px(L, BODY["front"], 1, v, "A", 4 if v % 2 else 2)
+        px(L, BODY["front"], 6, v, "A", 4 if v % 2 else 2)
+    return True
+
+
+def ch_bandolier(c):
+    L, jacket = c.L1, new_piece()
+    for k in SIDES:
+        fill(L, BODY[k], c.Sc, jacket)
+        fill(L, BODY[k], solid("S", 1), jacket, rows=[11])
+    straps = new_piece()
     for k in ("front", "back"):
         for v in range(12):
             for u in range(8):
-                if abs(u - (0.5 + v * 0.6)) < 0.6 or abs(u - (6.5 - v * 0.6)) < 0.6:
-                    put(t, BODY[k], u, v, P["o"])
-        put(t, BODY[k], 3, 5, P["t"])
-        put(t, BODY[k], 4, 5, P["t"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["d"]), rows=[10])
+                if abs(u - v * 0.65) < 0.8 or abs((7 - u) - v * 0.65) < 0.8:
+                    lv = ("T", 5) if (u + v) % 2 == 0 else ("C", 1)
+                    px(L, BODY[k], u, v, lv[0], lv[1], piece=straps)
+    for u0 in (1, 5):                                              # pouches at the hips
+        for u in (u0, u0 + 1):
+            px(L, BODY["front"], u, 9, "C", 4)
+            px(L, BODY["front"], u, 10, "C", 3)
     return False
 
 
-def ch_organic(t, P, S, M, Sc):
+def ch_chevron(c):
+    L, body, hem = c.L1, new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], M)
-        fill(t, BODY[k], lambda u, v, w, hh, x, y: P["s1"] if h(x, y, 40) > 0.78 else
-             (P["a"] if h(x, y, 41) > 0.95 else None))
-    for v in range(12):                                       # a vine climbing the front
-        u = 3 + (1 if v % 4 in (1, 2) else 0)
-        put(t, BODY["front"], u, v, P["s2"])
-    return True
-
-
-def ch_mech(t, P, S, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], M)
-        fill(t, BODY[k], solid(P["d"]), rows=[3, 8])
-        fill(t, BODY[k], lambda u, v, *a: P["d"] if u in (0, a[0] - 1) else None)
-    for u, v in ((3, 4), (4, 4), (3, 5), (4, 5)):
-        put(t, BODY["front"], u, v, P["g"])
-    for u, v in ((2, 4), (5, 4), (2, 5), (5, 5), (3, 6), (4, 6), (3, 3), (4, 3)):
-        put(t, BODY["front"], u, v, P["t"])
-    for v in (9, 10):
-        for u in (1, 3, 5):
-            put(t, BODY["back"], u, v, P["o"])                # vents
-    for u in (1, 6):
-        for v in (1, 2):
-            put(t, BODY["front"], u, v, P["g"])
-    return False
-
-
-def ch_uniform(t, P, S, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], M)
-        trim(t, BODY[k], P, [0])
-    for v in (2, 4, 6):
-        put(t, BODY["front"], 2, v, P["t"])
-        put(t, BODY["front"], 5, v, P["t"])
-    for v in range(10):
-        u = round(v * 0.75)
-        put(t, BODY["front"], u, v, P["a"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["o"]), rows=[9])
-    put(t, BODY["front"], 3, 9, P["t"])
-    put(t, BODY["front"], 4, 9, P["t"])
-    return False
-
-
-def ch_wraps(t, P, S, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], lambda u, v, w, hh, x, y: M(u, v, w, hh, x, y) if (u + v) % 4 < 2 else Sc(u, v, w, hh, x, y))
-        fill(t, BODY[k], solid(P["d"]), rows=[11])
-    return False
-
-
-def ch_fur_vest(t, P, S, M, Sc):
-    fur = pat("fur", P)
-    for k in SIDES:
-        fill(t, BODY[k], pat("leather", dict(P, b=P["s1"], m=P["s2"])))
-    fill(t, BODY["front"], lambda u, v, *a: fur(u, v, *a) if u in (0, 1, 6, 7) or v == 0 else None)
-    fill(t, BODY["back"], lambda u, v, *a: fur(u, v, *a) if v <= 2 else None)
-    for v in (3, 6):
-        put(t, BODY["front"], 2, v, P["t"])
-        put(t, BODY["front"], 5, v, P["t"])
-    return False
-
-
-def ch_lamellar(t, P, S, M, Sc):
-    lam = pat("lamellar", P)
-    for k in SIDES:
-        fill(t, BODY[k], lam)
-    for v in range(12):
-        put(t, BODY["front"], 1, v, P["t"])
-        put(t, BODY["front"], 6, v, P["t"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["t2"]), rows=[0, 11])
-    return True
-
-
-def ch_bandolier(t, P, S, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], M)
-    for v in range(12):                                       # crossed belts with pouches/rounds
-        for u in range(8):
-            if abs(u - v * 0.65) < 0.8 or abs((7 - u) - v * 0.65) < 0.8:
-                put(t, BODY["front"], u, v, P["o"] if (u + v) % 3 else P["t"])
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["d"]), rows=[10])
-    return False
-
-
-def ch_chevron(t, P, S, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], M)
+        fill(L, BODY[k], c.M, body, rows=range(0, 11))
+        fill(L, BODY[k], solid("M", 2), hem, rows=[11])
+        c.trim(L, BODY[k], [0], body)
     for k in ("front", "back"):
-        fill(t, BODY[k], lambda u, v, *a: P["t"] if (v - abs(u - 3.5) * 0.9) % 3 < 0.9 else None, rows=range(1, 11))
-    for k in SIDES:
-        fill(t, BODY[k], solid(P["d"]), rows=[11])
+        for v in range(1, 11):
+            for u in range(8):
+                r = (v - abs(u - 3.5) * 0.9) % 3.5
+                if r < 0.9:
+                    px(L, BODY[k], u, v, "T", 4)
+                elif r < 1.8:
+                    px(L, BODY[k], u, v, "T", 2)
     return False
 
 
-def ch_studded(t, P, S, M, Sc):
+def ch_studded(c):
+    L, body = c.L1, new_piece()
     for k in SIDES:
-        fill(t, BODY[k], pat("leather", P))
-        fill(t, BODY[k], lambda u, v, *a: P["l"] if (u % 2 == 1 and v % 2 == 1) else None, rows=range(1, 10))
-    for v in range(1, 10):                                    # front lacing
-        put(t, BODY["front"], 3 + (v % 2), v, P["o"])
-        put(t, BODY["front"], 4 - (v % 2), v, P["t2"])
-    for k in SIDES:
-        trim(t, BODY[k], P, [0, 11])
+        fill(L, BODY[k], c.surf("leather", "S"), body)
+        c.trim(L, BODY[k], [0, 11])
+        for v in range(2, 10, 3):
+            for u in range(BODY[k][2]):
+                if (BODY[k][0] + u + v // 3) % 3 == 0:
+                    px(L, BODY[k], u, v, "M", 5)
+    for v in range(1, 11):
+        px(L, BODY["front"], 3, v, "O", 0)
+        px(L, BODY["front"], 4, v, "O", 0)
+        if v % 2:
+            px(L, BODY["front"], 3, v, "T", 3)
+        else:
+            px(L, BODY["front"], 4, v, "T", 3)
     return False
 
 
-def ch_cloak(t, P, S, M, Sc):
-    cloth = pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"]))
+def ch_cloak(c):
+    L, cloak, plate = c.L1, new_piece(), new_piece()
     for k in SIDES:
-        fill(t, BODY[k], cloth)
-    fill(t, BODY["front"], lambda u, v, *a: M(u, v, *a) if 2 <= u <= 5 else None)
-    for u in range(2, 6):
-        put(t, BODY["front"], u, 1, P["t2"])
-    put(t, BODY["front"], 1, 1, P["t"])
-    put(t, BODY["front"], 6, 1, P["t"])
-    for v in range(12):
-        put(t, BODY["back"], 2, v, P["d"] if v % 3 else None)
-        put(t, BODY["back"], 5, v, P["d"] if v % 3 != 1 else None)
+        fill(L, BODY[k], c.Sc, cloak)
+    fill(L, BODY["front"], c.M, plate, cols=range(2, 6), rows=range(2, 12))
+    for v in range(12):                                            # heavy folds in the back
+        px(L, BODY["back"], 2, v, "S", 1 if v % 4 else 2)
+        px(L, BODY["back"], 5, v, "S", 1 if v % 4 != 2 else 2)
+        px(L, BODY["back"], 3, v, "S", 4)
+    for u in range(1, 7):                                          # clasp chain across the chest
+        px(L, BODY["front"], u, 1, "T", 4 if u % 2 else 2)
+    px(L, BODY["front"], 1, 1, "T", 5)
+    px(L, BODY["front"], 6, 1, "T", 5)
+    c.trim(L, BODY["back"], [11])
     return False
 
 
-def ch_core(t, P, S, M, Sc):
+def ch_core(c):
+    L, plate, lames = c.L1, new_piece(), [new_piece(), new_piece()]
     for k in SIDES:
-        fill(t, BODY[k], M)
-    for v in range(12):
+        fill(L, BODY[k], c.M, plate, rows=range(0, 10))
+        fill(L, BODY[k], c.M, lames[0], rows=[10])
+        fill(L, BODY[k], c.M, lames[1], rows=[11])
+        c.trim(L, BODY[k], [11], lames[1])
+    for v in range(10):                                            # energy lines to the shoulders
         for u in range(8):
             if abs(abs(u - 3.5) - abs(v - 4.5) * 0.8) < 0.5 and not (2 <= u <= 5 and 3 <= v <= 6):
-                put(t, BODY["front"], u, v, P["l"])
+                px(L, BODY["front"], u, v, "G", 2)
+    core = new_piece()
     for u in range(2, 6):
         for v in range(3, 7):
             edge = u in (2, 5) or v in (3, 6)
-            put(t, BODY["front"], u, v, P["t"] if edge else P["g"])
-    for k in SIDES:
-        trim(t, BODY[k], P, [11])
+            if edge:
+                px(L, BODY["front"], u, v, "T", 4 if (u == 2 or v == 3) else 2, piece=core)
+            else:
+                px(L, BODY["front"], u, v, "G", 5 if (u, v) == (3, 4) else 4, piece=core)
     return False
 
 
-def ch_segmented(t, P, S, M, Sc):
+def ch_segmented(c):
+    L = c.L1
+    lames = [new_piece() for _ in range(6)]
     for k in SIDES:
-        fill(t, BODY[k], M)
-        fill(t, BODY[k], lambda u, v, *a: P["l"] if v % 2 == 0 else (P["d"] if v % 4 == 3 else None))
-        fill(t, BODY[k], lambda u, v, w, *a: P["o"] if u in (0, w - 1) and v % 2 else None)
-    return True
+        for i in range(6):
+            fill(L, BODY[k], c.M, lames[i], rows=[2 * i, 2 * i + 1])
+        for i in range(6):
+            px(L, BODY[k], 0, 2 * i, "T", 5)
+            px(L, BODY[k], BODY[k][2] - 1, 2 * i, "T", 4)
+    for v in range(12):
+        px(L, BODY["front"], 3, v, "A", 4 if v % 2 == 0 else 2)
+        px(L, BODY["front"], 4, v, "A", 3 if v % 2 == 0 else 1)
+    return False
 
 
-def ch_patchwork(t, P, S, M, Sc):
-    pats = [M, Sc, pat("leather", P), pat("quilt", P)]
+def ch_patchwork(c):
+    L = c.L1
+    fns = [c.M, c.Sc, c.surf("leather", "C"), c.surf("quilt", "S")]
     for i, k in enumerate(SIDES):
-        fill(t, BODY[k], lambda u, v, w, hh, x, y, i=i: pats[(i + (u >= w // 2) + 2 * (v >= 6)) % 4](u, v, w, hh, x, y))
-        fill(t, BODY[k], lambda u, v, w, *a: P["o"] if ((u == w // 2 or v == 6) and (u + v) % 2 == 0) else None)
-        trim(t, BODY[k], P, [0])
+        w = BODY[k][2]
+        for q in range(4):
+            du, dv = q % 2, q // 2
+            fill(L, BODY[k], fns[(i + q) % 4], new_piece(),
+                  cols=range(du * (w // 2), (du + 1) * (w // 2)), rows=range(dv * 6, (dv + 1) * 6))
+        for v in range(12):                                        # stitched seams
+            if v % 2 == 0:
+                px(L, BODY[k], w // 2, v, "T", 4)
+        for u in range(w):
+            if u % 2:
+                px(L, BODY[k], u, 6, "T", 4)
     return False
 
 
 CHESTS = {"chevron": ch_chevron, "studded": ch_studded, "cloak": ch_cloak, "core": ch_core,
-          "segmented": ch_segmented, "patchwork": ch_patchwork, "cuirass": ch_cuirass, "scale": ch_scale, "brigandine": ch_brigandine, "robe": ch_robe,
-          "coat": ch_coat, "ribcage": ch_ribcage, "crystal": ch_crystal, "tabard": ch_tabard,
-          "quilted": ch_quilted, "organic": ch_organic, "mech": ch_mech, "uniform": ch_uniform,
-          "wraps": ch_wraps, "fur_vest": ch_fur_vest, "lamellar": ch_lamellar, "bandolier": ch_bandolier}
+          "segmented": ch_segmented, "patchwork": ch_patchwork, "cuirass": ch_cuirass, "scale": ch_scale,
+          "brigandine": ch_brigandine, "robe": ch_robe, "coat": ch_coat, "ribcage": ch_ribcage,
+          "crystal": ch_crystal, "tabard": ch_tabard, "quilted": ch_quilted, "organic": ch_organic,
+          "mech": ch_mech, "uniform": ch_uniform, "wraps": ch_wraps, "fur_vest": ch_fur_vest,
+          "lamellar": ch_lamellar, "bandolier": ch_bandolier}
 
 
-# ============================================================ shoulders (arm rows 0-3)
-def sh_round(t, P, k, M):
-    fill(t, ARM[k], M, rows=range(4))
-    fill(t, ARM[k], solid(P["l"]), rows=[0])
-    trim(t, ARM[k], P, [3])
+# ============================================================ shoulders (arm rows 0-3 and the arm top)
+def _cap_top(c, k_mat=None):
+    fill(c.L1, ARM["top"], k_mat or c.M, new_piece())
 
 
-def sh_layered(t, P, k, M):
-    for v, c in ((0, P["l"]), (1, P["d"]), (2, P["m"]), (3, P["d"])):
-        fill(t, ARM[k], solid(c), rows=[v])
-    put(t, ARM[k], 1, 2, P["t"])
+def sh_round(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.M, c.pc("sh_cap"), rows=[0, 1])
+    fill(L, ARM[k], c.M, c.pc("sh_lame"), rows=[2])
+    c.trim(L, ARM[k], [3], c.pc("sh_trim"))
+    px(L, ARM[k], 1, 0, "M", 5)
 
 
-def sh_spiked(t, P, k, M):
-    sh_round(t, P, k, M)
+def sh_layered(c, k):
+    L = c.L1
+    for v in range(4):
+        fill(L, ARM[k], c.M, c.pc(f"sh_l{v}"), rows=[v])
+    px(L, ARM[k], 0, 1, "T", 5)
+    px(L, ARM[k], 3, 2, "T", 4)
+
+
+def sh_spiked(c, k):
+    sh_round(c, k)
     for u in range(4):
-        put(t, ARM[k], u, 0, P["a"] if u % 2 else P["d"])
-    put(t, ARM[k], 1, 1, P["a"])
+        px(c.L1, ARM[k], u, 0, "A", 5 if u % 2 else 2)
 
 
-def sh_fur(t, P, k, M):
-    fill(t, ARM[k], pat("fur", P), rows=range(4))
-    for u in range(4):
-        put(t, ARM[k], u, 3, P["d"] if u % 2 else P["m"])
+def sh_fur(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.surf("fur", "C"), c.pc("sh_fur"), rows=range(0, 4),
+          where=lambda u, v, w, hh: v < 3 or u % 2 == 0)             # ragged lower edge
 
 
-def sh_cap(t, P, k, M):
-    fill(t, ARM[k], M, rows=range(2))
-    trim(t, ARM[k], P, [1])
+def sh_cap(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.M, c.pc("sh_cap"), rows=[0])
+    c.trim(L, ARM[k], [1], c.pc("sh_trim"))
 
 
-def sh_epaulette(t, P, k, M):
-    trim(t, ARM[k], P, [0, 1])
-    fill(t, ARM[k], lambda u, *a: P["t2"] if u % 2 == 0 else None, rows=[2])
+def sh_epaulette(c, k):
+    L = c.L1
+    fill(L, ARM[k], solid("T", 3), c.pc("sh_board"), rows=[0, 1])
+    fill(L, ARM[k], lambda x, y, u, v, w, hh: ("T", 4 if v == 2 else 2), c.pc("sh_fringe"), rows=[2, 3],
+          where=lambda u, v, w, hh: u % 2 == 0)                      # gold fringe
+    px(L, ARM[k], 1, 0, "T", 5)
 
 
-def sh_crystal(t, P, k, M):
-    fill(t, ARM[k], pat("crystal", P), rows=range(4))
-    put(t, ARM[k], 1, 0, P["g"])
-    put(t, ARM[k], 2, 1, P["l"])
+def sh_crystal(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.surf("crystal", "M"), c.pc("sh_cr"), rows=range(0, 4))
+    px(L, ARM[k], 1, 0, "G", 4)
+    px(L, ARM[k], 2, 1, "G", 3)
 
 
-def sh_none(t, P, k, M):
+def sh_none(c, k):
     pass
 
 
-def sh_horned(t, P, k, M):
-    sh_round(t, P, k, M)
+def sh_horned(c, k):
+    sh_round(c, k)
     if k in ("right", "front"):
         for u, v in ((1, 0), (2, 0), (1, 1), (0, 1)):
-            put(t, ARM[k], u, v, P["a"])
+            px(c.L1, ARM[k], u, v, "A", 4)
 
 
-def sh_stacked(t, P, k, M):
+def sh_stacked(c, k):
+    L = c.L1
     for v in range(4):
-        fill(t, ARM[k], solid(P["l"] if v % 2 == 0 else P["m"]), rows=[v])
-        put(t, ARM[k], 0, v, P["t"])
-        put(t, ARM[k], 3, v, P["t"])
+        fill(L, ARM[k], solid("M", 3) if v % 2 == 0 else solid("T", 3), c.pc(f"sh_s{v}"), rows=[v])
 
 
-def sh_drape(t, P, k, M):
-    cloth = pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["o"]))
-    fill(t, ARM[k], cloth, rows=range(6))
-    trim(t, ARM[k], P, [5])
+def sh_drape(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.Sc, c.pc("sh_drape"), rows=range(0, 4), where=lambda u, v, w, hh: v < 3 or (u + 1) % 3)
+    px(L, ARM[k], 0, 0, "T", 4)
 
 
-SHOULDERS = {"horned": sh_horned, "stacked": sh_stacked, "drape": sh_drape, "round": sh_round, "layered": sh_layered, "spiked": sh_spiked, "fur": sh_fur, "cap": sh_cap,
+SHOULDERS = {"horned": sh_horned, "stacked": sh_stacked, "drape": sh_drape, "round": sh_round,
+             "layered": sh_layered, "spiked": sh_spiked, "fur": sh_fur, "cap": sh_cap,
              "epaulette": sh_epaulette, "crystal": sh_crystal, "none": sh_none}
+SHOULDER_TOP = {"fur": "fur", "drape": "sec", "epaulette": "trim", "none": None, "crystal": "crystal"}
 
 
-# ============================================================ arms (rows 4-11)
-def ar_sleeve(t, P, k, M, Sc):
-    fill(t, ARM[k], Sc, rows=range(4, 12))
-    trim(t, ARM[k], P, [11])
+# ============================================================ arms: gloves / bracers (rows 8-11)
+def ar_sleeve(c, k):
+    fill(c.L1, ARM[k], c.Sc, c.pc("ar_sleeve"), rows=range(8, 11))
+    c.trim(c.L1, ARM[k], [11], c.pc("ar_hem"))
 
 
-def ar_chain(t, P, k, M, Sc):
-    fill(t, ARM[k], pat("chain", dict(P, l=P["s1"], m=P["s2"], b=P["s2"], d=P["o"])), rows=range(4, 10))
-    fill(t, ARM[k], M, rows=[10, 11])
-    trim(t, ARM[k], P, [10])
+def ar_chain(c, k):
+    fill(c.L1, ARM[k], c.surf("chain", "S"), c.pc("ar_mail"), rows=range(8, 10))
+    fill(c.L1, ARM[k], c.M, c.pc("ar_cuff"), rows=[10, 11])
 
 
-def ar_bracer(t, P, k, M, Sc):
-    fill(t, ARM[k], Sc, rows=range(4, 8))
-    fill(t, ARM[k], M, rows=range(8, 12))
-    fill(t, ARM[k], lambda u, *a: P["t"] if u % 2 == 0 else P["t2"], rows=[8])
+def ar_bracer(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.M, c.pc("ar_bracer"), rows=range(8, 11))
+    fill(L, ARM[k], solid("C", 3), c.pc("ar_glove"), rows=[11])
+    for v in (8, 10):
+        px(L, ARM[k], 1, v, "T", 4)
+        px(L, ARM[k], 2, v, "T", 3)
 
 
-def ar_gauntlet(t, P, k, M, Sc):
-    fill(t, ARM[k], Sc, rows=range(4, 8))
-    fill(t, ARM[k], M, rows=range(8, 12))
-    trim(t, ARM[k], P, [8])
-    fill(t, ARM[k], lambda u, *a: P["l"] if u % 2 else P["d"], rows=[11])
+def ar_gauntlet(c, k):
+    L = c.L1
+    c.trim(L, ARM[k], [8], c.pc("ar_flare"))
+    fill(L, ARM[k], c.M, c.pc("ar_g1"), rows=[9])
+    fill(L, ARM[k], c.M, c.pc("ar_g2"), rows=[10])
+    fill(L, ARM[k], lambda x, y, u, v, w, hh: ("M", 5 if u % 2 == 0 else 2), c.pc("ar_knuckle"), rows=[11])
 
 
-def ar_wrapped(t, P, k, M, Sc):
-    fill(t, ARM[k], lambda u, v, w, hh, x, y: P["d"] if (u + v) % 3 == 0 else Sc(u, v, w, hh, x, y), rows=range(4, 12))
+def ar_wrapped(c, k):
+    x0 = ARM[k][0]
+    for v in range(8, 12):
+        for u in range(4):
+            d = (v + (x0 + u) // 2) % 3
+            c.L1.c[(x0 + u, ARM[k][1] + v)] = ["S", (4, 3, 2)[d], 2000, True]
 
 
-def ar_puffy(t, P, k, M, Sc):
-    fill(t, ARM[k], Sc, rows=range(4, 9))
-    fill(t, ARM[k], lambda u, *a: P["a"] if u % 2 == 0 else None, rows=range(5, 8))
-    fill(t, ARM[k], M, rows=range(9, 12))
-    trim(t, ARM[k], P, [9])
+def ar_puffy(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.Sc, c.pc("ar_puff"), rows=range(8, 10))
+    fill(L, ARM[k], lambda x, y, u, v, w, hh: ("A", 4) if u % 2 == 0 else None, c.pc("ar_puff"), rows=[8, 9])
+    fill(L, ARM[k], c.M, c.pc("ar_cuff"), rows=[10, 11])
+    c.trim(L, ARM[k], [10], c.pc("ar_cuff"))
 
 
-def ar_plate(t, P, k, M, Sc):
-    fill(t, ARM[k], M, rows=range(4, 12))
-    trim(t, ARM[k], P, [7])
-    put(t, ARM[k], 1, 7, P["l"])
-    fill(t, ARM[k], solid(P["d"]), rows=[11])
+def ar_plate(c, k):
+    L = c.L1
+    c.trim(L, ARM[k], [8], c.pc("ar_rim"))
+    fill(L, ARM[k], c.M, c.pc("ar_plate"), rows=range(9, 12))
+    px(L, ARM[k], 1, 9, "M", 5)
 
 
-def ar_bare(t, P, k, M, Sc):
-    fill(t, ARM[k], M, rows=range(8, 12))
-    trim(t, ARM[k], P, [8])
-    clear(t, ARM[k], [(u, v) for u in range(4) for v in range(4, 8)])
+def ar_bare(c, k):
+    ar_wrapped(c, k)
 
 
-def ar_studded(t, P, k, M, Sc):
-    fill(t, ARM[k], pat("leather", P), rows=range(4, 12))
-    fill(t, ARM[k], lambda u, v, *a: P["l"] if (u % 2 == 1 and v % 2 == 0) else None, rows=range(4, 11))
-    trim(t, ARM[k], P, [11])
+def ar_studded(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.surf("leather", "S"), c.pc("ar_leather"), rows=range(8, 12))
+    for v in (8, 10):
+        for u in (0, 2):
+            px(L, ARM[k], u + v % 4 // 2, v, "M", 5)
+    c.trim(L, ARM[k], [11], c.pc("ar_leather"))
 
 
-def ar_spiked(t, P, k, M, Sc):
-    fill(t, ARM[k], M, rows=range(4, 12))
-    trim(t, ARM[k], P, [8])
+def ar_spiked(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.M, c.pc("ar_sp"), rows=range(8, 12))
+    c.trim(L, ARM[k], [8], c.pc("ar_sp_t"))
     if k in ("right", "back"):
-        for v in (6, 10):
-            put(t, ARM[k], 1, v, P["a"])
-            put(t, ARM[k], 2, v, P["a"])
+        for v in (9, 11):
+            px(L, ARM[k], 1, v, "A", 5)
+            px(L, ARM[k], 2, v, "A", 3)
 
 
-def ar_striped(t, P, k, M, Sc):
-    fill(t, ARM[k], Sc, rows=range(4, 12))
-    fill(t, ARM[k], lambda u, v, *a: P["t"] if v % 2 == 0 else None, rows=range(5, 11))
+def ar_striped(c, k):
+    L = c.L1
+    fill(L, ARM[k], c.Sc, c.pc("ar_st"), rows=range(8, 12))
+    for v in (9, 11):
+        fill(L, ARM[k], solid("T", 3), c.pc("ar_st"), rows=[v])
 
 
-ARMS = {"studded": ar_studded, "spiked": ar_spiked, "striped": ar_striped, "sleeve": ar_sleeve, "chain": ar_chain, "bracer": ar_bracer, "gauntlet": ar_gauntlet,
-        "wrapped": ar_wrapped, "puffy": ar_puffy, "plate": ar_plate, "bare": ar_bare}
+ARMS = {"studded": ar_studded, "spiked": ar_spiked, "striped": ar_striped, "sleeve": ar_sleeve,
+        "chain": ar_chain, "bracer": ar_bracer, "gauntlet": ar_gauntlet, "wrapped": ar_wrapped,
+        "puffy": ar_puffy, "plate": ar_plate, "bare": ar_bare}
 
 
-# ============================================================ belts (layer 2 body)
-def be_buckle(t, P, M, Sc):
+# ============================================================ belts (layer 2 body, rows 7-11)
+def _waist(c):
     for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["o"]), rows=[8])
-    put(t, BODY["front"], 3, 8, P["t"])
-    put(t, BODY["front"], 4, 8, P["t"])
+        fill(c.L2, BODY[k], c.Sc, c.pc("waist"), rows=range(7, 12))
 
 
-def be_sash(t, P, M, Sc):
+def be_buckle(c):
+    _waist(c)
     for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["a"]), rows=[7, 8])
-    for v in range(8, 12):
-        put(t, BODY["right"], 1, v, P["a"])
-        put(t, BODY["right"], 2, v, P["a"] if v < 11 else None)
+        fill(c.L2, BODY[k], solid("C", 2), c.pc("belt"), rows=[8, 9])
+    for u, v, lv in ((3, 8, 5), (4, 8, 4), (3, 9, 4), (4, 9, 2)):
+        px(c.L2, BODY["front"], u, v, "T", lv)
 
 
-def be_tassets(t, P, M, Sc):
+def be_sash(c):
+    _waist(c)
     for k in SIDES:
-        fill(t, BODY[k], M, rows=range(7, 12))
-        trim(t, BODY[k], P, [7])
-        fill(t, BODY[k], solid(P["d"]), rows=[11])
-    for v in range(8, 12):
-        put(t, BODY["front"], 3, v, P["o"])
-        put(t, BODY["front"], 4, v, P["o"])
-
-
-def be_chain(t, P, M, Sc):
-    ch = pat("chain", dict(P, l=P["s1"], m=P["s2"], b=P["s2"], d=P["o"]))
-    for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], ch, rows=[7, 8])
-
-
-def be_skirt(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], M, rows=range(7, 12))
-        trim(t, BODY[k], P, [7])
-
-
-def be_loincloth(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["d"]), rows=[7, 8])
+        fill(c.L2, BODY[k], solid("A", 3), c.pc("sash"), rows=[7, 8])
     for v in range(9, 12):
-        for u in range(2, 6):
-            put(t, BODY["front"], u, v, P["a"] if u in (2, 5) else P["t"])
-            put(t, BODY["back"], u, v, P["t"])
+        px(c.L2, BODY["right"], 1, v, "A", 4)
+        px(c.L2, BODY["right"], 2, v, "A", 2)
 
 
-def be_rope(t, P, M, Sc):
+def be_tassets(c):
+    _waist(c)
     for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], lambda u, v, *a: P["a"] if (u + v) % 2 else P["t2"], rows=[7, 8])
-    for v in (9, 10):
-        put(t, BODY["front"], 2, v, P["a"])
-        put(t, BODY["front"], 3, v, P["t2"] if v == 10 else P["a"])
+        fill(c.L2, BODY[k], c.M, c.pc("fauld"), rows=[7, 8])
+        c.trim(c.L2, BODY[k], [7], c.pc("fauld"))
+    for k in ("front", "back"):
+        for cols in ((0, 1, 2), (5, 6, 7)):
+            fill(c.L2, BODY[k], c.M, c.pc("tasset" + str(cols[0])), rows=range(9, 12), cols=cols)
 
 
-def be_pouches(t, P, M, Sc):
+def be_chain(c):
+    _waist(c)
     for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], solid(P["o"]), rows=[8])
-    for u0 in (1, 5):
-        for u in (u0, u0 + 1):
-            put(t, BODY["front"], u, 9, P["t"])
-            put(t, BODY["front"], u, 10, P["s1"])
-            put(t, BODY["front"], u, 11, P["s1"])
+        fill(c.L2, BODY[k], c.surf("chain", "S"), c.pc("mail"), rows=range(9, 12))
+        fill(c.L2, BODY[k], solid("T", 3), c.pc("belt"), rows=[7, 8])
 
 
-def be_studded(t, P, M, Sc):
+def be_skirt(c):
     for k in SIDES:
-        fill(t, BODY[k], Sc, rows=range(7, 12))
-        fill(t, BODY[k], lambda u, *a: P["l"] if u % 2 == 0 else P["d"], rows=[8])
-        fill(t, BODY[k], solid(P["d"]), rows=[7])
+        fill(c.L2, BODY[k], c.M, c.pc("skirt"), rows=range(7, 12))
+        c.trim(c.L2, BODY[k], [11], c.pc("skirt"))
+        for u in range(0, BODY[k][2], 2):
+            for v in range(8, 11):
+                px(c.L2, BODY[k], u, v, "M", 2)
 
 
-BELTS = {"rope": be_rope, "pouches": be_pouches, "studded": be_studded, "buckle": be_buckle, "sash": be_sash, "tassets": be_tassets, "chain": be_chain, "skirt": be_skirt,
-         "loincloth": be_loincloth}
+def be_loincloth(c):
+    _waist(c)
+    for k in SIDES:
+        fill(c.L2, BODY[k], solid("C", 2), c.pc("belt"), rows=[7, 8])
+    for k in ("front", "back"):
+        fill(c.L2, BODY[k], solid("A", 3), c.pc("flap"), rows=range(9, 12), cols=range(2, 6))
+        for v in range(9, 12):
+            px(c.L2, BODY[k], 2, v, "T", 3)
+            px(c.L2, BODY[k], 5, v, "T", 3)
+
+
+def be_rope(c):
+    _waist(c)
+    for k in SIDES:
+        fill(c.L2, BODY[k], lambda x, y, u, v, w, hh: ("C", 4 if (x + y) % 2 else 2), c.pc("rope"), rows=[7, 8])
+    for v in (9, 10, 11):
+        px(c.L2, BODY["front"], 2, v, "C", 4 if v % 2 else 2)
+    px(c.L2, BODY["front"], 3, 9, "C", 3)
+
+
+def be_pouches(c):
+    be_buckle(c)
+    for u0 in (0, 5):
+        for u in (u0, u0 + 1, u0 + 2):
+            if u < 8:
+                px(c.L2, BODY["front"], u, 10, "S", 4)
+                px(c.L2, BODY["front"], u, 11, "S", 2)
+
+
+def be_studded(c):
+    _waist(c)
+    for k in SIDES:
+        fill(c.L2, BODY[k], solid("C", 2), c.pc("belt"), rows=[7, 8])
+        for u in range(0, BODY[k][2], 2):
+            px(c.L2, BODY[k], u, 8, "M", 5)
+
+
+BELTS = {"rope": be_rope, "pouches": be_pouches, "studded": be_studded, "buckle": be_buckle, "sash": be_sash,
+         "tassets": be_tassets, "chain": be_chain, "skirt": be_skirt, "loincloth": be_loincloth}
 
 
 # ============================================================ legs (layer 2 legs)
-def lg_greaves(t, P, M, Sc):
+def _knee(c, L, v0=5):
+    """A knee cop: a small bright plate on the front with wings on the sides."""
+    fill(L, LEG["front"], c.M, c.pc("knee"), rows=[v0, v0 + 1])
+    px(L, LEG["front"], 1, v0, "M", 5)
+    px(L, LEG["front"], 2, v0, "M", 4)
+    for k in ("right", "left"):
+        fill(L, LEG[k], c.M, c.pc("knee"), rows=[v0 + 1], cols=(0, 3) if k == "right" else (0, 3))
+
+
+def lg_greaves(c):
+    L = c.L2
     for k in SIDES:
-        fill(t, LEG[k], M)
-        trim(t, LEG[k], P, [5])
-    put(t, LEG["front"], 1, 5, P["l"])
-    put(t, LEG["front"], 2, 5, P["l"])
-    for v in range(6, 12):
-        put(t, LEG["front"], 1, v, P["l"])
-
-
-def lg_pants(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, LEG[k], Sc)
-    for v in range(12):
-        put(t, LEG["right"], 3, v, P["d"])
-
-
-def lg_robe(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, LEG[k], M, rows=range(0, 10))
-        trim(t, LEG[k], P, [9])
-        fill(t, LEG[k], Sc, rows=[10, 11])
-
-
-def lg_chain(t, P, M, Sc):
-    ch = pat("chain", dict(P, l=P["s1"], m=P["s2"], b=P["s2"], d=P["o"]))
-    for k in SIDES:
-        fill(t, LEG[k], ch)
-        fill(t, LEG[k], M, rows=[4, 5])
-        trim(t, LEG[k], P, [4])
-
-
-def lg_scale(t, P, M, Sc):
-    sc = pat("scale", P)
-    for k in SIDES:
-        fill(t, LEG[k], sc)
-        trim(t, LEG[k], P, [0])
-
-
-def lg_wrapped(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, LEG[k], Sc, rows=range(0, 6))
-        fill(t, LEG[k], lambda u, v, w, hh, x, y: P["d"] if (u + v) % 3 == 0 else M(u, v, w, hh, x, y),
-             rows=range(6, 12))
-
-
-def lg_armored(t, P, M, Sc):
-    for k in SIDES:
-        fill(t, LEG[k], Sc, rows=range(0, 6))
-        fill(t, LEG[k], M, rows=range(6, 12))
-        trim(t, LEG[k], P, [6])
+        fill(L, LEG[k], c.M, c.pc("cuisse"), rows=range(0, 5))
+        c.trim(L, LEG[k], [0], c.pc("hip"))
+        fill(L, LEG[k], c.M, c.pc("greave"), rows=range(7, 12))
+        fill(L, LEG[k], c.Sc, c.pc("knee_back"), rows=[5, 6])
+    _knee(c, L)
     for v in range(7, 12):
-        put(t, LEG["front"], 1, v, P["l"])
-        put(t, LEG["front"], 2, v, P["m"])
+        px(L, LEG["front"], 1, v, "M", 5)
 
 
-def lg_striped(t, P, M, Sc):
+def lg_pants(c):
+    L = c.L2
     for k in SIDES:
-        fill(t, LEG[k], M)
+        fill(L, LEG[k], c.Sc, c.pc("pants"))
     for v in range(12):
-        put(t, LEG["right"], 1, v, P["t"])
-        put(t, LEG["right"], 2, v, P["t"])
-
-
-def lg_tassets(t, P, M, Sc):
+        px(L, LEG["right"], 3, v, "S", 1)                          # side seam
+    for v in (4, 5, 8):
+        px(L, LEG["front"], 1 + v % 2, v, "S", 2)                  # creases
     for k in SIDES:
-        fill(t, LEG[k], Sc)
-        fill(t, LEG[k], lambda u, v, *a: P["l"] if v % 2 == 0 else P["d"], rows=range(0, 6))
-        fill(t, LEG[k], M, rows=[1, 3])
+        fill(L, LEG[k], solid("S", 2), c.pc("cuff"), rows=[11])
 
 
-def lg_quilted(t, P, M, Sc):
+def lg_robe(c):
+    L = c.L2
     for k in SIDES:
-        fill(t, LEG[k], pat("quilt", P))
-        trim(t, LEG[k], P, [5])
+        fill(L, LEG[k], c.M, c.pc("robe"), rows=range(0, 10))
+        c.trim(L, LEG[k], [9], c.pc("robe_hem"))
+        fill(L, LEG[k], c.Sc, c.pc("under"), rows=[10, 11])
+    for v in range(10):
+        px(L, LEG["front"], 0, v, "M", 2)
+        px(L, LEG["front"], 3, v, "M", 4)
 
 
-def lg_patched(t, P, M, Sc):
+def lg_chain(c):
+    L = c.L2
     for k in SIDES:
-        fill(t, LEG[k], Sc)
-    for u in range(4):
-        for v in range(2, 6):
-            put(t, LEG["front"], u, v, P["m"] if (u + v) % 2 else P["b"])
+        fill(L, LEG[k], c.surf("chain", "S"), c.pc("chausses"))
+        c.trim(L, LEG[k], [0], c.pc("hip"))
+    _knee(c, L)
+
+
+def lg_scale(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.surf("scale", "M"), c.pc("scale"))
+        c.trim(L, LEG[k], [0], c.pc("hip"))
+
+
+def lg_wrapped(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.Sc, c.pc("thigh"), rows=range(0, 6))
+        x0 = LEG[k][0]
+        for v in range(6, 12):
+            for u in range(4):
+                d = (v + (x0 + u) // 2) % 3
+                L.c[(x0 + u, LEG[k][1] + v)] = ["C", (4, 3, 2)[d], 3000, True]
+
+
+def lg_armored(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.Sc, c.pc("thigh"), rows=range(0, 5))
+        fill(L, LEG[k], c.M, c.pc("greave"), rows=range(7, 12))
+        fill(L, LEG[k], c.Sc, c.pc("knee_back"), rows=[5, 6])
+    _knee(c, L)
+    for v in range(7, 12):
+        px(L, LEG["front"], 1, v, "M", 5)
+        px(L, LEG["front"], 2, v, "M", 4)
+
+
+def lg_striped(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.M, c.pc("trousers"))
+    for v in range(12):
+        px(L, LEG["right"], 1, v, "T", 4)
+        px(L, LEG["right"], 2, v, "T", 2)
+        px(L, LEG["front"], 1, v, "M", 4 if v % 3 else 3)          # pressed crease
+
+
+def lg_tassets(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.Sc, c.pc("under"))
+        for i in range(3):
+            fill(L, LEG[k], c.M, c.pc(f"tas{i}"), rows=[2 * i, 2 * i + 1])
+        px(L, LEG[k], 0, 1, "T", 5)
+        px(L, LEG[k], 3, 3, "T", 4)
+
+
+def lg_quilted(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.surf("quilt", "S"), c.pc("quilt"))
+        c.trim(L, LEG[k], [0], c.pc("hip"))
+    _knee(c, L)
+
+
+def lg_patched(c):
+    L = c.L2
+    for k in SIDES:
+        fill(L, LEG[k], c.Sc, c.pc("pants"))
+    fill(L, LEG["front"], c.surf("leather", "C"), c.pc("patch"), rows=range(2, 6))
     for u, v in ((0, 2), (3, 2), (0, 5), (3, 5)):
-        put(t, LEG["front"], u, v, P["o"])
-    for v in range(7, 10):
-        put(t, LEG["right"], 1, v, P["m"])
-        put(t, LEG["right"], 2, v, P["m"])
+        px(L, LEG["front"], u, v, "T", 4)
+    fill(L, LEG["right"], solid("C", 3), c.pc("patch2"), rows=range(7, 10), cols=(1, 2))
 
 
-LEGS = {"tassets": lg_tassets, "quilted": lg_quilted, "patched": lg_patched, "greaves": lg_greaves, "pants": lg_pants, "robe": lg_robe, "chain": lg_chain, "scale": lg_scale,
-        "wrapped": lg_wrapped, "armored": lg_armored, "striped": lg_striped}
+LEGS = {"tassets": lg_tassets, "quilted": lg_quilted, "patched": lg_patched, "greaves": lg_greaves,
+        "pants": lg_pants, "robe": lg_robe, "chain": lg_chain, "scale": lg_scale, "wrapped": lg_wrapped,
+        "armored": lg_armored, "striped": lg_striped}
 
 
 # ============================================================ boots (layer 1 legs)
-def bo_sabaton(t, P, M, Sc):
+def _sole(c, v=11):
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(6, 12))
-        trim(t, LEG[k], P, [6])
-        fill(t, LEG[k], solid(P["d"]), rows=[9, 11])
-        fill(t, LEG[k], solid(P["l"]), rows=[10])
+        fill(c.L1, LEG[k], solid("O", 0), c.pc("sole"), rows=[v])
 
 
-def bo_fur(t, P, M, Sc):
+def bo_sabaton(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], pat("leather", P), rows=range(8, 12))
-        fill(t, LEG[k], pat("fur", dict(P, b=P["s2"], m=P["l"], l=P["a"])), rows=range(5, 8))
-        fill(t, LEG[k], solid(P["o"]), rows=[11])
+        c.trim(L, LEG[k], [6], c.pc("b_cuff"))
+        fill(L, LEG[k], c.M, c.pc("b_ankle"), rows=[7, 8])
+        for v in (9, 10, 11):
+            fill(L, LEG[k], c.M, c.pc(f"b_lame{v}"), rows=[v])
+    px(L, LEG["front"], 1, 10, "M", 5)
+    px(L, LEG["front"], 2, 11, "M", 4)
 
 
-def bo_tall(t, P, M, Sc):
+def bo_fur(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(3, 12))
-        trim(t, LEG[k], P, [3])
-        fill(t, LEG[k], solid(P["t2"]), rows=[4])
-        fill(t, LEG[k], solid(P["o"]), rows=[11])
+        fill(L, LEG[k], c.surf("leather", "S"), c.pc("b_boot"), rows=range(8, 11))
+        fill(L, LEG[k], c.surf("fur", "C"), c.pc("b_fur"), rows=range(5, 8),
+              where=lambda u, v, w, hh: v > 5 or u % 2 == 0)
+    _sole(c)
 
 
-def bo_wrapped(t, P, M, Sc):
+def bo_tall(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], lambda u, v, w, hh, x, y: P["d"] if (u + v) % 3 == 0 else Sc(u, v, w, hh, x, y),
-             rows=range(6, 12))
-        fill(t, LEG[k], solid(P["o"]), rows=[11])
+        c.trim(L, LEG[k], [3], c.pc("b_cuff"))
+        fill(L, LEG[k], solid("M", 4), c.pc("b_fold"), rows=[4])
+        fill(L, LEG[k], c.M, c.pc("b_shaft"), rows=range(5, 11))
+    for v in range(5, 11):
+        px(L, LEG["front"], 1, v, "M", 4)
+    px(L, LEG["back"], 1, 10, "O", 0)
+    px(L, LEG["back"], 2, 10, "O", 0)
+    _sole(c)
 
 
-def bo_clawed(t, P, M, Sc):
+def bo_wrapped(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(6, 12))
-        trim(t, LEG[k], P, [6])
-    for u in (0, 2):
-        put(t, LEG["front"], u, 11, P["a"])
-        put(t, LEG["front"], u, 10, P["a"])
-    put(t, LEG["back"], 1, 11, P["a"])
+        x0 = LEG[k][0]
+        for v in range(6, 11):
+            for u in range(4):
+                d = (v + (x0 + u) // 2) % 3
+                L.c[(x0 + u, LEG[k][1] + v)] = ["S", (4, 3, 2)[d], 4000, True]
+        fill(L, LEG[k], solid("C", 1), c.pc("sandal"), rows=[11])
 
 
-def bo_buckled(t, P, M, Sc):
+def bo_clawed(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], Sc, rows=range(6, 12))
-        fill(t, LEG[k], solid(P["o"]), rows=[7, 9])
-        fill(t, LEG[k], solid(P["d"]), rows=[11])
-    put(t, LEG["front"], 2, 7, P["t"])
-    put(t, LEG["front"], 2, 9, P["t"])
+        c.trim(L, LEG[k], [6], c.pc("b_cuff"))
+        fill(L, LEG[k], c.M, c.pc("b_foot"), rows=range(7, 12))
+    for u in (0, 3):
+        px(L, LEG["front"], u, 11, "A", 5)
+        px(L, LEG["front"], u, 10, "A", 3)
+    px(L, LEG["back"], 1, 11, "A", 4)
+    px(L, LEG["back"], 2, 11, "A", 4)
 
 
-def bo_greave(t, P, M, Sc):
+def bo_buckled(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(4, 12))
-        trim(t, LEG[k], P, [4])
-        fill(t, LEG[k], solid(P["d"]), rows=[11])
-    put(t, LEG["front"], 1, 5, P["l"])
-    put(t, LEG["front"], 2, 5, P["l"])
+        fill(L, LEG[k], c.surf("leather", "S"), c.pc("b_boot"), rows=range(6, 11))
+        for v in (7, 9):
+            fill(L, LEG[k], solid("C", 2), c.pc("b_strap"), rows=[v])
+    for v in (7, 9):
+        px(L, LEG["front"], 2, v, "T", 5)
+    _sole(c)
 
 
-def bo_pointed(t, P, M, Sc):
+def bo_greave(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(6, 12))
-        trim(t, LEG[k], P, [6])
-    for v in range(7, 12):
-        put(t, LEG["front"], 1, v, P["l"])
-    put(t, LEG["front"], 1, 11, P["a"])
-    put(t, LEG["front"], 2, 11, P["a"])
+        c.trim(L, LEG[k], [4], c.pc("b_cuff"))
+        fill(L, LEG[k], c.M, c.pc("b_greave"), rows=range(5, 10))
+        fill(L, LEG[k], c.M, c.pc("b_foot"), rows=[10, 11])
+    for v in range(5, 10):
+        px(L, LEG["front"], 1, v, "M", 5)
+    px(L, LEG["front"], 1, 11, "M", 4)
+    px(L, LEG["front"], 2, 11, "M", 4)
 
 
-def bo_cuffed(t, P, M, Sc):
+def bo_pointed(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], pat("leather", P), rows=range(5, 12))
-        fill(t, LEG[k], solid(P["l"]), rows=[5])
-        trim(t, LEG[k], P, [6])
-        fill(t, LEG[k], solid(P["o"]), rows=[11])
+        c.trim(L, LEG[k], [6], c.pc("b_cuff"))
+        fill(L, LEG[k], c.M, c.pc("b_foot"), rows=range(7, 12))
+    for v in range(8, 12):
+        px(L, LEG["front"], 1, v, "M", 5 if v > 9 else 4)
+        px(L, LEG["front"], 2, v, "M", 4 if v > 9 else 3)
+    px(L, LEG["front"], 1, 11, "A", 5)
+    px(L, LEG["front"], 2, 11, "A", 4)
 
 
-def bo_spiked(t, P, M, Sc):
+def bo_cuffed(c):
+    L = c.L1
     for k in SIDES:
-        fill(t, LEG[k], M, rows=range(6, 12))
-        trim(t, LEG[k], P, [6])
-        fill(t, LEG[k], solid(P["d"]), rows=[11])
+        fill(L, LEG[k], solid("C", 4), c.pc("b_cuff"), rows=[6])
+        fill(L, LEG[k], solid("C", 3), c.pc("b_cuff"), rows=[7])
+        fill(L, LEG[k], c.surf("leather", "S"), c.pc("b_boot"), rows=range(8, 11))
+    for v in (8, 9, 10):
+        px(L, LEG["front"], 1 + v % 2, v, "T", 4)
+    _sole(c)
+
+
+def bo_spiked(c):
+    L = c.L1
+    for k in SIDES:
+        c.trim(L, LEG[k], [6], c.pc("b_cuff"))
+        fill(L, LEG[k], c.M, c.pc("b_foot"), rows=range(7, 11))
     for k in ("back", "right"):
-        put(t, LEG[k], 1, 8, P["a"])
-        put(t, LEG[k], 2, 8, P["a"])
+        px(L, LEG[k], 1, 8, "A", 5)
+        px(L, LEG[k], 2, 8, "A", 3)
+    _sole(c)
 
 
-BOOTS = {"pointed": bo_pointed, "cuffed": bo_cuffed, "spiked": bo_spiked, "sabaton": bo_sabaton, "fur": bo_fur, "tall": bo_tall, "wrapped": bo_wrapped, "clawed": bo_clawed,
-         "buckled": bo_buckled, "greave": bo_greave}
-
-
-# ============================================================ each set's build
-# chest, shoulders, arms, belt, legs, boots, coverage -- every pair of sets differs in at least 3 parts
-LOOKS = {  # chest, shoulders, arms, belt, legs, boots, cover
- "frostborn": ("cuirass", "fur", "gauntlet", "tassets", "greaves", "fur", "standard"),
- "druid": ("organic", "none", "wrapped", "sash", "wrapped", "wrapped", "light"),
- "samurai": ("lamellar", "layered", "sleeve", "tassets", "armored", "wrapped", "standard"),
- "pharaoh": ("robe", "epaulette", "bracer", "loincloth", "robe", "buckled", "light"),
- "atlantean": ("scale", "cap", "bracer", "sash", "scale", "clawed", "standard"),
- "paladin": ("tabard", "round", "plate", "tassets", "greaves", "sabaton", "full"),
- "clockwork": ("mech", "layered", "gauntlet", "buckle", "armored", "sabaton", "full"),
- "shadow": ("wraps", "layered", "wrapped", "chain", "wrapped", "buckled", "standard"),
- "dragon": ("cuirass", "spiked", "gauntlet", "tassets", "scale", "clawed", "standard"),
- "mushroom": ("patchwork", "cap", "puffy", "skirt", "pants", "fur", "standard"),
- "obsidian": ("crystal", "spiked", "plate", "tassets", "greaves", "greave", "full"),
- "magma": ("segmented", "round", "gauntlet", "chain", "armored", "sabaton", "standard"),
- "storm": ("core", "layered", "plate", "chain", "chain", "tall", "full"),
- "void": ("robe", "crystal", "sleeve", "skirt", "robe", "buckled", "standard"),
- "celestial": ("tabard", "crystal", "sleeve", "skirt", "striped", "greave", "standard"),
- "solar": ("chevron", "epaulette", "gauntlet", "skirt", "robe", "greave", "full"),
- "moonlit": ("cloak", "cap", "sleeve", "sash", "robe", "tall", "light"),
- "viking": ("fur_vest", "fur", "bracer", "buckle", "wrapped", "fur", "light"),
- "spartan": ("cuirass", "none", "bare", "tassets", "greaves", "wrapped", "light"),
- "jaguar": ("fur_vest", "spiked", "wrapped", "loincloth", "wrapped", "wrapped", "light"),
- "bone": ("ribcage", "spiked", "wrapped", "loincloth", "pants", "clawed", "light"),
- "pirate": ("coat", "epaulette", "puffy", "sash", "pants", "tall", "standard"),
- "neon": ("mech", "cap", "sleeve", "buckle", "striped", "buckled", "light"),
- "amethyst": ("crystal", "crystal", "gauntlet", "chain", "scale", "greave", "standard"),
- "jade": ("lamellar", "round", "puffy", "sash", "robe", "tall", "full"),
- "sculk": ("brigandine", "cap", "wrapped", "chain", "pants", "wrapped", "light"),
- "sakura": ("wraps", "cap", "puffy", "skirt", "robe", "wrapped", "light"),
- "hive": ("quilted", "round", "gauntlet", "buckle", "striped", "buckled", "standard"),
- "nomad": ("bandolier", "cap", "wrapped", "skirt", "robe", "buckled", "light"),
- "plague": ("coat", "none", "gauntlet", "buckle", "robe", "tall", "full"),
- "necro": ("robe", "spiked", "sleeve", "chain", "robe", "clawed", "standard"),
- "royal": ("uniform", "epaulette", "sleeve", "buckle", "striped", "tall", "full"),
- "arcane": ("tabard", "cap", "puffy", "sash", "robe", "buckled", "standard"),
- "seraph": ("scale", "layered", "plate", "sash", "robe", "greave", "standard"),
- "toxic": ("core", "none", "sleeve", "chain", "pants", "buckled", "full"),
- "kraken": ("organic", "crystal", "chain", "skirt", "scale", "clawed", "standard"),
- "phoenix": ("scale", "spiked", "bracer", "tassets", "robe", "clawed", "light"),
- "werewolf": ("studded", "fur", "bare", "loincloth", "pants", "fur", "light"),
- "rose": ("organic", "layered", "gauntlet", "sash", "armored", "tall", "standard"),
- "prism": ("crystal", "epaulette", "bracer", "skirt", "striped", "buckled", "standard"),
- "cowboy": ("bandolier", "cap", "sleeve", "buckle", "pants", "tall", "light"),
- "monk": ("wraps", "none", "bare", "sash", "pants", "wrapped", "light"),
- "redstone": ("brigandine", "epaulette", "plate", "buckle", "striped", "sabaton", "full"),
- "oxidized": ("segmented", "layered", "chain", "buckle", "chain", "sabaton", "full"),
- "candy": ("uniform", "spiked", "puffy", "skirt", "striped", "fur", "light"),
- "vampire": ("uniform", "layered", "puffy", "chain", "robe", "tall", "standard"),
- "halloween": ("brigandine", "spiked", "gauntlet", "chain", "armored", "clawed", "standard"),
-}
-PARTS = ("chest", "shoulders", "arms", "belt", "legs", "boots")
-# themed trims and back designs; everything not listed is spread automatically
-THEMED = {"paladin": ("gem", "cross"), "seraph": ("gem", "wings"), "vampire": ("line", "cape"),
-          "royal": ("rope", "none"), "viking": ("fur", "x"), "bone": ("studs", "spine"), "dragon": ("zigzag", "spine"),
-          "pirate": ("rope", "cape"), "celestial": ("dots", "circle"), "phoenix": ("zigzag", "wings"),
-          "necro": ("checker", "spine"), "clockwork": ("segment", "circle"), "samurai": ("rope", "emblem")}
-BALANCED = ("shoulders", "arms", "belt", "legs", "boots", "trim", "back")
-
-
-def _balanced_looks():
-    import math
-    opts = {"shoulders": list(SHOULDERS), "arms": [a for a in ARMS if a != "bare"], "belt": list(BELTS),
-            "legs": list(LEGS), "boots": list(BOOTS), "trim": TRIMS, "back": list(BACKS)}
-    counts = {k: {o: 0 for o in v} for k, v in opts.items()}
-    out = {}
-    ids = list(LOOKS)
-    for i, sid in enumerate(ids):
-        row = LOOKS[sid]
-        look = dict(zip(PARTS, row[:6]))
-        look["trim"], look["back"] = THEMED.get(sid, (None, None))
-        for k in BALANCED:
-            cap = math.ceil(len(ids) / len(opts[k]))
-            cur = look.get(k)
-            if k == "arms" and cur == "bare":
-                out.setdefault(sid, look)
-                continue
-            if cur not in counts[k] or counts[k][cur] >= cap:
-                low = min(counts[k].values())
-                cands = [o for o in opts[k] if counts[k][o] == low]
-                cur = cands[(i * 5 + len(k)) % len(cands)]
-            look[k] = cur
-            counts[k][cur] += 1
-        out[sid] = (look, row[6])
-    return out
-
-
-_BALANCED = None
-
-
-def apply(S):
-    global _BALANCED
-    if _BALANCED is None:
-        _BALANCED = _balanced_looks()
-    look, cover = _BALANCED[S["id"]]
-    S["look"] = dict(look)
-    S["cover"] = cover
-    return S
+BOOTS = {"pointed": bo_pointed, "cuffed": bo_cuffed, "spiked": bo_spiked, "sabaton": bo_sabaton, "fur": bo_fur,
+         "tall": bo_tall, "wrapped": bo_wrapped, "clawed": bo_clawed, "buckled": bo_buckled, "greave": bo_greave}
 
 
 # ============================================================ back designs (layer 1 body back)
-def bk_spine(t, P, S):
+def bk_spine(c):
     for v in range(1, 10):
-        put(t, BODY["back"], 3, v, P["d"])
-        put(t, BODY["back"], 4, v, P["l"] if v % 2 else P["d"])
+        px(c.L1, BODY["back"], 3, v, "M", 1 if v % 2 else 2)
+        px(c.L1, BODY["back"], 4, v, "M", 5 if v % 2 else 2)
 
 
-def bk_cross(t, P, S):
+def bk_cross(c):
     for v in range(1, 10):
-        put(t, BODY["back"], 3, v, P["t"])
-        put(t, BODY["back"], 4, v, P["t"])
+        px(c.L1, BODY["back"], 3, v, "T", 4)
+        px(c.L1, BODY["back"], 4, v, "T", 3)
     for u in range(1, 7):
-        put(t, BODY["back"], u, 3, P["t"])
+        px(c.L1, BODY["back"], u, 3, "T", 4 if u != 4 else 3)
 
 
-def bk_wings(t, P, S):
+def bk_wings(c):
     for v in range(1, 8):
         for u in range(8):
             d = abs(u - 3.5)
-            if abs(d - (4 - v * 0.5)) < 0.5 or (v in (3, 5) and 1 < d < 4 - v * 0.4):
-                put(t, BODY["back"], u, v, P["a"])
+            if abs(d - (4 - v * 0.5)) < 0.5:
+                px(c.L1, BODY["back"], u, v, "A", 5)
+            elif v in (3, 5) and 1 < d < 4 - v * 0.4:
+                px(c.L1, BODY["back"], u, v, "A", 3)
 
 
-def bk_circle(t, P, S):
+def bk_circle(c):
     for v in range(12):
         for u in range(8):
             r = ((u - 3.5) ** 2 + (v - 4.5) ** 2) ** 0.5
             if 2 <= r <= 2.9:
-                put(t, BODY["back"], u, v, P["t"])
+                px(c.L1, BODY["back"], u, v, "T", 4 if v < 4.5 else 2)
             elif r < 1:
-                put(t, BODY["back"], u, v, P["g"])
+                px(c.L1, BODY["back"], u, v, "G", 5)
 
 
-def bk_stripes(t, P, S):
+def bk_stripes(c):
     for v in range(0, 11):
-        put(t, BODY["back"], 1, v, P["t2"])
-        put(t, BODY["back"], 6, v, P["t2"])
+        px(c.L1, BODY["back"], 1, v, "T", 3)
+        px(c.L1, BODY["back"], 6, v, "T", 3)
 
 
-def bk_x(t, P, S):
+def bk_x(c):
     for v in range(1, 10):
         u = round((v - 1) * 0.8)
-        put(t, BODY["back"], u, v, P["o"])
-        put(t, BODY["back"], 7 - u, v, P["o"])
+        px(c.L1, BODY["back"], u, v, "C", 1)
+        px(c.L1, BODY["back"], 7 - u, v, "C", 1)
+        px(c.L1, BODY["back"], min(7, u + 1), v, "C", 3)
+        px(c.L1, BODY["back"], max(0, 6 - u), v, "C", 3)
 
 
-def bk_cape(t, P, S):
-    fill(t, BODY["back"], pat("cloth", dict(P, b=P["s1"], m=P["s2"], d=P["d"])))
+def bk_cape(c):
+    cape = new_piece()
+    fill(c.L1, BODY["back"], c.Sc, cape)
     for v in range(12):
-        if v % 3:
-            put(t, BODY["back"], 2, v, P["d"])
-            put(t, BODY["back"], 5, v, P["d"])
-    trim(t, BODY["back"], P, [0])
+        px(c.L1, BODY["back"], 2, v, "S", 1 if v % 3 else 2)
+        px(c.L1, BODY["back"], 5, v, "S", 1 if v % 3 != 1 else 2)
+        px(c.L1, BODY["back"], 3, v, "S", 4)
+    c.trim(c.L1, BODY["back"], [0], cape)
 
 
-def bk_emblem(t, P, S):
-    if S.get("emblem"):
-        t.stamp(BODY["back"], S["emblem"], P, dy=2)
+def bk_emblem(c):
+    if c.S.get("emblem"):
+        c.stamp(c.L1, BODY["back"], c.S["emblem"], dy=2)
 
 
 BACKS = {"spine": bk_spine, "cross": bk_cross, "wings": bk_wings, "circle": bk_circle, "stripes": bk_stripes,
-         "x": bk_x, "cape": bk_cape, "emblem": bk_emblem, "none": lambda *a: None}
+         "x": bk_x, "cape": bk_cape, "emblem": bk_emblem, "none": lambda c: None}
 TRIMS = ["line", "rope", "zigzag", "studs", "dots", "checker", "gem", "segment", "fur"]
 
 
-def shade(img, P):
-    """Depth: lit top edge, shadowed bottom and right edge on every armor face."""
-    keep = {P["g"]}
-    px = img.load()
+# ============================================================ each set's build
+# Hand-picked per set: chest, shoulders, arms (gloves), belt, legs, boots, trim, back,
+# the surface of its plates (surface, material), its cloth surface, and how covered it is.
+# Every pair of sets differs in at least 3 of the six construction parts (checked by distinct()).
+LOOKS = {
+ "frostborn": ("cuirass", "fur", "gauntlet", "tassets", "greaves", "fur", "dots", "stripes", ("plate", "M"), ("fur", "S"), "standard"),
+ "druid": ("organic", "drape", "wrapped", "sash", "wrapped", "wrapped", "rope", "none", ("bark", "M"), ("cloth", "S"), "light"),
+ "samurai": ("lamellar", "layered", "bracer", "tassets", "tassets", "wrapped", "rope", "emblem", ("plate", "M"), ("cloth", "S"), "standard"),
+ "pharaoh": ("robe", "epaulette", "bracer", "loincloth", "robe", "buckled", "segment", "wings", ("stripes", "M"), ("cloth", "S"), "light"),
+ "atlantean": ("scale", "cap", "bracer", "sash", "scale", "clawed", "line", "circle", ("scale", "M"), ("wave", "S"), "standard"),
+ "paladin": ("tabard", "round", "plate", "tassets", "greaves", "sabaton", "gem", "cross", ("plate", "M"), ("cloth", "S"), "full"),
+ "clockwork": ("mech", "layered", "gauntlet", "buckle", "armored", "sabaton", "segment", "circle", ("brass", "M"), ("leather", "S"), "full"),
+ "shadow": ("wraps", "none", "wrapped", "sash", "wrapped", "pointed", "line", "x", ("cloth", "M"), ("cloth", "S"), "standard"),
+ "dragon": ("cuirass", "spiked", "gauntlet", "tassets", "scale", "clawed", "zigzag", "spine", ("scale", "M"), ("leather", "S"), "standard"),
+ "mushroom": ("patchwork", "cap", "puffy", "skirt", "pants", "cuffed", "dots", "cape", ("cloth", "M"), ("cloth", "S"), "standard"),
+ "obsidian": ("crystal", "spiked", "plate", "tassets", "greaves", "greave", "studs", "x", ("obsidian", "M"), ("chain", "S"), "full"),
+ "magma": ("segmented", "round", "gauntlet", "chain", "armored", "sabaton", "line", "none", ("flame", "S"), ("leather", "C"), "standard"),
+ "storm": ("core", "layered", "plate", "chain", "chain", "tall", "gem", "emblem", ("plate", "M"), ("chain", "S"), "full"),
+ "void": ("robe", "crystal", "sleeve", "skirt", "robe", "buckled", "dots", "circle", ("stars", "M"), ("cloth", "S"), "standard"),
+ "celestial": ("tabard", "epaulette", "plate", "skirt", "striped", "greave", "dots", "circle", ("stars", "M"), ("stars", "S"), "standard"),
+ "solar": ("chevron", "epaulette", "gauntlet", "skirt", "robe", "greave", "checker", "stripes", ("plate", "M"), ("stripes", "S"), "full"),
+ "moonlit": ("cloak", "cap", "sleeve", "sash", "robe", "tall", "line", "wings", ("feather", "M"), ("cloth", "S"), "light"),
+ "viking": ("fur_vest", "fur", "bracer", "buckle", "wrapped", "fur", "fur", "x", ("chain", "M"), ("leather", "S"), "light"),
+ "spartan": ("cuirass", "none", "bare", "tassets", "greaves", "wrapped", "zigzag", "cape", ("plate", "M"), ("cloth", "S"), "light"),
+ "jaguar": ("fur_vest", "spiked", "wrapped", "loincloth", "wrapped", "wrapped", "studs", "circle", ("spots", "M"), ("leather", "S"), "light"),
+ "bone": ("ribcage", "spiked", "wrapped", "loincloth", "pants", "clawed", "studs", "spine", ("bone", "M"), ("leather", "S"), "light"),
+ "pirate": ("coat", "epaulette", "puffy", "sash", "pants", "tall", "rope", "cape", ("cloth", "M"), ("cloth", "S"), "standard"),
+ "neon": ("mech", "cap", "sleeve", "buckle", "striped", "buckled", "segment", "none", ("circuit", "M"), ("plate", "S"), "light"),
+ "amethyst": ("crystal", "crystal", "chain", "chain", "scale", "greave", "gem", "emblem", ("crystal", "M"), ("plate", "S"), "standard"),
+ "jade": ("lamellar", "round", "puffy", "sash", "robe", "tall", "zigzag", "wings", ("marble", "M"), ("quilt", "S"), "full"),
+ "sculk": ("brigandine", "cap", "wrapped", "chain", "pants", "wrapped", "checker", "stripes", ("rune", "M"), ("cloth", "S"), "light"),
+ "sakura": ("wraps", "stacked", "puffy", "skirt", "patched", "pointed", "line", "cross", ("petal", "M"), ("cloth", "S"), "light"),
+ "hive": ("quilted", "round", "spiked", "buckle", "striped", "buckled", "dots", "stripes", ("hex", "M"), ("stripes", "S"), "standard"),
+ "nomad": ("bandolier", "drape", "studded", "skirt", "tassets", "spiked", "line", "spine", ("cloth", "M"), ("cloth", "S"), "light"),
+ "plague": ("coat", "none", "striped", "buckle", "quilted", "tall", "studs", "circle", ("leather", "M"), ("quilt", "S"), "full"),
+ "necro": ("robe", "spiked", "striped", "chain", "patched", "clawed", "checker", "spine", ("bone", "M"), ("rune", "S"), "standard"),
+ "royal": ("uniform", "epaulette", "studded", "buckle", "striped", "cuffed", "rope", "none", ("cloth", "M"), ("stripes", "S"), "full"),
+ "arcane": ("tabard", "horned", "puffy", "sash", "chain", "pointed", "zigzag", "emblem", ("rune", "M"), ("cloth", "S"), "standard"),
+ "seraph": ("scale", "layered", "plate", "pouches", "quilted", "greave", "gem", "wings", ("feather", "M"), ("plate", "S"), "standard"),
+ "toxic": ("core", "none", "spiked", "rope", "pants", "spiked", "segment", "cross", ("slime", "M"), ("stripes", "S"), "full"),
+ "kraken": ("organic", "crystal", "chain", "studded", "scale", "clawed", "fur", "cape", ("slime", "M"), ("scale", "S"), "standard"),
+ "phoenix": ("scale", "horned", "bracer", "pouches", "tassets", "cuffed", "zigzag", "wings", ("feather", "M"), ("flame", "S"), "light"),
+ "werewolf": ("studded", "fur", "bare", "loincloth", "quilted", "fur", "gem", "x", ("fur", "M"), ("leather", "S"), "light"),
+ "rose": ("organic", "drape", "striped", "rope", "armored", "pointed", "segment", "emblem", ("plate", "M"), ("bark", "S"), "standard"),
+ "prism": ("crystal", "epaulette", "bracer", "studded", "striped", "cuffed", "rope", "circle", ("crystal", "M"), ("marble", "S"), "standard"),
+ "cowboy": ("bandolier", "stacked", "sleeve", "buckle", "pants", "tall", "fur", "none", ("leather", "M"), ("cloth", "S"), "light"),
+ "monk": ("wraps", "none", "bare", "studded", "pants", "wrapped", "studs", "stripes", ("cloth", "M"), ("cloth", "S"), "light"),
+ "redstone": ("brigandine", "horned", "plate", "pouches", "patched", "sabaton", "dots", "x", ("circuit", "M"), ("plate", "S"), "full"),
+ "oxidized": ("segmented", "stacked", "chain", "rope", "chain", "sabaton", "checker", "cape", ("patina", "M"), ("plate", "S"), "full"),
+ "candy": ("uniform", "drape", "spiked", "pouches", "patched", "fur", "line", "cross", ("candy", "M"), ("quilt", "S"), "light"),
+ "vampire": ("uniform", "drape", "spiked", "studded", "quilted", "pointed", "line", "cape", ("cloth", "M"), ("cloth", "S"), "standard"),
+ "halloween": ("brigandine", "spiked", "gauntlet", "chain", "armored", "clawed", "line", "none", ("pumpkin", "M"), ("cloth", "S"), "standard"),
+}
+PARTS = ("chest", "shoulders", "arms", "belt", "legs", "boots")
+
+
+def distinct(min_diff=3):
+    """Pairs of sets that share too many construction parts."""
+    ids = list(LOOKS)
+    return [(a, b) for i, a in enumerate(ids) for b in ids[i + 1:]
+            if sum(x != y for x, y in zip(LOOKS[a][:6], LOOKS[b][:6])) < min_diff]
+
+
+def apply(S):
+    row = LOOKS[S["id"]]
+    look = dict(zip(PARTS, row[:6]))
+    look.update(trim=row[6], back=row[7], main=row[8], sec=row[9])
+    S["look"] = look
+    S["cover"] = row[10]
+    return S
+
+
+# ============================================================ shading and colour
+def shade(L, P):
+    """Form shading on levels: lit rims on top of each piece, shadow under it (deeper next to
+    skin), rounded torso edges. Glow, outline and fixed detail cells keep their level."""
+    out = {}
     for net in (BODY, ARM, LEG):
         for k in SIDES:
             x0, y0, w, hh = net[k]
             for v in range(hh):
                 for u in range(w):
-                    c = px[x0 + u, y0 + v]
-                    if c[3] == 0 or c[:3] in keep:
+                    cell = L.c.get((x0 + u, y0 + v))
+                    if not cell:
                         continue
-                    f = 1.12 if v == 0 else 0.78 if v == hh - 1 else 0.9 if v == hh - 2 else 1.0
-                    if u == w - 1:
-                        f *= 0.9
-                    elif u == 0:
-                        f *= 1.05
-                    px[x0 + u, y0 + v] = tuple(max(0, min(255, int(ch * f))) for ch in c[:3]) + (255,)
+                    mat, lv, pc, fixed = cell
+                    if fixed or mat in ("G", "O"):
+                        continue
+                    up = L.c.get((x0 + u, y0 + v - 1)) if v > 0 else None
+                    dn = L.c.get((x0 + u, y0 + v + 1)) if v < hh - 1 else None
+                    if up is None or up[2] != pc:
+                        lv += 1
+                    if dn is None:
+                        lv -= 2 if v < hh - 1 else 1
+                    elif dn[2] != pc:
+                        lv -= 1
+                    bx0 = net["right"][0]
+                    bx1 = net["back"][0] + net["back"][2] - 1
+                    xl = x0 + u - 1 if x0 + u > bx0 else bx1
+                    xr = x0 + u + 1 if x0 + u < bx1 else bx0
+                    lf, rt = L.c.get((xl, y0 + v)), L.c.get((xr, y0 + v))
+                    if lf is None or rt is None:
+                        lv -= 1
+                    elif rt[2] != pc and not rt[3]:
+                        lv -= 1
+                    if net is BODY and k in ("front", "back") and u in (0, w - 1) and lv >= 4:
+                        lv -= 1
+                    out[(x0 + u, y0 + v)] = max(0, min(5, lv))
+    for key, lv in out.items():
+        L.c[key][1] = lv
+
+
+def resolve(L, P):
+    R = ramps(P)
+    img = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+    pxl = img.load()
+    for (x, y), (mat, lv, _, _) in L.c.items():
+        pxl[x, y] = R[mat][max(0, min(5, lv))] + (255,)
+    return img
 
 
 # ============================================================ painter
-def cover_cuts(t1, t2, cover, look):
-    """Small, deliberate openings: 'full' shows none, 'standard' a little, 'light' a bit more."""
-    if cover == "full":
-        return
-    clear(t1, ARM["left"], [(u, v) for u in range(4) for v in (5, 6)])                    # armpit
-    clear(t2, LEG["left"], [(u, v) for u in range(4) for v in (1, 2)])                    # inner thigh
+def cover_cuts(c, cover):
+    """Only a light set opens anything: a small V at the neck. Everything else stays covered."""
     if cover == "light":
-        clear(t1, BODY["front"], [(u, 0) for u in range(2, 6)] + [(3, 1), (4, 1)])        # open neckline
-        for k in ("right", "left"):
-            clear(t1, BODY[k], [(u, v) for u in range(4) for v in (3, 4)])
-        if look["arms"] not in ("chain", "sleeve", "puffy"):
-            for k in SIDES:
-                clear(t1, ARM[k], [(u, v) for u in range(4) for v in (5, 6)])             # a band of upper arm
+        erase(c.L1, BODY["front"], [(u, 0) for u in range(2, 6)] + [(3, 1), (4, 1)])
 
 
-def trim_arms(t1, style):
+def trim_arms(L, style):
     """Slim chestplates: no full armored sleeves. 'pads' keeps the shoulder plates, 'gloves' keeps the
     forearm and hand, 'both' keeps both with the middle of the arm bare."""
     keep = {"pads": range(0, 4), "gloves": range(8, 12), "both": list(range(0, 3)) + list(range(9, 12))}[style]
     for k in SIDES:
-        clear(t1, ARM[k], [(u, v) for u in range(4) for v in range(12) if v not in keep])
+        erase(L, ARM[k], [(u, v) for u in range(4) for v in range(12) if v not in keep])
     if style == "gloves":
-        clear(t1, ARM["top"], [(u, v) for u in range(4) for v in range(4)])
+        erase(L, ARM["top"], [(u, v) for u in range(4) for v in range(4)])
     if style == "pads":
-        clear(t1, ARM["bottom"], [(u, v) for u in range(4) for v in range(4)])
+        erase(L, ARM["bottom"], [(u, v) for u in range(4) for v in range(4)])
 
 
 def paint(S):
-    P = S["pal"]
-    L = S["look"]
-    M, Sc = pat(S["pattern"], P), pat(S.get("secondary", "cloth"), P)
-    t1, t2 = Tex(64, 32), Tex(64, 32)
-    for k in ("top", "right", "left", "back", "front"):       # helmet faces (atlas only)
-        fill(t1, HEAD[k], M)
-    fill(t1, HEAD["bottom"], solid(P["o"]))
-    fill(t1, BODY["top"], M)
-    fill(t1, BODY["bottom"], solid(P["o"]))
-    STYLE["trim"] = L.get("trim", "line")
-    emblem = CHESTS[L["chest"]](t1, P, S, M, Sc)
+    P, look = S["pal"], S["look"]
+    c = Ctx(S)
+    L1, L2 = c.L1, c.L2
+    # torso caps
+    paint_cells(L1, BODY["top"], c.M)
+    paint_cells(L1, BODY["bottom"], solid("O", 0))
+    emblem = CHESTS[look["chest"]](c)
     if emblem and S.get("emblem"):
-        t1.stamp(BODY["front"], S["emblem"], P, dy=2)
-    BACKS[L.get("back", "none")](t1, P, S)
-    fill(t1, ARM["top"], M)
-    fill(t1, ARM["bottom"], solid(P["o"]))
+        c.stamp(L1, BODY["front"], S["emblem"], dy=2)
+    BACKS[look.get("back", "none")](c)
+    # shoulders, arm tops, gloves
+    top = SHOULDER_TOP.get(look["shoulders"], "main")
+    if top:
+        paint_cells(L1, ARM["top"], {"main": c.M, "fur": c.surf("fur", "C"), "sec": c.Sc, "trim": solid("T", 3),
+                                     "crystal": c.surf("crystal", "M")}[top])
+    paint_cells(L1, ARM["bottom"], solid("O", 0))
     for k in SIDES:
-        ARMS[L["arms"]](t1, P, k, M, Sc)
-        SHOULDERS[L["shoulders"]](t1, P, k, M)
-    fill(t1, LEG["bottom"], solid(P["o"]))
-    BOOTS[L["boots"]](t1, P, M, Sc)
+        ARMS[look["arms"]](c, k)
+        SHOULDERS[look["shoulders"]](c, k)
+    # boots and leggings
+    paint_cells(L1, LEG["bottom"], solid("O", 0))
+    BOOTS[look["boots"]](c)
     if S.get("boot_art"):
-        t1.stamp(LEG["front"], S["boot_art"], P, dy=7)
-    BELTS[L["belt"]](t2, P, M, Sc)
+        c.stamp(L1, LEG["front"], S["boot_art"], dy=7)
+    BELTS[look["belt"]](c)
     if S.get("belt_art"):
-        t2.stamp(BODY["front"], S["belt_art"], P, dy=7)
-    fill(t2, LEG["top"], M)
-    fill(t2, LEG["bottom"], solid(P["o"]))
-    LEGS[L["legs"]](t2, P, M, Sc)
-    cover_cuts(t1, t2, S.get("cover", "standard"), L)
-    trim_arms(t1, S.get("arm_cut", "both"))
-    shade(t1.img, P)
-    shade(t2.img, P)
-    return t1.img, t2.img
+        c.stamp(L2, BODY["front"], S["belt_art"], dy=7)
+    paint_cells(L2, LEG["top"], c.M)
+    paint_cells(L2, LEG["bottom"], solid("O", 0))
+    LEGS[look["legs"]](c)
+    if S.get("leg_art"):
+        c.stamp(L2, LEG["right"], S["leg_art"])
+        c.stamp(L2, LEG["front"], S["leg_art"])
+    cover_cuts(c, S.get("cover", "standard"))
+    trim_arms(L1, S.get("arm_cut", "both"))
+    shade(L1, P)
+    shade(L2, P)
+    t1, t2 = resolve(L1, P), resolve(L2, P)
+    # helmet shell faces (read by the 3D helmet's atlas): the set's own pattern, as before
+    old = PATTERNS[S["pattern"]]
+    for k in ("top", "right", "left", "back", "front"):
+        x0, y0, w, hh = HEAD[k]
+        for v in range(hh):
+            for u in range(w):
+                t1.putpixel((x0 + u, y0 + v), old(P, u, v, w, hh, x0 + u, y0 + v) + (255,))
+    x0, y0, w, hh = HEAD["bottom"]
+    for v in range(hh):
+        for u in range(w):
+            t1.putpixel((x0 + u, y0 + v), P["o"] + (255,))
+    return t1, t2
 
 
+def paint_cells(L, rect, fn):
+    fill(L, rect, fn, new_piece())
 # ============================================================ icons from the textures
 def _outline(img, c):
     px = img.load()
