@@ -1453,6 +1453,10 @@ LOOKS = {
  "oxidized": ("segmented", "stacked", "chain", "rope", "chain", "sabaton", "checker", "cape", ("patina", "M"), ("plate", "S"), "full"),
  "candy": ("uniform", "drape", "spiked", "pouches", "patched", "fur", "line", "cross", ("candy", "M"), ("quilt", "S"), "light"),
  "vampire": ("uniform", "drape", "spiked", "studded", "quilted", "pointed", "line", "cape", ("cloth", "M"), ("cloth", "S"), "standard"),
+ "witherbane": ("cuirass", "horned", "spiked", "tassets", "armored", "sabaton", "line", "spine", ("plate", "M"), ("chain", "S"), "full"),
+ "dreadwyrm": ("scale", "spiked", "spiked", "chain", "scale", "clawed", "zigzag", "wings", ("scale", "M"), ("leather", "S"), "full"),
+ "leviathan": ("core", "crystal", "chain", "skirt", "scale", "pointed", "gem", "circle", ("wave", "M"), ("scale", "S"), "full"),
+ "revenant": ("cloak", "drape", "wrapped", "rope", "robe", "pointed", "line", "cape", ("plate", "M"), ("cloth", "S"), "full"),
  "halloween": ("brigandine", "spiked", "gauntlet", "chain", "armored", "clawed", "line", "none", ("pumpkin", "M"), ("cloth", "S"), "standard"),
 }
 PARTS = ("chest", "shoulders", "arms", "belt", "legs", "boots")

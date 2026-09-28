@@ -555,8 +555,11 @@ NAME_FIX = {"DRAGON_BREATH": "Dragon's Breath", "NETHERITE_INGOT": "Netherite In
             "HONEY_BOTTLE": "Honey Bottle", "JACK_O_LANTERN": "Jack o'Lantern"}
 
 
+RELIC_NAMES = {}   # "ns:id" -> display name, for boss relics used as recipe ingredients (armor_sets3)
+
+
 def mat_name(m):
-    return NAME_FIX.get(m) or m.replace("_", " ").title()
+    return RELIC_NAMES.get(m) or NAME_FIX.get(m) or m.replace("_", " ").title()
 
 
 def esc(s):
@@ -574,8 +577,9 @@ def all_recipes(S, ns):
     for item in PIECES + TOOLS + ("bow", "shield"):
         shape = RECIPE_SHAPES[item]
         out.append((f"{S['id']}_{item}", shape, ingredients(S, shape)))
-    for kind, shape in SCROLL_SHAPES.items():
-        out.append((f"{S['id']}_scroll_{kind}", shape, ingredients(S, shape)))
+    if not S.get("elite"):   # elite scrolls only come from their boss
+        for kind, shape in SCROLL_SHAPES.items():
+            out.append((f"{S['id']}_scroll_{kind}", shape, ingredients(S, shape)))
     return out
 
 
@@ -606,7 +610,10 @@ def scroll_lore(S, kind, story):
         out += ["&f", f"{c}Makes: &f{S['name']} {item.capitalize()}"]
         out += recipe_lore(shape, ingredients(S, shape))
     mob, chance = S["mob"]
-    out += ["&f", f"&8Craft this scroll, or take it from a {mat_name(mob)}."]
+    if S.get("elite"):
+        out += ["&f", f"&8Only the {mat_name(mob)} carries this scroll."]
+    else:
+        out += ["&f", f"&8Craft this scroll, or take it from a {mat_name(mob)}."]
     return out
 
 
@@ -614,7 +621,14 @@ def ylist(lines, indent="      "):
     return "".join(f"{indent}- '{esc(line)}'\n" for line in lines)
 
 
+# elite sets (boss relics in every recipe) sit a clear step above the rest
+ELITE_ARMOR, ELITE_TOUGH, ELITE_DURA = (4, 9, 7, 4), 5.0, (700, 1000, 940, 820)
+ELITE_TOOL_BONUS, ELITE_TOOL_DURA = 2, 4000
+
+
 def stats_of(S):
+    if S.get("elite"):
+        return {p: (a, d) for p, a, d in zip(PIECES, ELITE_ARMOR, ELITE_DURA)}, ELITE_TOUGH
     armor, tough = COVER_STATS[S.get("cover", "standard")]
     return {p: (a, d) for p, a, d in zip(PIECES, armor, ARMOR_DURA)}, tough
 
@@ -633,13 +647,17 @@ def perk_text(S):
 def configs(S, ns):
     armor, tough = stats_of(S)
     extra = S.get("perk", {})
-    lore = "    lore:\n" + ylist(["&f"] + S["lore"] + ["&f", perk_text(S), "&8A step above netherite"])
+    elite = S.get("elite")
+    tag = f"&5Elite &8- needs the {S['relic']['name']} of the {mat_name(S['relic']['mob'])}" if elite \
+        else "&8A step above netherite"
+    lore = "    lore:\n" + ylist(["&f"] + S["lore"] + ["&f", perk_text(S), tag])
 
     items = []
     for piece in PIECES:
         a, dura = armor[piece]
         stat = "".join(f"\n        {k}: {v}" for k, v in
-                       {"armor": a, "armorToughness": tough, "knockbackResistance": 0.1, **extra}.items())
+                       {"armor": a, "armorToughness": tough, "knockbackResistance": 0.15 if elite else 0.1,
+                        **extra}.items())
         name = f"'{S['color']}{S['name']} {piece.capitalize()}'"
         if piece == "helmet":
             items.append(f"""  {S['id']}_helmet:
@@ -679,10 +697,10 @@ def configs(S, ns):
       model_path: item/{S['id']}_{tool}
       icon: item/{S['id']}_{tool}_icon
     durability:
-      max_custom_durability: {TOOL_DURA}
+      max_custom_durability: {ELITE_TOOL_DURA if elite else TOOL_DURA}
     attribute_modifiers:
       mainhand:
-        attackDamage: {TOOL_DAMAGE[tool]}
+        attackDamage: {TOOL_DAMAGE[tool] + (ELITE_TOOL_BONUS if elite and tool != "hoe" else 0)}
         attackSpeed: {TOOL_SPEED[tool]}""")
     items.append(f"""  {S['id']}_bow:
     enabled: true
@@ -693,7 +711,7 @@ def configs(S, ns):
       model_path: item/{S['id']}_bow
       icon: item/{S['id']}_bow_icon
     durability:
-      max_custom_durability: {BOW_DURA}""")
+      max_custom_durability: {BOW_DURA * 2 if elite else BOW_DURA}""")
     items.append(f"""  {S['id']}_shield:
     enabled: true
     display_name: '{S['color']}{S['name']} Shield'
@@ -702,7 +720,7 @@ def configs(S, ns):
       generate: false
       model_path: item/{S['id']}_shield
     durability:
-      max_custom_durability: {SHIELD_DURA}
+      max_custom_durability: {SHIELD_DURA * 2 if elite else SHIELD_DURA}
     attribute_modifiers:
       offhand:
         knockbackResistance: 0.1""")
@@ -729,6 +747,27 @@ def configs(S, ns):
           min_amount: 1
           max_amount: 1
           chance: {chance}""")
+    if elite:
+        R = S["relic"]
+        items.append(f"""  {R['id']}:
+    enabled: true
+    display_name: '{S['color']}{R['name']}'
+    lore:
+{ylist(["&f"] + R["lore"] + ["&f", f"&8Needed for every {S['name']} piece.", f"&8Dropped by the {mat_name(R['mob'])}."]).rstrip(chr(10))}
+    resource:
+      material: FLINT
+      generate: true
+      textures:
+        - item/{R['id']}""")
+        loots.append(f"""    {R['id']}:
+      enabled: true
+      type: {R['mob']}
+      items:
+        relic:
+          item: {ns}:{R['id']}
+          min_amount: {R['min']}
+          max_amount: {R['max']}
+          chance: 100""")
     recs = []
     for item, shape, ing in all_recipes(S, ns):
         recs.append(f"""    {item}:
@@ -755,7 +794,8 @@ equipments:
     layer_2: armor/{S['id']}_armor/layer_2
 """
     listed = [f"{S['id']}_scroll_{k}" for k in SCROLL_SHAPES] + [f"{S['id']}_{p}" for p in PIECES] + \
-        [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow", f"{S['id']}_shield"]
+        [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow", f"{S['id']}_shield"] + \
+        ([S["relic"]["id"]] if elite else [])
     cat_yml = f"""info:
   namespace: {ns}
 categories:
@@ -773,6 +813,17 @@ loots:
 {chr(10).join(loots)}
 """
     return items_yml, equip_yml, cat_yml, loots_yml
+
+
+def relic_icon(S):
+    """16x16 boss relic drawn from its palette-letter art."""
+    P = S["pal"]
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for y, row in enumerate(S["relic"]["art"]):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), P[ch] + (255,))
+    return img
 
 
 def build_set(S, base, write, animate, mcmeta):
@@ -831,6 +882,8 @@ def build_set(S, base, write, animate, mcmeta):
     import scroll_art as SA
     for kind in SCROLL_SHAPES:   # each set has its own scroll form; also the /ia category icon
         write(f"{base}/textures/item/{ns}_scroll_{kind}.png", SA.icon(S, kind))
+    if S.get("relic"):
+        write(f"{base}/textures/item/{S['relic']['id']}.png", relic_icon(S))
     items_yml, equip_yml, cat_yml, loots_yml = configs(S, ns)
     write(f"{base}/configs/items.yml", items_yml)
     write(f"{base}/configs/equipments.yml", equip_yml)

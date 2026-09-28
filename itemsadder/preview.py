@@ -108,7 +108,10 @@ def render(l1, l2, atlas, parts, yaw_deg, size=(640, 760), scale=12, skin=(196, 
     for p in parts:
         add_box((p["from"], p["to"]), {f: (atlas, r) for f, r in p["faces"].items()}, rot=p.get("rot"))
     # parts are drawn depth-sorted together with the armor so they can sit behind the body
-    polys.sort(key=lambda q: (min(q[0], 2), -q[1]))
+    # skin first, then armor and parts depth-sorted together (so parts can sit behind the body);
+    # head parts behind the middle of the head (a hood's back panel) sort in with the skin instead
+    mid = cam((0, 28, 0))[2]
+    polys.sort(key=lambda q: (0 if q[0] == 3 and q[1] > mid + 2 else min(q[0], 2), -q[1]))
     img = Image.new("RGB", size, (24, 24, 28))
     dr = ImageDraw.Draw(img)
     cx, cy = size[0] // 2, int(size[1] * 0.53)
