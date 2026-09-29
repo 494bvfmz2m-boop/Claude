@@ -40,6 +40,8 @@ import demon        # noqa: E402
 
 OUT = os.path.join(ROOT, "itemsadder", "build")
 ZIP = os.path.join(ROOT, "itemsadder", "crimson_demon_pack.zip")
+SEPARATE = {os.path.join(ROOT, "itemsadder", "crimson_set.zip"): ["crimson-gear"],
+            os.path.join(ROOT, "itemsadder", "nyxite_set.zip"): ["nyxite"]}
 FRAMES, FRAMETIME = 16, 2
 
 CRIMSON_GLOW = {(255, 64, 52), (255, 150, 110), (255, 196, 110), (224, 40, 44), (255, 214, 190)}
@@ -802,14 +804,23 @@ def main():
     COS.build(f"{OUT}/{COS.NS}", write, animate, MCMETA)
     for S in AS.SETS + AS2.SETS2 + AS3.SETS3 + AS4.SETS4:   # the themed armor sets, one content folder + category each
         AE.build_set(S, f"{OUT}/{S['id']}", write, animate, MCMETA)
-    with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
-        for folder, _, files in sorted(os.walk(OUT)):
-            rel = os.path.relpath(folder, OUT)
-            if rel != ".":
-                z.write(folder, rel + "/")
-            for f in sorted(files):
-                z.write(os.path.join(folder, f), os.path.join(rel, f))
+    # Crimson and Nyxite ship as their own zips; the main pack holds everything else
+    for zpath, folders in SEPARATE.items():
+        zip_folders(zpath, folders)
+        print(zpath)
+    rest = sorted(f for f in os.listdir(OUT) if not any(f in v for v in SEPARATE.values()))
+    zip_folders(ZIP, rest)
     print(ZIP)
+
+
+def zip_folders(zpath, folders):
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        for top in folders:
+            for folder, _, files in sorted(os.walk(os.path.join(OUT, top))):
+                rel = os.path.relpath(folder, OUT)
+                z.write(folder, rel + "/")
+                for f in sorted(files):
+                    z.write(os.path.join(folder, f), os.path.join(rel, f))
 
 
 if __name__ == "__main__":
