@@ -12,7 +12,11 @@
 
   var base = window.SITE_CONTENT;
   var data;
-  var fromBrowser = false;
+  var fromBrowser = false; // er is een opgeslagen versie (browser of online)
+  var cloud = window.AdminCloud && window.AdminCloud.configured ? window.AdminCloud : null;
+  var access = null; // "owner" of "admin" als je online bent ingelogd
+  var remoteUpdated = ""; // tijdstip van de online versie waar we mee begonnen
+  var saving = false;
   var dirty = false;
   var current = "algemeen";
 
@@ -355,6 +359,7 @@
       list.push({ id: "ch-" + ch.id, label: String(i + 1).padStart(2, "0") + " " + (ch.nav || ch.id), group: "Deelvragen", chapter: ch, index: i });
     });
     list.push({ id: "conclusie", label: "Conclusie", group: "Afsluiting" }, { id: "bronnen", label: "Bronnen", group: "Afsluiting" }, { id: "voettekst", label: "Voettekst", group: "Afsluiting" });
+    if (access) list.push({ id: "beheerders", label: "Beheerders", group: "Account" });
     return list;
   }
 
@@ -457,6 +462,51 @@
           ]),
         ]),
       ]);
+    },
+
+    beheerders: function () {
+      var owner = access === "owner";
+      var listBox = h("div", { class: "admin-list" }, [h("p", { class: "hint", text: "Laden…" })]);
+      var parts = [];
+      if (owner) {
+        var input = h("input", { type: "email", placeholder: "naam@voorbeeld.nl", autocomplete: "off", id: "inviteEmail" });
+        var btn = h("button", { type: "submit", class: "btn primary", text: "Uitnodigen" });
+        var form = h("form", { class: "invite-form" }, [
+          h("div", { class: "field wide" }, [h("label", { for: "inviteEmail", text: "E-mailadres van de nieuwe beheerder" }), h("div", { class: "invite-row" }, [input, btn])]),
+          h("p", { class: "hint", text: "Diegene krijgt een mail met een link. Via die link maakt hij of zij een account met een zelfgekozen wachtwoord. Daarna kan diegene hier inloggen en alle teksten aanpassen." }),
+        ]);
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var email = input.value.trim();
+          if (!email) return input.focus();
+          btn.disabled = true;
+          btn.textContent = "Versturen…";
+          cloud
+            .invite(email)
+            .then(function () {
+              toast("Uitnodiging verstuurd naar " + email.toLowerCase() + ".", "ok");
+              input.value = "";
+              loadAdmins(listBox);
+            })
+            .catch(function (err) {
+              toast(err.message, "error");
+            })
+            .then(function () {
+              btn.disabled = false;
+              btn.textContent = "Uitnodigen";
+            });
+        });
+        parts.push(card("Beheerder toevoegen", [form]));
+      }
+      parts.push(card("Wie mag de teksten aanpassen?", [listBox]));
+      loadAdmins(listBox);
+      return section(
+        "Beheerders",
+        owner
+          ? "Jij bent de hoofdbeheerder. Alleen jij kunt beheerders toevoegen en verwijderen."
+          : "Alleen de hoofdbeheerder (" + cloud.ownerEmail + ") kan beheerders toevoegen en verwijderen.",
+        parts
+      );
     },
 
     bronnen: function () {
@@ -577,6 +627,85 @@
       );
     }
     return section(String(index + 1).padStart(2, "0") + " · " + (ch.nav || ch.title), ch.title, parts);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function loadAdmins(box) {
+    var owner = access === "owner";
+    cloud
+      .listAdmins()
+      .then(function (list) {
+        box.innerHTML = "";
+        var rows = [{ email: cloud.ownerEmail, status: "owner" }].concat(
+          list.filter(function (a) {
+            return a.email !== cloud.ownerEmail;
+          })
+        );
+        rows.forEach(function (a) {
+          var badge =
+            a.status === "owner"
+              ? h("span", { class: "badge owner", text: "Hoofdbeheerder" })
+              : a.status === "active"
+              ? h("span", { class: "badge ok", text: "Actief" })
+              : h("span", { class: "badge wait", text: "Uitgenodigd " + fmtDate(a.invitedAt) });
+          var tools = [];
+          if (owner && a.status !== "owner") {
+            if (a.status !== "active")
+              tools.push(
+                h("button", {
+                  type: "button",
+                  class: "btn small-inline",
+                  text: "Opnieuw sturen",
+                  onclick: function (e) {
+                    var b = e.currentTarget;
+                    b.disabled = true;
+                    cloud
+                      .invite(a.email)
+                      .then(function () {
+                        toast("Uitnodiging opnieuw verstuurd naar " + a.email + ".", "ok");
+                        loadAdmins(box);
+                      })
+                      .catch(function (err) {
+                        b.disabled = false;
+                        toast(err.message, "error");
+                      });
+                  },
+                })
+              );
+            tools.push(
+              h("button", {
+                type: "button",
+                class: "btn small-inline danger",
+                text: "Verwijderen",
+                onclick: function () {
+                  if (!window.confirm(a.email + " verwijderen? Diegene kan daarna niets meer aanpassen.")) return;
+                  cloud
+                    .removeAdmin(a.email)
+                    .then(function () {
+                      toast(a.email + " is geen beheerder meer.", "ok");
+                      loadAdmins(box);
+                    })
+                    .catch(function (err) {
+                      toast(err.message, "error");
+                    });
+                },
+              })
+            );
+          }
+          box.appendChild(h("div", { class: "admin-row" }, [h("span", { class: "admin-email", text: a.email }), badge, h("div", { class: "tools" }, tools)]));
+        });
+        if (rows.length === 1) box.appendChild(h("p", { class: "hint", text: "Nog geen andere beheerders." }));
+      })
+      .catch(function (err) {
+        box.innerHTML = "";
+        box.appendChild(h("p", { class: "warn", text: err.message }));
+      });
   }
 
   // --- geschatte duur van de rondleiding ------------------------------------------
@@ -750,21 +879,64 @@
     data.updated = new Date().toISOString();
   }
 
-  function save() {
-    var p = problems();
-    if (p.length && !window.confirm("Let op:\n\n• " + p.join("\n• ") + "\n\nToch opslaan?")) return false;
-    stamp();
+  function cacheLocally() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return true;
     } catch (e) {
-      toast("Opslaan in de browser lukt niet. Gebruik “Opslaan als content.js”.", "error");
       return false;
     }
-    fromBrowser = true;
-    sourceEl.textContent = "opgeslagen in deze browser";
-    setDirty(false);
-    toast("Opgeslagen — de site is bijgewerkt (herlaad als hij al open staat).", "ok");
-    return true;
+  }
+
+  function savedLabel(updated, by) {
+    if (!cloud) return "opgeslagen in deze browser";
+    return "online opgeslagen" + (updated ? " · " + fmtDate(updated) : "") + (by ? " door " + by : "");
+  }
+
+  async function save() {
+    if (saving) return false;
+    var p = problems();
+    if (p.length && !window.confirm("Let op:\n\n• " + p.join("\n• ") + "\n\nToch opslaan?")) return false;
+    if (!cloud) {
+      stamp();
+      if (!cacheLocally()) {
+        toast("Opslaan in de browser lukt niet. Gebruik “Opslaan als content.js”.", "error");
+        return false;
+      }
+      fromBrowser = true;
+      sourceEl.textContent = savedLabel();
+      setDirty(false);
+      toast("Opgeslagen — de site is bijgewerkt (herlaad als hij al open staat).", "ok");
+      return true;
+    }
+    saving = true;
+    var btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "Opslaan…";
+    try {
+      // heeft iemand anders intussen ook opgeslagen?
+      var remote = await cloud.loadContent();
+      var me = (cloud.user().email || "").toLowerCase();
+      if (remote && remote.updated > remoteUpdated && remote.updatedBy !== me) {
+        if (!window.confirm(remote.updatedBy + " heeft om " + fmtDate(remote.updated) + " ook teksten opgeslagen. Wil je die overschrijven met jouw versie?")) return false;
+      }
+      stamp();
+      await cloud.saveContent(data);
+      remoteUpdated = data.updated;
+      cacheLocally();
+      fromBrowser = true;
+      sourceEl.textContent = savedLabel(data.updated, me);
+      setDirty(false);
+      toast("Online opgeslagen — de site toont de nieuwe teksten (een open site werkt zichzelf binnen een paar minuten bij).", "ok");
+      return true;
+    } catch (err) {
+      toast("Opslaan mislukt: " + err.message, "error");
+      return false;
+    } finally {
+      saving = false;
+      btn.disabled = false;
+      btn.textContent = "Opslaan";
+    }
   }
 
   function fileText() {
@@ -825,6 +997,15 @@
   }
 
   function reset() {
+    if (cloud) {
+      if (!window.confirm("De standaardteksten uit js/content.js in de editor laden? Pas na Opslaan komen ze online te staan.")) return;
+      data = clone(base);
+      normalize();
+      changed();
+      renderPanel();
+      toast("Standaardteksten geladen. Klik op Opslaan om ze online te zetten.", "ok");
+      return;
+    }
     if (!window.confirm("Alle aanpassingen in deze browser weggooien en terug naar de teksten uit js/content.js?")) return;
     try {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -865,7 +1046,7 @@
   document.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
-      save();
+      if (data && !app.hidden) save();
     }
   });
   window.addEventListener("beforeunload", function (e) {
@@ -874,19 +1055,227 @@
     e.returnValue = "";
   });
 
+  // --- inloggen ----------------------------------------------------------------------
+
+  var gate = document.getElementById("gate");
+  var app = document.getElementById("app");
+  var userBox = document.getElementById("userBox");
+
+  function showGate(title, lede, body) {
+    app.hidden = true;
+    document.body.classList.add("gated");
+    gate.innerHTML = "";
+    gate.appendChild(
+      h("div", { class: "gate-card" }, [
+        h("div", { class: "gate-brand" }, [h("span", { class: "mark", "aria-hidden": "true" }), h("span", { text: "Beheer" })]),
+        h("h1", { text: title }),
+        lede ? h("p", { class: "lede", text: lede }) : null,
+      ].concat(body || []))
+    );
+    gate.hidden = false;
+    var first = Array.prototype.filter.call(gate.querySelectorAll("input"), function (i) {
+      return !i.value;
+    })[0];
+    if (first) first.focus();
+  }
+
+  function gateForm(fields, submitLabel, onSubmit, extra) {
+    var err = h("p", { class: "warn", hidden: true, role: "alert" });
+    var btn = h("button", { type: "submit", class: "btn primary big", text: submitLabel });
+    var form = h("form", { class: "gate-form" }, fields.concat([err, btn], extra || []));
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      err.hidden = true;
+      btn.disabled = true;
+      var label = btn.textContent;
+      btn.textContent = "Even geduld…";
+      Promise.resolve()
+        .then(onSubmit)
+        .catch(function (e2) {
+          err.textContent = e2.message;
+          err.hidden = false;
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = label;
+        });
+    });
+    return form;
+  }
+
+  function inputField(id, label, type, value, auto) {
+    return h("div", { class: "field" }, [h("label", { for: id, text: label }), h("input", { id: id, type: type, value: value || "", autocomplete: auto, required: true })]);
+  }
+
+  function val(id) {
+    return document.getElementById(id).value;
+  }
+
+  function showLogin(msg) {
+    var forgot = h("button", {
+      type: "button",
+      class: "link-btn",
+      text: "Wachtwoord vergeten?",
+      onclick: function () {
+        var email = val("loginEmail").trim();
+        if (!email) {
+          toast("Vul eerst je e-mailadres in.", "error");
+          document.getElementById("loginEmail").focus();
+          return;
+        }
+        cloud
+          .resetPassword(email)
+          .then(function () {
+            toast("Als dit adres een account heeft, is er een mail gestuurd om een nieuw wachtwoord te kiezen.", "ok");
+          })
+          .catch(function (e) {
+            toast(e.message, "error");
+          });
+      },
+    });
+    showGate("Inloggen", msg || "Log in om de teksten en tijden van de site aan te passen.", [
+      gateForm(
+        [inputField("loginEmail", "E-mailadres", "email", "", "username"), inputField("loginPassword", "Wachtwoord", "password", "", "current-password")],
+        "Inloggen",
+        function () {
+          return cloud.signIn(val("loginEmail"), val("loginPassword"));
+        },
+        [forgot]
+      ),
+    ]);
+  }
+
+  function showInvite() {
+    var email = cloud.inviteEmail();
+    showGate("Account aanmaken", "Je bent uitgenodigd als beheerder van de site. Kies een wachtwoord; daarmee log je voortaan in.", [
+      gateForm(
+        [
+          inputField("inviteMail", "Je e-mailadres (waar de uitnodiging naartoe ging)", "email", email, "username"),
+          inputField("invitePw", "Kies een wachtwoord (minstens 8 tekens)", "password", "", "new-password"),
+          inputField("invitePw2", "Herhaal het wachtwoord", "password", "", "new-password"),
+        ],
+        "Account aanmaken",
+        function () {
+          if (val("invitePw") !== val("invitePw2")) throw new Error("De twee wachtwoorden zijn niet hetzelfde.");
+          return cloud.completeInvite(val("inviteMail"), val("invitePw")).then(function () {
+            toast("Je account is klaar. Welkom!", "ok");
+            watchUser();
+          });
+        }
+      ),
+    ]);
+  }
+
+  function showNoAccess(user) {
+    showGate("Geen toegang", "Je bent ingelogd als " + user.email + ", maar dit adres is (nog) geen beheerder. Vraag de hoofdbeheerder om je uit te nodigen.", [
+      h("button", {
+        type: "button",
+        class: "btn big",
+        text: "Uitloggen",
+        onclick: function () {
+          cloud.signOut();
+        },
+      }),
+    ]);
+  }
+
+  var watching = false;
+  function watchUser() {
+    if (watching) return;
+    watching = true;
+    cloud.onUser(function (user) {
+      if (!user) {
+        access = null;
+        showLogin();
+        return;
+      }
+      showGate("Even geduld…", "Gegevens ophalen.");
+      cloud
+        .access(user)
+        .then(function (a) {
+          if (!a) return showNoAccess(user);
+          access = a;
+          return cloud.loadContent().then(function (remote) {
+            var ok = remote && remote.content && remote.content.version === base.version;
+            remoteUpdated = ok ? remote.updated : "";
+            openEditor(ok ? remote.content : null, ok ? savedLabel(remote.updated, remote.updatedBy) : "nog niets online opgeslagen · teksten uit js/content.js");
+            showUser(user);
+          });
+        })
+        .catch(function (e) {
+          showGate("Er ging iets mis", e.message, [
+            h("button", {
+              type: "button",
+              class: "btn big",
+              text: "Opnieuw proberen",
+              onclick: function () {
+                location.reload();
+              },
+            }),
+          ]);
+        });
+    });
+  }
+
+  function showUser(user) {
+    userBox.innerHTML = "";
+    userBox.appendChild(h("span", { class: "user-email", text: user.email, title: access === "owner" ? "Hoofdbeheerder" : "Beheerder" }));
+    userBox.appendChild(
+      h("button", {
+        type: "button",
+        class: "btn ghost",
+        text: "Uitloggen",
+        onclick: function () {
+          if (dirty && !window.confirm("Je hebt niet-opgeslagen wijzigingen. Toch uitloggen?")) return;
+          setDirty(false);
+          cloud.signOut();
+        },
+      })
+    );
+    userBox.hidden = false;
+  }
+
+  function showSetup() {
+    showGate(
+      "Online inloggen is nog niet ingesteld",
+      "Zolang er geen Firebase-project is gekoppeld (js/firebase-config.js), is er geen login en worden aanpassingen alleen in deze browser bewaard. In de README staat hoe je het in ongeveer 10 minuten instelt.",
+      [
+        h("button", {
+          type: "button",
+          class: "btn primary big",
+          text: "Doorgaan — alleen in deze browser",
+          onclick: function () {
+            var saved = loadSaved();
+            fromBrowser = !!saved;
+            openEditor(saved, saved ? savedLabel() : "teksten uit js/content.js");
+          },
+        }),
+      ]
+    );
+  }
+
   // --- start -------------------------------------------------------------------------
 
+  function openEditor(content, label) {
+    data = clone(content || base);
+    fromBrowser = !!content;
+    normalize();
+    sourceEl.textContent = label;
+    var start = location.hash.slice(1);
+    if (start) current = start;
+    document.getElementById("resetBtn").textContent = cloud ? "Standaardteksten laden" : "Terugzetten naar content.js";
+    gate.hidden = true;
+    document.body.classList.remove("gated");
+    app.hidden = false;
+    renderPanel();
+    setDirty(false);
+  }
+
   if (!base) {
-    panel.appendChild(h("p", { class: "warn", text: "js/content.js niet gevonden. Open deze pagina vanuit de map admin/ van de website." }));
+    showGate("Fout", "js/content.js niet gevonden. Open deze pagina vanuit de map admin/ van de website.");
     return;
   }
-  var saved = loadSaved();
-  fromBrowser = !!saved;
-  data = clone(saved || base);
-  normalize();
-  sourceEl.textContent = fromBrowser ? "opgeslagen in deze browser" : "teksten uit js/content.js";
-  var start = location.hash.slice(1);
-  if (start) current = start;
-  renderPanel();
-  setDirty(false);
+  if (!cloud) showSetup();
+  else if (cloud.isInviteLink()) showInvite();
+  else watchUser();
 })();

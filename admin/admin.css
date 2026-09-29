@@ -631,3 +631,192 @@ textarea {
     grid-column: 1 / -1;
   }
 }
+
+/* --- inloggen --- */
+
+.gate {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(242, 183, 5, 0.12), transparent 60%),
+    var(--bg);
+}
+
+.gate[hidden] {
+  display: none;
+}
+
+.gate-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.gate-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  font: 700 1.2rem/1 var(--font-head);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.gate-card h1 {
+  margin: 0;
+  font: 700 2.2rem/1.05 var(--font-head);
+  color: var(--white);
+}
+
+.gate-card .lede {
+  margin: 10px 0 0;
+}
+
+.gate-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.gate-card > .btn {
+  margin-top: 24px;
+  width: 100%;
+}
+
+.btn.big {
+  padding: 13px 18px;
+  font-size: 1rem;
+}
+
+.link-btn {
+  justify-self: center;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.88rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--accent);
+}
+
+.warn[hidden] {
+  display: none;
+}
+
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-box[hidden] {
+  display: none;
+}
+
+.user-email {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* --- beheerders --- */
+
+.invite-form {
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.invite-row {
+  display: flex;
+  gap: 10px;
+}
+
+.invite-row input {
+  flex: 1;
+}
+
+.admin-list {
+  grid-column: 1 / -1;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-row:last-of-type {
+  border-bottom: 0;
+}
+
+.admin-email {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.owner {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge.ok {
+  background: rgba(62, 207, 122, 0.14);
+  color: var(--ok);
+}
+
+.badge.wait {
+  background: rgba(141, 154, 165, 0.14);
+  color: var(--muted);
+}
+
+.btn.small-inline {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 860px) {
+  .user-email {
+    display: none;
+  }
+
+  .admin-row {
+    flex-wrap: wrap;
+  }
+
+  .invite-row {
+    flex-direction: column;
+  }
+}

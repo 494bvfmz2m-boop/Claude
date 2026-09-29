@@ -17,3 +17,15 @@ await build({
   legalComments: "none",
   logLevel: "info",
 });
+
+// Inloggen en online opslag van de beheerpagina (Firebase).
+await build({
+  entryPoints: ["src/admin-cloud.js"],
+  bundle: true,
+  format: "iife",
+  minify: true,
+  target: ["es2019"],
+  outfile: "admin/firebase.js",
+  legalComments: "none",
+  logLevel: "info",
+});
