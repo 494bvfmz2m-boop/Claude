@@ -142,8 +142,11 @@ async function handleGiveawayCommand(interaction) {
   if (sub === 'reroll') return handleGiveawayReroll(interaction);
 }
 
+// Falls back to the clicked message when the button's id doesn't resolve --
+// giveaways posted before the create-first fix can have a button stuck on
+// id 0, and the message itself still identifies the giveaway exactly.
 async function handleGiveawayEnter(interaction, giveawayId) {
-  const giveaway = Giveaways.get(giveawayId);
+  const giveaway = Giveaways.get(giveawayId) || Giveaways.getByMessage(interaction.message.id);
   if (!giveaway || giveaway.ended) {
     return interaction.reply({ content: 'This giveaway has already ended.', ephemeral: true });
   }

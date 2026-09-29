@@ -45,26 +45,36 @@ async function handleEventCommand(interaction) {
   const description = interaction.options.getString('description');
   const time = interaction.options.getString('time');
 
-  const draft = { id: 0, title, description, event_time: time, hosted_by: interaction.user.tag, going: [], maybe: [], not_going: [] };
-  await interaction.reply(buildEventMessage(draft));
-  const message = await interaction.fetchReply();
-
+  // Row first so the very first post already carries the real id in its
+  // buttons -- same reasoning as createGiveaway in giveaway.js.
   const id = EventsRepo.create({
     guildId: interaction.guildId,
-    channelId: message.channelId,
-    messageId: message.id,
+    channelId: interaction.channelId,
+    messageId: '',
     title,
     description,
     eventTime: time,
     hostedBy: interaction.user.tag,
   });
 
-  await message.edit(buildEventMessage({ ...draft, id })).catch(() => {});
+  try {
+    await interaction.reply(buildEventMessage({
+      id, title, description, event_time: time, hosted_by: interaction.user.tag, going: [], maybe: [], not_going: [],
+    }));
+    const message = await interaction.fetchReply();
+    EventsRepo.setMessageId(id, message.id);
+  } catch (err) {
+    EventsRepo.delete(id);
+    throw err;
+  }
 }
 
-async function handleEventResponse(interaction, eventId, response) {
+// Looked up by the clicked message rather than the id in the button -- the
+// message IS the event, so that's authoritative, and it keeps events posted
+// before the create-first fix (buttons stuck on id 0) working.
+async function handleEventResponse(interaction, _eventId, response) {
   const event = EventsRepo.getByMessage(interaction.message.id);
-  if (!event || event.id !== eventId) {
+  if (!event) {
     return interaction.reply({ content: "Couldn't find this event anymore.", ephemeral: true });
   }
 

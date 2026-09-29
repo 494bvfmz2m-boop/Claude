@@ -320,4 +320,6 @@ async function registerAllGuildCommands(client) {
   await Promise.all([...client.guilds.cache.values()].map(registerCommandsForGuild));
 }
 
-module.exports = { registerAllGuildCommands, registerCommandsForGuild };
+const COMMAND_NAMES = new Set(commands.map((c) => c.name));
+
+module.exports = { registerAllGuildCommands, registerCommandsForGuild, COMMAND_NAMES };

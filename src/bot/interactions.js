@@ -14,6 +14,7 @@ const afk = require('./afk');
 const qol = require('./qol');
 const reminders = require('./reminders');
 const config = require('../config');
+const { COMMAND_NAMES } = require('./commands');
 const { buildServerListEmbed } = require('./ownerPanel');
 const dmForm = require('./dmForm');
 const { handleVerifyClick } = require('./verification');
@@ -22,35 +23,17 @@ const { handleEventResponse } = require('./event');
 const { handleTagAutocomplete } = require('./tags');
 const { handleBetaRequestButton } = require('./betaRequests');
 
-const chatCommandHandlers = {
-  change: startChangeType,
-  ticket: handleTicketCommand,
-  ...moderation,
-  ...promotion,
-  ...info,
-  ...introduction,
-  ...poll,
-  ...help,
-  ...lockdown,
-  ...giveaway,
-  ...event,
-  ...tags,
-  ...afk,
-  ...qol,
-  ...reminders,
-};
-// moderation.js exports these helpers too, not commands
-delete chatCommandHandlers.canActOn;
-delete chatCommandHandlers.logAction;
-delete chatCommandHandlers.parseDuration;
-delete chatCommandHandlers.applyWarningThreshold;
-delete chatCommandHandlers.confirmPurgeAll;
-delete chatCommandHandlers.cancelPurgeAll;
-delete chatCommandHandlers.purgeMessages;
-delete chatCommandHandlers.buildPunishmentEmbed;
-delete chatCommandHandlers.sendPunishmentDM;
-// afk.js exports its messageCreate registrar too, not a command
-delete chatCommandHandlers.register;
+// Feature modules export their helpers alongside their command handlers, so
+// only keys that are actually registered slash commands are kept -- a new
+// helper export can never turn into a phantom command by accident.
+const chatCommandHandlers = Object.fromEntries(
+  Object.entries({
+    ...moderation, ...promotion, ...info, ...introduction, ...poll, ...help, ...lockdown,
+    ...giveaway, ...event, ...tags, ...afk, ...qol, ...reminders,
+    change: startChangeType,
+    ticket: handleTicketCommand,
+  }).filter(([name, fn]) => COMMAND_NAMES.has(name) && typeof fn === 'function'),
+);
 
 function register(client) {
   client.on('interactionCreate', async (interaction) => {

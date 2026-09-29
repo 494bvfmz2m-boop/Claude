@@ -939,11 +939,13 @@ const Tags = {
       .run(guildId, name, content, createdBy || null);
     return info.lastInsertRowid;
   },
-  update(id, content) {
-    db.prepare('UPDATE tags SET content = ? WHERE id = ?').run(content, id);
+  // Scoped by guild in the query itself, so an id from another server's tag
+  // (e.g. a tampered dashboard form) can never touch it.
+  update(guildId, id, content) {
+    db.prepare('UPDATE tags SET content = ? WHERE id = ? AND guild_id = ?').run(content, id, guildId);
   },
-  delete(id) {
-    db.prepare('DELETE FROM tags WHERE id = ?').run(id);
+  delete(guildId, id) {
+    db.prepare('DELETE FROM tags WHERE id = ? AND guild_id = ?').run(id, guildId);
   },
 };
 
@@ -1047,6 +1049,9 @@ const Events = {
     const e = db.prepare('SELECT * FROM events WHERE message_id = ?').get(messageId);
     if (!e) return null;
     return { ...e, going: parseJSON(e.going, []), maybe: parseJSON(e.maybe, []), not_going: parseJSON(e.not_going, []) };
+  },
+  setMessageId(id, messageId) {
+    db.prepare('UPDATE events SET message_id = ? WHERE id = ?').run(messageId, id);
   },
   setResponse(id, going, maybe, notGoing) {
     db.prepare('UPDATE events SET going = ?, maybe = ?, not_going = ? WHERE id = ?')

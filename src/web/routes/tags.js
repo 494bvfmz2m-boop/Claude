@@ -34,14 +34,14 @@ router.post('/tags/:id', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
   const content = req.body.content?.trim();
-  if (content) Tags.update(req.params.id, content);
+  if (content) Tags.update(guild.id, req.params.id, content);
   res.redirect(`/dashboard/${guild.id}/tags`);
 });
 
 router.post('/tags/:id/delete', async (req, res) => {
   const guild = await getGuildOr404(req, res);
   if (!guild) return;
-  Tags.delete(req.params.id);
+  Tags.delete(guild.id, req.params.id);
   res.redirect(`/dashboard/${guild.id}/tags`);
 });
 

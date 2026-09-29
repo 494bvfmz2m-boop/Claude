@@ -8,13 +8,20 @@ const { ownsGuild } = require('./clientRegistry');
 // of its own renames.
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
+// Skips the rename when the name is already right -- an unchanged count still
+// spends rename budget otherwise, and a rate-limited rename stalls the whole
+// sweep (every other guild waits behind it).
+async function renameIfChanged(channel, name) {
+  if (channel && channel.name !== name) await channel.setName(name).catch(() => {});
+}
+
 async function updateGuildStats(guild) {
   const settings = GuildSettings.get(guild.id);
   if (!settings.stats_members_channel_id && !settings.stats_online_channel_id && !settings.stats_boosts_channel_id) return;
 
   if (settings.stats_members_channel_id) {
     const channel = await guild.channels.fetch(settings.stats_members_channel_id).catch(() => null);
-    if (channel) await channel.setName(`Members: ${guild.memberCount}`).catch(() => {});
+    await renameIfChanged(channel, `Members: ${guild.memberCount}`);
   }
 
   if (settings.stats_online_channel_id) {
@@ -24,13 +31,13 @@ async function updateGuildStats(guild) {
       // Presences intent -- a guild that's never warmed its member cache
       // shows 0 rather than fetching everyone just for this number.
       const online = guild.members.cache.filter((m) => m.presence && m.presence.status !== 'offline').size;
-      await channel.setName(`Online: ${online}`).catch(() => {});
+      await renameIfChanged(channel, `Online: ${online}`);
     }
   }
 
   if (settings.stats_boosts_channel_id) {
     const channel = await guild.channels.fetch(settings.stats_boosts_channel_id).catch(() => null);
-    if (channel) await channel.setName(`Boosts: ${guild.premiumSubscriptionCount || 0}`).catch(() => {});
+    await renameIfChanged(channel, `Boosts: ${guild.premiumSubscriptionCount || 0}`);
   }
 }
 

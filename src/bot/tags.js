@@ -36,7 +36,7 @@ async function handleTagDelete(interaction) {
   // getAny -- deleting a currently-disabled tag for good should still work.
   const tag = Tags.getAny(interaction.guildId, name);
   if (!tag) return interaction.reply({ content: `No tag called \`${name}\`.`, ephemeral: true });
-  Tags.delete(tag.id);
+  Tags.delete(interaction.guildId, tag.id);
   return interaction.reply({ content: `Deleted tag \`${name}\`.`, ephemeral: true });
 }
 
