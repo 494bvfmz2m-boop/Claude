@@ -6,7 +6,9 @@ Schoolproject-website over het ontwerp- en productieproces van een auto, met een
 
 Open `index.html` in een browser (dubbelklikken is genoeg, er is geen internet of server nodig). Alle gebruikte informatie staat met bronvermelding onderaan de pagina.
 
-- **W** zet de automatische scroll aan/uit (voor een scherm of beamer op een markt). Onderaan begint hij weer bovenaan, bouwt de auto opnieuw en wacht tot die klaar is.
+- De 3D-animatie bovenaan start vanzelf en begint na afloop opnieuw.
+- **W** zet de rondleiding aan/uit (voor een scherm of beamer op een markt). Hij wacht tot de auto klaar is, scrolt dan van kopje naar kopje en blijft bij elk kopje even staan (hoe lang hangt af van de hoeveelheid tekst; het gele balkje onder het menu laat zien hoe lang nog). Onderaan gaat hij terug naar boven en begint alles opnieuw.
+- De afbeeldingen in `img/` zijn renders uit de 3D-animatie zelf.
 - Computers zonder WebGL krijgen automatisch een eenvoudigere 2D-animatie.
 - `index.html?q=low` forceert de lichtste 3D-kwaliteit (de pagina schakelt ook zelf terug als het te traag loopt).
 

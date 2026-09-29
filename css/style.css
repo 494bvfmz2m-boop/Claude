@@ -34,7 +34,7 @@ body {
 .site-header {
   background: linear-gradient(155deg, var(--accent-dark) 0%, #294f74 60%, var(--accent) 100%);
   color: #fff;
-  padding: 3.2rem 1rem 0 1rem;
+  padding: 1.8rem 1rem 0 1rem;
   position: relative;
   overflow: hidden;
 }
@@ -54,13 +54,13 @@ body {
 .header-inner {
   max-width: 900px;
   margin: 0 auto;
-  padding-bottom: 2.6rem;
+  padding-bottom: 1.5rem;
   position: relative;
   z-index: 1;
 }
 
 .eyebrow {
-  margin: 0 0 0.8rem 0;
+  margin: 0 0 0.5rem 0;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 0.76rem;
@@ -69,12 +69,11 @@ body {
 }
 
 .site-header h1 {
-  margin: 0 0 0.8rem 0;
+  margin: 0 0 0.5rem 0;
   font-family: var(--font-head);
   font-weight: 700;
   font-size: 2.3rem;
   line-height: 1.2;
-  max-width: 22ch;
 }
 
 .subtitle {
@@ -82,7 +81,7 @@ body {
   color: #d7e2ec;
   font-size: 1.05rem;
   line-height: 1.6;
-  max-width: 50ch;
+  max-width: 72ch;
 }
 
 .road {
@@ -111,7 +110,6 @@ body {
 
 .site-nav {
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -153,6 +151,21 @@ body {
 
 .site-nav a:hover {
   background: #eaf0f6;
+}
+
+.tour-timer {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 3px;
+  width: 0%;
+  background: #f2b705;
+  opacity: 0;
+  transition: none;
+}
+
+.tour-timer.show {
+  opacity: 1;
 }
 
 .site-nav a.active {
@@ -659,6 +672,57 @@ main {
   display: none;
 }
 
+/* brede 3D-strook bovenaan de pagina */
+.factory-hero {
+  background: #0e1216;
+  border-bottom: 4px solid #1a2f43;
+}
+
+.factory-hero[hidden] {
+  display: none;
+}
+
+.factory-hero {
+  scroll-margin-top: 3.4rem;
+}
+
+.factory-hero .factory-stage {
+  margin: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  height: min(78vh, 56.25vw);
+  min-height: 340px;
+  box-shadow: none;
+}
+
+.factory-fade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.factory-grain {
+  position: absolute;
+  inset: -50%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.9s steps(6) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-6%, 4%); }
+  40% { transform: translate(5%, -3%); }
+  60% { transform: translate(-3%, -6%); }
+  80% { transform: translate(6%, 5%); }
+  100% { transform: translate(0, 0); }
+}
+
 .factory-canvas {
   position: absolute;
   inset: 0;
@@ -702,7 +766,7 @@ main {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   background: rgba(8, 12, 16, 0.55);
-  backdrop-filter: blur(4px);
+
   border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
@@ -821,6 +885,10 @@ main {
   .factory-stage {
     aspect-ratio: 4 / 3;
     border-radius: 8px;
+  }
+  .factory-hero .factory-stage {
+    height: 75vw;
+    min-height: 280px;
   }
   .factory-hud {
     padding: 0.7rem;
@@ -1064,12 +1132,11 @@ main {
   }
 
   .site-header {
-    padding-top: 4rem;
+    padding-top: 2.2rem;
   }
 
   .site-header h1 {
-    font-size: 3rem;
-    max-width: 24ch;
+    font-size: 2.8rem;
   }
 
   .subtitle {
@@ -1175,6 +1242,9 @@ main {
   html {
     scroll-behavior: auto;
   }
+  .factory-grain {
+    animation: none;
+  }
   .glow-ring.show,
   #carSvg.done .wheel,
   #carSvg .lane,
@@ -1193,5 +1263,579 @@ main {
   .robot-arm,
   .done-badge {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================================
+   Donker thema: sluit aan op de 3D-fabriek bovenaan
+   ========================================================================= */
+
+:root {
+  --bg: #0d1216;
+  --paper: #141b21;
+  --text: #dbe3e9;
+  --muted: #93a1ac;
+  --accent: #f2b705;
+  --accent-light: #ffd24d;
+  --accent-dark: #ffffff;
+  --border: #243039;
+  --blue: #5fb4f0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(95, 180, 240, 0.06), transparent 60%),
+    var(--bg);
+}
+
+.site-header {
+  background: linear-gradient(160deg, #0b1116 0%, #122130 60%, #183049 100%);
+}
+
+.site-nav {
+  background: #0f151a;
+  border-bottom: 1px solid var(--border);
+}
+
+.site-nav a {
+  color: #c9d3db;
+}
+
+.site-nav a:hover {
+  background: #1b252d;
+}
+
+.site-nav a.active {
+  background: var(--accent);
+  color: #111;
+}
+
+main {
+  max-width: 1120px;
+}
+
+.section {
+  background: linear-gradient(180deg, #161e25 0%, #131a20 100%);
+  border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.section:hover {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+.section h2 {
+  color: #fff;
+  font-size: 1.45rem;
+}
+
+.section p {
+  color: var(--text);
+}
+
+.section a {
+  color: var(--accent-light);
+}
+
+.section-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.section-head .icon {
+  background: rgba(242, 183, 5, 0.12);
+  color: var(--accent);
+}
+
+.step {
+  background: var(--accent);
+  color: #111;
+}
+
+.section-watermark {
+  color: #fff;
+  opacity: 0.045;
+  font-size: 7rem;
+  top: -1rem;
+}
+
+.intro-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0.5rem 0.2rem 1rem 0.2rem;
+}
+
+.intro-section .lead {
+  font-size: 1.25rem;
+  line-height: 1.7;
+  color: #c9d3db;
+  font-weight: 400;
+  border-left: 3px solid var(--accent);
+  padding-left: 1.2rem;
+}
+
+.stat-card {
+  background: #0f151a;
+  border-color: var(--border);
+}
+
+.stat-card .stat-value {
+  color: var(--accent);
+}
+
+.stat-card .stat-label {
+  color: var(--muted);
+}
+
+/* --- Hoofdstukken met beelden --- */
+
+.chapter-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 2rem;
+  align-items: start;
+  margin-top: 1.4rem;
+}
+
+.chapter-grid.reverse > .chapter-figure {
+  order: 2;
+}
+
+.chapter-text > p:first-child {
+  margin-top: 0;
+}
+
+.chapter-text.wide {
+  margin-top: 0.4rem;
+  columns: 2;
+  column-gap: 2rem;
+}
+
+.chapter-text.wide p {
+  break-inside: avoid;
+}
+
+.chapter-figure {
+  margin: 0;
+}
+
+.chapter-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.chapter-figure figcaption {
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* carrosserievormen */
+.body-types,
+.engine-types {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+}
+
+.engine-types {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.body-type,
+.engine-type {
+  background: #0f151a;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 0.9rem 0.8rem;
+  text-align: center;
+}
+
+.body-type svg,
+.engine-type svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.body-type strong,
+.engine-type strong {
+  display: block;
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 1rem;
+}
+
+.body-type span,
+.engine-type span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.body-type .b {
+  fill: #c8231b;
+}
+
+.body-type .w {
+  fill: #15191c;
+  stroke: #55606a;
+  stroke-width: 1.5;
+}
+
+.body-type .h {
+  fill: #9aa1a7;
+}
+
+.body-type .g {
+  stroke: #3a4650;
+  stroke-width: 1;
+}
+
+.engine-type .cyl {
+  fill: #2a353e;
+  stroke: #7c8b96;
+  stroke-width: 1.2;
+}
+
+.engine-type .pis {
+  fill: #b9bec3;
+}
+
+.engine-type .rod {
+  stroke: #b9bec3;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.engine-type .crank {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.engine-type .crank-c {
+  fill: var(--accent);
+}
+
+/* opengewerkte auto met nummers */
+.callout-wrap {
+  position: relative;
+}
+
+.callout {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #111;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 4px rgba(242, 183, 5, 0.3), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.callout-legend {
+  list-style: none;
+  padding: 0;
+  margin: 1.1rem 0 0 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.callout-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.callout-legend strong {
+  color: #fff;
+  white-space: nowrap;
+}
+
+.callout-n {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #111;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-1px);
+}
+
+/* materiaalbalk */
+.material-bar {
+  display: flex;
+  height: 44px;
+  margin-top: 1.3rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.mb-seg {
+  display: flex;
+  align-items: center;
+  padding: 0 0.8rem;
+  min-width: 0;
+}
+
+.mb-seg span {
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mb-metal {
+  background: linear-gradient(180deg, #a9b1b8, #7f8a93);
+  color: #111;
+}
+
+.mb-rubber {
+  background: #4d565e;
+}
+
+.mb-rest {
+  background: #2f5d8a;
+  color: #fff;
+}
+
+.mb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  margin: 0.6rem 0 0 0 !important;
+  font-size: 0.85rem;
+  color: var(--muted) !important;
+}
+
+.mb-legend .sw {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: -0.55rem;
+  vertical-align: -1px;
+}
+
+/* processtappen */
+.process-line {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+  position: relative;
+}
+
+.process-line::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 19px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+  opacity: 0.6;
+}
+
+.process-line li {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.tl-n {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0f151a;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.3rem;
+}
+
+.process-line strong {
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 0.98rem;
+}
+
+.process-line li > span:last-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+/* conclusie als banner met foto */
+.conclusie-section {
+  border-top-color: #3ecf7a;
+  background:
+    linear-gradient(90deg, rgba(10, 14, 18, 0.94) 0%, rgba(10, 14, 18, 0.82) 55%, rgba(10, 14, 18, 0.35) 100%),
+    url("../img/lichttunnel.jpg") center / cover no-repeat,
+    #131a20;
+  padding-top: 2.4rem;
+  padding-bottom: 2.4rem;
+}
+
+.conclusie-section p {
+  max-width: 62ch;
+  font-size: 1.08rem;
+  line-height: 1.75;
+}
+
+.conclusie-section .icon {
+  background: rgba(62, 207, 122, 0.15);
+  color: #3ecf7a;
+}
+
+/* bronnen */
+.bronlijst li {
+  background: #0f151a;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.bronlijst em {
+  color: #fff;
+}
+
+.bronlijst .tag {
+  background: rgba(95, 180, 240, 0.14);
+  color: var(--blue);
+}
+
+.bronlijst li::before {
+  background: var(--accent);
+  color: #111;
+}
+
+.site-footer {
+  color: var(--muted);
+  border-top-color: var(--border);
+}
+
+.credit a {
+  color: var(--accent-light);
+}
+
+.to-top {
+  background: var(--accent);
+  color: #111;
+}
+
+/* 2D-reserveanimatie leesbaar op donker */
+.car-stage {
+  background: linear-gradient(180deg, #e9eef2 0%, #dfe5ea 100%);
+}
+
+.step-label {
+  color: #fff;
+}
+
+@media (min-width: 1300px) {
+  .section h2 {
+    font-size: 1.75rem;
+  }
+  .chapter-text p,
+  .chapter-text li {
+    font-size: 1.1rem;
+  }
+  .intro-section .lead {
+    font-size: 1.4rem;
+  }
+  .section-watermark {
+    font-size: 9rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .chapter-grid {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+  .chapter-grid.reverse > .chapter-figure {
+    order: 0;
+  }
+  .chapter-text.wide {
+    columns: 1;
+  }
+  .body-types {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .process-line {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+  .process-line::before {
+    display: none;
+  }
+  .process-line li {
+    flex-direction: row;
+    text-align: left;
+    flex-wrap: wrap;
+    column-gap: 0.7rem;
+  }
+  .process-line li > span:last-child {
+    flex-basis: 100%;
+    padding-left: 3.1rem;
+    margin-top: -0.6rem;
+  }
+  .tl-n {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .engine-types {
+    grid-template-columns: 1fr;
+  }
+  .mb-seg span {
+    display: none;
+  }
+  .callout {
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    font-size: 0.68rem;
   }
 }

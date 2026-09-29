@@ -10,6 +10,8 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 
 // ---------------------------------------------------------------------------
 // Tijdlijn (seconden)
@@ -27,7 +29,11 @@ const TL = {
   wheels: 22.4,
   glass: 26.6,
   final: 30.6,
+  tunnel: 32.4,
+  end: 43.0,
 };
+
+const TUNNEL_Z = 15.1; // waar de auto in de lichttunnel stilstaat
 
 const STEPS = [
   { start: TL.chassis, title: "Chassis", caption: "Het chassis komt binnen op de lopende band" },
@@ -37,8 +43,9 @@ const STEPS = [
   { start: TL.doors, title: "Deuren", caption: "Robots hangen de deuren erin" },
   { start: TL.wheels, title: "Wielen", caption: "Vier robots monteren tegelijk de wielen" },
   { start: TL.glass, title: "Ruiten", caption: "De voorruit wordt geplaatst en de zijruiten gaan omhoog" },
+  { start: TL.final, title: "Testen", caption: "Lichten aan en door de lichttunnel: alles wordt gecontroleerd" },
 ];
-const DONE = { start: TL.final + 1.2, title: "Klaar!", caption: "Lichten aan: de auto gaat door naar de eindcontrole" };
+const DONE = { start: 38.6, title: "Klaar!", caption: "Deze auto is getest en klaar voor de weg" };
 
 // ---------------------------------------------------------------------------
 // Hulpfuncties
@@ -103,13 +110,64 @@ function placeCable(mesh, a, b) {
 // Materialen
 // ---------------------------------------------------------------------------
 
+// Grijswaarde-ruis als ruwheidskaart: geeft lak en metaal kleine oneffenheden.
+function noiseTexture(size, base, spread, blotches) {
+  const tex = canvasTexture(size, size, (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = base + (Math.random() - 0.5) * spread;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    for (let i = 0; i < blotches; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const r = rand(8, w / 5);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const light = Math.random() < 0.5;
+      g.addColorStop(0, light ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.14)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }, false);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
 function makeMaterials() {
   const std = (color, roughness, metalness, extra) =>
     new THREE.MeshStandardMaterial(Object.assign({ color, roughness, metalness }, extra || {}));
+  const rough = noiseTexture(256, 205, 45, 40);
+  const wallTex = canvasTexture(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#7f8890";
+    ctx.fillRect(0, 0, w, h);
+    for (let x = 0; x < w; x += 16) {
+      const g = ctx.createLinearGradient(x, 0, x + 16, 0);
+      g.addColorStop(0, "rgba(0,0,0,0.22)");
+      g.addColorStop(0.35, "rgba(255,255,255,0.12)");
+      g.addColorStop(1, "rgba(0,0,0,0.05)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x, 0, 16, h);
+    }
+  });
+  wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+  wallTex.repeat.set(30, 3);
   return {
-    robotOrange: std(0xd9580e, 0.44, 0.22),
-    robotGrey: std(0x33383d, 0.5, 0.6),
-    robotDark: std(0x1c1f22, 0.55, 0.5),
+    robotOrange: std(0xd9580e, 0.5, 0.22, { roughnessMap: rough }),
+    robotGrey: std(0x33383d, 0.6, 0.6, { roughnessMap: rough }),
+    robotDark: std(0x1c1f22, 0.62, 0.5, { roughnessMap: rough }),
+    primer: std(0xa4aaaf, 0.42, 0.85, { roughnessMap: rough }),
+    wallPanel: std(0xffffff, 0.75, 0.35, { map: wallTex }),
+    roof: std(0x39424a, 0.85, 0.3),
+    duct: std(0xb4bac0, 0.38, 0.9, { roughnessMap: rough }),
+    red: std(0xb81d17, 0.45, 0.2),
+    agvBody: std(0x59626a, 0.55, 0.5, { roughnessMap: rough }),
+    crateBlue: std(0x1f5fa8, 0.6, 0.0),
+    tunnelFrame: std(0x23282d, 0.4, 0.8),
+    tunnelWall: std(0x23282d, 0.5, 0.6, { side: THREE.DoubleSide }),
+    tunnelFloor: std(0x16191c, 0.55, 0.3),
     steel: std(0x9aa1a7, 0.32, 0.9),
     darkSteel: std(0x4a5056, 0.45, 0.8),
     hose: std(0x0d0d0d, 0.65, 0.1),
@@ -133,8 +191,55 @@ function makeMaterials() {
 // Industriële robot (6-assig uiterlijk, IK in het verticale armvlak)
 // ---------------------------------------------------------------------------
 
+let warningTex = null;
+function getWarningTexture() {
+  if (!warningTex) {
+    warningTex = canvasTexture(128, 128, (ctx, w) => {
+      ctx.clearRect(0, 0, w, w);
+      ctx.beginPath();
+      ctx.moveTo(w / 2, 8);
+      ctx.lineTo(w - 8, w - 14);
+      ctx.lineTo(8, w - 14);
+      ctx.closePath();
+      ctx.fillStyle = "#f2c200";
+      ctx.fill();
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = "#111";
+      ctx.stroke();
+      ctx.fillStyle = "#111";
+      ctx.font = "bold 64px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("!", w / 2, w - 30);
+    });
+  }
+  return warningTex;
+}
+
+function labelTexture(text) {
+  return canvasTexture(256, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 84px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, w / 2, h / 2 + 4);
+  });
+}
+
+function decalMaterial(map) {
+  return new THREE.MeshStandardMaterial({
+    map,
+    transparent: true,
+    roughness: 0.5,
+    metalness: 0.1,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    depthWrite: false,
+  });
+}
+
 class Robot {
-  constructor(parent, M, base, side, tool) {
+  constructor(parent, M, base, side, tool, label) {
     this.base = base.clone();
     this.side = side;
     this.L1 = 1.05;
@@ -175,6 +280,24 @@ class Robot {
     this.shoulder.add(mesh(new RoundedBoxGeometry(0.27, this.L1 + 0.12, 0.3, 3, 0.07), M.robotOrange, 0, this.L1 / 2, 0));
     const hoseCurve = new THREE.CatmullRomCurve3([V(0.17, 0.05, -0.08), V(0.25, this.L1 * 0.5, -0.16), V(0.17, this.L1 - 0.05, -0.08)]);
     this.shoulder.add(mesh(new THREE.TubeGeometry(hoseCurve, 20, 0.028, 8), M.hose));
+    const hose2 = new THREE.CatmullRomCurve3([V(-0.16, 0.1, -0.1), V(-0.21, this.L1 * 0.55, -0.18), V(-0.15, this.L1 - 0.12, -0.12)]);
+    this.shoulder.add(mesh(new THREE.TubeGeometry(hose2, 20, 0.02, 8), M.hose));
+    const warnMat = decalMaterial(getWarningTexture());
+    for (const sx of [1, -1]) {
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), warnMat);
+      w.position.set(sx * 0.137, this.L1 * 0.68, 0.02);
+      w.rotation.y = sx * Math.PI / 2;
+      this.shoulder.add(w);
+    }
+    if (label) {
+      const lblMat = decalMaterial(labelTexture(label));
+      for (const sx of [1, -1]) {
+        const l = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.15), lblMat);
+        l.position.set(sx * 0.293, 0.32, 0.05);
+        l.rotation.y = sx * Math.PI / 2;
+        this.j1.add(l);
+      }
+    }
 
     this.elbow = new THREE.Group();
     this.elbow.position.y = this.L1;
@@ -185,6 +308,8 @@ class Robot {
     this.elbow.add(mesh(new RoundedBoxGeometry(0.34, 0.34, 0.36, 3, 0.07), M.robotOrange, 0, -0.02, -0.16));
     this.elbow.add(mesh(new RoundedBoxGeometry(0.21, this.L2, 0.23, 3, 0.06), M.robotOrange, 0, this.L2 / 2, 0));
     this.elbow.add(mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.26, 18), M.robotGrey, 0, 0.1, -0.2));
+    const hose3 = new THREE.CatmullRomCurve3([V(0.1, 0.05, -0.16), V(0.16, this.L2 * 0.5, -0.12), V(0.08, this.L2 - 0.05, -0.02)]);
+    this.elbow.add(mesh(new THREE.TubeGeometry(hose3, 20, 0.022, 8), M.hose));
 
     this.wrist = new THREE.Group();
     this.wrist.position.y = this.L2;
@@ -340,6 +465,67 @@ class Sparks {
     }
     this.lines.geometry.attributes.position.needsUpdate = true;
     this.lines.geometry.attributes.color.needsUpdate = true;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lasrook: zachte wolkjes die opstijgen en vervagen
+// ---------------------------------------------------------------------------
+
+class Smoke {
+  constructor(parent, max = 48) {
+    const tex = canvasTexture(64, 64, (ctx, w, h) => {
+      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      g.addColorStop(0, "rgba(215,220,225,0.9)");
+      g.addColorStop(0.5, "rgba(190,196,202,0.35)");
+      g.addColorStop(1, "rgba(180,186,192,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    });
+    this.group = new THREE.Group();
+    parent.add(this.group);
+    this.items = [];
+    this.next = 0;
+    for (let i = 0; i < max; i++) {
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
+      sprite.visible = false;
+      this.group.add(sprite);
+      this.items.push({ sprite, age: 0, life: 1, alive: false, vel: V(0, 0, 0) });
+    }
+  }
+
+  emit(pos) {
+    const it = this.items[this.next];
+    this.next = (this.next + 1) % this.items.length;
+    it.alive = true;
+    it.age = 0;
+    it.life = rand(1.8, 3.2);
+    it.sprite.position.set(pos.x + rand(-0.04, 0.04), pos.y + rand(0, 0.05), pos.z + rand(-0.04, 0.04));
+    it.vel.set(rand(-0.06, 0.06), rand(0.22, 0.42), rand(-0.06, 0.06));
+    it.sprite.visible = true;
+  }
+
+  update(dt) {
+    for (const it of this.items) {
+      if (!it.alive) continue;
+      it.age += dt;
+      const k = it.age / it.life;
+      if (k >= 1) {
+        it.alive = false;
+        it.sprite.visible = false;
+        continue;
+      }
+      it.sprite.position.addScaledVector(it.vel, dt);
+      it.sprite.scale.setScalar(0.18 + k * 1.0);
+      it.sprite.material.opacity = 0.26 * Math.sin(Math.PI * k);
+    }
+  }
+
+  reset() {
+    for (const it of this.items) {
+      it.alive = false;
+      it.sprite.visible = false;
+    }
   }
 }
 
@@ -535,7 +721,7 @@ function buildHall(scene, M, quality) {
 
   const beamGeo = new THREE.BoxGeometry(18, 0.5, 0.3);
   const beams = new THREE.InstancedMesh(beamGeo, M.beam, 11);
-  for (let i = 0; i < 11; i++) beams.setMatrixAt(i, _m1.makeTranslation(0, 8.9, -35 + i * 7));
+  for (let i = 0; i < 11; i++) beams.setMatrixAt(i, _m1.makeTranslation(0, 8.55, -35 + i * 7));
   hall.add(beams);
 
   const stripGeo = new THREE.BoxGeometry(0.2, 0.05, 2.8);
@@ -552,11 +738,17 @@ function buildHall(scene, M, quality) {
   hall.add(housings);
 
   // zijwanden met hoge ramen
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0x4d5b55, roughness: 0.8, metalness: 0.1 });
   for (const x of [-12, 12]) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(90, 12), M.wall);
-    wall.position.set(x, 6, 0);
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(90, 11), M.wallPanel);
+    wall.position.set(x, 5.5, 0);
     wall.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    wall.receiveShadow = true;
     hall.add(wall);
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(90, 2.2), bandMat);
+    band.position.set(x * 0.998, 1.1, 0);
+    band.rotation.y = wall.rotation.y;
+    hall.add(band);
   }
   const winMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   winMat.color.setRGB(0.55, 0.7, 0.9).multiplyScalar(1.6);
@@ -684,7 +876,269 @@ function buildHall(scene, M, quality) {
   );
   hall.add(dust);
 
-  return { hall, floorMat, reflector, rollers, beacons, dust, dustBase: dustPos.slice() };
+  return { hall, floorMat, reflector, rollers, beacons, dust, dustBase: dustPos.slice(), hatchMat, colPos };
+}
+
+// ---------------------------------------------------------------------------
+// Dak, installaties, borden, AGV's en de lichttunnel
+// ---------------------------------------------------------------------------
+
+function textPanel(w, h, draw) {
+  const tex = canvasTexture(w, h, draw);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: true });
+  return { tex, mat };
+}
+
+function buildHallExtras(scene, M, hallParts) {
+  const hall = hallParts.hall;
+  const inst = (geo, mat, list, shadow) => {
+    const im = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((m, i) => im.setMatrixAt(i, m));
+    if (shadow) im.castShadow = true;
+    hall.add(im);
+    return im;
+  };
+  const T = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+  const TR = (x, y, z, rx, ry, rz) => new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), V(1, 1, 1));
+
+  // dak met vakwerkspanten en gordingen
+  const roof = new THREE.Mesh(new THREE.PlaneGeometry(26, 90), M.roof);
+  roof.rotation.x = Math.PI / 2;
+  roof.position.y = 10.6;
+  hall.add(roof);
+  const trussZ = [];
+  for (let i = 0; i < 11; i++) trussZ.push(-35 + i * 7);
+  inst(new THREE.BoxGeometry(18, 0.3, 0.25), M.beam, trussZ.map((z) => T(0, 10.1, z)));
+  const diag = [];
+  for (const z of trussZ) {
+    for (let k = 0; k < 12; k++) diag.push(TR(-9 + k * 1.5 + 0.75, 9.33, z, 0, 0, (k % 2 ? 1 : -1) * Math.PI / 4));
+  }
+  inst(new THREE.BoxGeometry(0.12, 2.12, 0.12), M.beam, diag);
+  const purlins = [];
+  for (let x = -9; x <= 9; x += 2.25) purlins.push(T(x, 10.35, 0));
+  inst(new THREE.BoxGeometry(0.12, 0.18, 80), M.beam, purlins);
+
+  // lichtstraten in het dak (daglicht)
+  const skyMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  skyMat.color.setRGB(0.78, 0.86, 1.0).multiplyScalar(1.7);
+  const sky = [];
+  for (const x of [-3.4, 3.4]) for (let i = 0; i < 10; i++) sky.push(TR(x, 10.55, -31.5 + i * 7, Math.PI / 2, 0, 0));
+  inst(new THREE.PlaneGeometry(2.4, 5.0), skyMat, sky);
+
+  // ventilatiekokers en kabelgoten
+  const ductGeo = new THREE.CylinderGeometry(0.45, 0.45, 80, 28);
+  ductGeo.rotateX(Math.PI / 2);
+  inst(ductGeo, M.duct, [T(-4.6, 7.9, 0), T(4.6, 7.9, 0)]);
+  const ringGeo = new THREE.TorusGeometry(0.47, 0.035, 8, 28);
+  const rings = [];
+  for (const x of [-4.6, 4.6]) for (let z = -36; z <= 36; z += 4) rings.push(T(x, 7.9, z));
+  inst(ringGeo, M.darkSteel, rings);
+  const hangers = [];
+  for (const x of [-4.6, 4.6, -2.9, 2.9]) for (let z = -35; z <= 35; z += 7) hangers.push(T(x, x > 4 || x < -4 ? 9.2 : 8.4, z + 3.5));
+  inst(new THREE.BoxGeometry(0.04, 2.4, 0.04), M.darkSteel, hangers);
+  inst(new THREE.BoxGeometry(0.5, 0.08, 80), M.darkSteel, [T(-2.9, 6.3, 0), T(2.9, 6.3, 0)]);
+  const cableGeo = new THREE.CylinderGeometry(0.025, 0.025, 80, 6);
+  cableGeo.rotateX(Math.PI / 2);
+  const cables = [];
+  for (const x of [-2.9, 2.9]) for (const dx of [-0.15, -0.05, 0.06, 0.16]) cables.push(T(x + dx, 6.37, 0));
+  inst(cableGeo, M.hose, cables);
+
+  // kolomvoeten met geel-zwarte markering, brandblussers
+  inst(new THREE.BoxGeometry(0.52, 1.4, 0.52), hallParts.hatchMat, hallParts.colPos.map(([x, z]) => T(x, 0.7, z)), true);
+  const ext = [];
+  const extTop = [];
+  hallParts.colPos.forEach(([x, z], i) => {
+    if (i % 4 !== 0) return;
+    const sx = x > 0 ? -0.36 : 0.36;
+    ext.push(T(x + sx, 1.0, z));
+    extTop.push(T(x + sx, 1.3, z));
+  });
+  inst(new THREE.CylinderGeometry(0.09, 0.09, 0.52, 16), M.red, ext, true);
+  inst(new THREE.CylinderGeometry(0.03, 0.04, 0.08, 10), M.robotDark, extTop);
+
+  // nooduitgangen
+  const exit = textPanel(256, 96, (ctx, w, h) => {
+    ctx.fillStyle = "#0f8a3c";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 40px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("NOODUITGANG", w / 2, h / 2);
+  });
+  exit.mat.color.setScalar(1.8);
+  for (const [x, z] of [[-11.95, -10], [11.95, -24], [-11.95, 18], [11.95, 6]]) {
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.38), exit.mat);
+    sign.position.set(x, 3.0, z);
+    sign.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    hall.add(sign);
+  }
+
+  // veiligheidsbord aan de wand
+  const safety = textPanel(512, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#f4f4f0";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#0f7a38";
+    ctx.fillRect(0, 0, w, 70);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 40px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("VEILIGHEID VOOROP", w / 2, 50);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "bold 92px Arial, sans-serif";
+    ctx.fillText("128", w / 2, 170);
+    ctx.font = "30px Arial, sans-serif";
+    ctx.fillText("dagen zonder ongeval", w / 2, 222);
+  });
+  const safetySign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), new THREE.MeshStandardMaterial({ map: safety.tex, roughness: 0.6 }));
+  safetySign.position.set(-11.9, 4.4, -4);
+  safetySign.rotation.y = Math.PI / 2;
+  hall.add(safetySign);
+
+  // productiebord (andon) boven de lijn
+  const andonCanvas = document.createElement("canvas");
+  andonCanvas.width = 1024;
+  andonCanvas.height = 256;
+  const andonTex = new THREE.CanvasTexture(andonCanvas);
+  andonTex.colorSpace = THREE.SRGBColorSpace;
+  const andonMat = new THREE.MeshBasicMaterial({ map: andonTex });
+  andonMat.color.setScalar(1.6);
+  const andon = new THREE.Group();
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 1.0), andonMat);
+  andon.add(screen);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(4.16, 1.14, 0.12), M.robotDark);
+  frame.position.z = -0.07;
+  andon.add(frame);
+  for (const x of [-1.6, 1.6]) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 4.6, 6), M.cable);
+    c.position.set(x, 2.85, -0.07);
+    andon.add(c);
+  }
+  andon.position.set(0, 5.1, -7.2);
+  hall.add(andon);
+  const drawAndon = (made) => {
+    const ctx = andonCanvas.getContext("2d");
+    ctx.fillStyle = "#050607";
+    ctx.fillRect(0, 0, 1024, 256);
+    ctx.font = "bold 46px 'Courier New', monospace";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffb000";
+    ctx.fillText("LIJN 3  ·  EINDMONTAGE", 36, 58);
+    ctx.fillStyle = "#39e46f";
+    ctx.fillText("\u25CF OK", 830, 58);
+    ctx.font = "bold 64px 'Courier New', monospace";
+    ctx.fillStyle = "#e8eef2";
+    ctx.fillText("TAKT 58 s", 36, 172);
+    ctx.fillText(`GEBOUWD ${made} / 240`, 440, 172);
+    andonTex.needsUpdate = true;
+  };
+  drawAndon(214);
+
+  // AGV's (zelfrijdende transportkarren)
+  const agvs = [];
+  const makeAgv = (cargo) => {
+    const g = new THREE.Group();
+    const m = (geo, mat, x, y, z) => {
+      const o = new THREE.Mesh(geo, mat);
+      o.position.set(x, y, z);
+      o.castShadow = o.receiveShadow = true;
+      g.add(o);
+      return o;
+    };
+    m(new RoundedBoxGeometry(0.85, 0.3, 1.35, 2, 0.05), M.agvBody, 0, 0.2, 0);
+    m(new THREE.BoxGeometry(0.87, 0.07, 0.06), M.yellow, 0, 0.16, 0.69);
+    m(new THREE.BoxGeometry(0.87, 0.07, 0.06), M.yellow, 0, 0.16, -0.69);
+    for (const [x, z] of [[0.36, 0.5], [-0.36, 0.5], [0.36, -0.5], [-0.36, -0.5]]) {
+      m(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 12), M.rubber, x, 0.06, z).rotation.z = Math.PI / 2;
+    }
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0x3a8bff });
+    beaconMat.color.multiplyScalar(3);
+    m(new THREE.CylinderGeometry(0.04, 0.04, 0.07, 12), beaconMat, 0.32, 0.39, 0.55);
+    if (cargo === "crates") {
+      m(new RoundedBoxGeometry(0.6, 0.32, 0.5, 2, 0.02), M.crateBlue, 0, 0.51, 0.3);
+      m(new RoundedBoxGeometry(0.6, 0.32, 0.5, 2, 0.02), M.crateBlue, 0, 0.51, -0.3);
+      m(new RoundedBoxGeometry(0.6, 0.32, 0.5, 2, 0.02), M.crateBlue, 0, 0.83, 0.3);
+    } else {
+      for (let i = 0; i < 2; i++) {
+        const tire = m(new THREE.TorusGeometry(0.28, 0.1, 12, 28), M.rubber, 0, 0.45 + i * 0.2, 0);
+        tire.rotation.x = Math.PI / 2;
+      }
+    }
+    hall.add(g);
+    return g;
+  };
+  agvs.push({ obj: makeAgv("crates"), x: -5.9, z0: -22, z1: 14, period: 34, offset: 0 });
+  agvs.push({ obj: makeAgv("tires"), x: 5.9, z0: -32, z1: -9, period: 26, offset: 9 });
+
+  // lichttunnel voor de eindcontrole
+  const tunnel = new THREE.Group();
+  hall.add(tunnel);
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  lightMat.color.setScalar(2.7);
+  const z0 = TUNNEL_Z - 3.1;
+  for (let i = 0; i < 6; i++) {
+    const z = z0 + i * 1.25;
+    for (const x of [-1.95, 1.95]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.45, 0.07), lightMat);
+      bar.position.set(x, 1.3, z);
+      tunnel.add(bar);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.6, 0.16), M.tunnelFrame);
+      back.position.set(x + Math.sign(x) * 0.09, 1.3, z);
+      back.castShadow = true;
+      tunnel.add(back);
+    }
+    const top = new THREE.Mesh(new THREE.BoxGeometry(3.97, 0.07, 0.07), lightMat);
+    top.position.set(0, 2.55, z);
+    tunnel.add(top);
+    const topBack = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.14, 0.16), M.tunnelFrame);
+    topBack.position.set(0, 2.65, z);
+    tunnel.add(topBack);
+  }
+  const tLen = 7.6;
+  for (const x of [-2.35, 2.35]) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(tLen, 2.9), M.tunnelWall);
+    wall.position.set(x, 1.45, TUNNEL_Z + 0.04);
+    wall.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    wall.receiveShadow = true;
+    tunnel.add(wall);
+  }
+  const tFloor = new THREE.Mesh(new THREE.PlaneGeometry(4.6, tLen), M.tunnelFloor);
+  tFloor.rotation.x = -Math.PI / 2;
+  tFloor.position.set(0, 0.006, TUNNEL_Z + 0.04);
+  tFloor.receiveShadow = true;
+  tunnel.add(tFloor);
+  const tSign = textPanel(512, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#101316";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#f2b705";
+    ctx.fillRect(0, h - 12, w, 12);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 58px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("EINDCONTROLE", w / 2, h / 2 - 4);
+  });
+  for (const [z, ry] of [[TUNNEL_Z - tLen / 2 - 0.05, Math.PI], [TUNNEL_Z + tLen / 2 + 0.1, 0]]) {
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), tSign.mat);
+    sign.position.set(0, 3.25, z);
+    sign.rotation.y = ry;
+    tunnel.add(sign);
+  }
+
+  const rectLights = [];
+  const addRect = (w, h, pos, look, intensity) => {
+    const l = new THREE.RectAreaLight(0xf4f8ff, intensity, w, h);
+    l.position.copy(pos);
+    l.lookAt(look);
+    scene.add(l);
+    rectLights.push(l);
+  };
+  addRect(3.6, 1.2, V(0, 2.5, TUNNEL_Z - 1.3), V(0, 0, TUNNEL_Z - 1.3), 6);
+  addRect(3.6, 1.2, V(0, 2.5, TUNNEL_Z + 1.3), V(0, 0, TUNNEL_Z + 1.3), 6);
+  addRect(4.0, 1.8, V(1.9, 1.3, TUNNEL_Z), V(0, 1.3, TUNNEL_Z), 4);
+  addRect(4.0, 1.8, V(-1.9, 1.3, TUNNEL_Z), V(0, 1.3, TUNNEL_Z), 4);
+
+  return { agvs, drawAndon, rectLights };
 }
 
 // ---------------------------------------------------------------------------
@@ -766,6 +1220,7 @@ function buildHoist(scene, M) {
 // ---------------------------------------------------------------------------
 
 const HOIST_PARK_Z = -16;
+const BIW_Z = -16; // kale carrosserie op het lasstation stroomopwaarts
 
 const HOIST_JOBS = [
   { kind: "engine", t0: TL.engine, travel: 2.0, lower: 1.6, release: 0.6, leave: 2.0, lift: 2.6 },
@@ -809,6 +1264,8 @@ class CarFactory {
     this.visible = true;
     this.lastFrame = performance.now();
     this.frameTimes = [];
+    this.warmup = 90;
+    this.pausedAt = null;
 
     const params = new URLSearchParams(window.location.search);
     const forced = params.get("q");
@@ -824,11 +1281,12 @@ class CarFactory {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0e1216);
-    this.scene.fog = new THREE.Fog(0x0e1216, 12, 40);
+    this.scene.background = new THREE.Color(0x2b333a);
+    this.scene.fog = new THREE.Fog(0x2b333a, 14, 58);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.85;
+    this.scene.environmentIntensity = 0.9;
+    RectAreaLightUniformsLib.init();
 
     this.camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 120);
     this.camera.position.set(6.5, 2, 6);
@@ -837,16 +1295,50 @@ class CarFactory {
     this.setupLights();
     this.quality = { reflections: this.level === 0 };
     this.hallParts = buildHall(this.scene, this.M, this.quality);
+    this.extras = buildHallExtras(this.scene, this.M, this.hallParts);
+    this.produced = 214;
     this.hoist = buildHoist(this.scene, this.M);
     this.setupRobots();
-    this.sparks = new Sparks(this.scene);
+    this.sparks = new Sparks(this.scene, 900);
+    this.smoke = new Smoke(this.scene);
     this.setupWeldFx();
 
-    this.composer = new EffectComposer(this.renderer);
+    // MSAA-rendertarget: zonder dit verliest de nabewerking de gladde randen
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    this.samples = 4;
+    this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // ambient occlusion (zachte schaduw in hoeken en onder de auto), op halve resolutie
+    this.gtao = new GTAOPass(this.scene, this.camera, 512, 288, undefined, {
+      radius: 0.6,
+      distanceExponent: 1.6,
+      thickness: 1.4,
+      scale: 1.15,
+      samples: 12,
+      distanceFallOff: 1.0,
+      screenSpaceRadius: false,
+    });
+    const gtaoSetSize = this.gtao.setSize.bind(this.gtao);
+    this.gtao.setSize = (w, h) => gtaoSetSize(Math.max(1, Math.round(w * 0.5)), Math.max(1, Math.round(h * 0.5)));
+    const hideForAo = this.gtao._overrideVisibility.bind(this.gtao);
+    this.gtao._overrideVisibility = () => {
+      hideForAo();
+      const extra = [this.hallParts.reflector, ...this.weldFx.map((f) => f.sprite), this.smoke.group];
+      for (const o of extra) {
+        if (o && o.visible) {
+          o.visible = false;
+          this.gtao._visibilityCache.push(o);
+        }
+      }
+    };
+    this.composer.addPass(this.gtao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 288), 0.22, 0.3, 2.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+
+    this.fade = document.createElement("div");
+    this.fade.className = "factory-fade";
+    container.appendChild(this.fade);
 
     this.applyQuality();
     this.resize();
@@ -885,7 +1377,12 @@ class CarFactory {
     this.scene.add(key, key.target);
     this.keyLight = key;
 
-    this.scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x2a2622, 0.55));
+    this.scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x3a3530, 0.85));
+    // lichtbundel van de werkplekverlichting boven het station
+    const pool = new THREE.SpotLight(0xfff3e4, 70, 16, 0.6, 0.85, 1.3);
+    pool.position.set(0, 7.4, 0.3);
+    pool.target.position.set(0, 0, 0.3);
+    this.scene.add(pool, pool.target);
     const rim = new THREE.DirectionalLight(0x9cc4ff, 1.1);
     rim.position.set(-4, 5, -7);
     this.scene.add(rim);
@@ -902,19 +1399,55 @@ class CarFactory {
 
   setupRobots() {
     this.robots = {
-      weldL: new Robot(this.scene, this.M, V(2.3, 0, 1.6), 1, "weld"),
-      weldR: new Robot(this.scene, this.M, V(-2.3, 0, 1.6), -1, "weld"),
-      handL: new Robot(this.scene, this.M, V(2.3, 0, -1.1), 1, "grip"),
-      handR: new Robot(this.scene, this.M, V(-2.3, 0, -1.1), -1, "grip"),
+      weldL: new Robot(this.scene, this.M, V(2.3, 0, 1.6), 1, "weld", "R01"),
+      weldR: new Robot(this.scene, this.M, V(-2.3, 0, 1.6), -1, "weld", "R02"),
+      handL: new Robot(this.scene, this.M, V(2.3, 0, -1.1), 1, "grip", "R03"),
+      handR: new Robot(this.scene, this.M, V(-2.3, 0, -1.1), -1, "grip", "R04"),
     };
-    // robots van naburige stations, ver weg in de hal
+    // lasstation stroomopwaarts: robots lassen daar de kale carrosserie van de volgende auto
     this.farRobots = [];
-    for (const z of [-13, -20, 13, 20]) {
-      for (const s of [1, -1]) {
-        const r = new Robot(this.scene, this.M, V(s * 2.3, 0, z), s, s > 0 ? "weld" : "grip");
-        r.phase = Math.random() * 6;
-        this.farRobots.push(r);
+    const farDefs = [
+      [1, -14.4, "weld"],
+      [-1, -14.4, "weld"],
+      [1, -17.6, "weld"],
+      [-1, -17.6, "weld"],
+      [1, -26, "grip"],
+      [-1, -26, "grip"],
+    ];
+    // [x, y, z] op de carrosserie (linkerkant, carRoot-coördinaten)
+    const front = [[1.03, 0.42, 1.3], [1.0, 0.86, 0.98], [0.86, 1.06, 0.45], [1.06, 0.38, 0.35]];
+    const rear = [[1.0, 0.9, -0.8], [1.04, 0.4, -1.2], [0.88, 1.0, -0.35], [1.06, 0.42, -0.6]];
+    for (const [side, z, tool] of farDefs) {
+      const r = new Robot(this.scene, this.M, V(side * 2.3, 0, z), side, tool);
+      r.phase = Math.random() * 6;
+      if (tool === "weld") {
+        const pts = z > -16 ? front : rear;
+        r.weldPts = pts.map(([x, y, pz]) => V(side * x, y + S, BIW_Z + pz));
       }
+      this.farRobots.push(r);
+    }
+
+    // signaallampen (groen = klaar, oranje knippert = robot beweegt)
+    this.stackLights = [];
+    for (const key of Object.keys(this.robots)) {
+      const r = this.robots[key];
+      const x = r.base.x + r.side * 0.62;
+      const z = r.base.z + (r.base.z > 0 ? 0.62 : -0.62);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.7, 8), this.M.darkSteel);
+      pole.position.set(x, 0.85, z);
+      this.scene.add(pole);
+      const lamp = (color, y) => {
+        const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0, roughness: 0.3 });
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.075, 14), mat);
+        m.position.set(x, y, z);
+        this.scene.add(m);
+        return mat;
+      };
+      const light = { robot: key, green: lamp(0x22cc55, 1.72), amber: lamp(0xffa000, 1.8), red: lamp(0xdd2222, 1.88) };
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.03, 14), this.M.robotDark);
+      cap.position.set(x, 1.935, z);
+      this.scene.add(cap);
+      this.stackLights.push(light);
     }
   }
 
@@ -943,9 +1476,20 @@ class CarFactory {
 
   applyQuality() {
     const dpr = window.devicePixelRatio || 1;
-    const ratios = [Math.min(dpr, 1.75), Math.min(dpr, 1.25), 1];
+    const ratios = [Math.min(dpr, 1.5), Math.min(dpr, 1.15), 0.85];
     this.renderer.setPixelRatio(ratios[this.level]);
     this.bloom.enabled = this.level < 2;
+    this.gtao.enabled = this.level === 0;
+    const samples = [4, 2, 0][this.level];
+    if (samples !== this.samples) {
+      this.samples = samples;
+      for (const rt of [this.composer.renderTarget1, this.composer.renderTarget2]) {
+        rt.samples = samples;
+        rt.dispose();
+      }
+    }
+    for (const l of this.extras.rectLights) l.visible = this.level === 0;
+    if (this.biw) this.biw.visible = this.level === 0;
     const size = this.level === 0 ? 2048 : 1024;
     if (this.keyLight.shadow.mapSize.x !== size) {
       this.keyLight.shadow.mapSize.set(size, size);
@@ -994,6 +1538,7 @@ class CarFactory {
       (gltf) => {
         try {
           this.setupCar(gltf.scene);
+          this.warmupRender();
           this.ready = true;
           if (this.cb.onReady) this.cb.onReady();
           if (this.pendingPlay) this.play();
@@ -1003,6 +1548,22 @@ class CarFactory {
       },
       (err) => this.fail(err)
     );
+  }
+
+  // Eén keer alles tekenen terwijl het laadscherm nog zichtbaar is. Zo worden alle
+  // shaders (ook van onderdelen die pas later verschijnen, schaduwen en nabewerking)
+  // nu al voorbereid, en hapert de animatie later niet als er iets in beeld komt.
+  warmupRender() {
+    this.update(0, 0.016, 0);
+    const forced = [];
+    this.scene.traverse((o) => {
+      if (o.visible || o.isLight) return;
+      if (o === this.biw && this.level > 0) return;
+      o.visible = true;
+      forced.push(o);
+    });
+    this.composer.render();
+    for (const o of forced) o.visible = false;
   }
 
   fail(err) {
@@ -1153,6 +1714,7 @@ class CarFactory {
       }
     }
     carRoot.add(skid);
+    this.skid = skid;
 
     // afmetingen van het glas voor het zuignapframe
     const wsBox = new THREE.Box3().setFromObject(get("BodyWindshield"), true);
@@ -1160,6 +1722,29 @@ class CarFactory {
     this.roofZ = new THREE.Box3().setFromObject(get("BodyRoofPanel"), true).getCenter(new THREE.Vector3()).z;
     const bodyBox = new THREE.Box3().setFromObject(this.bodyShell, true);
     this.bodyTop = bodyBox.max.y;
+
+    // kale stalen carrosserie van de volgende auto, op het lasstation stroomopwaarts
+    const biw = new THREE.Group();
+    const hideMats = ["Glass", "Brakelight", "Signallight", "Headlight", "Mirror"];
+    const primerize = (src) => {
+      const c = src.clone(true);
+      c.traverse((o) => {
+        if (!o.isMesh) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (m && hideMats.includes(m.name)) o.visible = false;
+        else o.material = this.M.primer;
+        o.castShadow = o.receiveShadow = true;
+      });
+      biw.add(c);
+    };
+    primerize(this.bodyShell);
+    for (const d of this.doors) primerize(d.obj);
+    primerize(get("BodyUnderside"));
+    biw.add(skid.clone(true));
+    biw.position.set(0, S, BIW_Z);
+    this.scene.add(biw);
+    this.biw = biw;
+    this.biw.visible = this.level === 0;
   }
 
   // -------------------------------------------------------------------------
@@ -1177,6 +1762,7 @@ class CarFactory {
     this.stepIndex = -1;
     this.doneFired = false;
     this.sparks.reset();
+    this.smoke.reset();
   }
 
   seek(t, freeze) {
@@ -1197,9 +1783,27 @@ class CarFactory {
     requestAnimationFrame(this.loop);
     const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
-    if (!this.ready || !this.visible || document.hidden) return;
+    if (!this.ready) return;
 
-    const t = this.time();
+    // buiten beeld: klok stilzetten, zodat de animatie verdergaat waar hij was
+    if (!this.visible || document.hidden) {
+      if (this.pausedAt == null) this.pausedAt = now / 1000;
+      return;
+    }
+    if (this.pausedAt != null) {
+      if (this.playStart !== null) this.playStart += now / 1000 - this.pausedAt;
+      this.pausedAt = null;
+    }
+
+    let t = this.time();
+    if (this.playStart !== null && this.frozenT == null && t >= TL.end) {
+      this.play();
+      t = 0;
+    }
+    const fadeIn = this.playStart === null ? 1 : 1 - seg(t, 0, 0.8);
+    const fadeOut = seg(t, TL.end - 0.7, TL.end);
+    this.fade.style.opacity = Math.max(fadeIn, fadeOut).toFixed(3);
+
     this.update(t, dt, now / 1000);
     this.composer.render();
     this.trackPerformance(dt);
@@ -1207,13 +1811,18 @@ class CarFactory {
 
   trackPerformance(dt) {
     if (this.lockQuality || this.level >= 2) return;
+    if (this.warmup > 0) {
+      this.warmup--;
+      return;
+    }
     this.frameTimes.push(dt);
     if (this.frameTimes.length < 90) return;
     const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
     this.frameTimes.length = 0;
-    if (avg > 0.036) {
+    if (avg > 0.026) {
       this.level++;
       this.applyQuality();
+      this.warmup = 45;
     }
   }
 
@@ -1226,7 +1835,8 @@ class CarFactory {
 
     // 1. chassis komt aanrijden
     const arrive = easeOut(seg(t, TL.chassis, TL.chassis + 3.0));
-    const carZ = lerp(-14, 0, arrive);
+    const toTunnel = easeInOut(seg(t, TL.tunnel, TL.tunnel + 5.0));
+    const carZ = lerp(-14, 0, arrive) + TUNNEL_Z * toTunnel;
     this.carRoot.position.set(0, S, carZ);
     const rollers = this.hallParts.rollers;
     const rollAngle = carZ / 0.05;
@@ -1260,10 +1870,23 @@ class CarFactory {
 
     // robots
     this.updateRobots(t, dt);
-    for (const r of this.farRobots) {
-      const ph = clock * 0.7 + r.phase;
-      _v2.set(r.base.x - r.side * (0.9 + 0.25 * Math.sin(ph)), 1.1 + 0.25 * Math.sin(ph * 1.3), r.base.z + 0.5 * Math.sin(ph * 0.8));
-      r.solve(_v2, _v3.set(-r.side, -0.4, 0).normalize());
+    this.updateFarRobots(dt, clock);
+    this.updateStackLights(t, clock);
+
+    // zelfrijdende karren in de gangpaden
+    for (const a of this.extras.agvs) {
+      const ph = ((clock + a.offset) / a.period) % 2;
+      let z;
+      let rot;
+      if (ph < 1) {
+        z = lerp(a.z0, a.z1, easeInOut(ph));
+        rot = Math.PI * seg(ph, 0.93, 1.0);
+      } else {
+        z = lerp(a.z1, a.z0, easeInOut(ph - 1));
+        rot = Math.PI + Math.PI * seg(ph, 1.93, 2.0);
+      }
+      a.obj.position.set(a.x, 0, z);
+      a.obj.rotation.y = rot;
     }
 
     // eindscène: lichten aan
@@ -1280,7 +1903,173 @@ class CarFactory {
     dust.needsUpdate = true;
 
     this.sparks.update(dt);
+    this.smoke.update(dt);
+    if (this.photoMode) this.applyPhotoPose();
     this.updateCamera(t, clock);
+  }
+
+  // -------------------------------------------------------------------------
+  // Fotomodus: losse beelden voor de website (niet gebruikt tijdens de animatie)
+  // -------------------------------------------------------------------------
+
+  photo(mode) {
+    if (this.photoSaved) {
+      for (const [o, v] of this.photoSaved) o.visible = v;
+      this.photoSaved = null;
+      this.scene.fog = this.savedFog;
+      this.scene.background.set(0x2b333a);
+      this.studio.visible = false;
+      this.skid.visible = true;
+      this.setWireframe(false);
+    }
+    this.photoMode = mode || null;
+    if (this.bloom) this.bloom.enabled = !mode && this.level < 2;
+    if (!mode) return;
+    if (!this.studio) {
+      this.studio = new THREE.Group();
+      this.studioFloorMat = new THREE.MeshStandardMaterial({ color: 0xcfd4d8, roughness: 0.4, metalness: 0.05 });
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 64), this.studioFloorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      this.studio.add(floor);
+      this.studioGrid = new THREE.GridHelper(40, 80, 0x5aa6e0, 0x24527c);
+      this.studioGrid.position.y = 0.003;
+      this.studio.add(this.studioGrid);
+      this.scene.add(this.studio);
+    }
+    this.photoSaved = [];
+    for (const o of this.scene.children) {
+      if (o === this.carRoot || o === this.studio || o.isLight) continue;
+      this.photoSaved.push([o, o.visible]);
+      o.visible = false;
+    }
+    this.savedFog = this.scene.fog;
+    this.scene.fog = null;
+    for (const l of this.lightMats) l.mat.emissiveIntensity = 0;
+    this.studio.visible = true;
+    this.skid.visible = false;
+    if (mode === "design") {
+      this.scene.background.set(0x0b1d30);
+      this.studioFloorMat.color.set(0x0e2640);
+      this.studioGrid.visible = true;
+      this.setWireframe(true);
+    } else {
+      this.scene.background.set(0xd5dade);
+      this.studioFloorMat.color.set(0xc9ced3);
+      this.studioGrid.visible = false;
+    }
+  }
+
+  applyPhotoPose() {
+    this.carRoot.position.set(0, 0, 0);
+    for (const l of this.lightMats) l.mat.emissiveIntensity = 0;
+    for (const s of this.headSpots) s.intensity = 0;
+    for (const k in this.hoist.rigs) this.hoist.rigs[k].visible = false;
+    for (const c of this.hoist.mainCables.concat(this.hoist.subCables)) c.visible = false;
+    if (this.photoMode !== "exploded") return;
+    this.bodyShell.position.y += 1.3;
+    this.windshield.position.y += 1.95;
+    for (const d of this.doors) d.obj.position.x += d.side * 1.05;
+    for (const w of this.doorWindows) w.obj.visible = false;
+    for (const w of this.wheels) w.pivot.position.x += w.side * 1.0;
+    for (const w of this.interiorWaves) w.grp.position.y += 0.55;
+    this.engine.position.y += 0.35;
+    this.engine.position.z += 0.9;
+  }
+
+  setWireframe(on) {
+    const renderer = this.renderer;
+    renderer.localClippingEnabled = on;
+    if (!this.wire) {
+      if (!on) return;
+      const keepRear = [new THREE.Plane(V(0, 0, -1), 0.3)];
+      const keepFront = [new THREE.Plane(V(0, 0, 1), -0.3)];
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x5fb4f0,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        clippingPlanes: keepFront,
+      });
+      this.wire = { meshes: [], mats: new Set(), keepRear };
+      this.carRoot.traverse((o) => {
+        if (!o.isMesh || o.userData.isWire) return;
+        let p = o;
+        while (p && p !== this.skid) p = p.parent;
+        if (p === this.skid) return;
+        const w = new THREE.Mesh(o.geometry, wireMat);
+        w.userData.isWire = true;
+        o.add(w);
+        this.wire.meshes.push(w);
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => this.wire.mats.add(m));
+      });
+    }
+    for (const w of this.wire.meshes) w.visible = on;
+    for (const m of this.wire.mats) {
+      m.clippingPlanes = on ? this.wire.keepRear : null;
+      m.needsUpdate = true;
+    }
+  }
+
+  photoAnchors(names) {
+    const out = {};
+    const pt = (obj) => new THREE.Box3().setFromObject(obj, true).getCenter(V());
+    const src = {
+      body: () => pt(this.bodyShell).add(V(0, 0.35, 0)),
+      glass: () => pt(this.windshield),
+      door: () => pt(this.doors[0].obj),
+      wheel: () => pt(this.wheels[0].pivot),
+      seats: () => pt(this.interiorWaves[3].grp),
+      engine: () => pt(this.engine),
+      dash: () => pt(this.interiorWaves[1].grp),
+    };
+    for (const n of names) {
+      const p = src[n]().project(this.camera);
+      out[n] = [((p.x + 1) / 2) * 100, ((1 - p.y) / 2) * 100];
+    }
+    return out;
+  }
+
+  updateFarRobots(dt, clock) {
+    const weldOn = this.biw && this.biw.visible;
+    for (const r of this.farRobots) {
+      if (!r.weldPts) {
+        const ph = clock * 0.7 + r.phase;
+        _v2.set(r.base.x - r.side * (0.9 + 0.25 * Math.sin(ph)), 1.1 + 0.25 * Math.sin(ph * 1.3), r.base.z + 0.5 * Math.sin(ph * 0.8));
+        r.solve(_v2, _v3.set(-r.side, -0.4, 0).normalize());
+        continue;
+      }
+      const n = r.weldPts.length;
+      const phase = (clock + r.phase) / 1.15;
+      const i = Math.floor(phase) % n;
+      const frac = phase - Math.floor(phase);
+      const cur = r.weldPts[i];
+      const prev = r.weldPts[(i + n - 1) % n];
+      _v2.copy(prev).lerp(cur, easeInOut(Math.min(1, frac / 0.45)));
+      r.solve(_v2, _v3.set(-r.side, -0.22, 0).normalize());
+      if (weldOn && frac > 0.5) {
+        this.sparks.emit(cur, _v3.set(r.side, 0.25, 0), Math.max(1, Math.round(dt * 150)));
+        if (Math.random() < dt * 2.5) this.smoke.emit(cur);
+      }
+    }
+  }
+
+  updateStackLights(t, clock) {
+    const inWindow = (a, b) => t >= a && t < b;
+    const active = {
+      weldL: inWindow(TL.weld, TL.weld + 4.1) || inWindow(TL.wheels, TL.wheels + 4.4),
+      weldR: inWindow(TL.weld + 0.2, TL.weld + 4.3) || inWindow(TL.wheels, TL.wheels + 4.4),
+      handL: inWindow(TL.doors, TL.doors + 4.4) || inWindow(TL.wheels, TL.wheels + 4.4),
+      handR: inWindow(TL.doors, TL.doors + 4.4) || inWindow(TL.wheels, TL.wheels + 4.4),
+    };
+    const blink = Math.sin(clock * 9) > 0 ? 1 : 0;
+    for (const l of this.stackLights) {
+      const on = active[l.robot];
+      l.green.emissiveIntensity = on ? 0 : 1.6;
+      l.amber.emissiveIntensity = on ? 3 * blink : 0;
+    }
   }
 
   updateSteps(t) {
@@ -1293,6 +2082,8 @@ class CarFactory {
     }
     if (!this.doneFired && t >= DONE.start) {
       this.doneFired = true;
+      this.produced = this.produced >= 240 ? 1 : this.produced + 1;
+      this.extras.drawAndon(this.produced);
       if (this.cb.onDone) this.cb.onDone();
     }
   }
@@ -1600,6 +2391,7 @@ class CarFactory {
     fx.light.position.copy(world).add(V(side * 0.15, 0.05, 0));
     fx.light.intensity = 6 * flick;
     this.sparks.emit(world, V(side, 0.25, 0), Math.max(1, Math.round(dt * 520)));
+    if (Math.random() < dt * 7) this.smoke.emit(world);
   }
 
   updateLights(t) {
@@ -1615,7 +2407,12 @@ class CarFactory {
       if (l.kind === "Dashboard") k = on ? seg(tau, 0.4, 1.0) : 0;
       l.mat.emissiveIntensity = Math.min(l.base, 6) * k;
     }
-    for (const s of this.headSpots) s.intensity = 30 * head;
+    const rootZ = this.carRoot.position.z;
+    for (const s of this.headSpots) {
+      s.intensity = 30 * head;
+      s.position.z = 2.2 + rootZ;
+      s.target.position.z = 8 + rootZ;
+    }
   }
 
   updateCamera(t, clock) {
@@ -1639,7 +2436,14 @@ class CarFactory {
       [27.0, V(2.0, 3.0, 6.6)],
       [28.8, V(2.0, 2.8, 6.0)],
       [30.0, V(1.8, 2.4, 5.8)],
-      [31.4, V(1.0, 1.6, 7.2)],
+      [31.3, V(1.2, 1.45, 6.9)],
+      [32.6, V(2.4, 1.8, 8.6)],
+      [34.0, V(3.8, 3.6, 11.0)],
+      [35.4, V(0.8, 3.4, 20.5)],
+      [36.6, V(1.6, 1.45, 21.6)],
+      [37.8, V(1.5, 1.35, 20.8)],
+      [40.8, V(-1.7, 1.9, 21.3)],
+      [43.0, V(-2.3, 2.1, 21.6)],
     ];
     const tgt = [
       [0, V(0, 0.9, -3.0)],
@@ -1660,7 +2464,14 @@ class CarFactory {
       [27.0, V(0, 2.4, 0.4)],
       [28.8, V(0, 1.6, 0.8)],
       [30.0, V(0, 1.0, 0.8)],
-      [31.4, V(0, 0.75, 0.4)],
+      [31.3, V(0, 0.8, 0.6)],
+      [32.6, V(0, 0.8, 2.2)],
+      [34.0, V(0, 0.9, 8.0)],
+      [35.4, V(0, 0.8, 13.6)],
+      [36.6, V(0, 0.85, 14.8)],
+      [37.8, V(0, 0.8, 15.3)],
+      [40.8, V(0, 0.8, 15.3)],
+      [43.0, V(0, 0.8, 15.3)],
     ];
     if (this.debugCam) {
       this.camera.position.copy(this.debugCam.pos);
@@ -1669,17 +2480,17 @@ class CarFactory {
     }
     keyed(pos, t, this.camera.position);
     const target = keyed(tgt, t, V());
-    // na de montage: langzaam om de auto heen draaien
-    const orbit = Math.max(0, t - 31.4);
-    if (orbit > 0) {
-      const ang = Math.atan2(1.0, 6.8) + orbit * 0.1;
-      const radius = 6.87;
-      const rise = Math.min(1, orbit / 4);
-      this.camera.position.set(Math.sin(ang) * radius, 1.6 + 0.5 * rise + 0.3 * Math.sin(orbit * 0.25) * rise, 0.4 + Math.cos(ang) * radius);
-    }
     // lichte "camerakraan"-beweging
     this.camera.position.x += Math.sin(clock * 0.37) * 0.06;
     this.camera.position.y += Math.sin(clock * 0.29) * 0.04;
+    // korte schok bij zware handelingen: carrosserie neergezet, deur dicht, wielen erop, ruit geplaatst
+    let shake = 0;
+    for (const [at, amp] of [[TL.body + 3.4, 0.022], [TL.doors + 4.4, 0.012], [TL.wheels + 2.8, 0.01], [TL.glass + 2.9, 0.008]]) {
+      const d = t - at;
+      if (d > 0 && d < 1) shake += amp * Math.exp(-d * 6) * Math.sin(d * 55);
+    }
+    this.camera.position.y += shake;
+    target.y += shake * 0.5;
     this.camera.lookAt(target);
   }
 }
@@ -1721,6 +2532,12 @@ window.Car3D = {
   },
   isReady() {
     return !!(instance && instance.ready);
+  },
+  photo(mode) {
+    if (instance) instance.photo(mode);
+  },
+  photoAnchors(names) {
+    return instance ? instance.photoAnchors(names) : null;
   },
   debugCamera(pos, target) {
     if (instance) instance.debugCam = pos ? { pos: V(...pos), target: V(...target) } : null;
