@@ -50,10 +50,7 @@
 
   function useSvgFallback() {
     use3D = false;
-    var animSection = document.getElementById("animatie");
-    if (animSection) animSection.hidden = false;
-    var animLink = document.querySelector('.site-nav a[href="#factoryHero"]');
-    if (animLink) animLink.setAttribute("href", "#animatie");
+    showFallbackSection();
     if (factoryHero) factoryHero.hidden = true;
     if (factoryStage) factoryStage.hidden = true;
     stage.hidden = false;
@@ -82,7 +79,17 @@
     } else {
       factoryHero.hidden = true;
       factoryStage.hidden = true;
+      showFallbackSection();
     }
+  } else {
+    showFallbackSection();
+  }
+
+  function showFallbackSection() {
+    var animSection = document.getElementById("animatie");
+    if (animSection) animSection.hidden = false;
+    var animLink = document.querySelector('.site-nav a[href="#factoryHero"]');
+    if (animLink) animLink.setAttribute("href", "#animatie");
   }
 
   // --- SVG-animatie (reserve voor computers zonder WebGL) ---
@@ -225,79 +232,73 @@
     replayBtn.addEventListener("click", playAnimation);
   }
 
-  // Secties rustig laten verschijnen bij scrollen
-  var sections = document.querySelectorAll("main .section");
-  if ("IntersectionObserver" in window && sections.length) {
-    var sectionObserver = new IntersectionObserver(
-      function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("reveal");
-            sectionObserver.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -60px 0px" }
-    );
-    sections.forEach(function (section) {
-      sectionObserver.observe(section);
-    });
-  } else {
-    sections.forEach(function (section) {
-      section.classList.add("reveal");
-    });
-  }
-
-  // Actieve link in de navigatie bijhouden
-  var navLinks = document.querySelectorAll(".site-nav a");
-  var trackedSections = document.querySelectorAll("main .section[id]");
-  if ("IntersectionObserver" in window && navLinks.length && trackedSections.length) {
+  // Actieve link in het menu bijhouden
+  var navLinks = document.querySelectorAll(".site-nav ul a");
+  var tracked = document.querySelectorAll("#factoryHero, #animatie, main .chapter, #bronnen");
+  if ("IntersectionObserver" in window && navLinks.length) {
     var navObserver = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            var id = entry.target.getAttribute("id");
-            navLinks.forEach(function (link) {
-              link.classList.toggle("active", link.getAttribute("href") === "#" + id);
-            });
-          }
+          if (!entry.isIntersecting) return;
+          var id = entry.target.getAttribute("id");
+          navLinks.forEach(function (link) {
+            link.classList.toggle("active", link.getAttribute("href") === "#" + id);
+          });
         });
       },
-      { rootMargin: "-45% 0px -50% 0px" }
+      { rootMargin: "-40% 0px -55% 0px" }
     );
-    trackedSections.forEach(function (section) {
-      navObserver.observe(section);
+    tracked.forEach(function (el) {
+      navObserver.observe(el);
     });
   }
 
   // Knop "naar boven"
   var toTop = document.getElementById("toTop");
   if (toTop) {
-    window.addEventListener("scroll", function () {
-      toTop.classList.toggle("visible", window.scrollY > 500);
-    });
+    window.addEventListener(
+      "scroll",
+      function () {
+        toTop.classList.toggle("visible", window.scrollY > 600);
+      },
+      { passive: true }
+    );
     toTop.addEventListener("click", function () {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
 
-  // Rondleiding voor onbemande presentatie (markt/beamer): W zet hem aan/uit.
-  // Bovenaan wacht hij tot de auto klaar is, daarna scrolt hij van kopje naar kopje
-  // en blijft hij bij elk kopje staan zodat mensen kunnen lezen. Lange stukken
-  // tekst loopt hij rustig door. Onderaan gaat hij terug naar boven en begint de
-  // animatie opnieuw.
+  // ---------------------------------------------------------------------------
+  // Rondleiding voor een scherm of beamer op de markt. W zet hem aan/uit.
+  //
+  // Hij wacht bovenaan tot de auto klaar is en bladert dan scherm voor scherm
+  // door de pagina: eerst het grote beeld met het kopje, daarna per stuk tekst
+  // dat op het scherm past. Hoe lang hij blijft staan hangt af van hoeveel nieuwe
+  // tekst er in beeld is. Onderaan gaat hij terug naar boven en begint alles
+  // opnieuw. Tijdens de rondleiding: pijltje rechts/spatie = verder,
+  // pijltje links = terug.
+  // ---------------------------------------------------------------------------
+
+  var WORDS_PER_SECOND = 2.6; // rustig leestempo voor voorbijgangers
+  var BASE_SECONDS = 4;
+  var MIN_SECONDS = 7;
+  var MAX_SECONDS = 60;
+  var BANNER_SECONDS = 6;
+  var SOURCES_MAX_SECONDS = 14;
+
   var autoScrollIndicator = document.getElementById("autoScrollIndicator");
   var autoScrollText = document.getElementById("autoScrollText");
   var tourTimer = document.getElementById("tourTimer");
+  var tourPanel = document.getElementById("tourPanel");
+  var tourCount = document.getElementById("tourCount");
+  var tourLabel = document.getElementById("tourLabel");
+  var tourBar = document.getElementById("tourBar");
   var siteNav = document.getElementById("siteNav");
   var tourActive = false;
   var tourToken = 0;
   var indicatorHideTimer = null;
-
-  var READ_MIN = 6; // seconden
-  var READ_MAX = 15;
-  var WORDS_PER_SECOND = 4.5;
-  var READ_SCROLL_SPEED = 38; // px per seconde door lange secties heen
+  var skipWait = null;
+  var goBack = false;
 
   function showAutoScrollMessage(text) {
     if (!autoScrollIndicator || !autoScrollText) return;
@@ -309,46 +310,48 @@
     }, 2600);
   }
 
-  function stillRunning(token) {
-    return tourActive && token === tourToken;
+  function Stopped() {}
+
+  function check(token) {
+    if (!tourActive || token !== tourToken) throw new Stopped();
   }
 
-  function wait(ms, token) {
-    return new Promise(function (resolve, reject) {
-      window.setTimeout(function () {
-        if (stillRunning(token)) resolve();
-        else reject("stopped");
-      }, ms);
-    });
+  function navHeight() {
+    return siteNav ? siteNav.offsetHeight : 0;
   }
 
-  // Eigen scrollanimatie met een kommagetal als positie: stapjes kleiner dan
-  // één pixel gaan zo niet verloren (dat liet de oude versie vastlopen).
-  function scrollToY(target, duration, token, linear) {
+  function maxScroll() {
+    return document.documentElement.scrollHeight - window.innerHeight;
+  }
+
+  function jumpTo(y) {
+    try {
+      window.scrollTo({ top: y, left: 0, behavior: "instant" });
+    } catch (e) {
+      window.scrollTo(0, y);
+    }
+  }
+
+  // eigen scrollanimatie (met kommagetallen, zodat er geen kleine stapjes wegvallen)
+  function scrollToY(target, duration, token) {
     return new Promise(function (resolve, reject) {
       var from = null;
       var to = 0;
       var start = null;
       function step(ts) {
-        if (!stillRunning(token)) {
-          reject("stopped");
+        if (!tourActive || token !== tourToken) {
+          reject(new Stopped());
           return;
         }
         if (start === null) {
-          // eventuele lopende (soepele) scroll stoppen en pas nu het startpunt bepalen
-          try {
-            window.scrollTo({ top: window.scrollY, behavior: "instant" });
-          } catch (e) {
-            window.scrollTo(0, window.scrollY);
-          }
+          jumpTo(window.scrollY);
           from = window.scrollY;
-          var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-          to = Math.max(0, Math.min(target, maxScroll));
+          to = Math.max(0, Math.min(target, maxScroll()));
           start = ts;
         }
         var k = Math.abs(to - from) < 2 ? 1 : Math.min(1, (ts - start) / duration);
-        var e = linear ? k : k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-        window.scrollTo(0, from + (to - from) * e);
+        var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        jumpTo(from + (to - from) * e);
         if (k < 1) window.requestAnimationFrame(step);
         else resolve();
       }
@@ -356,115 +359,219 @@
     });
   }
 
-  function runTimerBar(ms) {
-    if (!tourTimer) return;
-    tourTimer.style.transition = "none";
-    tourTimer.style.width = "0%";
-    tourTimer.classList.add("show");
-    void tourTimer.offsetWidth;
-    tourTimer.style.transition = "width " + ms + "ms linear";
-    tourTimer.style.width = "100%";
+  // wachten met aftelteller; pijltje rechts slaat over, pijltje links gaat terug
+  function countdown(ms, label, token) {
+    return new Promise(function (resolve, reject) {
+      var start = performance.now();
+      var done = false;
+      if (tourPanel) tourPanel.hidden = false;
+      if (tourLabel) tourLabel.textContent = label;
+      if (tourTimer) {
+        tourTimer.style.transition = "none";
+        tourTimer.style.width = "0%";
+        tourTimer.classList.add("show");
+        void tourTimer.offsetWidth;
+        tourTimer.style.transition = "width " + ms + "ms linear";
+        tourTimer.style.width = "100%";
+      }
+      function finish(back) {
+        if (done) return;
+        done = true;
+        skipWait = null;
+        window.clearInterval(tick);
+        if (tourTimer) {
+          tourTimer.classList.remove("show");
+          tourTimer.style.transition = "none";
+          tourTimer.style.width = "0%";
+        }
+        if (!tourActive || token !== tourToken) reject(new Stopped());
+        else resolve(back ? "back" : "next");
+      }
+      function update() {
+        var left = Math.max(0, ms - (performance.now() - start));
+        if (tourCount) tourCount.textContent = Math.ceil(left / 1000);
+        if (tourBar) tourBar.style.strokeDashoffset = String(138.2 * (1 - left / ms));
+        if (left <= 0 || !tourActive || token !== tourToken) finish(false);
+      }
+      var tick = window.setInterval(update, 200);
+      update();
+      skipWait = finish;
+    });
   }
 
-  function hideTimerBar() {
-    if (!tourTimer) return;
-    tourTimer.classList.remove("show");
-    tourTimer.style.transition = "none";
-    tourTimer.style.width = "0%";
+  function words(el) {
+    var t = (el.textContent || "").trim();
+    return t ? t.split(/\s+/).length : 0;
   }
 
-  function readingTime(el) {
-    var words = (el.textContent || "").trim().split(/\s+/).length;
-    return Math.max(READ_MIN, Math.min(READ_MAX, 3 + words / WORDS_PER_SECOND)) * 1000;
+  // blokken waarvan we bijhouden of ze al in beeld zijn geweest
+  var BLOCKS = ".chapter-banner, .intro h1, .intro .lead, .chapter-cards, .prose p, .figure, .callout-legend li, " +
+    ".stat-row, .body-type, .engine-type, .material-bar, .mb-legend, .process-line li, .conclusie-inner, " +
+    ".bronnen-section h2, .bronlijst li, .animation-section";
+
+  function absRect(el) {
+    var r = el.getBoundingClientRect();
+    return { top: r.top + window.scrollY, bottom: r.bottom + window.scrollY };
   }
 
-  function sectionTop(el) {
-    var navH = siteNav ? siteNav.offsetHeight : 0;
-    return el.getBoundingClientRect().top + window.scrollY - navH - 14;
+  // bereken de stops (scrollposities) per onderdeel van de pagina
+  function pagesFor(section) {
+    var nav = navHeight();
+    var view = window.innerHeight - nav;
+    var box = absRect(section);
+    var blocks = Array.prototype.slice.call(section.querySelectorAll(BLOCKS)).filter(function (b) {
+      return b.offsetParent !== null;
+    });
+    var pages = [];
+    var pos = box.top - nav;
+    var guard = 0;
+    while (guard++ < 40) {
+      pages.push(pos);
+      var bottom = pos + nav + view;
+      if (box.bottom <= bottom + 4) break;
+      var next = null;
+      blocks.forEach(function (b) {
+        var r = absRect(b);
+        if (r.bottom > bottom + 2 && r.top > pos + nav + 4) {
+          var y = r.top - nav - 18;
+          if (next === null || y < next) next = y;
+        }
+      });
+      if (next === null || next <= pos + 40) next = pos + view * 0.85;
+      // laatste stuk: niet verder dan nodig om de onderkant van de sectie te laten zien
+      next = Math.min(next, box.bottom - window.innerHeight);
+      if (next <= pos + 40) break;
+      pos = next;
+    }
+    return pages.map(function (y) {
+      return Math.max(0, Math.min(y, maxScroll()));
+    });
+  }
+
+  function newWordsInView(section, seen) {
+    var nav = navHeight();
+    var top = window.scrollY + nav;
+    var bottom = window.scrollY + window.innerHeight;
+    var count = 0;
+    section.querySelectorAll(BLOCKS).forEach(function (b) {
+      if (seen.has(b) || b.offsetParent === null) return;
+      var r = absRect(b);
+      if (r.top >= top - 4 && r.bottom <= bottom + 4) {
+        seen.add(b);
+        if (!b.classList.contains("chapter-banner")) count += words(b);
+      }
+    });
+    return count;
+  }
+
+  function readMs(n, section) {
+    var sec = BASE_SECONDS + n / WORDS_PER_SECOND;
+    var max = section.id === "bronnen" ? SOURCES_MAX_SECONDS : MAX_SECONDS;
+    return Math.round(Math.max(MIN_SECONDS, Math.min(max, sec)) * 1000);
+  }
+
+  function sectionLabel(section) {
+    var h = section.querySelector("h1, h2");
+    return h ? h.textContent.replace(/\s+/g, " ").trim() : "";
   }
 
   function waitForBuild(token) {
     return new Promise(function (resolve, reject) {
-      var done = false;
+      if (!use3D) {
+        resolve();
+        return;
+      }
+      var finished = false;
       var finish = function () {
-        if (done) return;
-        done = true;
-        if (stillRunning(token)) resolve();
-        else reject("stopped");
+        if (finished) return;
+        finished = true;
+        if (tourActive && token === tourToken) resolve();
+        else reject(new Stopped());
       };
       onBuildDone(function () {
         window.setTimeout(finish, 3000);
       });
       window.setTimeout(finish, 60000);
+      // pijltje rechts werkt ook hier
+      skipWait = function () {
+        skipWait = null;
+        finish();
+      };
     });
   }
 
-  function tour(token) {
-    var stops = Array.prototype.slice.call(document.querySelectorAll("main .section")).filter(function (el) {
-      return !el.hidden;
-    });
-    var chain = scrollToY(0, 1600, token)
-      .then(function () {
+  async function tour(token) {
+    try {
+      while (true) {
+        // 1. bovenaan: animatie opnieuw en wachten tot de auto af is
+        await scrollToY(0, 1600, token);
+        check(token);
         buildDoneWaiters = [];
         playAnimation();
-        return waitForBuild(token);
-      });
-    stops.forEach(function (el) {
-      chain = chain
-        .then(function () {
-          el.classList.add("reveal");
-          return scrollToY(sectionTop(el), 1800, token);
-        })
-        .then(function () {
-          var ms = readingTime(el);
-          runTimerBar(ms);
-          return wait(ms, token);
-        })
-        .then(function () {
-          hideTimerBar();
-          // lange sectie: rustig doorlezen tot de onderkant in beeld is
-          var bottom = el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 30;
-          var distance = bottom - window.scrollY;
-          if (distance > 40) {
-            return scrollToY(bottom, (distance / READ_SCROLL_SPEED) * 1000, token, true).then(function () {
-              return wait(1500, token);
-            });
-          }
+        if (tourPanel) tourPanel.hidden = true;
+        await waitForBuild(token);
+        check(token);
+
+        // 2. alle onderdelen, scherm voor scherm
+        var sections = Array.prototype.slice.call(document.querySelectorAll("#animatie, main .intro, main .chapter, main .bronnen-section")).filter(function (el) {
+          return !el.hidden && el.offsetParent !== null;
         });
-    });
-    chain
-      .then(function () {
-        return scrollToY(document.documentElement.scrollHeight, 1500, token);
-      })
-      .then(function () {
-        return wait(3000, token);
-      })
-      .then(function () {
-        if (stillRunning(token)) tour(token);
-      })
-      .catch(function () {
-        hideTimerBar();
-      });
+        var stops = [];
+        sections.forEach(function (section) {
+          pagesFor(section).forEach(function (y, i) {
+            stops.push({ section: section, y: y, first: i === 0 });
+          });
+        });
+        var seen = new Set();
+        for (var i = 0; i < stops.length; i++) {
+          var stop = stops[i];
+          if (tourCount) tourCount.textContent = "";
+          if (tourBar) tourBar.style.strokeDashoffset = "0";
+          if (tourPanel) tourPanel.setAttribute("data-stop", String(i));
+          await scrollToY(stop.y, 1500, token);
+          check(token);
+          var n = newWordsInView(stop.section, seen);
+          var isBanner = stop.first && stop.section.classList.contains("chapter") && !stop.section.classList.contains("chapter-conclusie");
+          var ms = isBanner && n < 25 ? BANNER_SECONDS * 1000 : readMs(n, stop.section);
+          var result = await countdown(ms, sectionLabel(stop.section), token);
+          if (result === "back") i = Math.max(-1, i - 2);
+        }
+
+        // 3. onderaan even blijven staan en dan opnieuw
+        await countdown(4000, "Terug naar het begin", token);
+      }
+    } catch (e) {
+      if (!(e instanceof Stopped)) throw e;
+    }
   }
 
   function setAutoScroll(on) {
     tourActive = on;
     tourToken++;
-    hideTimerBar();
+    if (skipWait) skipWait(false);
+    document.body.classList.toggle("touring", on);
     // tijdens de rondleiding scrollen we zelf; de CSS smooth-scroll zou elke stap vertragen
     document.documentElement.style.scrollBehavior = on ? "auto" : "";
     if (on) {
-      showAutoScrollMessage("Rondleiding aan — druk op W om te stoppen");
+      showAutoScrollMessage("Rondleiding aan — W stopt, → volgende, ← terug");
       tour(tourToken);
     } else {
+      if (tourPanel) tourPanel.hidden = true;
       showAutoScrollMessage("Rondleiding uit");
     }
   }
 
   document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     var key = e.key ? e.key.toLowerCase() : "";
-    if (key === "w" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (key === "w") {
       setAutoScroll(!tourActive);
+    } else if (tourActive && (key === "arrowright" || key === " " || key === "pagedown")) {
+      e.preventDefault();
+      if (skipWait) skipWait(false);
+    } else if (tourActive && (key === "arrowleft" || key === "pageup")) {
+      e.preventDefault();
+      if (skipWait) skipWait(true);
     }
   });
 })();

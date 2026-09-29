@@ -12,6 +12,8 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
+import { FXAAPass } from "three/examples/jsm/postprocessing/FXAAPass.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 // ---------------------------------------------------------------------------
 // Tijdlijn (seconden)
@@ -97,6 +99,97 @@ function canvasTexture(w, h, draw, srgb = true) {
   return tex;
 }
 
+// ---------------------------------------------------------------------------
+// Samenvoegen: losse onderdelen die samen bewegen worden per materiaal één
+// object. Dat scheelt de videokaart honderden losse tekenopdrachten per beeld.
+// ---------------------------------------------------------------------------
+
+function toFloatGeometry(src) {
+  const g = new THREE.BufferGeometry();
+  for (const name of Object.keys(src.attributes)) {
+    const a = src.attributes[name];
+    if (a.isInterleavedBufferAttribute || a.array.constructor !== Float32Array || a.normalized) {
+      const out = new Float32Array(a.count * a.itemSize);
+      for (let i = 0; i < a.count; i++) {
+        out[i * a.itemSize] = a.getX(i);
+        if (a.itemSize > 1) out[i * a.itemSize + 1] = a.getY(i);
+        if (a.itemSize > 2) out[i * a.itemSize + 2] = a.getZ(i);
+        if (a.itemSize > 3) out[i * a.itemSize + 3] = a.getW(i);
+      }
+      g.setAttribute(name, new THREE.BufferAttribute(out, a.itemSize));
+    } else {
+      g.setAttribute(name, a.clone());
+    }
+  }
+  if (src.index) g.setIndex(new THREE.BufferAttribute(new Uint32Array(src.index.array), 1));
+  else g.setIndex([...Array(src.attributes.position.count).keys()]);
+  return g;
+}
+
+// shallow: alleen directe kinderen (voor robotleden, waar subgroepen apart bewegen)
+// unify: { from: Set van materialen, to: materiaal met vertexColors } voegt verschillend
+// gekleurde onderdelen samen tot één object, met de kleur in de hoekpunten.
+function mergeMeshes(root, shallow, unify) {
+  root.updateWorldMatrix(true, true);
+  const inv = root.matrixWorld.clone().invert();
+  const buckets = new Map();
+  const candidates = shallow ? root.children.slice() : [];
+  if (!shallow) {
+    root.traverse((o) => {
+      if (o === root) return;
+      for (let p = o.parent; p && p !== root; p = p.parent) if (p.userData.noMerge) return;
+      candidates.push(o);
+    });
+  }
+  for (const o of candidates) {
+    if (!o.isMesh || o.isInstancedMesh || o.userData.noMerge || !o.visible || Array.isArray(o.material)) continue;
+    if (o.children.length && shallow) continue;
+    const g = toFloatGeometry(o.geometry);
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    let mat = o.material;
+    if (unify && unify.from.has(mat)) {
+      const n = g.attributes.position.count;
+      const col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        col[i * 3] = mat.color.r;
+        col[i * 3 + 1] = mat.color.g;
+        col[i * 3 + 2] = mat.color.b;
+      }
+      g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      if (g.attributes.uv1) g.deleteAttribute("uv1");
+      mat = unify.to;
+    }
+    const key = [mat.uuid, Object.keys(g.attributes).sort().join(","), o.castShadow, o.receiveShadow, o.renderOrder].join("|");
+    if (!buckets.has(key)) buckets.set(key, { mat, cast: o.castShadow, recv: o.receiveShadow, order: o.renderOrder, geos: [], objs: [] });
+    const b = buckets.get(key);
+    b.geos.push(g);
+    b.objs.push(o);
+  }
+  for (const b of buckets.values()) {
+    if (b.objs.length < 2) continue;
+    const merged = mergeGeometries(b.geos, false);
+    if (!merged) continue;
+    const m = new THREE.Mesh(merged, b.mat);
+    m.castShadow = b.cast;
+    m.receiveShadow = b.recv;
+    m.renderOrder = b.order;
+    root.add(m);
+    for (const o of b.objs) {
+      if (o.children.length) {
+        // kinderen behouden: het object wordt een lege groep op dezelfde plek
+        const holder = new THREE.Group();
+        holder.name = o.name;
+        holder.position.copy(o.position);
+        holder.quaternion.copy(o.quaternion);
+        holder.scale.copy(o.scale);
+        while (o.children.length) holder.add(o.children[0]);
+        o.parent.add(holder);
+      }
+      o.parent.remove(o);
+    }
+  }
+}
+
 // Cilinder tussen twee punten (kabels, kettingen).
 function placeCable(mesh, a, b) {
   const len = a.distanceTo(b);
@@ -158,6 +251,7 @@ function makeMaterials() {
     robotOrange: std(0xd9580e, 0.5, 0.22, { roughnessMap: rough }),
     robotGrey: std(0x33383d, 0.6, 0.6, { roughnessMap: rough }),
     robotDark: std(0x1c1f22, 0.62, 0.5, { roughnessMap: rough }),
+    robotAll: std(0xffffff, 0.5, 0.35, { roughnessMap: rough, vertexColors: true }),
     primer: std(0xa4aaaf, 0.42, 0.85, { roughnessMap: rough }),
     wallPanel: std(0xffffff, 0.75, 0.35, { map: wallTex }),
     roof: std(0x39424a, 0.85, 0.3),
@@ -335,6 +429,11 @@ class Robot {
     }
 
     this.tcpLocal = V(0, this.Lt, 0);
+    const unify = {
+      from: new Set([M.robotOrange, M.robotGrey, M.robotDark, M.steel, M.darkSteel, M.hose, M.copper, M.cup]),
+      to: M.robotAll,
+    };
+    for (const g of [root, this.j1, this.shoulder, this.elbow, this.wrist]) mergeMeshes(g, true, unify);
     this.home = { p: V(base.x - side * 0.25, 2.2, base.z), d: V(-side * 0.2, -1, 0).normalize() };
   }
 
@@ -585,6 +684,7 @@ function buildEngine(M) {
   add(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), M.blackPlastic, -0.18, 0.525, -0.06);
   add(new THREE.TorusGeometry(0.025, 0.007, 8, 16), M.steel, 0.22, 0.56, -0.12, 0, Math.PI / 2, 0);
   add(new THREE.TorusGeometry(0.025, 0.007, 8, 16), M.steel, -0.22, 0.56, -0.12, 0, Math.PI / 2, 0);
+  mergeMeshes(g);
   return g;
 }
 
@@ -653,6 +753,7 @@ function buildHall(scene, M, quality) {
     });
     reflector.rotation.x = -Math.PI / 2;
     reflector.position.y = -0.002;
+    reflector.userData.noMerge = true;
     hall.add(reflector);
   }
 
@@ -810,6 +911,7 @@ function buildHall(scene, M, quality) {
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.15, 16, 1, true, 0, Math.PI), M.robotDark);
     shade.position.copy(lamp.position);
     hall.add(shade);
+    shade.userData.noMerge = true;
     beacons.push(shade);
   }
 
@@ -889,7 +991,7 @@ function textPanel(w, h, draw) {
   return { tex, mat };
 }
 
-function buildHallExtras(scene, M, hallParts) {
+function buildHallExtras(scene, M, hallParts, ultra) {
   const hall = hallParts.hall;
   const inst = (geo, mat, list, shadow) => {
     const im = new THREE.InstancedMesh(geo, mat, list.length);
@@ -1069,6 +1171,14 @@ function buildHallExtras(scene, M, hallParts) {
   };
   agvs.push({ obj: makeAgv("crates"), x: -5.9, z0: -22, z1: 14, period: 34, offset: 0 });
   agvs.push({ obj: makeAgv("tires"), x: 5.9, z0: -32, z1: -9, period: 26, offset: 9 });
+  for (const a of agvs) {
+    a.obj.userData.noMerge = true;
+    mergeMeshes(a.obj);
+  }
+  // de hal zelf werpt geen schaduw: dat scheelt een volledige extra tekenronde
+  hall.traverse((o) => {
+    if (o.isMesh) o.castShadow = false;
+  });
 
   // lichttunnel voor de eindcontrole
   const tunnel = new THREE.Group();
@@ -1127,6 +1237,7 @@ function buildHallExtras(scene, M, hallParts) {
 
   const rectLights = [];
   const addRect = (w, h, pos, look, intensity) => {
+    if (!ultra) return;
     const l = new THREE.RectAreaLight(0xf4f8ff, intensity, w, h);
     l.position.copy(pos);
     l.lookAt(look);
@@ -1176,6 +1287,7 @@ function buildHoist(scene, M) {
   // motor: juk met twee kettingen
   const engineRig = new THREE.Group();
   engineRig.add(box(0.72, 0.06, 0.06, M.yellow));
+  mergeMeshes(engineRig);
   scene.add(engineRig);
 
   // carrosserie: rechthoekig hijsframe
@@ -1190,6 +1302,7 @@ function buildHoist(scene, M) {
     b.position.z = z;
     bodyRig.add(b);
   }
+  mergeMeshes(bodyRig);
   scene.add(bodyRig);
 
   // ruit: zuignapframe
@@ -1205,8 +1318,10 @@ function buildHoist(scene, M) {
     cup.position.set(x, -0.2, z);
     glassRig.add(cup);
   }
+  mergeMeshes(glassRig);
   scene.add(glassRig);
 
+  mergeMeshes(trolley);
   return {
     trolley,
     rigs: { engine: engineRig, body: bodyRig, glass: glassRig },
@@ -1267,17 +1382,37 @@ class CarFactory {
     this.warmup = 90;
     this.pausedAt = null;
 
+    // Kwaliteit: 0 = hoog, 1 = middel, 2 = laag. De pagina schakelt zelf terug als
+    // het haperig wordt. "?q=ultra" zet extra dure effecten aan (voor losse foto's).
     const params = new URLSearchParams(window.location.search);
     const forced = params.get("q");
+    this.ultra = forced === "ultra";
     this.level = forced === "low" ? 2 : forced === "mid" ? 1 : 0;
     this.lockQuality = !!forced;
+    this.resScale = 1;
+    this.slowWindows = 0;
+    this.fastWindows = 0;
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.domElement.className = "factory-canvas";
+    if (!forced) {
+      // ingebouwde grafische chips (de meeste school- en kantoorlaptops) beginnen op middel
+      let gpu = "";
+      try {
+        const gl = this.renderer.getContext();
+        const ext = gl.getExtension("WEBGL_debug_renderer_info");
+        gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      } catch (e) {
+        gpu = "";
+      }
+      this.gpu = String(gpu);
+      if (/swiftshader|llvmpipe|software|basic render/i.test(this.gpu)) this.level = 2;
+      else if (/intel|uhd|hd graphics|iris|mali|adreno|powervr|videocore/i.test(this.gpu)) this.level = 1;
+    }
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
@@ -1286,16 +1421,17 @@ class CarFactory {
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.9;
-    RectAreaLightUniformsLib.init();
+    if (this.ultra) RectAreaLightUniformsLib.init();
 
     this.camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 120);
     this.camera.position.set(6.5, 2, 6);
 
     this.M = makeMaterials();
     this.setupLights();
-    this.quality = { reflections: this.level === 0 };
+    this.quality = { reflections: this.ultra };
     this.hallParts = buildHall(this.scene, this.M, this.quality);
-    this.extras = buildHallExtras(this.scene, this.M, this.hallParts);
+    this.extras = buildHallExtras(this.scene, this.M, this.hallParts, this.ultra);
+    mergeMeshes(this.hallParts.hall);
     this.produced = 214;
     this.hoist = buildHoist(this.scene, this.M);
     this.setupRobots();
@@ -1304,37 +1440,41 @@ class CarFactory {
     this.setupWeldFx();
 
     // MSAA-rendertarget: zonder dit verliest de nabewerking de gladde randen
-    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
     this.samples = 4;
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.samples });
     this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    // ambient occlusion (zachte schaduw in hoeken en onder de auto), op halve resolutie
-    this.gtao = new GTAOPass(this.scene, this.camera, 512, 288, undefined, {
-      radius: 0.6,
-      distanceExponent: 1.6,
-      thickness: 1.4,
-      scale: 1.15,
-      samples: 12,
-      distanceFallOff: 1.0,
-      screenSpaceRadius: false,
-    });
-    const gtaoSetSize = this.gtao.setSize.bind(this.gtao);
-    this.gtao.setSize = (w, h) => gtaoSetSize(Math.max(1, Math.round(w * 0.5)), Math.max(1, Math.round(h * 0.5)));
-    const hideForAo = this.gtao._overrideVisibility.bind(this.gtao);
-    this.gtao._overrideVisibility = () => {
-      hideForAo();
-      const extra = [this.hallParts.reflector, ...this.weldFx.map((f) => f.sprite), this.smoke.group];
-      for (const o of extra) {
-        if (o && o.visible) {
-          o.visible = false;
-          this.gtao._visibilityCache.push(o);
+    if (this.ultra) {
+      // ambient occlusion: alleen voor losse foto's, te zwaar voor een gewone laptop
+      this.gtao = new GTAOPass(this.scene, this.camera, 512, 288, undefined, {
+        radius: 0.6,
+        distanceExponent: 1.6,
+        thickness: 1.4,
+        scale: 1.15,
+        samples: 12,
+        distanceFallOff: 1.0,
+        screenSpaceRadius: false,
+      });
+      const gtaoSetSize = this.gtao.setSize.bind(this.gtao);
+      this.gtao.setSize = (w, h) => gtaoSetSize(Math.max(1, Math.round(w * 0.5)), Math.max(1, Math.round(h * 0.5)));
+      const hideForAo = this.gtao._overrideVisibility.bind(this.gtao);
+      this.gtao._overrideVisibility = () => {
+        hideForAo();
+        const extra = [this.hallParts.reflector, this.weldFx.sprite, this.smoke.group];
+        for (const o of extra) {
+          if (o && o.visible) {
+            o.visible = false;
+            this.gtao._visibilityCache.push(o);
+          }
         }
-      }
-    };
-    this.composer.addPass(this.gtao);
+      };
+      this.composer.addPass(this.gtao);
+    }
     this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 288), 0.22, 0.3, 2.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.fxaa = new FXAAPass();
+    this.composer.addPass(this.fxaa);
 
     this.fade = document.createElement("div");
     this.fade.className = "factory-fade";
@@ -1363,12 +1503,12 @@ class CarFactory {
     key.position.set(4.5, 9, 5.5);
     key.target.position.set(0, 0.6, 0);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(1024, 1024);
     const sc = key.shadow.camera;
-    sc.left = -6;
-    sc.right = 6;
-    sc.top = 6;
-    sc.bottom = -6;
+    sc.left = -5;
+    sc.right = 5;
+    sc.top = 5;
+    sc.bottom = -5;
     sc.near = 1;
     sc.far = 25;
     key.shadow.bias = -0.0003;
@@ -1377,24 +1517,11 @@ class CarFactory {
     this.scene.add(key, key.target);
     this.keyLight = key;
 
-    this.scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x3a3530, 0.85));
-    // lichtbundel van de werkplekverlichting boven het station
-    const pool = new THREE.SpotLight(0xfff3e4, 70, 16, 0.6, 0.85, 1.3);
-    pool.position.set(0, 7.4, 0.3);
-    pool.target.position.set(0, 0, 0.3);
-    this.scene.add(pool, pool.target);
+    this.scene.add(new THREE.HemisphereLight(0xc4d8ff, 0x3a3530, 1.05));
     const rim = new THREE.DirectionalLight(0x9cc4ff, 1.1);
     rim.position.set(-4, 5, -7);
     this.scene.add(rim);
 
-    this.headSpots = [];
-    for (const x of [0.62, -0.62]) {
-      const spot = new THREE.SpotLight(0xf4f7ff, 0, 16, 0.42, 0.55, 1.4);
-      spot.position.set(x, 0.66 + S, 2.2);
-      spot.target.position.set(x * 1.6, 0, 8);
-      this.scene.add(spot, spot.target);
-      this.headSpots.push(spot);
-    }
   }
 
   setupRobots() {
@@ -1460,7 +1587,8 @@ class CarFactory {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
     });
-    this.weldFx = [];
+    // één lasgloed-sprite per lasrobot, maar één gedeelde lamp (elke lamp kost rekenwerk op elk pixel)
+    this.weldSprites = [];
     for (let i = 0; i < 2; i++) {
       const mat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false });
       mat.color.setScalar(4);
@@ -1468,19 +1596,18 @@ class CarFactory {
       sprite.scale.setScalar(0.45);
       sprite.visible = false;
       this.scene.add(sprite);
-      const light = new THREE.PointLight(0xa8d4ff, 0, 6, 2);
-      this.scene.add(light);
-      this.weldFx.push({ sprite, light });
+      this.weldSprites.push(sprite);
     }
+    this.weldLight = new THREE.PointLight(0xa8d4ff, 0, 6, 2);
+    this.scene.add(this.weldLight);
+    this.weldFx = { sprite: this.weldSprites[0] };
   }
 
   applyQuality() {
-    const dpr = window.devicePixelRatio || 1;
-    const ratios = [Math.min(dpr, 1.5), Math.min(dpr, 1.15), 0.85];
-    this.renderer.setPixelRatio(ratios[this.level]);
-    this.bloom.enabled = this.level < 2;
-    this.gtao.enabled = this.level === 0;
-    const samples = [4, 2, 0][this.level];
+    const high = this.level === 0;
+    this.bloom.enabled = high && !this.photoMode;
+    const samples = this.level === 0 ? 4 : 0;
+    this.fxaa.enabled = samples === 0;
     if (samples !== this.samples) {
       this.samples = samples;
       for (const rt of [this.composer.renderTarget1, this.composer.renderTarget2]) {
@@ -1488,9 +1615,9 @@ class CarFactory {
         rt.dispose();
       }
     }
-    for (const l of this.extras.rectLights) l.visible = this.level === 0;
-    if (this.biw) this.biw.visible = this.level === 0;
-    const size = this.level === 0 ? 2048 : 1024;
+    const shadows = this.level < 2;
+    if (this.keyLight.castShadow !== shadows) this.keyLight.castShadow = shadows;
+    const size = this.ultra ? 2048 : 1024;
     if (this.keyLight.shadow.mapSize.x !== size) {
       this.keyLight.shadow.mapSize.set(size, size);
       if (this.keyLight.shadow.map) {
@@ -1498,19 +1625,26 @@ class CarFactory {
         this.keyLight.shadow.map = null;
       }
     }
-    const refl = this.hallParts.reflector;
-    if (refl) {
-      refl.visible = this.level === 0;
-      this.hallParts.floorMat.opacity = this.level === 0 ? 0.86 : 1;
-      this.hallParts.floorMat.transparent = this.level === 0;
-      this.hallParts.floorMat.needsUpdate = true;
-    }
+    if (this.biw) this.biw.visible = high;
+    for (const r of this.farRobots) r.root.visible = this.level < 2;
+    this.hallParts.dust.visible = this.level < 2;
     this.resize();
+  }
+
+  // Scherpte: nooit meer beeldpunten dan ongeveer een Full-HD-beeld, en omlaag als het hapert.
+  pixelRatio(w, h) {
+    const dpr = window.devicePixelRatio || 1;
+    const budget = this.ultra ? 3.6e6 : [2.1e6, 1.5e6, 1.0e6][this.level];
+    const cap = Math.sqrt(budget / Math.max(1, w * h));
+    return Math.max(0.35, Math.min(dpr, this.ultra ? 2 : 1.25, cap) * this.resScale);
   }
 
   resize() {
     const w = Math.max(1, this.container.clientWidth);
     const h = Math.max(1, this.container.clientHeight);
+    const pr = this.pixelRatio(w, h);
+    this.renderer.setPixelRatio(pr);
+    this.composer.setPixelRatio(pr);
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
@@ -1629,7 +1763,7 @@ class CarFactory {
     // remschijven en remklauwen horen bij het chassis
     const chassisParts = ["Axles", "InteriorFloor", "InteriorMid"];
     for (const w of ["FrontL", "FrontR", "RearL", "RearR"]) chassisParts.push(`Wheel${w}BrakeDisc`, `Wheel${w}BrakePad`);
-    group(chassisParts);
+    this.chassisGroup = group(chassisParts);
 
     // wielen: draaipunt in het midden van de band
     this.wheels = [];
@@ -1745,6 +1879,13 @@ class CarFactory {
     this.scene.add(biw);
     this.biw = biw;
     this.biw.visible = this.level === 0;
+
+    // onderdelen die samen bewegen per materiaal samenvoegen (veel minder tekenwerk)
+    const units = [this.bodyShell, this.windshield, this.chassisGroup, this.skid, this.biw, model];
+    for (const d of this.doors) units.push(d.obj);
+    for (const w of this.wheels) units.push(w.pivot);
+    for (const w of this.interiorWaves) units.push(w.grp);
+    for (const u of units) mergeMeshes(u);
   }
 
   // -------------------------------------------------------------------------
@@ -1809,20 +1950,42 @@ class CarFactory {
     this.trackPerformance(dt);
   }
 
+  // Houdt de animatie vloeiend: bij haperen eerst de scherpte iets omlaag, daarna
+  // effecten uit. Loopt het ruim soepel, dan gaat de scherpte weer omhoog.
   trackPerformance(dt) {
-    if (this.lockQuality || this.level >= 2) return;
+    if (this.lockQuality) return;
     if (this.warmup > 0) {
       this.warmup--;
       return;
     }
     this.frameTimes.push(dt);
-    if (this.frameTimes.length < 90) return;
-    const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+    if (this.frameTimes.length < 40) return;
+    const sorted = this.frameTimes.slice().sort((a, b) => a - b);
     this.frameTimes.length = 0;
-    if (avg > 0.026) {
-      this.level++;
-      this.applyQuality();
-      this.warmup = 45;
+    const typical = sorted[Math.floor(sorted.length * 0.6)];
+    if (typical > 0.0205) {
+      this.fastWindows = 0;
+      if (this.resScale > 0.62) {
+        this.resScale = Math.max(0.6, this.resScale * 0.84);
+        this.resize();
+      } else if (this.level < 2) {
+        this.level++;
+        this.resScale = 0.85;
+        this.applyQuality();
+      } else if (this.resScale > 0.45) {
+        this.resScale *= 0.88;
+        this.resize();
+      }
+      this.warmup = 20;
+    } else if (typical < 0.0175 && this.resScale < 1) {
+      if (++this.fastWindows >= 4) {
+        this.fastWindows = 0;
+        this.resScale = Math.min(1, this.resScale * 1.08);
+        this.resize();
+        this.warmup = 20;
+      }
+    } else {
+      this.fastWindows = 0;
     }
   }
 
@@ -1923,7 +2086,7 @@ class CarFactory {
       this.setWireframe(false);
     }
     this.photoMode = mode || null;
-    if (this.bloom) this.bloom.enabled = !mode && this.level < 2;
+    if (this.bloom) this.bloom.enabled = !mode && this.level === 0;
     if (!mode) return;
     if (!this.studio) {
       this.studio = new THREE.Group();
@@ -1963,7 +2126,6 @@ class CarFactory {
   applyPhotoPose() {
     this.carRoot.position.set(0, 0, 0);
     for (const l of this.lightMats) l.mat.emissiveIntensity = 0;
-    for (const s of this.headSpots) s.intensity = 0;
     for (const k in this.hoist.rigs) this.hoist.rigs[k].visible = false;
     for (const c of this.hoist.mainCables.concat(this.hoist.subCables)) c.visible = false;
     if (this.photoMode !== "exploded") return;
@@ -2309,12 +2471,8 @@ class CarFactory {
       }
       r.solve(P, D);
     }
-    for (let i = 0; i < 2; i++) {
-      if (!fxOn[i]) {
-        this.weldFx[i].sprite.visible = false;
-        this.weldFx[i].light.intensity = 0;
-      }
-    }
+    for (let i = 0; i < 2; i++) if (!fxOn[i]) this.weldSprites[i].visible = false;
+    if (!fxOn[0] && !fxOn[1]) this.weldLight.intensity = 0;
 
     // deuren en wielen
     const handRobots = [R.handL, R.handR];
@@ -2383,13 +2541,15 @@ class CarFactory {
   }
 
   emitWeld(i, world, side, dt) {
-    const fx = this.weldFx[i];
-    fx.sprite.visible = true;
-    fx.sprite.position.copy(world).add(V(side * 0.03, 0, 0));
+    const sprite = this.weldSprites[i];
+    sprite.visible = true;
+    sprite.position.copy(world).add(_v3.set(side * 0.03, 0, 0));
     const flick = 0.6 + Math.random() * 0.8;
-    fx.sprite.scale.setScalar(0.3 + Math.random() * 0.25);
-    fx.light.position.copy(world).add(V(side * 0.15, 0.05, 0));
-    fx.light.intensity = 6 * flick;
+    sprite.scale.setScalar(0.3 + Math.random() * 0.25);
+    if (i === 0) {
+      this.weldLight.position.copy(world).add(_v3.set(side * 0.15, 0.05, 0));
+      this.weldLight.intensity = 6 * flick;
+    }
     this.sparks.emit(world, V(side, 0.25, 0), Math.max(1, Math.round(dt * 520)));
     if (Math.random() < dt * 7) this.smoke.emit(world);
   }
@@ -2407,79 +2567,82 @@ class CarFactory {
       if (l.kind === "Dashboard") k = on ? seg(tau, 0.4, 1.0) : 0;
       l.mat.emissiveIntensity = Math.min(l.base, 6) * k;
     }
-    const rootZ = this.carRoot.position.z;
-    for (const s of this.headSpots) {
-      s.intensity = 30 * head;
-      s.position.z = 2.2 + rootZ;
-      s.target.position.z = 8 + rootZ;
-    }
+    // in de lichttunnel: omgevingslicht fel omhoog (goedkoper dan extra lampen)
+    const inTunnel = seg(t, TL.tunnel + 2.5, TL.tunnel + 4.5) * (1 - seg(t, TL.end - 0.6, TL.end));
+    this.scene.environmentIntensity = 0.9 + 0.9 * inTunnel;
   }
 
   updateCamera(t, clock) {
     // Camerastandpunten kijken tussen de robots door (robots staan op x=±2,3, z=1,6 en z=-1,1).
-    const pos = [
-      [0, V(1.2, 2.2, 9.5)],
-      [3.0, V(2.4, 2.4, 7.2)],
-      [4.2, V(1.4, 2.4, 7.4)],
-      [5.4, V(1.6, 2.6, 6.6)],
-      [6.9, V(1.7, 2.5, 5.2)],
-      [8.2, V(-2.0, 3.8, 4.2)],
-      [10.3, V(-1.6, 3.4, 3.6)],
-      [11.6, V(7.4, 2.9, 0.4)],
-      [13.8, V(7.0, 2.4, 0.3)],
-      [14.8, V(2.0, 2.1, 6.2)],
-      [17.8, V(2.4, 2.0, 5.9)],
-      [18.8, V(7.0, 2.8, -0.6)],
-      [21.5, V(6.6, 2.3, 0.4)],
-      [22.8, V(1.2, 1.25, 5.9)],
-      [26.0, V(1.4, 1.15, 5.7)],
-      [27.0, V(2.0, 3.0, 6.6)],
-      [28.8, V(2.0, 2.8, 6.0)],
-      [30.0, V(1.8, 2.4, 5.8)],
-      [31.3, V(1.2, 1.45, 6.9)],
-      [32.6, V(2.4, 1.8, 8.6)],
-      [34.0, V(3.8, 3.6, 11.0)],
-      [35.4, V(0.8, 3.4, 20.5)],
-      [36.6, V(1.6, 1.45, 21.6)],
-      [37.8, V(1.5, 1.35, 20.8)],
-      [40.8, V(-1.7, 1.9, 21.3)],
-      [43.0, V(-2.3, 2.1, 21.6)],
-    ];
-    const tgt = [
-      [0, V(0, 0.9, -3.0)],
-      [3.0, V(0, 0.7, 0.2)],
-      [4.2, V(0, 2.6, -1.5)],
-      [5.4, V(0, 2.4, 1.8)],
-      [6.9, V(0, 0.8, 1.8)],
-      [8.2, V(0, 0.6, 0.3)],
-      [10.3, V(0, 0.7, 0.1)],
-      [11.6, V(0, 2.0, -0.8)],
-      [13.8, V(0, 1.0, 0.1)],
-      [14.8, V(1.0, 1.0, 1.0)],
-      [17.8, V(0.9, 0.9, 0.7)],
-      [18.8, V(1.8, 0.9, -1.4)],
-      [21.5, V(0.9, 0.9, 0.1)],
-      [22.8, V(0.4, 0.6, 0.5)],
-      [26.0, V(0.3, 0.6, 0.3)],
-      [27.0, V(0, 2.4, 0.4)],
-      [28.8, V(0, 1.6, 0.8)],
-      [30.0, V(0, 1.0, 0.8)],
-      [31.3, V(0, 0.8, 0.6)],
-      [32.6, V(0, 0.8, 2.2)],
-      [34.0, V(0, 0.9, 8.0)],
-      [35.4, V(0, 0.8, 13.6)],
-      [36.6, V(0, 0.85, 14.8)],
-      [37.8, V(0, 0.8, 15.3)],
-      [40.8, V(0, 0.8, 15.3)],
-      [43.0, V(0, 0.8, 15.3)],
-    ];
+    if (!this.camKeys) {
+      this.camKeys = { pos: null, tgt: null, target: V() };
+      const pos = [
+        [0, V(1.2, 2.2, 9.5)],
+        [3.0, V(2.4, 2.4, 7.2)],
+        [4.2, V(1.4, 2.4, 7.4)],
+        [5.4, V(1.6, 2.6, 6.6)],
+        [6.9, V(1.7, 2.5, 5.2)],
+        [8.2, V(-2.0, 3.8, 4.2)],
+        [10.3, V(-1.6, 3.4, 3.6)],
+        [11.6, V(7.4, 2.9, 0.4)],
+        [13.8, V(7.0, 2.4, 0.3)],
+        [14.8, V(2.0, 2.1, 6.2)],
+        [17.8, V(2.4, 2.0, 5.9)],
+        [18.8, V(7.0, 2.8, -0.6)],
+        [21.5, V(6.6, 2.3, 0.4)],
+        [22.8, V(1.2, 1.25, 5.9)],
+        [26.0, V(1.4, 1.15, 5.7)],
+        [27.0, V(2.0, 3.0, 6.6)],
+        [28.8, V(2.0, 2.8, 6.0)],
+        [30.0, V(1.8, 2.4, 5.8)],
+        [31.3, V(1.2, 1.45, 6.9)],
+        [32.6, V(2.4, 1.8, 8.6)],
+        [34.0, V(3.8, 3.6, 11.0)],
+        [35.4, V(0.8, 3.4, 20.5)],
+        [36.6, V(1.6, 1.45, 21.6)],
+        [37.8, V(1.5, 1.35, 20.8)],
+        [40.8, V(-1.7, 1.9, 21.3)],
+        [43.0, V(-2.3, 2.1, 21.6)],
+      ];
+      const tgt = [
+        [0, V(0, 0.9, -3.0)],
+        [3.0, V(0, 0.7, 0.2)],
+        [4.2, V(0, 2.6, -1.5)],
+        [5.4, V(0, 2.4, 1.8)],
+        [6.9, V(0, 0.8, 1.8)],
+        [8.2, V(0, 0.6, 0.3)],
+        [10.3, V(0, 0.7, 0.1)],
+        [11.6, V(0, 2.0, -0.8)],
+        [13.8, V(0, 1.0, 0.1)],
+        [14.8, V(1.0, 1.0, 1.0)],
+        [17.8, V(0.9, 0.9, 0.7)],
+        [18.8, V(1.8, 0.9, -1.4)],
+        [21.5, V(0.9, 0.9, 0.1)],
+        [22.8, V(0.4, 0.6, 0.5)],
+        [26.0, V(0.3, 0.6, 0.3)],
+        [27.0, V(0, 2.4, 0.4)],
+        [28.8, V(0, 1.6, 0.8)],
+        [30.0, V(0, 1.0, 0.8)],
+        [31.3, V(0, 0.8, 0.6)],
+        [32.6, V(0, 0.8, 2.2)],
+        [34.0, V(0, 0.9, 8.0)],
+        [35.4, V(0, 0.8, 13.6)],
+        [36.6, V(0, 0.85, 14.8)],
+        [37.8, V(0, 0.8, 15.3)],
+        [40.8, V(0, 0.8, 15.3)],
+        [43.0, V(0, 0.8, 15.3)],
+      ];
+      this.camKeys.pos = pos;
+      this.camKeys.tgt = tgt;
+    }
+    const { pos, tgt } = this.camKeys;
     if (this.debugCam) {
       this.camera.position.copy(this.debugCam.pos);
       this.camera.lookAt(this.debugCam.target);
       return;
     }
     keyed(pos, t, this.camera.position);
-    const target = keyed(tgt, t, V());
+    const target = keyed(tgt, t, this.camKeys.target);
     // lichte "camerakraan"-beweging
     this.camera.position.x += Math.sin(clock * 0.37) * 0.06;
     this.camera.position.y += Math.sin(clock * 0.29) * 0.04;
@@ -2532,6 +2695,22 @@ window.Car3D = {
   },
   isReady() {
     return !!(instance && instance.ready);
+  },
+  // Meet hoeveel werk één beeld kost (alleen voor testen).
+  bench(n) {
+    if (!instance) return null;
+    const r = instance.renderer;
+    const gl = r.getContext();
+    const px = new Uint8Array(4);
+    r.info.autoReset = false;
+    r.info.reset();
+    const t0 = performance.now();
+    for (let k = 0; k < n; k++) instance.composer.render();
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const ms = (performance.now() - t0) / n;
+    const out = { ms: Math.round(ms), calls: Math.round(r.info.render.calls / n), tris: Math.round(r.info.render.triangles / n), programs: r.info.programs ? r.info.programs.length : 0, level: instance.level, pr: r.getPixelRatio() };
+    r.info.autoReset = true;
+    return out;
   },
   photo(mode) {
     if (instance) instance.photo(mode);

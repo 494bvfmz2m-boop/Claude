@@ -1,0 +1,10 @@
+Lettertypes in deze map
+=======================
+
+inter.woff2                 Inter, Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+barlow-condensed-600.woff2  Barlow Condensed, Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
+barlow-condensed-700.woff2  Barlow Condensed, Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
+
+Beide lettertypes vallen onder de SIL Open Font License, versie 1.1:
+https://openfontlicense.org
+De bestanden komen uit de npm-pakketten @fontsource-variable/inter en @fontsource/barlow-condensed.
