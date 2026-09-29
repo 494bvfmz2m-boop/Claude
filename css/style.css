@@ -109,6 +109,9 @@ h3 {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   flex: none;
   font-family: var(--font-head);
   font-weight: 700;
@@ -171,6 +174,27 @@ h3 {
   color: #111;
 }
 
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background:
+    linear-gradient(135deg, transparent 0 38%, #111 38% 46%, transparent 46% 54%, #111 54% 62%, transparent 62%),
+    var(--accent);
+}
+
+.read-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), #ffd24d);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0.8;
+}
+
 .tour-timer {
   position: absolute;
   left: 0;
@@ -183,6 +207,8 @@ h3 {
 
 .tour-timer.show {
   opacity: 1;
+  z-index: 2;
+  height: 3px;
 }
 
 /* --- 3D-fabriek bovenaan --- */
@@ -290,24 +316,97 @@ h3 {
   animation: pulseDot 1.4s ease-in-out infinite;
 }
 
-.hud-caption {
+.hero-headline {
   margin-top: auto;
-  margin-bottom: 1rem;
-  max-width: 40rem;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+  margin-bottom: clamp(18px, 3vw, 40px);
+}
+
+.hero-kicker {
+  margin: 0 0 0.6rem 0;
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.hero-title {
+  margin: 0;
+  max-width: 14ch;
+  font-size: clamp(2.6rem, 6vw, 6.6rem);
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-shadow: 0 6px 34px rgba(0, 0, 0, 0.7);
+}
+
+.hero-cta {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: clamp(16px, 2.4vw, 30px);
+  padding: 0.85rem 1.3rem 0.85rem 1.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #111;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 10px 30px rgba(242, 183, 5, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(242, 183, 5, 0.35);
+}
+
+.hero-cta.light {
+  margin-top: 2rem;
+}
+
+.cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #111;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.hud-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
+.hud-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
 }
 
 .hud-caption h3 {
   margin: 0;
-  font-size: clamp(2rem, 4.4vw, 4.2rem);
+  flex: none;
+  font-size: clamp(1.3rem, 2.2vw, 2rem);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  color: var(--accent);
 }
 
 .hud-caption p {
-  margin: 0.2rem 0 0 0;
-  font-size: clamp(1rem, 1.5vw, 1.35rem);
-  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-size: clamp(0.95rem, 1.3vw, 1.2rem);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .hud-caption.swap {
@@ -393,18 +492,19 @@ h3 {
   color: var(--accent);
 }
 
-.intro h1 {
-  margin: 0 0 1.4rem 0;
-  font-size: clamp(2.8rem, 7vw, 6rem);
-  text-transform: uppercase;
-}
-
 .lead {
   margin: 0;
-  max-width: 62ch;
-  font-size: clamp(1.1rem, 1.6vw, 1.35rem);
-  line-height: 1.7;
-  color: #c3ced6;
+  max-width: 42ch;
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: clamp(1.45rem, 2.5vw, 2.3rem);
+  line-height: 1.22;
+  color: var(--white);
+}
+
+.lead .ref {
+  font-family: var(--font-body);
+  font-size: 0.45em;
 }
 
 .chapter-cards {
@@ -467,9 +567,75 @@ h3 {
 
 .card-title {
   margin-top: 0.3rem;
+  padding-right: 1.6rem;
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.35;
+}
+
+.card-go {
+  position: absolute;
+  z-index: 1;
+  right: 1rem;
+  bottom: 1rem;
+  color: var(--accent);
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.chapter-card:hover .card-go {
+  transform: translateX(4px);
+}
+
+/* --- Cijferstrook --- */
+
+.highlights {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(900px 300px at 15% 0%, rgba(242, 183, 5, 0.08), transparent 70%),
+    var(--bg-2);
+}
+
+.highlights-inner {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: clamp(40px, 6vw, 80px) var(--gutter);
+}
+
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+}
+
+.highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--accent);
+}
+
+.hl-value {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: clamp(2.6rem, 5vw, 4.8rem);
+  line-height: 0.95;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.hl-unit {
+  margin-left: 0.15em;
+  font-size: 0.5em;
+  color: var(--accent);
+}
+
+.hl-label {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 /* --- Hoofdstukken --- */
@@ -494,6 +660,13 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(1.02);
+  animation: slowZoom 24s ease-in-out infinite alternate;
+}
+
+@keyframes slowZoom {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.09); }
 }
 
 .chapter-banner::after {
@@ -551,7 +724,10 @@ h3 {
 }
 
 .prose a,
-.mb-legend a {
+.mb-legend a,
+.hl-label a,
+.lead a,
+.conclusie-inner a.ref {
   color: var(--accent);
   font-weight: 600;
   text-decoration: none;
@@ -561,27 +737,26 @@ h3 {
 
 .split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(28px, 4vw, 56px);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 72px);
   align-items: start;
 }
 
-.split + *,
-.body-types,
-.engine-types,
-.stat-row,
-.material-bar,
-.process-line {
-  margin-top: clamp(32px, 4.5vw, 56px);
+.aside {
+  position: sticky;
+  top: calc(var(--nav-h) + 24px);
 }
 
-.chapter-body > .prose,
-.chapter-body > .split + .prose {
-  margin-top: clamp(28px, 4vw, 48px);
-}
-
-.chapter-body > .process-line + .prose {
+.stats-aside .stat-row {
+  grid-template-columns: 1fr;
   margin-top: 0;
+}
+
+.split + *,
+.type-grid,
+.stat-row,
+.material-bar {
+  margin-top: clamp(36px, 5vw, 64px);
 }
 
 .two-col {
@@ -604,7 +779,8 @@ h3 {
   height: auto;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
 }
 
 .figure figcaption {
@@ -653,23 +829,27 @@ h3 {
 
 /* carrosserievormen en motortypes */
 
-.body-types,
-.engine-types {
+.type-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 
-.engine-types {
+.type-grid.three {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.body-type,
-.engine-type {
-  background: var(--panel);
+.type-card {
+  background: linear-gradient(180deg, #151d23, #11171c);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1rem 1rem 0.9rem;
+  border-radius: 8px;
+  padding: 1.2rem 1.2rem 1.1rem;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.type-card:hover {
+  border-color: rgba(242, 183, 5, 0.5);
+  transform: translateY(-3px);
 }
 
 .body-type svg,
@@ -740,17 +920,17 @@ h3 {
 }
 
 .callout-legend li {
-  display: flex;
+  display: grid;
+  grid-template-columns: 24px 7rem minmax(0, 1fr);
   align-items: baseline;
   gap: 0.7rem;
-  padding: 0.55rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
   color: var(--muted);
 }
 
 .callout-legend strong {
-  flex: none;
-  width: 7.5rem;
   color: var(--white);
 }
 
@@ -825,8 +1005,7 @@ h3 {
 .process-line {
   list-style: none;
   padding: 0;
-  margin-top: 0 !important;
-  margin-bottom: clamp(32px, 4.5vw, 56px);
+  margin: 0 0 clamp(40px, 5vw, 64px) 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0;
@@ -909,7 +1088,7 @@ h3 {
   text-transform: uppercase;
 }
 
-.conclusie-inner p {
+.conclusie-inner > p:not(.chapter-kicker) {
   margin: 0;
   max-width: 58ch;
   font-size: clamp(1.1rem, 1.5vw, 1.3rem);
@@ -917,7 +1096,7 @@ h3 {
   color: #dbe3e9;
 }
 
-.conclusie-inner p::before {
+.conclusie-inner > p:not(.chapter-kicker)::before {
   content: "";
   display: block;
   width: 64px;
@@ -1001,12 +1180,25 @@ h3 {
 /* footer */
 
 .site-footer {
-  max-width: var(--wrap);
-  margin: 0 auto;
-  padding: 2rem var(--gutter) 3rem;
   border-top: 1px solid var(--line);
+  background: #080b0e;
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.footer-inner {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: clamp(36px, 5vw, 64px) var(--gutter) 3rem;
+}
+
+.footer-title {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 1.6rem !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--white);
 }
 
 .site-footer p {
@@ -1186,6 +1378,34 @@ body.touring .to-top {
   display: none;
 }
 
+
+/* --- Rustig inschuiven bij scrollen --- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+.type-grid .reveal:nth-child(2),
+.highlight-grid .reveal:nth-child(2),
+.chapter-cards .reveal:nth-child(2) { transition-delay: 0.08s; }
+.type-grid .reveal:nth-child(3),
+.highlight-grid .reveal:nth-child(3),
+.chapter-cards .reveal:nth-child(3) { transition-delay: 0.16s; }
+.type-grid .reveal:nth-child(4),
+.highlight-grid .reveal:nth-child(4),
+.chapter-cards .reveal:nth-child(4) { transition-delay: 0.24s; }
+.chapter-cards .reveal:nth-child(5) { transition-delay: 0.32s; }
+
+.reveal.instant {
+  transition: none !important;
+}
 /* --- Animation section --- */
 
 .animation-section {
@@ -1597,17 +1817,22 @@ body.touring .to-top {
   .split {
     grid-template-columns: 1fr;
   }
-  .split .figure,
-  .split .exploded {
+  .aside {
+    position: static;
+  }
+  .split .aside {
     order: -1;
   }
-  .two-col {
-    columns: 1;
+  .highlight-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hero-headline {
+    max-width: none;
   }
   .chapter-cards {
     grid-template-columns: repeat(2, 1fr);
   }
-  .body-types {
+  .type-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .process-line {
@@ -1654,8 +1879,19 @@ body.touring .to-top {
   .chapter-card {
     min-height: 130px;
   }
-  .engine-types,
+  .type-grid.three,
   .stat-row {
+    grid-template-columns: 1fr;
+  }
+  .hud-caption {
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .hero-cta {
+    font-size: 0.95rem;
+    padding: 0.6rem 1rem;
+  }
+  .highlight-grid {
     grid-template-columns: 1fr;
   }
   .mb-seg span {
@@ -1682,7 +1918,13 @@ body.touring .to-top {
   #carSvg.done .shine-sweep,
   .spark.show .impact-ring,
   .pulse-dot,
-  .hud-live-dot {
+  .hud-live-dot,
+  .banner-img {
     animation: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hoe wordt een auto gemaakt?</title>
+<meta name="description" content="Van ontwerp tot eindcontrole: zo wordt een auto gemaakt. Met een 3D-animatie van een autofabriek.">
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='19' font-size='19'%3E%F0%9F%9A%97%3C/text%3E%3C/svg%3E">
 </head>
@@ -11,19 +12,11 @@
 
 <nav class="site-nav" id="siteNav" aria-label="Hoofdmenu">
   <div class="nav-inner">
-    <a class="brand" href="#top">Hoe wordt een auto gemaakt?</a>
-    <ul>
-      <li><a href="#factoryHero">Fabriek</a></li>
-      <li><a href="#ontwerp"><b>01</b> Ontwerp</a></li>
-      <li><a href="#carrosserie"><b>02</b> Carrosserie</a></li>
-      <li><a href="#motorblok"><b>03</b> Motorblok</a></li>
-      <li><a href="#materialen"><b>04</b> Materialen</a></li>
-      <li><a href="#tijd"><b>05</b> Tijd</a></li>
-      <li><a href="#conclusie">Conclusie</a></li>
-      <li><a href="#bronnen">Bronnen</a></li>
-    </ul>
+    <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span data-text="site.title">Hoe wordt een auto gemaakt?</span></a>
+    <ul id="navLinks"></ul>
   </div>
   <div class="tour-timer" id="tourTimer" aria-hidden="true"></div>
+  <div class="read-progress" id="readProgress" aria-hidden="true"></div>
 </nav>
 
 <section class="factory-hero" id="factoryHero" aria-label="3D-animatie: een auto wordt in een fabriek gebouwd" hidden>
@@ -32,14 +25,21 @@
     <div class="factory-grain" aria-hidden="true"></div>
     <div class="factory-hud" aria-live="polite">
       <div class="hud-top">
-        <span class="hud-live"><span class="hud-live-dot"></span>Live &middot; 3D-autofabriek</span>
+        <span class="hud-live"><span class="hud-live-dot"></span><span data-text="site.heroLabel">Live &middot; 3D-autofabriek</span></span>
         <span class="hud-step" id="hudStep">Stap 1 / 8</span>
       </div>
-      <div class="hud-caption">
-        <h3 id="hudTitle">Chassis</h3>
-        <p id="hudText">Het chassis komt binnen op de lopende band</p>
+      <div class="hero-headline">
+        <p class="hero-kicker" data-text="intro.kicker">Schoolproject &middot; Techniek</p>
+        <h1 class="hero-title" data-text="site.title">Hoe wordt een auto gemaakt?</h1>
+        <a class="hero-cta" href="#intro"><span data-text="site.heroCta">Ontdek hoe het werkt</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
       </div>
-      <div class="hud-progress" id="hudProgress"></div>
+      <div class="hud-bottom">
+        <div class="hud-caption">
+          <h3 id="hudTitle">Chassis</h3>
+          <p id="hudText">Het chassis komt binnen op de lopende band</p>
+        </div>
+        <div class="hud-progress" id="hudProgress"></div>
+      </div>
     </div>
     <div class="factory-loading" id="factoryLoading">
       <span class="loading-spinner" aria-hidden="true"></span>
@@ -48,7 +48,7 @@
   </div>
 </section>
 
-<main>
+<main id="main">
 
   <section id="animatie" class="section animation-section fallback-anim" hidden>
     <div class="section-head">
@@ -161,271 +161,11 @@
     </button>
   </section>
 
-  <section id="intro" class="intro" aria-labelledby="h-intro">
-    <p class="chapter-kicker">Schoolproject &middot; Techniek</p>
-    <h1 id="h-intro">Hoe wordt een auto gemaakt?</h1>
-    <p class="lead">Het maken van een auto is een lang proces met veel stappen. Voordat een auto op de weg rijdt, moet hij eerst ontworpen worden, moet de vorm van de carrosserie bepaald worden, moet de motor in elkaar gezet worden, moeten de juiste materialen gekozen worden en moet alles samen in een fabriek geassembleerd en getest worden. Op deze pagina wordt per deelvraag uitgelegd hoe dat werkt, op basis van de opgegeven bronnen.</p>
-    <nav class="chapter-cards" aria-label="Deelvragen">
-        <a class="chapter-card" href="#ontwerp">
-          <img src="img/banner-ontwerp.jpg" alt="" loading="lazy" width="1920" height="800">
-          <span class="card-num">01</span>
-          <span class="card-title">Hoe wordt een auto ontworpen?</span>
-        </a>
-        <a class="chapter-card" href="#carrosserie">
-          <img src="img/banner-carrosserie.jpg" alt="" loading="lazy" width="1920" height="800">
-          <span class="card-num">02</span>
-          <span class="card-title">Hoe komt de vorm in de carrosserie?</span>
-        </a>
-        <a class="chapter-card" href="#motorblok">
-          <img src="img/banner-motorblok.jpg" alt="" loading="lazy" width="1920" height="800">
-          <span class="card-num">03</span>
-          <span class="card-title">Hoe zit een motorblok in elkaar?</span>
-        </a>
-        <a class="chapter-card" href="#materialen">
-          <img src="img/banner-materialen.jpg" alt="" loading="lazy" width="1920" height="800">
-          <span class="card-num">04</span>
-          <span class="card-title">Welke materialen worden gebruikt?</span>
-        </a>
-        <a class="chapter-card" href="#tijd">
-          <img src="img/banner-tijd.jpg" alt="" loading="lazy" width="1920" height="800">
-          <span class="card-num">05</span>
-          <span class="card-title">Wat is de totale tijd die je nodig hebt om een auto te maken?</span>
-        </a>
-    </nav>
-  </section>
-
-
-  <section id="ontwerp" class="chapter" aria-labelledby="h-ontwerp">
-    <header class="chapter-banner">
-      <img class="banner-img" src="img/banner-ontwerp.jpg" alt="Een auto half als blauw 3D-draadmodel en half als afgewerkte rode auto" width="1920" height="800">
-      <div class="banner-text">
-        <span class="chapter-num" aria-hidden="true">01</span>
-        <p class="chapter-kicker">Deelvraag 1</p>
-        <h2 id="h-ontwerp">Hoe wordt een auto ontworpen?</h2>
-      </div>
-    </header>
-    <div class="chapter-body">
-      <div class="split">
-        <div class="prose">
-          <p>Het ontwerpen van een auto begint bij ontwerpers en ingenieurs die schetsen maken en daarna digitale modellen van de auto opbouwen: de carrosserie, het interieur en de techniek erachter <a href="#bron-studeersnel1">[1]</a>.</p>
-          <p>Bij het ontwerpen wordt rekening gehouden met veel factoren tegelijk: de marktpositie van de auto, de concurrentie, de doelgroep, de verwachtingen van klanten en de functies die de auto moet hebben. Autodesign is dan ook geen kwestie van &ldquo;iets moois tekenen&rdquo;, maar een proces met veel regels en variabelen waar rekening mee gehouden moet worden <a href="#bron-hansgroenhuijsen">[2]</a>.</p>
-          <p>In de NPO-uitzending &ldquo;Auto-ontwerp&rdquo; (Het Klokhuis) wordt dit ontwerpproces in de praktijk laten zien: een presentator krijgt een kijkje bij de ontwerpafdeling van een autofabriek, waar te zien is hoe een ontwerp stap voor stap gaat van een eerste schets naar een rijdend digitaal 3D-model <a href="#bron-npo">[3]</a>.</p>
-        </div>
-        <figure class="figure">
-          <img src="img/ontwerp-studio.jpg" alt="De afgewerkte rode auto in een lichte studio" loading="lazy" width="1600" height="900">
-          <figcaption>Het eindresultaat van het ontwerp: de afgewerkte auto. Render uit de 3D-animatie op deze pagina.</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-  <section id="carrosserie" class="chapter" aria-labelledby="h-carrosserie">
-    <header class="chapter-banner">
-      <img class="banner-img" src="img/banner-carrosserie.jpg" alt="Een rode carrosserie hangt aan een takel boven het chassis, tussen oranje robots" width="1920" height="800">
-      <div class="banner-text">
-        <span class="chapter-num" aria-hidden="true">02</span>
-        <p class="chapter-kicker">Deelvraag 2</p>
-        <h2 id="h-carrosserie">Hoe komt de vorm in de carrosserie?</h2>
-      </div>
-    </header>
-    <div class="chapter-body">
-      <div class="split">
-        <div class="prose">
-          <p>Onder de carrosserie zit eerst het chassis: het frame dat als een soort geraamte alle onderdelen van de auto draagt en daarom ook wel &ldquo;de ruggengraat van de auto&rdquo; wordt genoemd <a href="#bron-autoblog">[4]</a>.</p>
-          <p>Er bestaan verschillende soorten frames, zoals het buizenframe en het ladderframe. Sinds de Lancia Lambda uit 1922 &mdash; de eerste auto met een zelfdragende carrosserie &mdash; wordt bij veel personenauto's ook de monocoque gebruikt. Bij een monocoque (van het Griekse &ldquo;mono&rdquo; en het Franse woord voor schelp) is de buitenkant van de auto zelf het dragende deel, in plaats van een los frame eronder. Deze techniek komt oorspronkelijk uit de luchtvaart en werd in 1962 door Lotus voor het eerst toegepast in de Formule 1 <a href="#bron-autoblog">[4]</a>.</p>
-        </div>
-        <figure class="figure">
-          <img src="img/carrosserie-lassen.jpg" alt="Robots lassen een kale, ongelakte stalen carrosserie" loading="lazy" width="1600" height="900">
-          <figcaption>Een kale carrosserie van plaatstaal, nog zonder lak, wordt door robots gelast. Render uit de 3D-animatie op deze pagina.</figcaption>
-        </figure>
-      </div>
-      <div class="prose two-col">
-        <p>De carrosserie zelf is de bovenbouw van de auto: het buitenwerk, zonder de portieren, motorkap, wielen, motor, aandrijflijn en het interieur mee te rekenen. Het woord &ldquo;carrosserie&rdquo; komt van het Franse &ldquo;carrosse&rdquo;, wat koets betekent. De carrosserie beschermt de inzittenden bij een ongeluk, en de vorm ervan bepaalt ook hoeveel luchtweerstand de auto heeft, wat weer invloed heeft op het brandstofverbruik. Als materiaal wordt meestal plaatstaal gebruikt, maar ook aluminium, magnesium en verschillende kunststoffen komen voor <a href="#bron-verzekeren">[5]</a>.</p>
-        <p>Afhankelijk van de gekozen vorm ontstaan verschillende carrosserietypen, zoals de hatchback (compact en flexibel), de SUV (meer comfort en een hogere zit), de sedan (representatief) en de stationwagen (veel laadruimte) <a href="#bron-youtube1">[6]</a> <a href="#bron-verzekeren">[5]</a>.</p>
-      </div>
-      <div class="body-types" aria-label="Carrosserievormen">
-              <div class="body-type">
-                <svg viewBox="0 0 160 64" aria-hidden="true"><line class="g" x1="4" y1="59.5" x2="156" y2="59.5"/><path class="b" d="M12 50 V41 Q13 35 24 33 L50 30 L66 17 Q70 14 80 14 H116 Q124 14 130 22 L138 33 Q146 35 146 42 V50 Z"/><circle class="w" cx="36" cy="50" r="9"/><circle class="h" cx="36" cy="50" r="3.5"/><circle class="w" cx="124" cy="50" r="9"/><circle class="h" cx="124" cy="50" r="3.5"/></svg>
-                <strong>Hatchback</strong><span>compact en flexibel</span>
-              </div>
-              <div class="body-type">
-                <svg viewBox="0 0 160 64" aria-hidden="true"><line class="g" x1="4" y1="59.5" x2="156" y2="59.5"/><path class="b" d="M10 50 V36 Q10 30 20 29 L46 27 L58 13 Q61 10 70 10 H134 Q142 10 144 18 L146 30 Q150 32 150 38 V50 Z"/><circle class="w" cx="36" cy="50" r="9"/><circle class="h" cx="36" cy="50" r="3.5"/><circle class="w" cx="124" cy="50" r="9"/><circle class="h" cx="124" cy="50" r="3.5"/></svg>
-                <strong>SUV</strong><span>meer comfort en een hogere zit</span>
-              </div>
-              <div class="body-type">
-                <svg viewBox="0 0 160 64" aria-hidden="true"><line class="g" x1="4" y1="59.5" x2="156" y2="59.5"/><path class="b" d="M8 50 V42 Q9 36 20 34 L48 31 L64 19 Q68 16 78 16 H104 Q112 16 118 22 L126 31 L146 33 Q152 35 152 42 V50 Z"/><circle class="w" cx="36" cy="50" r="9"/><circle class="h" cx="36" cy="50" r="3.5"/><circle class="w" cx="124" cy="50" r="9"/><circle class="h" cx="124" cy="50" r="3.5"/></svg>
-                <strong>Sedan</strong><span>representatief</span>
-              </div>
-              <div class="body-type">
-                <svg viewBox="0 0 160 64" aria-hidden="true"><line class="g" x1="4" y1="59.5" x2="156" y2="59.5"/><path class="b" d="M8 50 V42 Q9 36 20 34 L48 31 L62 18 Q66 15 76 15 H140 Q146 15 148 22 L150 34 Q152 36 152 42 V50 Z"/><circle class="w" cx="36" cy="50" r="9"/><circle class="h" cx="36" cy="50" r="3.5"/><circle class="w" cx="124" cy="50" r="9"/><circle class="h" cx="124" cy="50" r="3.5"/></svg>
-                <strong>Stationwagen</strong><span>veel laadruimte</span>
-              </div>
-          </div>
-    </div>
-  </section>
-  <section id="motorblok" class="chapter" aria-labelledby="h-motorblok">
-    <header class="chapter-banner">
-      <img class="banner-img" src="img/banner-motorblok.jpg" alt="Een motorblok hangt aan een takel boven het chassis" width="1920" height="800">
-      <div class="banner-text">
-        <span class="chapter-num" aria-hidden="true">03</span>
-        <p class="chapter-kicker">Deelvraag 3</p>
-        <h2 id="h-motorblok">Hoe zit een motorblok in elkaar?</h2>
-      </div>
-    </header>
-    <div class="chapter-body">
-      <div class="split">
-        <div class="prose">
-          <p>De basis van elke motor is het motorblok: een soort frame dat meestal gemaakt is van gietijzer of aluminium <a href="#bron-klaasboer1">[7]</a>.</p>
-          <p>In het motorblok bevinden zich de cilinders, waarin de zuigers op en neer bewegen, en kanalen waar olie en koelvloeistof doorheen stromen. Aan het motorblok zitten ook andere onderdelen vast, zoals de startmotor, de dynamo, de waterpomp, de brandstofpomp en de pomp van de stuurbekrachtiging <a href="#bron-actualidadmotor">[8]</a>.</p>
-        </div>
-        <figure class="figure">
-          <img src="img/motorblok.jpg" alt="Close-up van een motorblok dat in de motorruimte zakt" loading="lazy" width="1600" height="900">
-          <figcaption>Het motorblok zakt aan een hijsjuk in de motorruimte. Render uit de 3D-animatie op deze pagina.</figcaption>
-        </figure>
-      </div>
-      <div class="engine-types" aria-label="Typen motorblokken (vooraanzicht)">
-              <div class="engine-type">
-                <svg viewBox="0 0 120 80" aria-hidden="true"><g transform="translate(60 62) rotate(0)"><rect class="cyl" x="-11" y="-44" width="22" height="38" rx="2"/><rect class="pis" x="-9" y="-26" width="18" height="11" rx="1.5"/><line class="rod" x1="0" y1="-15" x2="0" y2="0"/></g><circle class="crank" cx="60" cy="62" r="9"/><circle class="crank-c" cx="60" cy="62" r="2.5"/></svg>
-                <strong>Lijnmotor</strong><span>cilinders achter elkaar in één rij</span>
-              </div>
-              <div class="engine-type">
-                <svg viewBox="0 0 120 80" aria-hidden="true"><g transform="translate(60 62) rotate(-35)"><rect class="cyl" x="-11" y="-44" width="22" height="38" rx="2"/><rect class="pis" x="-9" y="-26" width="18" height="11" rx="1.5"/><line class="rod" x1="0" y1="-15" x2="0" y2="0"/></g><g transform="translate(60 62) rotate(35)"><rect class="cyl" x="-11" y="-44" width="22" height="38" rx="2"/><rect class="pis" x="-9" y="-26" width="18" height="11" rx="1.5"/><line class="rod" x1="0" y1="-15" x2="0" y2="0"/></g><circle class="crank" cx="60" cy="62" r="9"/><circle class="crank-c" cx="60" cy="62" r="2.5"/></svg>
-                <strong>V-motor</strong><span>twee rijen cilinders op één krukas</span>
-              </div>
-              <div class="engine-type">
-                <svg viewBox="0 0 120 80" aria-hidden="true"><g transform="translate(60 50) rotate(-90)"><rect class="cyl" x="-11" y="-44" width="22" height="38" rx="2"/><rect class="pis" x="-9" y="-26" width="18" height="11" rx="1.5"/><line class="rod" x1="0" y1="-15" x2="0" y2="0"/></g><g transform="translate(60 50) rotate(90)"><rect class="cyl" x="-11" y="-44" width="22" height="38" rx="2"/><rect class="pis" x="-9" y="-26" width="18" height="11" rx="1.5"/><line class="rod" x1="0" y1="-15" x2="0" y2="0"/></g><circle class="crank" cx="60" cy="50" r="9"/><circle class="crank-c" cx="60" cy="50" r="2.5"/></svg>
-                <strong>Boxermotor</strong><span>twee rijen tegenover elkaar, plat</span>
-              </div>
-          </div>
-      <div class="prose two-col">
-        <p>Er zijn verschillende typen motorblokken. Bij een lijnmotor staan de cilinders achter elkaar in één rij; dit type wordt vooral gebruikt in de midden- en kleinere klasse auto's. Bij een V-motor staan de cilinders in twee rijen die samen op één krukas aangesloten zijn &mdash; in feite zijn dit twee lijnmotoren die aan elkaar zijn gekoppeld. Bij een boxermotor (een plat motorblok) liggen de cilinders in twee rijen tegenover elkaar, ook aangesloten op één krukas <a href="#bron-actualidadmotor">[8]</a>.</p>
-        <p>Het motorblok wordt gemaakt door gieten: er wordt een mal gebruikt van een mengsel van zirkoonzand, lijm en hardingsmiddel, omdat zirkoonzand een heel hoog smeltpunt heeft en dus bestand is tegen het hete, vloeibare metaal <a href="#bron-actualidadmotor">[8]</a>. Zodra brandstof in de cilinders van het motorblok ontstoken wordt, ontstaat er een kleine explosie die de zuigers in beweging brengt en zo uiteindelijk de auto laat rijden <a href="#bron-easycarparts">[9]</a>.</p>
-      </div>
-    </div>
-  </section>
-  <section id="materialen" class="chapter" aria-labelledby="h-materialen">
-    <header class="chapter-banner">
-      <img class="banner-img" src="img/banner-materialen.jpg" alt="Robots lassen een kale stalen carrosserie op de productielijn" width="1920" height="800">
-      <div class="banner-text">
-        <span class="chapter-num" aria-hidden="true">04</span>
-        <p class="chapter-kicker">Deelvraag 4</p>
-        <h2 id="h-materialen">Welke materialen worden gebruikt?</h2>
-      </div>
-    </header>
-    <div class="chapter-body">
-      <div class="split">
-        <figure class="figure exploded">
-          <div class="callout-wrap">
-            <img src="img/materialen-opengewerkt.jpg" alt="Opengewerkte auto: carrosserie, ruit, deuren, wielen, stoelen en motorblok uit elkaar getrokken" loading="lazy" width="1200" height="675">
-            <span class="callout" style="left:50.1%;top:29.6%">1</span>
-            <span class="callout" style="left:45.4%;top:19.8%">2</span>
-            <span class="callout" style="left:52.3%;top:47.2%">3</span>
-            <span class="callout" style="left:66.8%;top:65.4%">4</span>
-            <span class="callout" style="left:58.1%;top:79.2%">5</span>
-            <span class="callout" style="left:29.4%;top:67.0%">6</span>
-          </div>
-          <figcaption>De auto uit elkaar getrokken. Render uit de 3D-animatie op deze pagina.</figcaption>
-        </figure>
-        <div class="prose">
-          <p>Een gemiddelde auto weegt zo'n 1300 tot 1600 kilogram. Het grootste deel daarvan, ongeveer 60 tot 65%, bestaat uit metaal: vooral staal en ijzer <a href="#bron-klaasboer2">[10]</a>.</p>
-          <ol class="callout-legend">
-                  <li><span class="callout-n">1</span><strong>Carrosserie</strong> meestal plaatstaal, soms aluminium of kunststof</li>
-                  <li><span class="callout-n">2</span><strong>Ruiten</strong> glas</li>
-                  <li><span class="callout-n">3</span><strong>Interieur</strong> steeds meer kunststof</li>
-                  <li><span class="callout-n">4</span><strong>Deuren</strong> staal</li>
-                  <li><span class="callout-n">5</span><strong>Wielen</strong> rubberen banden, velgen vaak van aluminium</li>
-                  <li><span class="callout-n">6</span><strong>Motorblok</strong> gietijzer of aluminium</li>
-                  </ol>
-        </div>
-      </div>
-      <div class="stat-row">
-            <div class="stat-card"><span class="stat-value">1.300&ndash;1.600 kg</span><span class="stat-label">gemiddeld gewicht</span></div>
-            <div class="stat-card"><span class="stat-value">&plusmn;65%</span><span class="stat-label">staal</span></div>
-            <div class="stat-card"><span class="stat-value">5&ndash;6%</span><span class="stat-label">rubber</span></div>
-          </div>
-      <div class="material-bar" role="img" aria-label="Verdeling van het gewicht van een auto: ongeveer 60 tot 65 procent metaal, 5 tot 6 procent rubber, de rest overige materialen">
-            <div class="mb-seg mb-metal" style="flex-basis:62.5%"><span>Metaal (vooral staal en ijzer) &middot; 60&ndash;65%</span></div>
-            <div class="mb-seg mb-rubber" style="flex-basis:5.5%"></div>
-            <div class="mb-seg mb-rest" style="flex-basis:32%"><span>Overige materialen</span></div>
-          </div>
-      <p class="mb-legend"><span class="sw mb-metal"></span>Metaal 60&ndash;65% <span class="sw mb-rubber"></span>Rubber 5&ndash;6% <span class="sw mb-rest"></span>Overig, waaronder kunststof <a href="#bron-klaasboer2">[10]</a></p>
-      <div class="prose two-col">
-        <p>Staal is het metaal dat het meest gebruikt wordt bij het bouwen van een auto: bijna 65% van het materiaal van een gemiddelde auto is een staalproduct. Onderdelen van de stuurinrichting en ophanging zijn meestal van staal gemaakt, net als delen van de carrosserie, de wielen, het chassis en het frame <a href="#bron-metaalnieuws">[11]</a>. Staal wordt vaak gekozen vanwege de combinatie van sterkte en relatief lage kosten <a href="#bron-klaasboer2">[10]</a>.</p>
-        <p>Aluminium wordt steeds vaker gebruikt om auto's lichter en zuiniger te maken. Het vervangt op steeds meer plekken zwaardere metalen zoals ijzer, bijvoorbeeld bij de motor en de wielen, omdat het dezelfde sterkte kan bieden met minder gewicht <a href="#bron-metaalnieuws">[11]</a>. Roestvaststaal wordt gebruikt op plekken waar roestbestendigheid belangrijk is, zoals bij bouten, beugels en onderdelen van de uitlaat <a href="#bron-metaalnieuws">[11]</a>.</p>
-        <p>Rubber wordt gebruikt voor de banden, afdichtingen, slangen en trillingsdempers; dit is al jaren stabiel zo'n 5 tot 6% van het gewicht van een auto. Het aandeel kunststof neemt juist toe, omdat kunststof licht is en tegenwoordig ook steeds sterker gemaakt kan worden, waardoor het voor steeds meer onderdelen &mdash; zowel binnen als buiten de auto &mdash; gebruikt kan worden <a href="#bron-klaasboer2">[10]</a>.</p>
-        <p>Autofabrikanten bestellen onderdelen van metaal, rubber en kunststof bij allerlei toeleveranciers. Zo ontwikkelde Tata Steel bijvoorbeeld een nieuw, extra sterk type staal speciaal voor lichtere onderdelen zoals het chassis en de ophanging, zodat fabrikanten dunner en toch sterk materiaal kunnen gebruiken <a href="#bron-vraagenaanbod">[12]</a>.</p>
-      </div>
-    </div>
-  </section>
-  <section id="tijd" class="chapter" aria-labelledby="h-tijd">
-    <header class="chapter-banner">
-      <img class="banner-img" src="img/banner-tijd.jpg" alt="Overzicht van een productielijn met robots en een rode auto" width="1920" height="800">
-      <div class="banner-text">
-        <span class="chapter-num" aria-hidden="true">05</span>
-        <p class="chapter-kicker">Deelvraag 5</p>
-        <h2 id="h-tijd">Wat is de totale tijd die je nodig hebt om een auto te maken?</h2>
-      </div>
-    </header>
-    <div class="chapter-body">
-      <ol class="process-line" aria-label="De stappen om een auto te maken">
-            <li><span class="tl-n">1</span><strong>Ontwerp</strong><span>schetsen en digitale modellen</span></li>
-            <li><span class="tl-n">2</span><strong>Materialen</strong><span>staal, aluminium, kunststof, glas</span></li>
-            <li><span class="tl-n">3</span><strong>Onderdelen</strong><span>gieten, persen en lassen</span></li>
-            <li><span class="tl-n">4</span><strong>In elkaar zetten</strong><span>lopende band, 18&ndash;35 uur</span></li>
-            <li><span class="tl-n">5</span><strong>Testen</strong><span>werkt alles en is hij veilig?</span></li>
-          </ol>
-      <div class="prose">
-        <p>Het maken van een auto verloopt in meerdere stappen: eerst het ontwerp (schetsen en digitale modellen), dan het kiezen van de juiste materialen, daarna het produceren van de losse onderdelen (bijvoorbeeld door gieten, persen en lassen), vervolgens het samenbouwen van al die onderdelen op een lopende band in de fabriek, en tot slot uitgebreid testen om te controleren of alles goed werkt en veilig is. Bij het ontwerpen van de techniek achter een auto wordt vaak de zogenoemde V-cyclus als basis gebruikt <a href="#bron-studeersnel2">[13]</a>.</p>
-      </div>
-      <div class="stat-row">
-            <div class="stat-card"><span class="stat-value">18&ndash;35 uur</span><span class="stat-label">assemblage per auto</span></div>
-            <div class="stat-card"><span class="stat-value">&plusmn;30.000</span><span class="stat-label">onderdelen</span></div>
-            <div class="stat-card"><span class="stat-value">3&ndash;4</span><span class="stat-label">diensten</span></div>
-          </div>
-      <div class="prose two-col">
-        <p>Het laatste onderdeel &mdash; het echte in elkaar zetten op de productielijn &mdash; gaat verrassend snel: dat kost ongeveer 18 tot 35 uur per auto, verdeeld over 3 tot 4 diensten, waarbij honderden werknemers tegelijk aan verschillende onderdelen van het proces werken <a href="#bron-jvis">[14]</a>.</p>
-        <p>Die snelheid is alleen mogelijk omdat alle onderdelen daarvoor al klaar moeten liggen. Een gemiddelde auto bestaat uit zo'n 30.000 onderdelen, die eerst allemaal gemaakt en naar de fabriek gebracht moeten worden, vaak door externe toeleveranciers. Hoe nieuwer en vernieuwender een ontwerp is, hoe meer tijd er nodig is voor ontwikkeling en techniek voordat er ook maar één onderdeel geperst kan worden <a href="#bron-jvis">[14]</a>. Geteld vanaf het allereerste ontwerp tot de auto van de band rolt, duurt het hele proces dus veel langer dan die 18 tot 35 uur assemblagetijd alleen <a href="#bron-youtube2">[15]</a>.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="conclusie" class="chapter chapter-conclusie" aria-labelledby="h-conclusie">
-    <img class="banner-img" src="img/banner-conclusie.jpg" alt="" width="1920" height="800" loading="lazy">
-    <div class="conclusie-inner">
-      <p class="chapter-kicker">Antwoord op de hoofdvraag</p>
-      <h2 id="h-conclusie">Conclusie</h2>
-      <p>Een auto maken is dus geen kwestie van &eacute;&eacute;n stap, maar van een heel traject: eerst wordt de auto ontworpen op de tekentafel en in 3D-software, dan krijgt de carrosserie via een chassis of monocoque zijn vorm, wordt het motorblok gegoten en opgebouwd uit tientallen onderdelen, worden overal de juiste materialen gekozen (vooral staal, aluminium, rubber en kunststof) en wordt alles tot slot in een fabriek samengebouwd en getest. De uiteindelijke assemblage in de fabriek duurt maar 18 tot 35 uur, maar het volledige traject van ontwerp tot een rijdende, geteste auto kost veel meer tijd, omdat eerst duizenden onderdelen ontworpen, gemaakt en aangeleverd moeten worden.</p>
-    </div>
-  </section>
-
-  <section id="bronnen" class="bronnen-section" aria-labelledby="h-bronnen">
-    <p class="chapter-kicker">Verantwoording</p>
-    <h2 id="h-bronnen">Bronnenlijst</h2>
-    <ol class="bronlijst">
-          <li id="bron-studeersnel1"><span class="tag">Artikel</span><br>Studeersnel. (z.d.). <em>Auto Maken: Stappen in het Ontwerp- en Productieproces.</em> Geraadpleegd via <a href="https://www.studeersnel.nl/nl/document/hogeschool-utrecht/autonomy-by-design/auto-makn-automaken/107627375" target="_blank" rel="noopener">studeersnel.nl</a></li>
-          <li id="bron-hansgroenhuijsen"><span class="tag">Artikel</span><br>Groenhuijsen, H. (z.d.). <em>Blog over auto-ontwerp.</em> Geraadpleegd via <a href="https://www.hansgroenhuijsen.nl" target="_blank" rel="noopener">hansgroenhuijsen.nl</a></li>
-          <li id="bron-npo"><span class="tag">Video</span><br>NPO / Het Klokhuis. (z.d.). <em>Auto-ontwerp.</em> Geraadpleegd via <a href="https://npo.nl" target="_blank" rel="noopener">npo.nl</a></li>
-          <li id="bron-autoblog"><span class="tag">Artikel</span><br>Autoblog.nl. (z.d.). <em>Techniek: het chassis, de ruggengraat van de auto.</em> Geraadpleegd via <a href="https://www.autoblog.nl/nieuws/techniek-het-chassis-de-ruggengraat-van-de-auto-84695" target="_blank" rel="noopener">autoblog.nl</a></li>
-          <li id="bron-verzekeren"><span class="tag">Artikel</span><br>Verzekeren.com. (z.d.). <em>Auto carrosserie.</em> Geraadpleegd via <a href="https://verzekeren.com/artikelen/auto-carrosserie" target="_blank" rel="noopener">verzekeren.com</a></li>
-          <li id="bron-youtube1"><span class="tag">Video</span><br>Auto Atlas Keuzehulp. (2024). <em>Wat je MOET weten over Alle Carrosserievormen!</em> YouTube. <a href="https://www.youtube.com/watch?v=cFU7C1xl2T8" target="_blank" rel="noopener">youtube.com/watch?v=cFU7C1xl2T8</a></li>
-          <li id="bron-easycarparts"><span class="tag">Artikel</span><br>EasyCarParts.nl. (z.d.). <em>Hoe werkt de motor van een auto.</em> Geraadpleegd via <a href="https://www.easycarparts.nl" target="_blank" rel="noopener">easycarparts.nl</a></li>
-          <li id="bron-actualidadmotor"><span class="tag">Artikel</span><br>Actualidad Motor. (z.d.). <em>El bloque motor: qu&eacute; es, de qu&eacute; est&aacute; hecho, partes, tipos, fabricaci&oacute;n.</em> Geraadpleegd via <a href="https://www.actualidadmotor.com" target="_blank" rel="noopener">actualidadmotor.com</a></li>
-          <li id="bron-klaasboer1"><span class="tag">Artikel</span><br>Autodemontage Klaas Boer. (z.d.). <em>Hoe werkt een automotor eigenlijk?</em> Geraadpleegd via <a href="https://klaasboer.nl" target="_blank" rel="noopener">klaasboer.nl</a></li>
-          <li id="bron-klaasboer2"><span class="tag">Artikel</span><br>Autodemontage Klaas Boer. (z.d.). <em>Van welke materialen zijn auto's gemaakt?</em> Geraadpleegd via <a href="https://klaasboer.nl" target="_blank" rel="noopener">klaasboer.nl</a></li>
-          <li id="bron-metaalnieuws"><span class="tag">Artikel</span><br>MetaalNieuws.nl. (z.d.). <em>Van welke metalen worden auto's gemaakt?</em> Geraadpleegd via <a href="https://www.metaalnieuws.nl" target="_blank" rel="noopener">metaalnieuws.nl</a></li>
-          <li id="bron-vraagenaanbod"><span class="tag">Artikel</span><br>Vraag&amp;Aanbod.nl. (z.d.). <em>Nederlandse automotive toelevering en materialen.</em> Geraadpleegd via <a href="https://www.vraagenaanbod.nl" target="_blank" rel="noopener">vraagenaanbod.nl</a></li>
-          <li id="bron-jvis"><span class="tag">Artikel</span><br>JVIS USA, LLC. (2018). <em>How Long Does It Take Automakers to Build a Car?</em> Geraadpleegd via <a href="https://jvis.us/2018/05/10/how-long-does-it-take-automakers-to-build-a-car/" target="_blank" rel="noopener">jvis.us</a></li>
-          <li id="bron-studeersnel2"><span class="tag">Artikel</span><br>Studeersnel. (z.d.). <em>Auto Maken: Stappen in het Ontwerp- en Productieproces.</em> Geraadpleegd via <a href="https://www.studeersnel.nl/nl/document/hogeschool-utrecht/autonomy-by-design/auto-makn-automaken/107627375" target="_blank" rel="noopener">studeersnel.nl</a></li>
-          <li id="bron-youtube2"><span class="tag">Video</span><br>YouTube. (2025). <em>Discover the Time It Takes to Build a Car: Surprising Facts Revealed!</em> <a href="https://www.youtube.com/watch?v=qk9Wmo7FyY0" target="_blank" rel="noopener">youtube.com/watch?v=qk9Wmo7FyY0</a></li>
-        </ol>
-  </section>
+  <div id="content"></div>
 
 </main>
 
-<footer class="site-footer">
-  <p>Schoolproject &mdash; Hoe wordt een auto gemaakt?<br>Alle informatie op deze pagina is gebaseerd op de bronnen hierboven.</p>
-  <p class="credit">3D-automodel: &ldquo;Car Concept&rdquo; door Eric Chadwick / Darmstadt Graphics Group, via de <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Khronos glTF Sample Assets</a>, licentie <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Het model is voor de animatie in losse onderdelen opgedeeld.</p>
-  <p class="credit">Lettertypes: Inter en Barlow Condensed, <a href="https://openfontlicense.org" target="_blank" rel="noopener">SIL Open Font License</a>. Alle afbeeldingen op deze pagina zijn renders uit de eigen 3D-animatie.</p>
-</footer>
+<footer class="site-footer" id="siteFooter"></footer>
 
 <button type="button" id="toTop" class="to-top" aria-label="Naar boven">&uarr;</button>
 
@@ -445,6 +185,8 @@
   <span id="autoScrollText">Auto-scroll actief</span>
 </div>
 
+<script src="js/content.js"></script>
+<script src="js/render.js"></script>
 <script src="js/car-model.js"></script>
 <script src="js/car3d.js"></script>
 <script src="js/script.js"></script>

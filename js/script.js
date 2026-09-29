@@ -36,6 +36,9 @@
 
   function showHudStep(idx, total, step) {
     var done = idx >= total;
+    // teksten uit content.js / de beheerpagina gaan voor
+    var custom = window.SiteContent && window.SiteContent.steps && window.SiteContent.steps[idx];
+    if (custom) step = { title: custom.title || step.title, caption: custom.caption || step.caption };
     hudStep.textContent = done ? "Klaar" : "Stap " + (idx + 1) + " / " + total;
     hudTitle.textContent = step.title;
     hudText.textContent = step.caption;
@@ -232,11 +235,48 @@
     replayBtn.addEventListener("click", playAnimation);
   }
 
-  // Actieve link in het menu bijhouden
-  var navLinks = document.querySelectorAll(".site-nav ul a");
-  var tracked = document.querySelectorAll("#factoryHero, #animatie, main .chapter, #bronnen");
-  if ("IntersectionObserver" in window && navLinks.length) {
-    var navObserver = new IntersectionObserver(
+  // Na het (opnieuw) opbouwen van de inhoud: menu-markering, inschuiven en tellers
+  var navObserver = null;
+  var revealObserver = null;
+
+  function countUp(el) {
+    var target = el.getAttribute("data-count") || el.textContent;
+    var nums = target.match(/\d[\d.]*/g);
+    if (!nums) return;
+    var values = nums.map(function (n) {
+      return parseInt(n.replace(/\./g, ""), 10);
+    });
+    var fmt = function (v) {
+      return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    };
+    var start = null;
+    var dur = 1400;
+    function step(ts) {
+      if (start === null) start = ts;
+      var k = Math.min(1, (ts - start) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      var idx = 0;
+      el.textContent = target.replace(/\d[\d.]*/g, function () {
+        return fmt(values[idx++] * e);
+      });
+      if (k < 1) window.requestAnimationFrame(step);
+      else el.textContent = target;
+    }
+    window.requestAnimationFrame(step);
+  }
+
+  function setupPage() {
+    if (navObserver) navObserver.disconnect();
+    if (revealObserver) revealObserver.disconnect();
+    var navLinks = document.querySelectorAll(".site-nav ul a");
+    var tracked = document.querySelectorAll("#factoryHero, #animatie, #intro, main .chapter, #bronnen");
+    if (!("IntersectionObserver" in window)) {
+      document.querySelectorAll(".reveal").forEach(function (el) {
+        el.classList.add("in");
+      });
+      return;
+    }
+    navObserver = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
           if (!entry.isIntersecting) return;
@@ -251,6 +291,34 @@
     tracked.forEach(function (el) {
       navObserver.observe(el);
     });
+    revealObserver = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("in");
+          entry.target.querySelectorAll(".count").forEach(countUp);
+          revealObserver.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -8% 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      revealObserver.observe(el);
+    });
+  }
+
+  setupPage();
+  document.addEventListener("site:rendered", setupPage);
+
+  // leesvoortgang in het menu
+  var readProgress = document.getElementById("readProgress");
+  if (readProgress) {
+    var updateProgress = function () {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      readProgress.style.transform = "scaleX(" + (max > 0 ? Math.min(1, window.scrollY / max) : 0) + ")";
+    };
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
   }
 
   // Knop "naar boven"
@@ -279,12 +347,12 @@
   // pijltje links = terug.
   // ---------------------------------------------------------------------------
 
-  var WORDS_PER_SECOND = 2.6; // rustig leestempo voor voorbijgangers
-  var BASE_SECONDS = 4;
-  var MIN_SECONDS = 7;
-  var MAX_SECONDS = 60;
-  var BANNER_SECONDS = 6;
-  var SOURCES_MAX_SECONDS = 14;
+  // Instellingen komen uit content.js ("tour"), aan te passen via admin/.
+  function T(key, fallback) {
+    var t = window.SiteContent && window.SiteContent.tour;
+    var v = t && t[key];
+    return typeof v === "number" && v >= 0 ? v : fallback;
+  }
 
   var autoScrollIndicator = document.getElementById("autoScrollIndicator");
   var autoScrollText = document.getElementById("autoScrollText");
@@ -405,8 +473,8 @@
   }
 
   // blokken waarvan we bijhouden of ze al in beeld zijn geweest
-  var BLOCKS = ".chapter-banner, .intro h1, .intro .lead, .chapter-cards, .prose p, .figure, .callout-legend li, " +
-    ".stat-row, .body-type, .engine-type, .material-bar, .mb-legend, .process-line li, .conclusie-inner, " +
+  var BLOCKS = ".chapter-banner, .intro .lead, .chapter-card, .highlight, .prose p, .figure, .callout-legend li, " +
+    ".stat-card, .type-card, .material-bar, .mb-legend, .process-line li, .conclusie-inner, " +
     ".bronnen-section h2, .bronlijst li, .animation-section";
 
   function absRect(el) {
@@ -448,30 +516,44 @@
     });
   }
 
-  function newWordsInView(section, seen) {
+  // Wat is er nieuw in beeld? Blokken met een eigen leestijd (data-seconds, in te
+  // stellen per tekst via admin/) tellen met die tijd; de rest naar aantal woorden.
+  function newInView(section, seen) {
     var nav = navHeight();
     var top = window.scrollY + nav;
     var bottom = window.scrollY + window.innerHeight;
-    var count = 0;
+    var res = { words: 0, fixed: 0, banner: false };
     section.querySelectorAll(BLOCKS).forEach(function (b) {
       if (seen.has(b) || b.offsetParent === null) return;
       var r = absRect(b);
-      if (r.top >= top - 4 && r.bottom <= bottom + 4) {
+      if (r.top >= top - 30 && r.bottom <= bottom + 30) {
         seen.add(b);
-        if (!b.classList.contains("chapter-banner")) count += words(b);
+        var fixed = parseFloat(b.getAttribute("data-seconds"));
+        if (fixed > 0) res.fixed += fixed;
+        else if (b.hasAttribute("data-banner")) res.banner = true;
+        else res.words += words(b);
       }
     });
-    return count;
+    return res;
   }
 
-  function readMs(n, section) {
-    var sec = BASE_SECONDS + n / WORDS_PER_SECOND;
-    var max = section.id === "bronnen" ? SOURCES_MAX_SECONDS : MAX_SECONDS;
-    return Math.round(Math.max(MIN_SECONDS, Math.min(max, sec)) * 1000);
+  function readMs(info, section) {
+    var auto = 0;
+    if (info.words > 0) {
+      auto = T("baseSeconds", 3) + info.words / Math.max(0.5, T("wordsPerSecond", 2.6));
+      var max = section.id === "bronnen" ? T("sourcesMaxSeconds", 14) : T("maxSeconds", 60);
+      auto = Math.min(max, auto);
+    } else if (info.banner && !info.fixed) {
+      auto = 6;
+    }
+    // alleen teksten met een eigen tijd in beeld: precies die tijd aanhouden
+    var sec = info.fixed > 0 && !info.words ? info.fixed : Math.max(T("minSeconds", 7), info.fixed + auto);
+    sec = Math.max(1, sec);
+    return Math.round(sec * 1000);
   }
 
   function sectionLabel(section) {
-    var h = section.querySelector("h1, h2");
+    var h = section.querySelector("h1, h2, .chapter-kicker");
     return h ? h.textContent.replace(/\s+/g, " ").trim() : "";
   }
 
@@ -489,7 +571,7 @@
         else reject(new Stopped());
       };
       onBuildDone(function () {
-        window.setTimeout(finish, 3000);
+        window.setTimeout(finish, T("afterBuildSeconds", 3) * 1000);
       });
       window.setTimeout(finish, 60000);
       // pijltje rechts werkt ook hier
@@ -512,8 +594,11 @@
         await waitForBuild(token);
         check(token);
 
-        // 2. alle onderdelen, scherm voor scherm
-        var sections = Array.prototype.slice.call(document.querySelectorAll("#animatie, main .intro, main .chapter, main .bronnen-section")).filter(function (el) {
+        // 2. alle onderdelen, scherm voor scherm (eerst alles zichtbaar maken, zodat de maten kloppen)
+        document.querySelectorAll(".reveal").forEach(function (el) {
+          el.classList.add("in", "instant");
+        });
+        var sections = Array.prototype.slice.call(document.querySelectorAll("#animatie, main .intro, main .highlights, main .chapter, main .bronnen-section")).filter(function (el) {
           return !el.hidden && el.offsetParent !== null;
         });
         var stops = [];
@@ -530,15 +615,16 @@
           if (tourPanel) tourPanel.setAttribute("data-stop", String(i));
           await scrollToY(stop.y, 1500, token);
           check(token);
-          var n = newWordsInView(stop.section, seen);
-          var isBanner = stop.first && stop.section.classList.contains("chapter") && !stop.section.classList.contains("chapter-conclusie");
-          var ms = isBanner && n < 25 ? BANNER_SECONDS * 1000 : readMs(n, stop.section);
+          stop.section.querySelectorAll(".reveal").forEach(function (el) {
+            el.classList.add("in");
+          });
+          var ms = readMs(newInView(stop.section, seen), stop.section);
           var result = await countdown(ms, sectionLabel(stop.section), token);
           if (result === "back") i = Math.max(-1, i - 2);
         }
 
         // 3. onderaan even blijven staan en dan opnieuw
-        await countdown(4000, "Terug naar het begin", token);
+        await countdown(Math.max(1, T("endSeconds", 4)) * 1000, "Terug naar het begin", token);
       }
     } catch (e) {
       if (!(e instanceof Stopped)) throw e;
