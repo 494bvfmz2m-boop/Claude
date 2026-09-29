@@ -81,7 +81,7 @@ router.post('/request-access', verifyCsrf, async (req, res) => {
   res.redirect('/login');
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', verifyCsrf, (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
 });
 

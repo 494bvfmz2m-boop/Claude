@@ -137,7 +137,7 @@
           </button>
           <div class="dropdown-panel account-dropdown opens-up" role="menu">
             <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
-            <form action="/logout" method="post">
+            <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" role="menuitem">Log out</button>
             </form>
           </div>
@@ -168,7 +168,7 @@
         </button>
         <div class="dropdown-panel account-dropdown" role="menu">
           <a href="https://discord.gg/5bNyCzsyJ2" target="_blank" rel="noopener" role="menuitem">💬 Support server</a>
-          <form action="/logout" method="post">
+          <form action="/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" role="menuitem">Log out</button>
           </form>
         </div>

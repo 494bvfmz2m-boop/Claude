@@ -162,7 +162,7 @@
 </script>
 <script>
   window.XYPHROS_GUILD_ID = <%- JSON.stringify(guild.id) %>;
-  window.XYPHROS_ROLES = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))) %>;
+  window.XYPHROS_ROLES = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/mentionInsert.js"></script>
 <script src="/js/embedPreview.js"></script>

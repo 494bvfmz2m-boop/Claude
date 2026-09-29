@@ -8,8 +8,14 @@
   // so their mention-target IDs never collide with the existing ones.
   let nextFieldIndex = fieldsContainer.querySelectorAll('.field-row').length;
 
+  // Role names come from Discord, where anyone with Manage Roles can set them
+  // -- escaped before going anywhere near innerHTML.
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   function roleOptionsHtml() {
-    return (window.XYPHROS_ROLES || []).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    return (window.XYPHROS_ROLES || []).map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`).join('');
   }
 
   function mentionToolsHtml(targetId) {

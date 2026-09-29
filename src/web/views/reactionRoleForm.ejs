@@ -78,7 +78,9 @@
 <script>
 (function () {
   const container = document.getElementById('mapping-rows');
-  const roleOptionsHtml = `<%- options.roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('') %>`;
+  // Role names are set via textContent, never HTML -- anyone with Manage Roles
+  // can name a role, so a name must never be able to inject markup/script.
+  const roles = <%- JSON.stringify(options.roles.map(r => ({ id: r.id, name: r.name }))).replace(/</g, '\\u003c') %>;
 
   document.getElementById('add-row').addEventListener('click', () => {
     const row = document.createElement('div');
@@ -86,8 +88,10 @@
     row.style.gridTemplateColumns = '140px 1fr auto';
     row.innerHTML =
       '<div><label style="margin:0 0 4px;">Emoji</label><input type="text" name="emoji[]" placeholder="🎮" required></div>' +
-      '<div><label style="margin:0 0 4px;">Role</label><select name="roleId[]" required>' + roleOptionsHtml + '</select></div>' +
+      '<div><label style="margin:0 0 4px;">Role</label><select name="roleId[]" required></select></div>' +
       '<div><button type="button" class="btn btn-ghost btn-sm remove-row" style="margin-top:20px;">&times;</button></div>';
+    const select = row.querySelector('select');
+    roles.forEach((r) => select.add(new Option(r.name, r.id)));
     container.appendChild(row);
   });
 
