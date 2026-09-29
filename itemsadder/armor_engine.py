@@ -577,7 +577,7 @@ def all_recipes(S, ns):
     for item in PIECES + TOOLS + ("bow", "shield"):
         shape = RECIPE_SHAPES[item]
         out.append((f"{S['id']}_{item}", shape, ingredients(S, shape)))
-    if not S.get("elite"):   # elite scrolls only come from their boss
+    if tier_of(S) is None:   # elite scrolls only come from their boss, mythic ones from the ore
         for kind, shape in SCROLL_SHAPES.items():
             out.append((f"{S['id']}_scroll_{kind}", shape, ingredients(S, shape)))
     return out
@@ -610,7 +610,9 @@ def scroll_lore(S, kind, story):
         out += ["&f", f"{c}Makes: &f{S['name']} {item.capitalize()}"]
         out += recipe_lore(shape, ingredients(S, shape))
     mob, chance = S["mob"]
-    if S.get("elite"):
+    if tier_of(S) == "mythic":
+        out += ["&f", f"&8Found only inside {S['ore']['ore_name']}."]
+    elif S.get("elite"):
         out += ["&f", f"&8Only the {mat_name(mob)} carries this scroll."]
     else:
         out += ["&f", f"&8Craft this scroll, or take it from a {mat_name(mob)}."]
@@ -626,7 +628,18 @@ ELITE_ARMOR, ELITE_TOUGH, ELITE_DURA = (4, 9, 7, 4), 5.0, (700, 1000, 940, 820)
 ELITE_TOOL_BONUS, ELITE_TOOL_DURA = 2, 4000
 
 
+# mythic: armor forged from a custom ore, the strongest a player can get
+MYTHIC_ARMOR, MYTHIC_TOUGH, MYTHIC_DURA = (5, 10, 8, 5), 6.0, (1000, 1450, 1360, 1180)
+MYTHIC_TOOL_BONUS, MYTHIC_TOOL_DURA = 3, 6000
+
+
+def tier_of(S):
+    return "elite" if S.get("elite") else S.get("tier")
+
+
 def stats_of(S):
+    if tier_of(S) == "mythic":
+        return {p: (a, d) for p, a, d in zip(PIECES, MYTHIC_ARMOR, MYTHIC_DURA)}, MYTHIC_TOUGH
     if S.get("elite"):
         return {p: (a, d) for p, a, d in zip(PIECES, ELITE_ARMOR, ELITE_DURA)}, ELITE_TOUGH
     armor, tough = COVER_STATS[S.get("cover", "standard")]
@@ -647,16 +660,21 @@ def perk_text(S):
 def configs(S, ns):
     armor, tough = stats_of(S)
     extra = S.get("perk", {})
-    elite = S.get("elite")
-    tag = f"&5Elite &8- needs the {S['relic']['name']} of the {mat_name(S['relic']['mob'])}" if elite \
-        else "&8A step above netherite"
+    tier = tier_of(S)
+    elite, mythic = tier == "elite", tier == "mythic"
+    if mythic:
+        tag = f"&d&lMythic &8- forged from {S['ore']['ingot_name']}, the rarest ore"
+    elif elite:
+        tag = f"&5Elite &8- needs the {S['relic']['name']} of the {mat_name(S['relic']['mob'])}"
+    else:
+        tag = "&8A step above netherite"
     lore = "    lore:\n" + ylist(["&f"] + S["lore"] + ["&f", perk_text(S), tag])
 
     items = []
     for piece in PIECES:
         a, dura = armor[piece]
         stat = "".join(f"\n        {k}: {v}" for k, v in
-                       {"armor": a, "armorToughness": tough, "knockbackResistance": 0.15 if elite else 0.1,
+                       {"armor": a, "armorToughness": tough, "knockbackResistance": 0.25 if mythic else 0.15 if elite else 0.1,
                         **extra}.items())
         name = f"'{S['color']}{S['name']} {piece.capitalize()}'"
         if piece == "helmet":
@@ -697,10 +715,11 @@ def configs(S, ns):
       model_path: item/{S['id']}_{tool}
       icon: item/{S['id']}_{tool}_icon
     durability:
-      max_custom_durability: {ELITE_TOOL_DURA if elite else TOOL_DURA}
+      max_custom_durability: {MYTHIC_TOOL_DURA if mythic else ELITE_TOOL_DURA if elite else TOOL_DURA}
     attribute_modifiers:
       mainhand:
-        attackDamage: {TOOL_DAMAGE[tool] + (ELITE_TOOL_BONUS if elite and tool != "hoe" else 0)}
+        attackDamage: {TOOL_DAMAGE[tool] + (0 if tool == "hoe" else MYTHIC_TOOL_BONUS if mythic
+                                            else ELITE_TOOL_BONUS if elite else 0)}
         attackSpeed: {TOOL_SPEED[tool]}""")
     items.append(f"""  {S['id']}_bow:
     enabled: true
@@ -711,7 +730,7 @@ def configs(S, ns):
       model_path: item/{S['id']}_bow
       icon: item/{S['id']}_bow_icon
     durability:
-      max_custom_durability: {BOW_DURA * 2 if elite else BOW_DURA}""")
+      max_custom_durability: {BOW_DURA * (3 if mythic else 2 if elite else 1)}""")
     items.append(f"""  {S['id']}_shield:
     enabled: true
     display_name: '{S['color']}{S['name']} Shield'
@@ -720,11 +739,11 @@ def configs(S, ns):
       generate: false
       model_path: item/{S['id']}_shield
     durability:
-      max_custom_durability: {SHIELD_DURA * 2 if elite else SHIELD_DURA}
+      max_custom_durability: {SHIELD_DURA * (3 if mythic else 2 if elite else 1)}
     attribute_modifiers:
       offhand:
         knockbackResistance: 0.1""")
-    loots = []
+    loots, block_loots, cooking = [], [], []
     for (kind, title), story in zip((("armor", "Armor"), ("tools", "Tools"), ("weapons", "Weapons")), S["story"]):
         sid = f"{S['id']}_scroll_{kind}"
         items.append(f"""  {sid}:
@@ -738,6 +757,13 @@ def configs(S, ns):
       textures:
         - item/{S['id']}_scroll_{kind}""")
         mob, chance = S["mob"]
+        if mythic:   # rolled together with the ore's own drop below
+            block_loots.append(f"""        {sid}:
+          item: {ns}:{sid}
+          min_amount: 1
+          max_amount: 1
+          chance: {chance}""")
+            continue
         loots.append(f"""    {sid}:
       enabled: true
       type: {mob}
@@ -768,6 +794,63 @@ def configs(S, ns):
           min_amount: {R['min']}
           max_amount: {R['max']}
           chance: 100""")
+    if mythic:
+        O = S["ore"]
+        items.append(f"""  {O['ore_id']}:
+    enabled: true
+    display_name: '{S['color']}{O['ore_name']}'
+    lore:
+{ylist(["&f"] + O["ore_lore"] + ["&f", "&8Needs a netherite pickaxe.", "&8Smelt the raw ore in a blast furnace."]).rstrip(chr(10))}
+    resource:
+      material: FLINT
+      generate: true
+      texture: block/{O['ore_id']}.png
+    behaviours:
+      block:
+        placed_model:
+          type: REAL_NOTE
+          break_particles: BLOCK
+        drop_when_mined: false
+        light_level: 3
+        hardness: {O['hardness']}
+        blast_resistance: 1200
+        break_tools_whitelist:
+        - NETHERITE_PICKAXE
+        sound:
+          break:
+            name: minecraft:block.ancient_debris.break
+            volume: 1
+            pitch: 0.8""")
+        for key, name, lore in (("raw_id", "raw_name", "raw_lore"), ("ingot_id", "ingot_name", "ingot_lore")):
+            items.append(f"""  {O[key]}:
+    enabled: true
+    display_name: '{S['color']}{O[name]}'
+    lore:
+{ylist(["&f"] + O[lore]).rstrip(chr(10))}
+    resource:
+      material: FLINT
+      generate: true
+      textures:
+        - item/{O[key]}""")
+        block_loots[:] = [f"""    {O['ore_id']}:
+      enabled: true
+      type: {ns}:{O['ore_id']}
+      items:
+        raw:
+          item: {ns}:{O['raw_id']}
+          min_amount: 1
+          max_amount: 1
+          chance: 100"""] + block_loots
+        cooking.append(f"""    {O['ingot_id']}:
+      ingredient:
+        item: {ns}:{O['raw_id']}
+      machines:
+      - BLAST_FURNACE
+      exp: 10
+      cook_time: 600
+      result:
+        item: {ns}:{O['ingot_id']}
+        amount: 1""")
     recs = []
     for item, shape, ing in all_recipes(S, ns):
         recs.append(f"""    {item}:
@@ -777,12 +860,13 @@ def configs(S, ns):
             + "".join(f"        {k}: {v}\n" for k, v in ing.items()) + f"""      result:
         item: {ns}:{item}
         amount: 1""")
+    cook_yml = ("  cooking:\n" + chr(10).join(cooking) + "\n") if cooking else ""
     items_yml = f"""info:
   namespace: {ns}
 recipes:
   crafting_table:
 {chr(10).join(recs)}
-items:
+{cook_yml}items:
 {chr(10).join(items)}
 """
     equip_yml = f"""info:
@@ -795,7 +879,8 @@ equipments:
 """
     listed = [f"{S['id']}_scroll_{k}" for k in SCROLL_SHAPES] + [f"{S['id']}_{p}" for p in PIECES] + \
         [f"{S['id']}_{t}" for t in TOOLS] + [f"{S['id']}_bow", f"{S['id']}_shield"] + \
-        ([S["relic"]["id"]] if elite else [])
+        ([S["relic"]["id"]] if elite else []) + \
+        ([S["ore"]["ore_id"], S["ore"]["raw_id"], S["ore"]["ingot_id"]] if mythic else [])
     cat_yml = f"""info:
   namespace: {ns}
 categories:
@@ -809,10 +894,25 @@ categories:
     loots_yml = f"""info:
   namespace: {ns}
 loots:
-  mobs:
-{chr(10).join(loots)}
-"""
+""" + (f"  mobs:\n{chr(10).join(loots)}\n" if loots else "") + \
+        (f"  blocks:\n{chr(10).join(block_loots)}\n" if block_loots else "")
     return items_yml, equip_yml, cat_yml, loots_yml
+
+
+def worldgen_yml(S, ns):
+    """Where the ore spawns. It only appears in chunks generated after the pack is installed."""
+    out = [f"info:\n  namespace: {ns}\nworlds_populators:"]
+    for key, g in S["ore"]["gen"].items():
+        out.append(f"""  {key}:
+    block: {ns}:{S['ore']['ore_id']}
+    worlds:
+""" + "".join(f"    - {w}\n" for w in g["worlds"]) + "    replaceable_blocks:\n"
+            + "".join(f"    - {b}\n" for b in g["replace"]) + f"""    chunk_chance: {g['chance']}
+    max_height: {g['max']}
+    min_height: {g['min']}
+    vein_blocks: {g['vein']}
+    chunk_veins: 1""")
+    return "\n".join(out) + "\n"
 
 
 def relic_icon(S):
@@ -889,4 +989,11 @@ def build_set(S, base, write, animate, mcmeta):
     write(f"{base}/configs/equipments.yml", equip_yml)
     write(f"{base}/configs/categories.yml", cat_yml)
     write(f"{base}/configs/loots.yml", loots_yml)
+    if S.get("ore"):   # the custom ore: block, raw drop, ingot, and where it generates
+        import ore_art
+        O = S["ore"]
+        write(f"{base}/textures/block/{O['ore_id']}.png", ore_art.ore(S))
+        write(f"{base}/textures/item/{O['raw_id']}.png", ore_art.raw(S))
+        write(f"{base}/textures/item/{O['ingot_id']}.png", ore_art.ingot(S))
+        write(f"{base}/configs/worldgen.yml", worldgen_yml(S, ns))
     return l1, l2, at, parts, [ics[p] for p in PIECES], tool_imgs

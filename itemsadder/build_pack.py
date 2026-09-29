@@ -32,6 +32,7 @@ import armor_engine as AE  # noqa: E402
 import armor_sets as AS  # noqa: E402
 import armor_sets2 as AS2  # noqa: E402
 import armor_sets3 as AS3  # noqa: E402  (elite sets: boss relics)
+import armor_sets4 as AS4  # noqa: E402  (closed-helm sets and the Nyxite ore set)
 import tool_forge as TF  # noqa: E402
 import cosmetics as COS  # noqa: E402
 import scroll_art as SA  # noqa: E402
@@ -799,7 +800,7 @@ def main():
     mace.write_pack(f"{OUT}/{mace.NS}")
     ACC.build(f"{OUT}/{ACC.NS}", write, animate, MCMETA)
     COS.build(f"{OUT}/{COS.NS}", write, animate, MCMETA)
-    for S in AS.SETS + AS2.SETS2 + AS3.SETS3:   # the themed armor sets, one content folder + category each
+    for S in AS.SETS + AS2.SETS2 + AS3.SETS3 + AS4.SETS4:   # the themed armor sets, one content folder + category each
         AE.build_set(S, f"{OUT}/{S['id']}", write, animate, MCMETA)
     with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
         for folder, _, files in sorted(os.walk(OUT)):

@@ -26,6 +26,7 @@ STYLE = {   # set id -> scroll form
     "werewolf": "bone", "rose": "letter", "prism": "rune_stone", "cowboy": "map", "monk": "tome",
     "redstone": "datapad", "oxidized": "tablet", "candy": "letter", "vampire": "rolled",
     "crimson": "rolled", "blue_crimson": "crystal", "halloween": "tome",
+    "blackguard": "banner", "juggernaut": "tablet", "nyxite": "crystal",
     "witherbane": "bone", "dreadwyrm": "rune_stone", "leviathan": "crystal", "revenant": "letter",
 }
 

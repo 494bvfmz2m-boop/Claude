@@ -1457,6 +1457,9 @@ LOOKS = {
  "dreadwyrm": ("scale", "spiked", "spiked", "chain", "scale", "clawed", "zigzag", "wings", ("scale", "M"), ("leather", "S"), "full"),
  "leviathan": ("core", "crystal", "chain", "skirt", "scale", "pointed", "gem", "circle", ("wave", "M"), ("scale", "S"), "full"),
  "revenant": ("cloak", "drape", "wrapped", "rope", "robe", "pointed", "line", "cape", ("plate", "M"), ("cloth", "S"), "full"),
+ "blackguard": ("tabard", "horned", "plate", "chain", "greaves", "greave", "studs", "cape", ("plate", "M"), ("cloth", "S"), "full"),
+ "juggernaut": ("core", "layered", "gauntlet", "tassets", "greaves", "sabaton", "segment", "stripes", ("brass", "M"), ("leather", "S"), "full"),
+ "nyxite": ("crystal", "crystal", "gauntlet", "chain", "greaves", "pointed", "gem", "wings", ("crystal", "M"), ("obsidian", "S"), "full"),
  "halloween": ("brigandine", "spiked", "gauntlet", "chain", "armored", "clawed", "line", "none", ("pumpkin", "M"), ("cloth", "S"), "standard"),
 }
 PARTS = ("chest", "shoulders", "arms", "belt", "legs", "boots")

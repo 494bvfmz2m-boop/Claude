@@ -104,14 +104,14 @@ def render(l1, l2, atlas, parts, yaw_deg, size=(640, 760), scale=12, skin=(196, 
     armor_box(la, 1, l1, ARM, True)
     armor_box(rl, 1, l1, LEG)
     armor_box(ll, 1, l1, LEG, True)
-    layer[0] = 3
     for p in parts:
+        layer[0] = 4 if p.get("decal") else 3      # faceplate details draw over the plate they sit on
         add_box((p["from"], p["to"]), {f: (atlas, r) for f, r in p["faces"].items()}, rot=p.get("rot"))
     # parts are drawn depth-sorted together with the armor so they can sit behind the body
     # skin first, then armor and parts depth-sorted together (so parts can sit behind the body);
     # head parts behind the middle of the head (a hood's back panel) sort in with the skin instead
     mid = cam((0, 28, 0))[2]
-    polys.sort(key=lambda q: (0 if q[0] == 3 and q[1] > mid + 2 else min(q[0], 2), -q[1]))
+    polys.sort(key=lambda q: (0 if q[0] >= 3 and q[1] > mid + 2 else min(q[0], 2), -q[1] + (1.5 if q[0] == 4 else 0)))
     img = Image.new("RGB", size, (24, 24, 28))
     dr = ImageDraw.Draw(img)
     cx, cy = size[0] // 2, int(size[1] * 0.53)

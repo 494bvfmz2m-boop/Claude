@@ -203,3 +203,9 @@ for _S in SETS3:
 for _i, _S in enumerate(SETS3):
     _S["shield"] = ("spiked", "crescent", "kite", "pointed")[_i]
     _S["arm_cut"] = ("both", "pads", "gloves", "both")[_i]
+
+# heavy sets wear closed helmets (full shell, faceplate and visor) instead of open ones
+import helm_forge as _HF  # noqa: E402
+from armor_sets import SETS as _S1  # noqa: E402
+from armor_sets2 import SETS2 as _S2  # noqa: E402
+_HF.apply(_S1 + _S2 + SETS3)
