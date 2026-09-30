@@ -350,52 +350,6 @@
   render();
   window.renderSite = render;
 
-  // Online teksten (als er een Firebase-project is ingesteld in js/firebase-config.js).
-  // Nieuwere teksten worden bewaard in de browser, zodat ze ook zonder internet blijven.
-  // Tijdens de rondleiding wachten we met bijwerken tot hij weer bovenaan begint.
-  var pending = null;
-
-  function applyContent(c) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-    } catch (e) {
-      /* dan alleen voor nu */
-    }
-    if (document.body.classList.contains("touring")) pending = c;
-    else render();
-  }
-
-  window.applyPendingContent = function () {
-    if (!pending) return false;
-    pending = null;
-    render();
-    return true;
-  };
-
-  function fetchRemote() {
-    var cfg = window.FIREBASE_CONFIG;
-    if (!cfg || !cfg.projectId || !window.fetch) return;
-    var host = cfg.emulator ? "http://" + cfg.emulator.firestore : "https://firestore.googleapis.com";
-    var url = host + "/v1/projects/" + encodeURIComponent(cfg.projectId) + "/databases/(default)/documents/site/content" + (cfg.apiKey ? "?key=" + encodeURIComponent(cfg.apiKey) : "");
-    fetch(url, { cache: "no-store" })
-      .then(function (r) {
-        return r.ok ? r.json() : null;
-      })
-      .then(function (doc) {
-        var json = doc && doc.fields && doc.fields.json && doc.fields.json.stringValue;
-        if (!json) return;
-        var c = JSON.parse(json);
-        var now = window.SiteContent || {};
-        if (c && c.version === window.SITE_CONTENT.version && (c.updated || "") > (now.updated || "")) applyContent(c);
-      })
-      .catch(function () {
-        /* geen internet: dan de teksten die we al hebben */
-      });
-  }
-
-  fetchRemote();
-  window.setInterval(fetchRemote, 2 * 60 * 1000);
-
   // als de beheerpagina in een ander tabblad opslaat: meteen bijwerken
   window.addEventListener("storage", function (e) {
     if (e.key === STORAGE_KEY) render();

@@ -13,10 +13,8 @@
   var base = window.SITE_CONTENT;
   var data;
   var fromBrowser = false; // er is een opgeslagen versie (browser of online)
-  var cloud = window.AdminCloud && window.AdminCloud.configured ? window.AdminCloud : null;
-  var access = null; // "owner" of "admin" als je online bent ingelogd
-  var remoteUpdated = ""; // tijdstip van de online versie waar we mee begonnen
-  var saving = false;
+  var auth = window.AdminAuth;
+  var access = null; // "owner" of "admin" als je bent ingelogd
   var dirty = false;
   var current = "algemeen";
 
@@ -467,44 +465,49 @@
     beheerders: function () {
       var owner = access === "owner";
       var listBox = h("div", { class: "admin-list" }, [h("p", { class: "hint", text: "Laden…" })]);
+      var inviteBox = h("div", { class: "invite-result", hidden: true });
       var parts = [];
       if (owner) {
         var input = h("input", { type: "email", placeholder: "naam@voorbeeld.nl", autocomplete: "off", id: "inviteEmail" });
         var btn = h("button", { type: "submit", class: "btn primary", text: "Uitnodigen" });
         var form = h("form", { class: "invite-form" }, [
           h("div", { class: "field wide" }, [h("label", { for: "inviteEmail", text: "E-mailadres van de nieuwe beheerder" }), h("div", { class: "invite-row" }, [input, btn])]),
-          h("p", { class: "hint", text: "Diegene krijgt een mail met een link. Via die link maakt hij of zij een account met een zelfgekozen wachtwoord. Daarna kan diegene hier inloggen en alle teksten aanpassen." }),
+          h("p", { class: "hint", text: "Je mailprogramma opent met een kant-en-klare uitnodiging. Via de link in die mail kiest diegene een eigen wachtwoord en kan daarna inloggen." }),
+          inviteBox,
         ]);
         form.addEventListener("submit", function (e) {
           e.preventDefault();
           var email = input.value.trim();
           if (!email) return input.focus();
-          btn.disabled = true;
-          btn.textContent = "Versturen…";
-          cloud
-            .invite(email)
-            .then(function () {
-              toast("Uitnodiging verstuurd naar " + email.toLowerCase() + ".", "ok");
-              input.value = "";
-              loadAdmins(listBox);
-            })
-            .catch(function (err) {
-              toast(err.message, "error");
-            })
-            .then(function () {
-              btn.disabled = false;
-              btn.textContent = "Uitnodigen";
-            });
+          sendInvite(email, inviteBox, listBox).then(function (ok) {
+            if (ok) input.value = "";
+          });
         });
         parts.push(card("Beheerder toevoegen", [form]));
       }
       parts.push(card("Wie mag de teksten aanpassen?", [listBox]));
-      loadAdmins(listBox);
+      if (owner) {
+        parts.push(
+          card("Accounts bewaren", [
+            h("p", { class: "hint top", text: "Nieuwe beheerders en wachtwoorden worden in deze browser bewaard. Wil je dat ze ook werken op een andere computer of op de site online, sla dan de accounts op als bestand en vervang daarmee admin/accounts.js." }),
+            h("button", {
+              type: "button",
+              class: "btn",
+              text: "Accounts opslaan als bestand",
+              onclick: function () {
+                saveTextFile(auth.fileText(), "accounts.js", "Zet hem in de map admin/ (vervang het oude bestand).");
+              },
+            }),
+          ])
+        );
+      }
+      parts.push(passwordCard());
+      loadAdmins(listBox, inviteBox);
       return section(
         "Beheerders",
         owner
           ? "Jij bent de hoofdbeheerder. Alleen jij kunt beheerders toevoegen en verwijderen."
-          : "Alleen de hoofdbeheerder (" + cloud.ownerEmail + ") kan beheerders toevoegen en verwijderen.",
+          : "Alleen de hoofdbeheerder (" + auth.ownerEmail + ") kan beheerders toevoegen en verwijderen.",
         parts
       );
     },
@@ -636,76 +639,151 @@
     return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
   }
 
-  function loadAdmins(box) {
-    var owner = access === "owner";
-    cloud
-      .listAdmins()
-      .then(function (list) {
+  function openMail(mailto) {
+    var a = h("a", { href: mailto, style: "display:none" });
+    document.body.appendChild(a);
+    var wasDirty = dirty;
+    dirty = false; // geen "pagina verlaten?"-melding voor een mailto-link
+    a.click();
+    dirty = wasDirty;
+    a.remove();
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    var ta = h("textarea", { style: "position:fixed;opacity:0" });
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    return Promise.resolve();
+  }
+
+  function sendInvite(email, box, listBox) {
+    return auth
+      .invite(email)
+      .then(function (res) {
         box.innerHTML = "";
-        var rows = [{ email: cloud.ownerEmail, status: "owner" }].concat(
-          list.filter(function (a) {
-            return a.email !== cloud.ownerEmail;
-          })
+        box.appendChild(h("p", { class: "invite-title", text: "Uitnodiging voor " + email.toLowerCase() + " is klaar" }));
+        box.appendChild(h("p", { class: "hint", text: "Opent je mailprogramma niet? Kopieer de link en stuur hem zelf (bijv. via Teams, Magister of WhatsApp)." }));
+        var linkInput = h("input", { type: "text", readonly: true, value: res.link, "aria-label": "Uitnodigingslink" });
+        box.appendChild(
+          h("div", { class: "invite-row" }, [
+            linkInput,
+            h("button", {
+              type: "button",
+              class: "btn",
+              text: "Link kopiëren",
+              onclick: function () {
+                copyText(res.link).then(function () {
+                  toast("Link gekopieerd.", "ok");
+                });
+              },
+            }),
+            h("button", {
+              type: "button",
+              class: "btn primary",
+              text: "Mail openen",
+              onclick: function () {
+                openMail(res.mailto);
+              },
+            }),
+          ])
         );
-        rows.forEach(function (a) {
-          var badge =
-            a.status === "owner"
-              ? h("span", { class: "badge owner", text: "Hoofdbeheerder" })
-              : a.status === "active"
-              ? h("span", { class: "badge ok", text: "Actief" })
-              : h("span", { class: "badge wait", text: "Uitgenodigd " + fmtDate(a.invitedAt) });
-          var tools = [];
-          if (owner && a.status !== "owner") {
-            if (a.status !== "active")
-              tools.push(
-                h("button", {
-                  type: "button",
-                  class: "btn small-inline",
-                  text: "Opnieuw sturen",
-                  onclick: function (e) {
-                    var b = e.currentTarget;
-                    b.disabled = true;
-                    cloud
-                      .invite(a.email)
-                      .then(function () {
-                        toast("Uitnodiging opnieuw verstuurd naar " + a.email + ".", "ok");
-                        loadAdmins(box);
-                      })
-                      .catch(function (err) {
-                        b.disabled = false;
-                        toast(err.message, "error");
-                      });
-                  },
-                })
-              );
+        box.hidden = false;
+        openMail(res.mailto);
+        loadAdmins(listBox, box);
+        return true;
+      })
+      .catch(function (err) {
+        toast(err.message, "error");
+        return false;
+      });
+  }
+
+  function passwordCard() {
+    var err = h("p", { class: "warn", hidden: true, role: "alert" });
+    var f = h("form", { class: "invite-form" }, [
+      inputField("pwOld", "Huidig wachtwoord", "password", "", "current-password"),
+      inputField("pwNew", "Nieuw wachtwoord (minstens 8 tekens)", "password", "", "new-password"),
+      inputField("pwNew2", "Herhaal nieuw wachtwoord", "password", "", "new-password"),
+      err,
+      h("div", {}, [h("button", { type: "submit", class: "btn", text: "Wachtwoord wijzigen" })]),
+    ]);
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      err.hidden = true;
+      if (val("pwNew") !== val("pwNew2")) {
+        err.textContent = "De twee nieuwe wachtwoorden zijn niet hetzelfde.";
+        err.hidden = false;
+        return;
+      }
+      auth
+        .changePassword(val("pwOld"), val("pwNew"))
+        .then(function () {
+          f.reset();
+          toast("Wachtwoord gewijzigd.", "ok");
+        })
+        .catch(function (e2) {
+          err.textContent = e2.message;
+          err.hidden = false;
+        });
+    });
+    return card("Je eigen wachtwoord wijzigen", [f]);
+  }
+
+  function loadAdmins(box, inviteBox) {
+    var owner = access === "owner";
+    auth.listAdmins().then(function (rows) {
+      box.innerHTML = "";
+      rows.sort(function (a, b) {
+        return (a.status === "owner" ? -1 : 0) - (b.status === "owner" ? -1 : 0) || a.email.localeCompare(b.email);
+      });
+      rows.forEach(function (a) {
+        var badge =
+          a.status === "owner"
+            ? h("span", { class: "badge owner", text: "Hoofdbeheerder" })
+            : a.status === "active"
+            ? h("span", { class: "badge ok", text: "Actief" })
+            : h("span", { class: "badge wait", text: "Uitgenodigd " + fmtDate(a.invitedAt) });
+        var tools = [];
+        if (owner && a.status !== "owner") {
+          if (a.status !== "active")
             tools.push(
               h("button", {
                 type: "button",
-                class: "btn small-inline danger",
-                text: "Verwijderen",
+                class: "btn small-inline",
+                text: "Nieuwe link",
                 onclick: function () {
-                  if (!window.confirm(a.email + " verwijderen? Diegene kan daarna niets meer aanpassen.")) return;
-                  cloud
-                    .removeAdmin(a.email)
-                    .then(function () {
-                      toast(a.email + " is geen beheerder meer.", "ok");
-                      loadAdmins(box);
-                    })
-                    .catch(function (err) {
-                      toast(err.message, "error");
-                    });
+                  sendInvite(a.email, inviteBox, box);
                 },
               })
             );
-          }
-          box.appendChild(h("div", { class: "admin-row" }, [h("span", { class: "admin-email", text: a.email }), badge, h("div", { class: "tools" }, tools)]));
-        });
-        if (rows.length === 1) box.appendChild(h("p", { class: "hint", text: "Nog geen andere beheerders." }));
-      })
-      .catch(function (err) {
-        box.innerHTML = "";
-        box.appendChild(h("p", { class: "warn", text: err.message }));
+          tools.push(
+            h("button", {
+              type: "button",
+              class: "btn small-inline danger",
+              text: "Verwijderen",
+              onclick: function () {
+                if (!window.confirm(a.email + " verwijderen? Diegene kan daarna niet meer inloggen.")) return;
+                auth
+                  .removeAdmin(a.email)
+                  .then(function () {
+                    toast(a.email + " is geen beheerder meer.", "ok");
+                    loadAdmins(box, inviteBox);
+                  })
+                  .catch(function (err) {
+                    toast(err.message, "error");
+                  });
+              },
+            })
+          );
+        }
+        box.appendChild(h("div", { class: "admin-row" }, [h("span", { class: "admin-email", text: a.email }), badge, h("div", { class: "tools" }, tools)]));
       });
+      if (rows.length === 1) box.appendChild(h("p", { class: "hint", text: "Nog geen andere beheerders." }));
+    });
   }
 
   // --- geschatte duur van de rondleiding ------------------------------------------
@@ -888,55 +966,19 @@
     }
   }
 
-  function savedLabel(updated, by) {
-    if (!cloud) return "opgeslagen in deze browser";
-    return "online opgeslagen" + (updated ? " · " + fmtDate(updated) : "") + (by ? " door " + by : "");
-  }
-
-  async function save() {
-    if (saving) return false;
+  function save() {
     var p = problems();
     if (p.length && !window.confirm("Let op:\n\n• " + p.join("\n• ") + "\n\nToch opslaan?")) return false;
-    if (!cloud) {
-      stamp();
-      if (!cacheLocally()) {
-        toast("Opslaan in de browser lukt niet. Gebruik “Opslaan als content.js”.", "error");
-        return false;
-      }
-      fromBrowser = true;
-      sourceEl.textContent = savedLabel();
-      setDirty(false);
-      toast("Opgeslagen — de site is bijgewerkt (herlaad als hij al open staat).", "ok");
-      return true;
-    }
-    saving = true;
-    var btn = document.getElementById("saveBtn");
-    btn.disabled = true;
-    btn.textContent = "Opslaan…";
-    try {
-      // heeft iemand anders intussen ook opgeslagen?
-      var remote = await cloud.loadContent();
-      var me = (cloud.user().email || "").toLowerCase();
-      if (remote && remote.updated > remoteUpdated && remote.updatedBy !== me) {
-        if (!window.confirm(remote.updatedBy + " heeft om " + fmtDate(remote.updated) + " ook teksten opgeslagen. Wil je die overschrijven met jouw versie?")) return false;
-      }
-      stamp();
-      await cloud.saveContent(data);
-      remoteUpdated = data.updated;
-      cacheLocally();
-      fromBrowser = true;
-      sourceEl.textContent = savedLabel(data.updated, me);
-      setDirty(false);
-      toast("Online opgeslagen — de site toont de nieuwe teksten (een open site werkt zichzelf binnen een paar minuten bij).", "ok");
-      return true;
-    } catch (err) {
-      toast("Opslaan mislukt: " + err.message, "error");
+    stamp();
+    if (!cacheLocally()) {
+      toast("Opslaan in de browser lukt niet. Gebruik “Opslaan als content.js”.", "error");
       return false;
-    } finally {
-      saving = false;
-      btn.disabled = false;
-      btn.textContent = "Opslaan";
     }
+    fromBrowser = true;
+    sourceEl.textContent = "opgeslagen in deze browser";
+    setDirty(false);
+    toast("Opgeslagen — de site is bijgewerkt (herlaad als hij al open staat).", "ok");
+    return true;
   }
 
   function fileText() {
@@ -947,31 +989,34 @@
     );
   }
 
-  async function exportFile() {
-    var p = problems();
-    if (p.length && !window.confirm("Let op:\n\n• " + p.join("\n• ") + "\n\nToch opslaan?")) return;
-    stamp();
-    var text = fileText();
+  async function saveTextFile(text, name, where) {
     if (window.showSaveFilePicker) {
       try {
         var handle = await window.showSaveFilePicker({
-          suggestedName: "content.js",
+          suggestedName: name,
           types: [{ description: "JavaScript", accept: { "text/javascript": [".js"] } }],
         });
         var w = await handle.createWritable();
         await w.write(text);
         await w.close();
-        toast("content.js opgeslagen. Zet hem in de map js/ (vervang het oude bestand).", "ok");
+        toast(name + " opgeslagen. " + where, "ok");
         return;
       } catch (e) {
         if (e && e.name === "AbortError") return;
       }
     }
-    var a = h("a", { href: URL.createObjectURL(new Blob([text], { type: "text/javascript" })), download: "content.js" });
+    var a = h("a", { href: URL.createObjectURL(new Blob([text], { type: "text/javascript" })), download: name });
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast("content.js gedownload. Zet hem in de map js/ (vervang het oude bestand).", "ok");
+    toast(name + " gedownload. " + where, "ok");
+  }
+
+  function exportFile() {
+    var p = problems();
+    if (p.length && !window.confirm("Let op:\n\n• " + p.join("\n• ") + "\n\nToch opslaan?")) return;
+    stamp();
+    saveTextFile(fileText(), "content.js", "Zet hem in de map js/ (vervang het oude bestand).");
   }
 
   function importFile(file) {
@@ -997,15 +1042,6 @@
   }
 
   function reset() {
-    if (cloud) {
-      if (!window.confirm("De standaardteksten uit js/content.js in de editor laden? Pas na Opslaan komen ze online te staan.")) return;
-      data = clone(base);
-      normalize();
-      changed();
-      renderPanel();
-      toast("Standaardteksten geladen. Klik op Opslaan om ze online te zetten.", "ok");
-      return;
-    }
     if (!window.confirm("Alle aanpassingen in deze browser weggooien en terug naar de teksten uit js/content.js?")) return;
     try {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -1112,33 +1148,13 @@
   }
 
   function showLogin(msg) {
-    var forgot = h("button", {
-      type: "button",
-      class: "link-btn",
-      text: "Wachtwoord vergeten?",
-      onclick: function () {
-        var email = val("loginEmail").trim();
-        if (!email) {
-          toast("Vul eerst je e-mailadres in.", "error");
-          document.getElementById("loginEmail").focus();
-          return;
-        }
-        cloud
-          .resetPassword(email)
-          .then(function () {
-            toast("Als dit adres een account heeft, is er een mail gestuurd om een nieuw wachtwoord te kiezen.", "ok");
-          })
-          .catch(function (e) {
-            toast(e.message, "error");
-          });
-      },
-    });
+    var forgot = h("p", { class: "hint center", text: "Wachtwoord vergeten? Vraag de hoofdbeheerder om je een nieuwe uitnodiging te sturen." });
     showGate("Inloggen", msg || "Log in om de teksten en tijden van de site aan te passen.", [
       gateForm(
         [inputField("loginEmail", "E-mailadres", "email", "", "username"), inputField("loginPassword", "Wachtwoord", "password", "", "current-password")],
         "Inloggen",
         function () {
-          return cloud.signIn(val("loginEmail"), val("loginPassword"));
+          return auth.signIn(val("loginEmail"), val("loginPassword")).then(enter);
         },
         [forgot]
       ),
@@ -1146,75 +1162,30 @@
   }
 
   function showInvite() {
-    var email = cloud.inviteEmail();
     showGate("Account aanmaken", "Je bent uitgenodigd als beheerder van de site. Kies een wachtwoord; daarmee log je voortaan in.", [
       gateForm(
         [
-          inputField("inviteMail", "Je e-mailadres (waar de uitnodiging naartoe ging)", "email", email, "username"),
+          inputField("inviteMail", "Je e-mailadres (waar de uitnodiging naartoe ging)", "email", auth.inviteEmail(), "username"),
           inputField("invitePw", "Kies een wachtwoord (minstens 8 tekens)", "password", "", "new-password"),
           inputField("invitePw2", "Herhaal het wachtwoord", "password", "", "new-password"),
         ],
         "Account aanmaken",
         function () {
           if (val("invitePw") !== val("invitePw2")) throw new Error("De twee wachtwoorden zijn niet hetzelfde.");
-          return cloud.completeInvite(val("inviteMail"), val("invitePw")).then(function () {
+          return auth.completeInvite(val("inviteMail"), val("invitePw")).then(function (user) {
             toast("Je account is klaar. Welkom!", "ok");
-            watchUser();
+            enter(user);
           });
         }
       ),
     ]);
   }
 
-  function showNoAccess(user) {
-    showGate("Geen toegang", "Je bent ingelogd als " + user.email + ", maar dit adres is (nog) geen beheerder. Vraag de hoofdbeheerder om je uit te nodigen.", [
-      h("button", {
-        type: "button",
-        class: "btn big",
-        text: "Uitloggen",
-        onclick: function () {
-          cloud.signOut();
-        },
-      }),
-    ]);
-  }
-
-  var watching = false;
-  function watchUser() {
-    if (watching) return;
-    watching = true;
-    cloud.onUser(function (user) {
-      if (!user) {
-        access = null;
-        showLogin();
-        return;
-      }
-      showGate("Even geduld…", "Gegevens ophalen.");
-      cloud
-        .access(user)
-        .then(function (a) {
-          if (!a) return showNoAccess(user);
-          access = a;
-          return cloud.loadContent().then(function (remote) {
-            var ok = remote && remote.content && remote.content.version === base.version;
-            remoteUpdated = ok ? remote.updated : "";
-            openEditor(ok ? remote.content : null, ok ? savedLabel(remote.updated, remote.updatedBy) : "nog niets online opgeslagen · teksten uit js/content.js");
-            showUser(user);
-          });
-        })
-        .catch(function (e) {
-          showGate("Er ging iets mis", e.message, [
-            h("button", {
-              type: "button",
-              class: "btn big",
-              text: "Opnieuw proberen",
-              onclick: function () {
-                location.reload();
-              },
-            }),
-          ]);
-        });
-    });
+  function enter(user) {
+    access = user.role === "owner" ? "owner" : "admin";
+    var saved = loadSaved();
+    openEditor(saved, saved ? "opgeslagen in deze browser" : "teksten uit js/content.js");
+    showUser(user);
   }
 
   function showUser(user) {
@@ -1228,30 +1199,14 @@
         onclick: function () {
           if (dirty && !window.confirm("Je hebt niet-opgeslagen wijzigingen. Toch uitloggen?")) return;
           setDirty(false);
-          cloud.signOut();
+          auth.signOut();
+          access = null;
+          userBox.hidden = true;
+          showLogin("Je bent uitgelogd.");
         },
       })
     );
     userBox.hidden = false;
-  }
-
-  function showSetup() {
-    showGate(
-      "Online inloggen is nog niet ingesteld",
-      "Zolang er geen Firebase-project is gekoppeld (js/firebase-config.js), is er geen login en worden aanpassingen alleen in deze browser bewaard. In de README staat hoe je het in ongeveer 10 minuten instelt.",
-      [
-        h("button", {
-          type: "button",
-          class: "btn primary big",
-          text: "Doorgaan — alleen in deze browser",
-          onclick: function () {
-            var saved = loadSaved();
-            fromBrowser = !!saved;
-            openEditor(saved, saved ? savedLabel() : "teksten uit js/content.js");
-          },
-        }),
-      ]
-    );
   }
 
   // --- start -------------------------------------------------------------------------
@@ -1263,7 +1218,6 @@
     sourceEl.textContent = label;
     var start = location.hash.slice(1);
     if (start) current = start;
-    document.getElementById("resetBtn").textContent = cloud ? "Standaardteksten laden" : "Terugzetten naar content.js";
     gate.hidden = true;
     document.body.classList.remove("gated");
     app.hidden = false;
@@ -1275,7 +1229,12 @@
     showGate("Fout", "js/content.js niet gevonden. Open deze pagina vanuit de map admin/ van de website.");
     return;
   }
-  if (!cloud) showSetup();
-  else if (cloud.isInviteLink()) showInvite();
-  else watchUser();
+  if (!auth || !auth.ownerEmail) {
+    showGate("Fout", "admin/accounts.js of admin/auth.js ontbreekt.");
+    return;
+  }
+  var me = auth.current();
+  if (auth.isInviteLink()) showInvite();
+  else if (me) enter(me);
+  else showLogin();
 })();

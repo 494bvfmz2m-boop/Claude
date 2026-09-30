@@ -594,9 +594,6 @@
         await waitForBuild(token);
         check(token);
 
-        // nieuwe teksten van de beheerpagina? die nu pas toepassen, dan kloppen de stops
-        if (window.applyPendingContent) window.applyPendingContent();
-
         // 2. alle onderdelen, scherm voor scherm (eerst alles zichtbaar maken, zodat de maten kloppen)
         document.querySelectorAll(".reveal").forEach(function (el) {
           el.classList.add("in", "instant");
