@@ -1,11 +1,12 @@
 <?php
-$GLOBALS['page_title'] = 'Custom 3D print quote - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Upload your STL, STEP or 3MF model and get a quote with price and lead time.';
+$GLOBALS['page_title'] = 'Eigen idee laten printen - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Stuur je STL-, STEP- of 3MF-bestand of beschrijf je idee. Je hoort snel of het kan en wat het kost.';
 
 $errors = [];
 $sent = false;
 $allowed = ['stl', 'step', 'stp', '3mf', 'obj', 'zip'];
 $maxBytes = 100 * 1024 * 1024;
+$about = trim((string)($_GET['about'] ?? ''));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -16,18 +17,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $details = trim((string)($_POST['details'] ?? ''));
     $stored = null; $original = null;
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email address.';
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Vul een geldig e-mailadres in.';
+    if ($details === '' && empty($_FILES['model']['name'])) $errors[] = 'Beschrijf je idee of voeg een bestand toe.';
 
     if (!empty($_FILES['model']['name'])) {
         $f = $_FILES['model'];
         if ($f['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'The file could not be uploaded. It may be too large for your server.';
+            $errors[] = 'Het bestand kon niet worden geüpload. Misschien is het te groot.';
         } elseif ($f['size'] > $maxBytes) {
-            $errors[] = 'Files must be 100 MB or smaller.';
+            $errors[] = 'Bestanden mogen maximaal 100 MB zijn.';
         } else {
             $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
             if (!in_array($ext, $allowed, true)) {
-                $errors[] = 'Accepted file types: ' . implode(', ', $allowed) . '.';
+                $errors[] = 'Toegestane bestandstypen: ' . implode(', ', $allowed) . '.';
             } else {
                 $dir = __DIR__ . '/../uploads/models';
                 if (!is_dir($dir)) @mkdir($dir, 0755, true);
@@ -36,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stored = 'uploads/models/' . $fileName;
                     $original = mb_substr($f['name'], 0, 190);
                 } else {
-                    $errors[] = 'Could not save the file. Check that the uploads folder is writable.';
+                    $errors[] = 'Het bestand kon niet worden opgeslagen. Controleer of de map uploads beschrijfbaar is.';
                 }
             }
         }
@@ -50,35 +52,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-<h1>Custom print request</h1>
-<p class="muted">Send us your model and we will reply with a price and lead time. Nothing is charged until you accept the quote.</p>
+<h1>Eigen idee laten printen</h1>
+<p class="muted">Heb je een 3D-bestand, of een idee voor iets wat je graag geprint wilt hebben? Stuur het op. Je hoort per e-mail of het kan, wat het kost en hoe lang het duurt. Je zit nergens aan vast.</p>
 
 <?php if ($sent): ?>
   <div class="card anim-pop" style="text-align:center">
     <div class="success-ring"><svg viewBox="0 0 48 48"><path d="M12 25l9 9 16-18"/></svg></div>
-    <h2>Request received</h2>
-    <p class="muted">We will email you a quote shortly.</p>
-    <a class="btn" href="<?= e(url('?p=shop')) ?>">Back to the shop</a>
+    <h2>Bedankt, je bericht is binnen!</h2>
+    <p class="muted">Ik stuur je zo snel mogelijk een mailtje terug.</p>
+    <a class="btn" href="<?= e(url('?p=shop')) ?>">Terug naar het overzicht</a>
   </div>
 <?php else: ?>
   <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
   <form class="card" method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="row">
-      <label>Your name <input name="full_name" value="<?= e(current_user()['full_name'] ?? '') ?>"></label>
-      <label>Email <input type="email" name="email" required value="<?= e(current_user()['email'] ?? '') ?>"></label>
-      <label>Material
+      <label>Je naam <input name="full_name" value="<?= e($_POST['full_name'] ?? (current_user()['full_name'] ?? '')) ?>"></label>
+      <label>E-mail <input type="email" name="email" required value="<?= e($_POST['email'] ?? (current_user()['email'] ?? '')) ?>"></label>
+      <label>Materiaal
         <select name="material">
-          <?php foreach (['PLA', 'PETG', 'ABS', 'TPU', 'Resin'] as $m): ?>
-            <option><?= $m ?></option>
+          <?php foreach (['PLA', 'PETG', 'TPU (flexibel)', 'Weet ik niet'] as $m): ?>
+            <option><?= e($m) ?></option>
           <?php endforeach; ?>
         </select>
       </label>
-      <label>Quantity <input type="number" name="quantity" value="1" min="1"></label>
+      <label>Aantal <input type="number" name="quantity" value="1" min="1"></label>
     </div>
-    <label>Model file (STL, STEP, 3MF, OBJ or ZIP, max 100 MB)
+    <label>3D-bestand (optioneel: STL, STEP, 3MF, OBJ of ZIP, max. 100 MB)
       <input type="file" name="model" accept=".stl,.step,.stp,.3mf,.obj,.zip"></label>
-    <label>Anything we should know? <textarea name="details" placeholder="Size, colour, finish, deadline..."></textarea></label>
-    <button class="btn hover-sheen" type="submit">Send request</button>
+    <label>Vertel over je idee <textarea name="details" placeholder="Wat wil je laten printen? Denk aan formaat, kleur en wanneer je het nodig hebt."><?= e($_POST['details'] ?? ($about !== '' ? 'Vraag over: ' . $about . "\n" : '')) ?></textarea></label>
+    <button class="btn hover-sheen" type="submit">Versturen</button>
   </form>
 <?php endif; ?>

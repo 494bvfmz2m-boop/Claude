@@ -29,7 +29,7 @@ function is_owner(): bool {
 function require_login(): void {
     if (!is_logged_in()) {
         $_SESSION['after_login'] = $_SERVER['REQUEST_URI'] ?? '';
-        flash('Please sign in to continue.', 'warn');
+        flash('Log in om verder te gaan.', 'warn');
         redirect('?p=login');
     }
 }
@@ -38,7 +38,7 @@ function require_staff(): void {
     require_login();
     if (!is_staff()) {
         http_response_code(403);
-        exit('Not allowed.');
+        exit('Geen toegang.');
     }
 }
 
@@ -46,7 +46,7 @@ function require_owner(): void {
     require_login();
     if (!is_owner()) {
         http_response_code(403);
-        exit('Owner access only.');
+        exit('Alleen voor eigenaren.');
     }
 }
 

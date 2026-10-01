@@ -1,80 +1,62 @@
-# Special Love 3D Print Shop
+# Ederveen3D
 
-A complete PHP + MySQL webshop. Drag, drop, extract, open the website — that's it.
-No Node.js, no build step, no Composer.
+Website voor Ederveen3D, een kleine 3D-printstudio uit Ederveen. Gemaakt met PHP en MySQL.
+Je hebt geen Node.js, build-stap of Composer nodig.
 
-## Requirements
+De site heeft twee standen. Je wisselt tussen de twee onder **Beheer → Instellingen**:
 
-- PHP 8.0 or newer (PDO MySQL, cURL — both standard on cPanel / LiteSpeed hosting)
-- A MySQL or MariaDB database
+- **Portfolio** (standaard): je laat je werk zien en elk product linkt naar je
+  Marktplaats-advertentie. Er is geen winkelwagen en je kunt niet online betalen.
+- **Webshop**: met winkelwagen, afrekenen en online betalen via Stripe (met iDEAL).
+  Zet deze stand pas aan als je bij de KvK bent ingeschreven.
 
-## Install (5 minutes)
+## Wat heb je nodig?
 
-1. Upload this ZIP to your hosting and extract it in `public_html` (or a subfolder).
-2. In your hosting panel, create a MySQL database and a user, and give that user
-   full access to the database. Note the database name, user and password.
-3. Open `https://yourshop.com/install.php` in your browser.
-4. Fill in the database details, your owner email and password, and your website
-   address. Press Install.
-5. **Delete `install.php`** from the server.
-6. Sign in at `https://yourshop.com/?p=login` and turn on two-step verification
-   under Account → Security.
+- PHP 8.0 of nieuwer, met PDO MySQL en cURL. Bij bijna elke hostingpartij staat dat standaard aan.
+- Een MySQL- of MariaDB-database.
 
-## Folder permissions
+## Installeren (5 minuten)
 
-`uploads/` must be writable by the web server (usually 755).
-The installer writes `config.php` into the site root, so that folder must be
-writable during install. You can set it back to read-only afterwards.
+1. Upload de zip naar je hosting en pak hem uit in `public_html`.
+2. Maak in het hostingpaneel een MySQL-database en een gebruiker aan, en geef die gebruiker
+   alle rechten op de database.
+3. Open `https://ederveen.xyz/install.php` in je browser.
+4. Vul de databasegegevens, je e-mailadres, een wachtwoord en het websiteadres in.
+   Klik daarna op Installeren.
+5. **Verwijder `install.php`** van de server.
+6. Log in via de link "Inloggen" onderaan de pagina. Zet onder Account → Beveiliging
+   tweestapsverificatie aan.
 
-## Turning on card payments
+## Producten toevoegen
 
-1. Sign in as owner → Admin → Payments.
-2. Paste your Stripe secret key (test first) and switch "Take card payments" on.
-3. Press "Test Stripe connection" to confirm the key works.
-4. In Stripe, add a webhook pointing at `https://yourshop.com/webhook.php`
-   listening for `checkout.session.completed`, then paste the signing secret
-   into the Payments tab.
-5. Switch Mode to Live when you're ready to take real money.
+Ga naar **Beheer → Producten**. Hier vul je per product de naam, beschrijving, prijs en categorie in
+en upload je een foto. Plak bij **Marktplaats-link** de link naar je advertentie. Op de productpagina
+verschijnt dan de knop "Bekijk op Marktplaats". Heeft een product geen link? Dan krijgen bezoekers
+een knop om je een bericht te sturen.
 
-Stripe keys live in your own database. Card details never touch your server.
+Onder **Beheer → Instellingen** vul je ook je Marktplaats-profiel, Instagram en TikTok in.
+Die links komen in de footer en op de homepage.
 
-## What's in here
+## Later: de webshop aanzetten
 
-- Storefront: home, best sellers, new products, categories, shop search/filter/sort,
-  product pages, cart and worldwide checkout
-- Orders: reference numbers, status tracking, confirmation page, tracking numbers
-- Custom print requests with model upload (STL/STEP/3MF/OBJ/ZIP up to 100 MB)
-- Customer accounts with order history, password change and two-step verification
-- Admin: Orders, Products (with photo upload), Print requests, Store settings,
-  Payments, Team access
-- Admin product controls: categories, descriptions, dimensions, colours, best seller/new
-  status and labels such as Popular or Handmade For Sale
-- Admin announcement control: show or hide the top bar and change its wording
-- Team access: owners can add staff or owner accounts; the last owner is protected
+1. Vul onder **Beheer → Instellingen → Bedrijfsgegevens** je naam, adres, KvK-nummer en btw-id in.
+   Deze gegevens verschijnen automatisch in de footer.
+2. Zet het btw-tarief op `0` als je de kleineondernemersregeling (KOR) gebruikt.
+   Gebruik je die niet, zet het dan op `0.21`.
+3. Kies bij **Modus** voor Webshop.
+4. Ga naar **Beheer → Betalingen** en plak je Stripe-sleutels. Zet in Stripe onder
+   Settings → Payment methods iDEAL aan.
+5. Voeg in Stripe een webhook toe naar `https://ederveen.xyz/webhook.php` die luistert naar
+   `checkout.session.completed` en `checkout.session.async_payment_succeeded`.
+   Plak daarna het signing secret bij Betalingen.
 
-## Everything is stored in your database
+## Logo
 
-Products, orders, customers, requests, settings and admin accounts all live in
-your MySQL database. Uploaded model files and product photos are saved in
-`uploads/`. Back up both.
+- `assets/logo.svg`: het logo voor de website
+- `assets/logo.png`: hetzelfde logo als afbeelding (512×512), bijvoorbeeld als profielfoto
+- `assets/logo-wide.png`: het brede logo met naam (1200×400), voor banners
 
-## Security notes
+## Back-up
 
-- Passwords are hashed (bcrypt). Two-step verification uses standard TOTP apps.
-- All forms are protected against cross-site request forgery.
-- Sign-in attempts are rate limited.
-- `uploads/` is blocked from running PHP, and `config.php` is blocked from the web.
-- Always run the shop over HTTPS.
-
-## Files
-
-```
-index.php          front controller
-install.php        one-time setup (delete after installing)
-webhook.php        Stripe webhook receiver
-config.php         created by the installer - your database details
-inc/               shared code (database, auth, TOTP, Stripe, layout)
-pages/             every page of the site
-assets/            stylesheet, script, logo, hero image
-uploads/           product photos and customer model files
-```
+Producten, verzoeken, instellingen en accounts staan in de database. Foto's en geüploade
+3D-bestanden staan in `uploads/`. Maak van allebei een back-up.

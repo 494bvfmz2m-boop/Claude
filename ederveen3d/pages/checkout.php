@@ -1,22 +1,22 @@
 <?php
-$GLOBALS['page_title'] = 'Checkout - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Secure checkout for your 3D printed order.';
+$GLOBALS['page_title'] = 'Afrekenen - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Veilig afrekenen voor je 3D-print.';
 
 $lines = cart_lines();
 if (!$lines) {
-    echo '<h1>Checkout</h1><div class="card"><p class="muted">Your cart is empty.</p><a class="btn" href="' . e(url('?p=shop')) . '">Browse the shop</a></div>';
+    echo '<h1>Afrekenen</h1><div class="card"><p class="muted">Je winkelwagen is leeg.</p><a class="btn" href="' . e(url('?p=shop')) . '">Naar de shop</a></div>';
     return;
 }
 
 $user = current_user();
 $errors = [];
 $method = $_POST['shipping_method'] ?? 'standard';
-if (!in_array($method, ['standard', 'express'], true)) $method = 'standard';
+if (!in_array($method, ['standard', 'pickup'], true)) $method = 'standard';
 
 $subtotal = array_sum(array_column($lines, 'subtotal'));
 $ship = shipping_cents($subtotal, $method);
 $total = $subtotal + $ship;
-$gst = gst_cents($total);
+$btw = btw_cents($total);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -29,12 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'city'      => trim((string)($_POST['city'] ?? '')),
         'state'     => trim((string)($_POST['state'] ?? '')),
         'postcode'  => trim((string)($_POST['postcode'] ?? '')),
-        'country'   => trim((string)($_POST['country'] ?? 'Australia')),
+        'country'   => trim((string)($_POST['country'] ?? 'Nederland')),
         'notes'     => trim((string)($_POST['notes'] ?? '')),
     ];
-    if ($f['full_name'] === '') $errors[] = 'Please enter your name.';
-    if (!filter_var($f['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email address.';
-    if ($f['address1'] === '' || $f['city'] === '' || $f['postcode'] === '') $errors[] = 'Please complete your delivery address.';
+    if ($f['full_name'] === '') $errors[] = 'Vul je naam in.';
+    if (!filter_var($f['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'Vul een geldig e-mailadres in.';
+    if ($f['address1'] === '' || $f['city'] === '' || $f['postcode'] === '') $errors[] = 'Vul je bezorgadres volledig in.';
 
     if (!$errors) {
         // Totals are recalculated here from the database - never trusted from the form.
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
             $ref, $user['id'] ?? null, $f['email'], $f['full_name'], $f['phone'], $f['address1'], $f['address2'],
             $f['city'], $f['state'], $f['postcode'], $f['country'], $f['notes'],
-            $method, $subtotal, $ship, $gst, $total,
+            $method, $subtotal, $ship, $btw, $total,
         ]);
         $orderId = (int)db()->lastInsertId();
         foreach ($lines as $l) {
@@ -59,35 +59,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $items = all('SELECT * FROM order_items WHERE order_id = ?', [$orderId]);
             [$payUrl, $err] = stripe_checkout_session($order, $items);
             if ($payUrl) redirect($payUrl);
-            flash('Order saved, but the payment page could not be opened: ' . $err, 'warn');
+            flash('Bestelling opgeslagen, maar de betaalpagina kon niet worden geopend: ' . $err, 'warn');
         }
         redirect('?p=order&ref=' . urlencode($ref));
     }
 }
 ?>
-<h1>Checkout</h1>
+<h1>Afrekenen</h1>
 <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
 
 <form method="post" class="grid cols-2" style="align-items:start">
   <?= csrf_field() ?>
   <div class="card">
-    <h2>Delivery details</h2>
-    <label>Full name <input name="full_name" required value="<?= e($_POST['full_name'] ?? ($user['full_name'] ?? '')) ?>"></label>
-    <label>Email <input type="email" name="email" required value="<?= e($_POST['email'] ?? ($user['email'] ?? '')) ?>"></label>
-    <label>Phone <input name="phone" value="<?= e($_POST['phone'] ?? '') ?>"></label>
-    <label>Address <input name="address1" required value="<?= e($_POST['address1'] ?? '') ?>"></label>
-    <label>Apartment / unit (optional) <input name="address2" value="<?= e($_POST['address2'] ?? '') ?>"></label>
+    <h2>Bezorggegevens</h2>
+    <label>Naam <input name="full_name" required value="<?= e($_POST['full_name'] ?? ($user['full_name'] ?? '')) ?>"></label>
+    <label>E-mail <input type="email" name="email" required value="<?= e($_POST['email'] ?? ($user['email'] ?? '')) ?>"></label>
+    <label>Telefoon <input name="phone" value="<?= e($_POST['phone'] ?? '') ?>"></label>
+    <label>Straat en huisnummer <input name="address1" required value="<?= e($_POST['address1'] ?? '') ?>"></label>
+    <label>Toevoeging (optioneel) <input name="address2" value="<?= e($_POST['address2'] ?? '') ?>"></label>
     <div class="row">
-      <label>City / suburb <input name="city" required value="<?= e($_POST['city'] ?? '') ?>"></label>
-      <label>State / region <input name="state" value="<?= e($_POST['state'] ?? '') ?>"></label>
+      <label>Plaats <input name="city" required value="<?= e($_POST['city'] ?? '') ?>"></label>
       <label>Postcode <input name="postcode" required value="<?= e($_POST['postcode'] ?? '') ?>"></label>
-      <label>Country <input name="country" value="<?= e($_POST['country'] ?? 'Australia') ?>"></label>
+      <label>Land <input name="country" value="<?= e($_POST['country'] ?? 'Nederland') ?>"></label>
     </div>
-    <label>Order notes <textarea name="notes"><?= e($_POST['notes'] ?? '') ?></textarea></label>
+    <label>Opmerkingen <textarea name="notes"><?= e($_POST['notes'] ?? '') ?></textarea></label>
   </div>
 
   <div class="card">
-    <h2>Your order</h2>
+    <h2>Je bestelling</h2>
     <div class="table-scroll">
     <table>
       <tbody>
@@ -97,23 +96,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </tbody>
     </table>
     </div>
-    <label style="margin-top:14px">Shipping
+    <label style="margin-top:14px">Verzending
       <select name="shipping_method" onchange="this.form.submit()">
-        <option value="standard" <?= $method === 'standard' ? 'selected' : '' ?>>Standard - <?= money(shipping_cents($subtotal, 'standard')) ?></option>
-        <option value="express" <?= $method === 'express' ? 'selected' : '' ?>>Express - <?= money(shipping_cents($subtotal, 'express')) ?></option>
+        <option value="standard" <?= $method === 'standard' ? 'selected' : '' ?>>Standaard (PostNL) - <?= money(shipping_cents($subtotal, 'standard')) ?></option>
+        <option value="pickup" <?= $method === 'pickup' ? 'selected' : '' ?>>Ophalen in Ederveen - gratis</option>
       </select>
     </label>
-    <p>Subtotal <span style="float:right"><?= money($subtotal) ?></span></p>
-    <p>Shipping <span style="float:right"><?= money($ship) ?></span></p>
-    <p class="muted small">Includes GST <span style="float:right"><?= money($gst) ?></span></p>
-    <p class="price" style="font-size:1.3rem">Total <span style="float:right"><?= money($total) ?></span></p>
+    <p>Subtotaal <span style="float:right"><?= money($subtotal) ?></span></p>
+    <p>Verzending <span style="float:right"><?= money($ship) ?></span></p>
+    <?php if ($btw > 0): ?><p class="muted small">Waarvan btw <span style="float:right"><?= money($btw) ?></span></p><?php endif; ?>
+    <p class="price" style="font-size:1.3rem">Totaal <span style="float:right"><?= money($total) ?></span></p>
     <button class="btn hover-sheen" type="submit" style="width:100%">
-      <?= stripe_enabled() ? 'Pay now' : 'Place order' ?>
+      <?= stripe_enabled() ? 'Betalen' : 'Bestelling plaatsen' ?>
     </button>
     <p class="small muted" style="margin-top:10px">
       <?= stripe_enabled()
-        ? 'You will be taken to Stripe\'s secure payment page.'
-        : 'Card payments are not switched on yet - we will email you payment details.' ?>
+        ? 'Je gaat naar de beveiligde betaalpagina van Stripe (iDEAL, kaart en meer).'
+        : 'Online betalen staat nog niet aan. Je krijgt de betaalgegevens per e-mail.' ?>
     </p>
   </div>
 </form>

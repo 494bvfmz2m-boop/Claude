@@ -1,7 +1,7 @@
 <?php
 /**
  * Stripe webhook endpoint.
- * Put this URL in Stripe: https://yourshop.com/webhook.php
+ * Put this URL in Stripe: https://ederveen.xyz/webhook.php
  */
 declare(strict_types=1);
 session_start();

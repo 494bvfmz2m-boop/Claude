@@ -1,8 +1,8 @@
 <?php
 /**
- * Special Love 3D Print Shop - installer
- * Open this file in your browser once, fill in the database details,
- * then delete install.php.
+ * Ederveen3D - installatie
+ * Open dit bestand één keer in je browser, vul de databasegegevens in
+ * en verwijder daarna install.php.
  */
 session_start();
 $configPath = __DIR__ . '/config.php';
@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already) {
     $pw    = (string)($_POST['admin_pass'] ?? '');
     $siteUrl = rtrim(trim($_POST['site_url'] ?? ''), '/');
 
-    if ($name === '' || $user === '') $errors[] = 'Database name and user are required.';
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Enter a valid owner email address.';
-    if (strlen($pw) < 10) $errors[] = 'Owner password must be at least 10 characters.';
+    if ($name === '' || $user === '') $errors[] = 'Databasenaam en gebruiker zijn verplicht.';
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Vul een geldig e-mailadres in voor de eigenaar.';
+    if (strlen($pw) < 10) $errors[] = 'Het wachtwoord moet minstens 10 tekens zijn.';
 
     if (!$errors) {
         try {
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already) {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ]);
         } catch (PDOException $e) {
-            $errors[] = 'Could not connect to the database: ' . $e->getMessage();
+            $errors[] = 'Kan geen verbinding maken met de database: ' . $e->getMessage();
         }
     }
 
@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS products (
   promo_badge VARCHAR(80) NULL,
   is_best_seller TINYINT(1) NOT NULL DEFAULT 0,
   is_new TINYINT(1) NOT NULL DEFAULT 0,
+  marktplaats_url VARCHAR(255) NULL,
   price_cents INT NOT NULL DEFAULT 0,
   stock INT NOT NULL DEFAULT 0,
   image VARCHAR(255) NULL,
@@ -85,7 +86,7 @@ CREATE TABLE IF NOT EXISTS orders (
   city VARCHAR(120) NULL,
   state VARCHAR(80) NULL,
   postcode VARCHAR(20) NULL,
-  country VARCHAR(80) NOT NULL DEFAULT 'Australia',
+  country VARCHAR(80) NOT NULL DEFAULT 'Nederland',
   notes TEXT NULL,
   shipping_method VARCHAR(30) NOT NULL DEFAULT 'standard',
   subtotal_cents INT NOT NULL DEFAULT 0,
@@ -143,34 +144,34 @@ SQL;
             }
 
             $defaults = [
-                'store_name' => 'Special Love 3D',
-                'tagline' => 'Fun, unique and colourful products made with care',
+                'store_name' => 'Ederveen3D',
+                'tagline' => 'Leuke, kleurrijke 3D-prints uit Ederveen',
                 'contact_email' => $email,
-                'currency' => 'aud',
-                'gst_rate' => '0.10',
-                'shipping_standard_cents' => '995',
-                'shipping_express_cents' => '1995',
-                'free_shipping_over_cents' => '15000',
+                'shop_mode' => 'showcase',
+                'currency' => 'eur',
+                'btw_rate' => '0',
+                'shipping_standard_cents' => '495',
+                'free_shipping_over_cents' => '0',
                 'site_url' => $siteUrl,
                 'stripe_enabled' => '0',
                 'stripe_mode' => 'test',
                 'promo_bar_enabled' => '1',
-                'promo_bar_text' => 'Free gift with high priced orders',
+                'promo_bar_text' => 'Laag voor laag geprint in Ederveen',
             ];
             $st = $pdo->prepare('INSERT IGNORE INTO settings (skey, svalue) VALUES (?, ?)');
             foreach ($defaults as $k => $v) $st->execute([$k, $v]);
 
             $st = $pdo->prepare('INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, "owner")
                 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = "owner"');
-            $st->execute([$email, password_hash($pw, PASSWORD_DEFAULT), 'Shop owner']);
+            $st->execute([$email, password_hash($pw, PASSWORD_DEFAULT), 'Eigenaar']);
 
             $count = (int)$pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
             if ($count === 0) {
                 $seed = [
-                    ['Sloth Desk Buddy', 'sloth-desk-buddy', 'A colourful sloth companion for your desk.', 'Animals', 'PLA', 3500, 12],
-                    ['Frog Planter', 'frog-planter', 'A cheeky frog planter with a drainage insert.', 'Animals', 'PETG', 4200, 8],
-                    ['Cable Wrangler (3 pack)', 'cable-wrangler-3-pack', 'Keep your desk tidy with three flexible cable clips.', 'Other', 'TPU', 1500, 40],
-                    ['Headphone Hook', 'headphone-hook', 'An under-desk headphone hanger with a felt pad.', 'Other', 'PETG', 1900, 25],
+                    ['Beweegbaar draakje', 'beweegbaar-draakje', 'Een flexibel draakje dat in één keer geprint is. Alle schubben bewegen mee.', 'Draken', 'PLA', 1200, 3],
+                    ['Kikker-plantenpotje', 'kikker-plantenpotje', 'Een vrolijk kikkerpotje voor een klein plantje of vetplant.', 'Dieren', 'PETG', 900, 2],
+                    ['Kabelclips (set van 3)', 'kabelclips-set-van-3', 'Houd je bureau netjes met drie flexibele kabelclips.', 'Overig', 'TPU', 400, 10],
+                    ['Koptelefoonhouder', 'koptelefoonhouder', 'Een houder om onder je bureau te schroeven voor je koptelefoon.', 'Overig', 'PETG', 700, 4],
                 ];
                 $st = $pdo->prepare('INSERT INTO products (name, slug, description, category, material, price_cents, stock) VALUES (?,?,?,?,?,?,?)');
                 foreach ($seed as $row) $st->execute($row);
@@ -184,48 +185,48 @@ SQL;
                 'db_pass' => $pass,
             ], true) . ";\n";
             if (@file_put_contents($configPath, $cfg) === false) {
-                $errors[] = 'Could not write config.php. Make the site folder writable and try again.';
+                $errors[] = 'config.php kon niet worden opgeslagen. Maak de map van de site beschrijfbaar en probeer het opnieuw.';
             } else {
                 @chmod($configPath, 0640);
                 $done = true;
             }
         } catch (PDOException $e) {
-            $errors[] = 'Setup failed: ' . $e->getMessage();
+            $errors[] = 'Installatie mislukt: ' . $e->getMessage();
         }
     }
 }
 ?><!doctype html>
-<html lang="en"><head>
+<html lang="nl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Install - Special Love 3D Print Shop</title>
+<title>Installatie - Ederveen3D</title>
 <link rel="stylesheet" href="assets/style.css">
 </head><body class="install-page">
 <div class="install-card anim-rise">
-  <img src="assets/logo.png" alt="Special Love" class="install-logo">
-  <h1>Set up your shop</h1>
+  <img src="assets/logo.svg" alt="Ederveen3D" class="install-logo">
+  <h1>Website installeren</h1>
   <?php if ($already): ?>
-    <p class="note ok">This shop is already installed. Delete <code>install.php</code> from your server.</p>
-    <p><a class="btn" href="index.php">Open the shop</a></p>
+    <p class="note ok">De website is al geïnstalleerd. Verwijder <code>install.php</code> van je server.</p>
+    <p><a class="btn" href="index.php">Website openen</a></p>
   <?php elseif ($done): ?>
-    <p class="note ok">All done! Your shop is ready.</p>
-    <p class="note warn">Important: delete <code>install.php</code> from your server now.</p>
-    <p><a class="btn" href="index.php">Open the shop</a> <a class="btn ghost" href="index.php?p=login">Sign in as owner</a></p>
+    <p class="note ok">Klaar! Je website staat online.</p>
+    <p class="note warn">Belangrijk: verwijder <code>install.php</code> nu van je server.</p>
+    <p><a class="btn" href="index.php">Website openen</a> <a class="btn ghost" href="index.php?p=login">Inloggen als eigenaar</a></p>
   <?php else: ?>
     <?php foreach ($errors as $err): ?><p class="note err"><?= htmlspecialchars($err) ?></p><?php endforeach; ?>
     <form method="post">
       <h2>Database</h2>
       <label>Host <input name="db_host" value="<?= htmlspecialchars($_POST['db_host'] ?? 'localhost') ?>" required></label>
       <label>Port <input name="db_port" value="<?= htmlspecialchars($_POST['db_port'] ?? '3306') ?>"></label>
-      <label>Database name <input name="db_name" value="<?= htmlspecialchars($_POST['db_name'] ?? '') ?>" required></label>
-      <label>Database user <input name="db_user" value="<?= htmlspecialchars($_POST['db_user'] ?? '') ?>" required></label>
-      <label>Database password <input type="password" name="db_pass"></label>
-      <h2>Owner account</h2>
-      <label>Email <input type="email" name="admin_email" value="<?= htmlspecialchars($_POST['admin_email'] ?? '') ?>" required></label>
-      <label>Password (min 10 characters) <input type="password" name="admin_pass" required></label>
-      <h2>Website address</h2>
-      <label>Full address, e.g. https://yourshop.com
-        <input name="site_url" placeholder="https://yourshop.com" value="<?= htmlspecialchars($_POST['site_url'] ?? '') ?>"></label>
-      <button class="btn" type="submit">Install</button>
+      <label>Databasenaam <input name="db_name" value="<?= htmlspecialchars($_POST['db_name'] ?? '') ?>" required></label>
+      <label>Databasegebruiker <input name="db_user" value="<?= htmlspecialchars($_POST['db_user'] ?? '') ?>" required></label>
+      <label>Databasewachtwoord <input type="password" name="db_pass"></label>
+      <h2>Account van de eigenaar</h2>
+      <label>E-mail <input type="email" name="admin_email" value="<?= htmlspecialchars($_POST['admin_email'] ?? '') ?>" required></label>
+      <label>Wachtwoord (minstens 10 tekens) <input type="password" name="admin_pass" required></label>
+      <h2>Websiteadres</h2>
+      <label>Volledig adres, bijv. https://ederveen.xyz
+        <input name="site_url" placeholder="https://ederveen.xyz" value="<?= htmlspecialchars($_POST['site_url'] ?? '') ?>"></label>
+      <button class="btn" type="submit">Installeren</button>
     </form>
   <?php endif; ?>
 </div>

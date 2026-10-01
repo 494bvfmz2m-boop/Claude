@@ -149,3 +149,9 @@ tbody tr:hover{background:rgba(63,208,224,.05)}
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
 @media(max-width:820px){.split-feature,.social-grid{grid-template-columns:1fr}.shipping-callout{align-items:flex-start;flex-direction:column}.home-hero{min-height:64vh}.nav{gap:10px;font-size:.85rem}.buy-panel{align-items:stretch;flex-direction:column}.buy-panel label{max-width:none}}
+
+/* Ederveen3D */
+.brand img{box-shadow:none}
+.footer-logo{width:46px;height:46px;display:block;margin-bottom:8px}
+.footer-inner a.inline{display:inline}
+.home-hero h1 em{font-style:normal;color:var(--pink)}

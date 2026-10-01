@@ -15,7 +15,7 @@ function db(): PDO {
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
-        exit('Database connection failed. Check config.php.');
+        exit('Verbinding met de database mislukt. Controleer config.php.');
     }
     return $pdo;
 }
@@ -46,6 +46,7 @@ function ensure_storefront_schema(): void {
         'promo_badge' => 'VARCHAR(80) NULL',
         'is_best_seller' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'is_new' => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'marktplaats_url' => 'VARCHAR(255) NULL',
     ];
     foreach ($columns as $name => $definition) {
         $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['products', $name]);

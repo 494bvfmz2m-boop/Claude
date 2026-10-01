@@ -35,7 +35,12 @@ function e(?string $s): string {
 }
 
 function money(int $cents): string {
-    return '$' . number_format($cents / 100, 2);
+    return '€ ' . number_format($cents / 100, 2, ',', '.');
+}
+
+/** Portfolio mode: no cart or payments, products link to Marktplaats instead. */
+function showcase_mode(): bool {
+    return setting('shop_mode', 'showcase') !== 'shop';
 }
 
 function url(string $path = ''): string {
@@ -68,7 +73,7 @@ function csrf_check(): void {
     $sent = $_POST['_csrf'] ?? '';
     if (!is_string($sent) || empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $sent)) {
         http_response_code(400);
-        exit('Security check failed. Please go back and try again.');
+        exit('Beveiligingscontrole mislukt. Ga terug en probeer het opnieuw.');
     }
 }
 
@@ -113,21 +118,25 @@ function cart_lines(): array {
 }
 
 function shipping_cents(int $subtotal, string $method): int {
-    if ($method === 'express') return (int)setting('shipping_express_cents', 1995);
-    $free = (int)setting('free_shipping_over_cents', 15000);
+    if ($method === 'pickup') return 0;
+    $free = (int)setting('free_shipping_over_cents', 0);
     if ($free > 0 && $subtotal >= $free) return 0;
-    return (int)setting('shipping_standard_cents', 995);
+    return (int)setting('shipping_standard_cents', 495);
 }
 
-function gst_cents(int $amount): int {
-    $rate = (float)setting('gst_rate', '0.10');
+function shipping_label(string $method): string {
+    return $method === 'pickup' ? 'ophalen in Ederveen' : 'PostNL';
+}
+
+function btw_cents(int $amount): int {
+    $rate = (float)setting('btw_rate', '0');
     if ($rate <= 0) return 0;
-    // GST-inclusive pricing: tax component of the total
+    // Prices include btw: this is the btw part of the total
     return (int)round($amount - ($amount / (1 + $rate)));
 }
 
 function order_ref(): string {
-    return 'SL-' . strtoupper(bin2hex(random_bytes(3))) . '-' . date('y');
+    return 'E3D-' . strtoupper(bin2hex(random_bytes(3))) . '-' . date('y');
 }
 
 function json_out($data, int $code = 200): void {

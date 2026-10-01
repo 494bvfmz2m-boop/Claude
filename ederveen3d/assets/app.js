@@ -20,7 +20,7 @@
     var btn = e.target.querySelector('button[type=submit], .btn[type=submit]');
     if (btn && !btn.disabled) {
       btn.dataset.label = btn.textContent;
-      btn.textContent = 'Working\u2026';
+      btn.textContent = 'Bezig\u2026';
       setTimeout(function () { btn.disabled = true; }, 0);
       setTimeout(function () {
         btn.disabled = false;

@@ -1,6 +1,7 @@
 <?php
-$GLOBALS['page_title'] = 'Shop 3D prints - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Browse figurines, homeware and desk accessories, printed to order and hand-finished.';
+$showcase = showcase_mode();
+$GLOBALS['page_title'] = ($showcase ? 'Mijn werk' : 'Shop') . ' - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Bekijk draakjes, dieren, fidgets en handige spullen, laag voor laag geprint in Ederveen.';
 
 $search = trim((string)($_GET['q'] ?? ''));
 $cat = trim((string)($_GET['cat'] ?? ''));
@@ -22,30 +23,30 @@ $sql .= match ($sort) {
 $products = all($sql, $args);
 $cats = all('SELECT DISTINCT category FROM products WHERE visible = 1 AND category IS NOT NULL AND category <> "" ORDER BY category');
 ?>
-<h1>Shop</h1>
+<h1><?= $showcase ? 'Mijn werk' : 'Shop' ?></h1>
 <form class="card" method="get" style="margin-bottom:24px">
   <input type="hidden" name="p" value="shop">
   <input type="hidden" name="collection" value="<?= e($collection) ?>">
   <div class="grid cols-3">
-    <label>Search <input name="q" value="<?= e($search) ?>" placeholder="Sloth, planter..."></label>
-    <label>Category
+    <label>Zoeken <input name="q" value="<?= e($search) ?>" placeholder="Draak, sleutelhanger..."></label>
+    <label>Categorie
       <select name="cat">
-        <option value="">All categories</option>
+        <option value="">Alle categorieën</option>
         <?php foreach ($cats as $c): ?>
           <option value="<?= e($c['category']) ?>" <?= $cat === $c['category'] ? 'selected' : '' ?>><?= e($c['category']) ?></option>
         <?php endforeach; ?>
       </select>
     </label>
-    <label>Sort
+    <label>Sorteren
       <select name="sort">
-        <option value="new" <?= $sort === 'new' ? 'selected' : '' ?>>Newest</option>
-        <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Price: low to high</option>
-        <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Price: high to low</option>
-        <option value="name" <?= $sort === 'name' ? 'selected' : '' ?>>Name</option>
+        <option value="new" <?= $sort === 'new' ? 'selected' : '' ?>>Nieuwste</option>
+        <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Prijs: laag naar hoog</option>
+        <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Prijs: hoog naar laag</option>
+        <option value="name" <?= $sort === 'name' ? 'selected' : '' ?>>Naam</option>
       </select>
     </label>
   </div>
-  <button class="btn" type="submit">Apply</button>
+  <button class="btn" type="submit">Toepassen</button>
 </form>
 
 <div class="grid cols-3">
@@ -53,4 +54,4 @@ $cats = all('SELECT DISTINCT category FROM products WHERE visible = 1 AND catego
     <?php include __DIR__ . '/_product_card.php'; ?>
   <?php endforeach; ?>
 </div>
-<?php if (!$products): ?><p class="muted">Nothing matched that search.</p><?php endif; ?>
+<?php if (!$products): ?><p class="muted">Niets gevonden. Probeer een ander zoekwoord.</p><?php endif; ?>

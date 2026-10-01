@@ -1,6 +1,6 @@
 <?php
-$GLOBALS['page_title'] = 'Your cart - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Review the 3D prints in your cart before checkout.';
+$GLOBALS['page_title'] = 'Winkelwagen - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Bekijk de 3D-prints in je winkelwagen voordat je afrekent.';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -12,15 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($qty > 0) $cart[(int)$id] = ['qty' => min(99, $qty)];
         }
         $_SESSION['cart'] = $cart;
-        flash('Cart updated.');
+        flash('Winkelwagen bijgewerkt.');
     } elseif ($action === 'remove') {
         $cart = cart();
         unset($cart[(int)($_POST['id'] ?? 0)]);
         $_SESSION['cart'] = $cart;
-        flash('Item removed.');
+        flash('Product verwijderd.');
     } elseif ($action === 'clear') {
         $_SESSION['cart'] = [];
-        flash('Cart emptied.');
+        flash('Winkelwagen geleegd.');
     }
     redirect('?p=cart');
 }
@@ -28,16 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $lines = cart_lines();
 $subtotal = array_sum(array_column($lines, 'subtotal'));
 ?>
-<h1>Your cart</h1>
+<h1>Winkelwagen</h1>
 <?php if (!$lines): ?>
-  <div class="card"><p class="muted">Your cart is empty.</p><a class="btn" href="<?= e(url('?p=shop')) ?>">Browse the shop</a></div>
+  <div class="card"><p class="muted">Je winkelwagen is leeg.</p><a class="btn" href="<?= e(url('?p=shop')) ?>">Naar de shop</a></div>
 <?php else: ?>
 <form method="post" class="card">
   <?= csrf_field() ?>
   <input type="hidden" name="action" value="update">
   <div class="table-scroll">
   <table>
-    <thead><tr><th>Item</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th>Prijs</th><th>Aantal</th><th>Subtotaal</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($lines as $l): $p = $l['product']; ?>
       <tr>
@@ -45,15 +45,15 @@ $subtotal = array_sum(array_column($lines, 'subtotal'));
         <td><?= money((int)$p['price_cents']) ?></td>
         <td style="max-width:110px"><input type="number" name="qty[<?= (int)$p['id'] ?>]" value="<?= (int)$l['qty'] ?>" min="1" max="99"></td>
         <td><?= money((int)$l['subtotal']) ?></td>
-        <td><button class="btn ghost small" type="submit" form="rm<?= (int)$p['id'] ?>">Remove</button></td>
+        <td><button class="btn ghost small" type="submit" form="rm<?= (int)$p['id'] ?>">Verwijderen</button></td>
       </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
   </div>
-  <p class="price" style="text-align:right">Subtotal: <?= money($subtotal) ?></p>
-  <button class="btn ghost" type="submit">Update cart</button>
-  <a class="btn hover-sheen" href="<?= e(url('?p=checkout')) ?>">Checkout</a>
+  <p class="price" style="text-align:right">Subtotaal: <?= money($subtotal) ?></p>
+  <button class="btn ghost" type="submit">Bijwerken</button>
+  <a class="btn hover-sheen" href="<?= e(url('?p=checkout')) ?>">Afrekenen</a>
 </form>
 <?php foreach ($lines as $l): ?>
   <form id="rm<?= (int)$l['product']['id'] ?>" method="post" style="display:none">

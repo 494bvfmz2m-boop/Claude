@@ -1,23 +1,23 @@
 <?php
 require_login();
-$GLOBALS['page_title'] = 'Your account - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Your orders, custom print requests and security settings.';
+$GLOBALS['page_title'] = 'Je account - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Je bestellingen, printverzoeken en beveiligingsinstellingen.';
 $u = current_user();
 $orders = all('SELECT * FROM orders WHERE user_id = ? OR email = ? ORDER BY created_at DESC', [$u['id'], $u['email']]);
 $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? ORDER BY created_at DESC', [$u['id'], $u['email']]);
 ?>
-<h1>Hi <?= e($u['full_name'] ?: $u['email']) ?></h1>
+<h1>Hoi <?= e($u['full_name'] ?: $u['email']) ?></h1>
 <div class="tabs">
-  <a class="tab active" href="<?= e(url('?p=account')) ?>">Orders &amp; requests</a>
-  <a class="tab" href="<?= e(url('?p=security')) ?>">Security</a>
-  <?php if (is_staff()): ?><a class="tab" href="<?= e(url('?p=admin')) ?>">Admin area</a><?php endif; ?>
+  <a class="tab active" href="<?= e(url('?p=account')) ?>">Bestellingen &amp; verzoeken</a>
+  <a class="tab" href="<?= e(url('?p=security')) ?>">Beveiliging</a>
+  <?php if (is_staff()): ?><a class="tab" href="<?= e(url('?p=admin')) ?>">Beheer</a><?php endif; ?>
 </div>
 
 <div class="card">
-  <h2>Your orders</h2>
-  <?php if (!$orders): ?><p class="muted">No orders yet.</p><?php else: ?>
+  <h2>Je bestellingen</h2>
+  <?php if (!$orders): ?><p class="muted">Nog geen bestellingen.</p><?php else: ?>
   <div class="table-scroll"><table>
-    <thead><tr><th>Reference</th><th>Date</th><th>Total</th><th>Status</th><th>Payment</th><th></th></tr></thead>
+    <thead><tr><th>Referentie</th><th>Datum</th><th>Totaal</th><th>Status</th><th>Betaling</th><th></th></tr></thead>
     <tbody><?php foreach ($orders as $o): ?>
       <tr>
         <td><?= e($o['reference']) ?></td>
@@ -25,7 +25,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
         <td><?= money((int)$o['total_cents']) ?></td>
         <td><span class="pill"><?= e($o['status']) ?></span></td>
         <td><span class="pill"><?= e($o['payment_status']) ?></span></td>
-        <td><a class="btn ghost small" href="<?= e(url('?p=order&ref=' . urlencode($o['reference']))) ?>">View</a></td>
+        <td><a class="btn ghost small" href="<?= e(url('?p=order&ref=' . urlencode($o['reference']))) ?>">Bekijken</a></td>
       </tr>
     <?php endforeach; ?></tbody>
   </table></div>
@@ -33,12 +33,12 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
 </div>
 
 <div class="card" style="margin-top:20px">
-  <h2>Custom print requests</h2>
+  <h2>Printverzoeken</h2>
   <?php if (!$requests): ?>
-    <p class="muted">No requests yet. <a href="<?= e(url('?p=custom')) ?>">Send us a model</a>.</p>
+    <p class="muted">Nog geen verzoeken. <a href="<?= e(url('?p=custom')) ?>">Stuur een idee in</a>.</p>
   <?php else: ?>
   <div class="table-scroll"><table>
-    <thead><tr><th>Date</th><th>File</th><th>Material</th><th>Qty</th><th>Status</th><th>Quote</th></tr></thead>
+    <thead><tr><th>Datum</th><th>Bestand</th><th>Materiaal</th><th>Aantal</th><th>Status</th><th>Prijs</th></tr></thead>
     <tbody><?php foreach ($requests as $r): ?>
       <tr>
         <td><?= e(date('j M Y', strtotime($r['created_at']))) ?></td>
@@ -46,7 +46,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
         <td><?= e($r['material']) ?></td>
         <td><?= (int)$r['quantity'] ?></td>
         <td><span class="pill"><?= e($r['status']) ?></span></td>
-        <td><?= $r['quote_cents'] !== null ? money((int)$r['quote_cents']) : '<span class="muted">pending</span>' ?></td>
+        <td><?= $r['quote_cents'] !== null ? money((int)$r['quote_cents']) : '<span class="muted">volgt</span>' ?></td>
       </tr>
     <?php endforeach; ?></tbody>
   </table></div>

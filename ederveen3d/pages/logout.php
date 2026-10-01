@@ -1,5 +1,5 @@
 <?php
 logout_user();
 session_start();
-flash('You are signed out.');
+flash('Je bent uitgelogd.');
 redirect('?p=home');

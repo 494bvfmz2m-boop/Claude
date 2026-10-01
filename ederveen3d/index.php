@@ -1,6 +1,6 @@
 <?php
 /**
- * Special Love 3D Print Shop - front controller
+ * Ederveen3D - front controller
  */
 declare(strict_types=1);
 
@@ -52,6 +52,16 @@ $routes = [
 ];
 
 $page = $_GET['p'] ?? 'home';
+
+// Portfolio mode: no cart, checkout or customer accounts.
+if (showcase_mode()) {
+    $routes['admin'] = 'admin_products.php';
+    if (in_array($page, ['cart', 'checkout', 'register'], true)) {
+        flash('Bestellen gaat op dit moment via Marktplaats. Klik bij een product op "Bekijk op Marktplaats".', 'warn');
+        redirect('?p=shop');
+    }
+}
+
 $file = $routes[$page] ?? null;
 
 if ($file === null) {

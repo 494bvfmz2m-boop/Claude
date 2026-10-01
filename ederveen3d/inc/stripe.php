@@ -15,7 +15,7 @@ function stripe_enabled(): bool {
 
 function stripe_request(string $method, string $path, array $params = []) {
     $key = stripe_secret_key();
-    if ($key === '') return ['error' => ['message' => 'No Stripe secret key saved.']];
+    if ($key === '') return ['error' => ['message' => 'Geen geheime Stripe-sleutel opgeslagen.']];
 
     $url = 'https://api.stripe.com/v1/' . ltrim($path, '/');
     $ch = curl_init();
@@ -36,16 +36,16 @@ function stripe_request(string $method, string $path, array $params = []) {
     if ($body === false) {
         $err = curl_error($ch);
         curl_close($ch);
-        return ['error' => ['message' => 'Connection failed: ' . $err]];
+        return ['error' => ['message' => 'Verbinding mislukt: ' . $err]];
     }
     curl_close($ch);
     $json = json_decode($body, true);
-    return is_array($json) ? $json : ['error' => ['message' => 'Unexpected response from Stripe.']];
+    return is_array($json) ? $json : ['error' => ['message' => 'Onverwacht antwoord van Stripe.']];
 }
 
 /** Create a Checkout Session for an order. Returns [url, error] */
 function stripe_checkout_session(array $order, array $items): array {
-    $currency = strtolower(setting('currency', 'aud'));
+    $currency = strtolower(setting('currency', 'eur'));
     $params = [
         'mode'                                 => 'payment',
         'success_url'                          => url('?p=order&ref=' . urlencode($order['reference']) . '&paid=1'),
@@ -56,6 +56,9 @@ function stripe_checkout_session(array $order, array $items): array {
         'payment_intent_data[metadata][order_reference]' => $order['reference'],
     ];
     if (!empty($order['email'])) $params['customer_email'] = $order['email'];
+    // No payment_method_types: Stripe shows every method switched on in the dashboard,
+    // so iDEAL appears automatically for euro payments once it is enabled there.
+    $params['locale'] = 'nl';
 
     $i = 0;
     foreach ($items as $it) {
@@ -69,7 +72,7 @@ function stripe_checkout_session(array $order, array $items): array {
         $params["line_items[$i][quantity]"] = 1;
         $params["line_items[$i][price_data][currency]"] = $currency;
         $params["line_items[$i][price_data][unit_amount]"] = (int)$order['shipping_cents'];
-        $params["line_items[$i][price_data][product_data][name]"] = 'Shipping';
+        $params["line_items[$i][price_data][product_data][name]"] = 'Verzending';
     }
 
     $res = stripe_request('POST', 'checkout/sessions', $params);

@@ -1,7 +1,7 @@
 <?php
 require_owner();
-$GLOBALS['page_title'] = 'Team access - admin';
-$GLOBALS['page_desc'] = 'Add admin accounts and manage access levels.';
+$GLOBALS['page_title'] = 'Team - beheer';
+$GLOBALS['page_desc'] = 'Beheerders toevoegen en toegang regelen.';
 
 $errors = [];
 $me = current_user();
@@ -22,17 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name  = trim((string)($_POST['full_name'] ?? ''));
         $role  = ($_POST['role'] ?? 'staff') === 'owner' ? 'owner' : 'staff';
         $pass  = (string)($_POST['password'] ?? '');
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Enter a valid email address.';
-        if (strlen($pass) < 10) $errors[] = 'Temporary password must be at least 10 characters.';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Vul een geldig e-mailadres in.';
+        if (strlen($pass) < 10) $errors[] = 'Het tijdelijke wachtwoord moet minstens 10 tekens zijn.';
         if (!$errors) {
             $existing = one('SELECT id FROM users WHERE email = ?', [$email]);
             if ($existing) {
                 q('UPDATE users SET role = ? WHERE id = ?', [$role, $existing['id']]);
-                flash('That account now has ' . $role . ' access.');
+                flash('Dit account heeft nu ' . $role . '-toegang.');
             } else {
                 q('INSERT INTO users (email, password_hash, full_name, role) VALUES (?,?,?,?)',
                   [$email, password_hash($pass, PASSWORD_DEFAULT), $name, $role]);
-                flash('Account created. Share the temporary password privately and ask them to change it.');
+                flash('Account aangemaakt. Geef het tijdelijke wachtwoord privé door en vraag om het te wijzigen.');
             }
             redirect('?p=admin_team');
         }
@@ -40,21 +40,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = ($_POST['role'] ?? 'staff') === 'owner' ? 'owner' : 'staff';
         $target = one('SELECT * FROM users WHERE id = ?', [$id]);
         if ($target && $target['role'] === 'owner' && $role !== 'owner' && owner_count() <= 1) {
-            $errors[] = 'There must always be at least one owner.';
+            $errors[] = 'Er moet altijd minstens één eigenaar zijn.';
         } else {
             q('UPDATE users SET role = ? WHERE id = ?', [$role, $id]);
-            flash('Access level updated.');
+            flash('Toegang bijgewerkt.');
             redirect('?p=admin_team');
         }
     } elseif ($action === 'revoke' && $id) {
         $target = one('SELECT * FROM users WHERE id = ?', [$id]);
         if ($target && $target['role'] === 'owner' && owner_count() <= 1) {
-            $errors[] = 'You cannot remove the last owner.';
+            $errors[] = 'Je kunt de laatste eigenaar niet verwijderen.';
         } elseif ((int)$id === (int)$me['id']) {
-            $errors[] = 'You cannot remove your own access.';
+            $errors[] = 'Je kunt je eigen toegang niet intrekken.';
         } else {
             q('UPDATE users SET role = "customer" WHERE id = ?', [$id]);
-            flash('Admin access removed.', 'warn');
+            flash('Beheertoegang ingetrokken.', 'warn');
             redirect('?p=admin_team');
         }
     }
@@ -62,30 +62,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $team = all('SELECT * FROM users WHERE role IN ("staff","owner") ORDER BY role DESC, email');
 ?>
-<h1>Admin</h1>
+<h1>Beheer</h1>
 <?php admin_tabs('admin_team'); ?>
 <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
 
 <div class="grid cols-2" style="align-items:start">
   <form class="card" method="post">
     <?= csrf_field() ?><input type="hidden" name="action" value="add">
-    <h2>Add an admin account</h2>
-    <label>Name <input name="full_name"></label>
-    <label>Email <input type="email" name="email" required></label>
-    <label>Temporary password (min 10 characters) <input name="password" required></label>
-    <label>Access level
-      <select name="role"><option value="staff">Staff - orders, requests, products</option><option value="owner">Owner - everything, including team</option></select>
+    <h2>Beheerder toevoegen</h2>
+    <label>Naam <input name="full_name"></label>
+    <label>E-mail <input type="email" name="email" required></label>
+    <label>Tijdelijk wachtwoord (minstens 10 tekens) <input name="password" required></label>
+    <label>Toegang
+      <select name="role"><option value="staff">Staff - bestellingen, verzoeken, producten</option><option value="owner">Owner - alles, ook team</option></select>
     </label>
-    <button class="btn hover-sheen" type="submit">Create account</button>
+    <button class="btn hover-sheen" type="submit">Account aanmaken</button>
   </form>
 
   <div class="card">
-    <h2>Current team</h2>
+    <h2>Huidig team</h2>
     <div class="table-scroll"><table>
-      <thead><tr><th>Email</th><th>Access</th><th>2FA</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>Toegang</th><th>2FA</th><th></th></tr></thead>
       <tbody><?php foreach ($team as $t): ?>
         <tr>
-          <td><?= e($t['email']) ?><?= (int)$t['id'] === (int)$me['id'] ? ' <span class="pill">you</span>' : '' ?></td>
+          <td><?= e($t['email']) ?><?= (int)$t['id'] === (int)$me['id'] ? ' <span class="pill">jij</span>' : '' ?></td>
           <td>
             <form method="post" style="display:flex;gap:6px;align-items:center">
               <?= csrf_field() ?><input type="hidden" name="action" value="role"><input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
@@ -93,19 +93,19 @@ $team = all('SELECT * FROM users WHERE role IN ("staff","owner") ORDER BY role D
                 <option value="staff" <?= $t['role'] === 'staff' ? 'selected' : '' ?>>staff</option>
                 <option value="owner" <?= $t['role'] === 'owner' ? 'selected' : '' ?>>owner</option>
               </select>
-              <button class="btn ghost small" type="submit">Set</button>
+              <button class="btn ghost small" type="submit">Instellen</button>
             </form>
           </td>
-          <td><?= (int)$t['totp_enabled'] === 1 ? 'On' : '<span class="muted">Off</span>' ?></td>
+          <td><?= (int)$t['totp_enabled'] === 1 ? 'Aan' : '<span class="muted">Uit</span>' ?></td>
           <td>
-            <form method="post" onsubmit="return confirm('Remove admin access for this person?')">
+            <form method="post" onsubmit="return confirm('Beheertoegang voor deze persoon intrekken?')">
               <?= csrf_field() ?><input type="hidden" name="action" value="revoke"><input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-              <button class="btn danger small" type="submit">Revoke</button>
+              <button class="btn danger small" type="submit">Intrekken</button>
             </form>
           </td>
         </tr>
       <?php endforeach; ?></tbody>
     </table></div>
-    <p class="small muted">Staff can manage orders, print requests and products. Owners can also manage the team and payment settings.</p>
+    <p class="small muted">Staff kan bestellingen, printverzoeken en producten beheren. Owners kunnen ook het team en de betaalinstellingen beheren.</p>
   </div>
 </div>

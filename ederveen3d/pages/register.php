@@ -1,6 +1,6 @@
 <?php
-$GLOBALS['page_title'] = 'Create an account - ' . setting('store_name', 'Special Love');
-$GLOBALS['page_desc'] = 'Create an account to follow your 3D print orders and quotes.';
+$GLOBALS['page_title'] = 'Account aanmaken - ' . setting('store_name', 'Ederveen3D');
+$GLOBALS['page_desc'] = 'Maak een account aan om je bestellingen te volgen.';
 
 if (is_logged_in()) redirect('?p=account');
 $errors = [];
@@ -12,33 +12,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pass  = (string)($_POST['password'] ?? '');
     $pass2 = (string)($_POST['password2'] ?? '');
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email address.';
-    if (strlen($pass) < 10) $errors[] = 'Passwords must be at least 10 characters.';
-    if ($pass !== $pass2) $errors[] = 'The two passwords do not match.';
-    if (!$errors && one('SELECT id FROM users WHERE email = ?', [$email])) $errors[] = 'An account with that email already exists.';
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Vul een geldig e-mailadres in.';
+    if (strlen($pass) < 10) $errors[] = 'Je wachtwoord moet minstens 10 tekens zijn.';
+    if ($pass !== $pass2) $errors[] = 'De twee wachtwoorden zijn niet gelijk.';
+    if (!$errors && one('SELECT id FROM users WHERE email = ?', [$email])) $errors[] = 'Er bestaat al een account met dit e-mailadres.';
 
     if (!$errors) {
         q('INSERT INTO users (email, password_hash, full_name, role) VALUES (?,?,?,"customer")',
           [$email, password_hash($pass, PASSWORD_DEFAULT), $name]);
         $user = one('SELECT * FROM users WHERE email = ?', [$email]);
         login_user($user);
-        flash('Account created. Welcome!');
+        flash('Account aangemaakt. Welkom!');
         redirect('?p=account');
     }
 }
 ?>
 <div class="card anim-pop" style="max-width:460px;margin:24px auto">
-  <h1>Create your account</h1>
+  <h1>Account aanmaken</h1>
   <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
   <form method="post">
     <?= csrf_field() ?>
-    <label>Name <input name="full_name" value="<?= e($_POST['full_name'] ?? '') ?>"></label>
-    <label>Email <input type="email" name="email" required value="<?= e($_POST['email'] ?? '') ?>"></label>
-    <label>Password (min 10 characters) <input type="password" name="password" required></label>
-    <label>Repeat password <input type="password" name="password2" required></label>
-    <button class="btn hover-sheen" type="submit" style="width:100%">Create account</button>
+    <label>Naam <input name="full_name" value="<?= e($_POST['full_name'] ?? '') ?>"></label>
+    <label>E-mail <input type="email" name="email" required value="<?= e($_POST['email'] ?? '') ?>"></label>
+    <label>Wachtwoord (minstens 10 tekens) <input type="password" name="password" required></label>
+    <label>Herhaal wachtwoord <input type="password" name="password2" required></label>
+    <button class="btn hover-sheen" type="submit" style="width:100%">Account aanmaken</button>
   </form>
   <p class="small muted" style="text-align:center;margin-top:14px">
-    Already have one? <a href="<?= e(url('?p=login')) ?>">Sign in</a>
+    Heb je al een account? <a href="<?= e(url('?p=login')) ?>">Inloggen</a>
   </p>
 </div>
