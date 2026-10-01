@@ -1,5 +1,6 @@
 Options -Indexes
-DirectoryIndex index.php
+# Also index.html, so other sites in subfolders (e.g. /praktijkopdracht) keep working
+DirectoryIndex index.php index.html index.htm
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
