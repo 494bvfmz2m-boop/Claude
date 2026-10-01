@@ -1,7 +1,7 @@
 // Accounts van de beheerpagina. Wachtwoorden staan hier alleen als hash (niet terug te rekenen naar het wachtwoord).
 // Nieuw bestand maken: log in als hoofdbeheerder → Beheerders → “Accounts opslaan als bestand”.
 window.SITE_ADMINS = {
-  "updated": "2026-10-01T11:06:38.506Z",
+  "updated": "2026-10-01T12:00:09.901Z",
   "accounts": [
     {
       "email": "622521@nxt.eu",
@@ -15,10 +15,9 @@ window.SITE_ADMINS = {
       "email": "622520@nxt.eu",
       "role": "admin",
       "status": "active",
-      "mustChange": true,
-      "salt": "4c288b51688b9e37001eedefd03c866d",
+      "salt": "7f11346dc28bfc3b8bbe551f64a49821",
       "iterations": 150000,
-      "hash": "80d5abfa2551e0c6cbc63700bcce121d8bbeb9b79a8e0d9302aba1c950595742"
+      "hash": "163b803be592fcd43a262a935976b95513c7b225b3d8efa536c59c7ec3ab477f"
     },
     {
       "email": "623174@nxt.eu",

@@ -28,7 +28,7 @@ Alle standaardteksten staan in `js/content.js`; `js/render.js` bouwt daar de pag
 De beheerpagina heeft een eigen login, zonder externe dienst of instellingen. De accounts staan in `admin/accounts.js`; wachtwoorden staan daar alleen als versleutelde hash, niet leesbaar.
 
 - **Hoofdbeheerder:** `622521@nxt.eu`.
-- **Beheerders:** `622520@nxt.eu` (tijdelijk wachtwoord: bij de eerste keer inloggen moet een eigen wachtwoord gekozen worden; het tijdelijke werkt daarna niet meer) en `623174@nxt.eu` (vast wachtwoord).
+- **Beheerders:** `622520@nxt.eu` en `623174@nxt.eu`, allebei met een vast wachtwoord. (Accounts met `"mustChange": true` in `admin/accounts.js` moeten bij de eerste keer inloggen een eigen wachtwoord kiezen.)
 - **Wachtwoord wijzigen** kan altijd onder **Beheerders**.
 - Gewijzigde wachtwoorden worden in de browser bewaard, net als de teksten. Moeten ze ook op een andere computer werken? Log in als hoofdbeheerder → **Beheerders** → **Accounts opslaan als bestand** en vervang daarmee `admin/accounts.js` (en op dezelfde manier `js/content.js` voor de teksten).
 
