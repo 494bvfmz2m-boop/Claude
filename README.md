@@ -25,13 +25,12 @@ Alle standaardteksten staan in `js/content.js`; `js/render.js` bouwt daar de pag
 
 ## Inloggen en beheerders
 
-De beheerpagina heeft een eigen login, zonder externe dienst of instellingen.
+De beheerpagina heeft een eigen login, zonder externe dienst of instellingen. De accounts staan in `admin/accounts.js`; wachtwoorden staan daar alleen als versleutelde hash, niet leesbaar.
 
-- **Hoofdbeheerder:** `622521@nxt.eu`. Het wachtwoord staat niet leesbaar in de bestanden, alleen als versleutelde hash in `admin/accounts.js`.
-- **Beheerder toevoegen:** log in als hoofdbeheerder → **Beheerders** → vul een e-mailadres in → **Uitnodigen**. Je mailprogramma opent met een kant-en-klare uitnodiging (of kopieer de link). Via die link kiest de nieuwe beheerder een eigen wachtwoord en kan daarna inloggen.
-- **Wachtwoord wijzigen** kan onder **Beheerders**. Wachtwoord vergeten? De hoofdbeheerder stuurt een nieuwe link (die zet het account opnieuw klaar).
-- Nieuwe accounts en wachtwoorden worden in de browser bewaard, net als de teksten. Moeten ze ook op een andere computer of online werken? Klik op **Accounts opslaan als bestand** en vervang daarmee `admin/accounts.js` (en op dezelfde manier `js/content.js` voor de teksten).
-- Een uitnodigingslink werkt op de computer waar de uitnodiging is gemaakt, of overal nadat het nieuwe `admin/accounts.js` op de site staat.
+- **Hoofdbeheerder:** `622521@nxt.eu`.
+- **Beheerders:** `622520@nxt.eu` en `623174@nxt.eu`. Zij hebben een tijdelijk wachtwoord gekregen. De eerste keer dat ze inloggen moeten ze een eigen wachtwoord kiezen; het tijdelijke werkt daarna niet meer.
+- **Wachtwoord wijzigen** kan altijd onder **Beheerders**.
+- Gewijzigde wachtwoorden worden in de browser bewaard, net als de teksten. Moeten ze ook op een andere computer werken? Log in als hoofdbeheerder → **Beheerders** → **Accounts opslaan als bestand** en vervang daarmee `admin/accounts.js` (en op dezelfde manier `js/content.js` voor de teksten).
 
 Let op: dit is een eenvoudige login voor een schoolsite zonder server. Hij houdt bezoekers van de beheerpagina weg, maar is geen bankbeveiliging.
 

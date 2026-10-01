@@ -465,31 +465,11 @@
     beheerders: function () {
       var owner = access === "owner";
       var listBox = h("div", { class: "admin-list" }, [h("p", { class: "hint", text: "Laden…" })]);
-      var inviteBox = h("div", { class: "invite-result", hidden: true });
-      var parts = [];
-      if (owner) {
-        var input = h("input", { type: "email", placeholder: "naam@voorbeeld.nl", autocomplete: "off", id: "inviteEmail" });
-        var btn = h("button", { type: "submit", class: "btn primary", text: "Uitnodigen" });
-        var form = h("form", { class: "invite-form" }, [
-          h("div", { class: "field wide" }, [h("label", { for: "inviteEmail", text: "E-mailadres van de nieuwe beheerder" }), h("div", { class: "invite-row" }, [input, btn])]),
-          h("p", { class: "hint", text: "Je mailprogramma opent met een kant-en-klare uitnodiging. Via de link in die mail kiest diegene een eigen wachtwoord en kan daarna inloggen." }),
-          inviteBox,
-        ]);
-        form.addEventListener("submit", function (e) {
-          e.preventDefault();
-          var email = input.value.trim();
-          if (!email) return input.focus();
-          sendInvite(email, inviteBox, listBox).then(function (ok) {
-            if (ok) input.value = "";
-          });
-        });
-        parts.push(card("Beheerder toevoegen", [form]));
-      }
-      parts.push(card("Wie mag de teksten aanpassen?", [listBox]));
+      var parts = [card("Wie mag de teksten aanpassen?", [listBox])];
       if (owner) {
         parts.push(
           card("Accounts bewaren", [
-            h("p", { class: "hint top", text: "Nieuwe beheerders en wachtwoorden worden in deze browser bewaard. Wil je dat ze ook werken op een andere computer of op de site online, sla dan de accounts op als bestand en vervang daarmee admin/accounts.js." }),
+            h("p", { class: "hint top", text: "Gewijzigde wachtwoorden worden in deze browser bewaard. Moeten ze ook op een andere computer werken, sla dan de accounts op als bestand en vervang daarmee admin/accounts.js." }),
             h("button", {
               type: "button",
               class: "btn",
@@ -502,14 +482,8 @@
         );
       }
       parts.push(passwordCard());
-      loadAdmins(listBox, inviteBox);
-      return section(
-        "Beheerders",
-        owner
-          ? "Jij bent de hoofdbeheerder. Alleen jij kunt beheerders toevoegen en verwijderen."
-          : "Alleen de hoofdbeheerder (" + auth.ownerEmail + ") kan beheerders toevoegen en verwijderen.",
-        parts
-      );
+      loadAdmins(listBox);
+      return section("Beheerders", owner ? "Jij bent de hoofdbeheerder." : "Hier kun je je eigen wachtwoord wijzigen.", parts);
     },
 
     bronnen: function () {
@@ -639,69 +613,6 @@
     return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
   }
 
-  function openMail(mailto) {
-    var a = h("a", { href: mailto, style: "display:none" });
-    document.body.appendChild(a);
-    var wasDirty = dirty;
-    dirty = false; // geen "pagina verlaten?"-melding voor een mailto-link
-    a.click();
-    dirty = wasDirty;
-    a.remove();
-  }
-
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
-    var ta = h("textarea", { style: "position:fixed;opacity:0" });
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    return Promise.resolve();
-  }
-
-  function sendInvite(email, box, listBox) {
-    return auth
-      .invite(email)
-      .then(function (res) {
-        box.innerHTML = "";
-        box.appendChild(h("p", { class: "invite-title", text: "Uitnodiging voor " + email.toLowerCase() + " is klaar" }));
-        box.appendChild(h("p", { class: "hint", text: "Opent je mailprogramma niet? Kopieer de link en stuur hem zelf (bijv. via Teams, Magister of WhatsApp)." }));
-        var linkInput = h("input", { type: "text", readonly: true, value: res.link, "aria-label": "Uitnodigingslink" });
-        box.appendChild(
-          h("div", { class: "invite-row" }, [
-            linkInput,
-            h("button", {
-              type: "button",
-              class: "btn",
-              text: "Link kopiëren",
-              onclick: function () {
-                copyText(res.link).then(function () {
-                  toast("Link gekopieerd.", "ok");
-                });
-              },
-            }),
-            h("button", {
-              type: "button",
-              class: "btn primary",
-              text: "Mail openen",
-              onclick: function () {
-                openMail(res.mailto);
-              },
-            }),
-          ])
-        );
-        box.hidden = false;
-        openMail(res.mailto);
-        loadAdmins(listBox, box);
-        return true;
-      })
-      .catch(function (err) {
-        toast(err.message, "error");
-        return false;
-      });
-  }
-
   function passwordCard() {
     var err = h("p", { class: "warn", hidden: true, role: "alert" });
     var f = h("form", { class: "invite-form" }, [
@@ -733,56 +644,18 @@
     return card("Je eigen wachtwoord wijzigen", [f]);
   }
 
-  function loadAdmins(box, inviteBox) {
-    var owner = access === "owner";
+  function loadAdmins(box) {
     auth.listAdmins().then(function (rows) {
       box.innerHTML = "";
-      rows.sort(function (a, b) {
-        return (a.status === "owner" ? -1 : 0) - (b.status === "owner" ? -1 : 0) || a.email.localeCompare(b.email);
-      });
       rows.forEach(function (a) {
         var badge =
           a.status === "owner"
             ? h("span", { class: "badge owner", text: "Hoofdbeheerder" })
             : a.status === "active"
-            ? h("span", { class: "badge ok", text: "Actief" })
-            : h("span", { class: "badge wait", text: "Uitgenodigd " + fmtDate(a.invitedAt) });
-        var tools = [];
-        if (owner && a.status !== "owner") {
-          if (a.status !== "active")
-            tools.push(
-              h("button", {
-                type: "button",
-                class: "btn small-inline",
-                text: "Nieuwe link",
-                onclick: function () {
-                  sendInvite(a.email, inviteBox, box);
-                },
-              })
-            );
-          tools.push(
-            h("button", {
-              type: "button",
-              class: "btn small-inline danger",
-              text: "Verwijderen",
-              onclick: function () {
-                if (!window.confirm(a.email + " verwijderen? Diegene kan daarna niet meer inloggen.")) return;
-                auth
-                  .removeAdmin(a.email)
-                  .then(function () {
-                    toast(a.email + " is geen beheerder meer.", "ok");
-                    loadAdmins(box, inviteBox);
-                  })
-                  .catch(function (err) {
-                    toast(err.message, "error");
-                  });
-              },
-            })
-          );
-        }
-        box.appendChild(h("div", { class: "admin-row" }, [h("span", { class: "admin-email", text: a.email }), badge, h("div", { class: "tools" }, tools)]));
+            ? h("span", { class: "badge ok", text: "Eigen wachtwoord" })
+            : h("span", { class: "badge wait", text: "Nog tijdelijk wachtwoord" });
+        box.appendChild(h("div", { class: "admin-row" }, [h("span", { class: "admin-email", text: a.email }), badge]));
       });
-      if (rows.length === 1) box.appendChild(h("p", { class: "hint", text: "Nog geen andere beheerders." }));
     });
   }
 
@@ -1148,33 +1021,36 @@
   }
 
   function showLogin(msg) {
-    var forgot = h("p", { class: "hint center", text: "Wachtwoord vergeten? Vraag de hoofdbeheerder om je een nieuwe uitnodiging te sturen." });
+    var forgot = h("p", { class: "hint center", text: "Eerste keer? Log in met het tijdelijke wachtwoord dat je hebt gekregen." });
     showGate("Inloggen", msg || "Log in om de teksten en tijden van de site aan te passen.", [
       gateForm(
         [inputField("loginEmail", "E-mailadres", "email", "", "username"), inputField("loginPassword", "Wachtwoord", "password", "", "current-password")],
         "Inloggen",
         function () {
-          return auth.signIn(val("loginEmail"), val("loginPassword")).then(enter);
+          var pw = val("loginPassword");
+          return auth.signIn(val("loginEmail"), pw).then(function (user) {
+            if (user.mustChange) showFirstPassword(user, pw);
+            else enter(user);
+          });
         },
         [forgot]
       ),
     ]);
   }
 
-  function showInvite() {
-    showGate("Account aanmaken", "Je bent uitgenodigd als beheerder van de site. Kies een wachtwoord; daarmee log je voortaan in.", [
+  function showFirstPassword(user, tempPassword) {
+    showGate("Kies je eigen wachtwoord", "Je bent voor het eerst ingelogd met een tijdelijk wachtwoord. Kies nu een eigen wachtwoord; daarmee log je voortaan in.", [
       gateForm(
         [
-          inputField("inviteMail", "Je e-mailadres (waar de uitnodiging naartoe ging)", "email", auth.inviteEmail(), "username"),
-          inputField("invitePw", "Kies een wachtwoord (minstens 8 tekens)", "password", "", "new-password"),
-          inputField("invitePw2", "Herhaal het wachtwoord", "password", "", "new-password"),
+          inputField("firstPw", "Nieuw wachtwoord (minstens 8 tekens)", "password", "", "new-password"),
+          inputField("firstPw2", "Herhaal het nieuwe wachtwoord", "password", "", "new-password"),
         ],
-        "Account aanmaken",
+        "Wachtwoord opslaan",
         function () {
-          if (val("invitePw") !== val("invitePw2")) throw new Error("De twee wachtwoorden zijn niet hetzelfde.");
-          return auth.completeInvite(val("inviteMail"), val("invitePw")).then(function (user) {
-            toast("Je account is klaar. Welkom!", "ok");
-            enter(user);
+          if (val("firstPw") !== val("firstPw2")) throw new Error("De twee wachtwoorden zijn niet hetzelfde.");
+          return auth.setFirstPassword(user.email, tempPassword, val("firstPw")).then(function (u) {
+            toast("Je wachtwoord is opgeslagen. Welkom!", "ok");
+            enter(u);
           });
         }
       ),
@@ -1234,7 +1110,6 @@
     return;
   }
   var me = auth.current();
-  if (auth.isInviteLink()) showInvite();
-  else if (me) enter(me);
+  if (me) enter(me);
   else showLogin();
 })();

@@ -1,7 +1,7 @@
 // Eenvoudige login voor de beheerpagina, zonder externe dienst.
 // De accounts staan in admin/accounts.js (wachtwoorden alleen als versleutelde
-// hash, nooit als leesbare tekst). Nieuwe beheerders en gewijzigde wachtwoorden
-// worden in deze browser bewaard; met "Accounts opslaan als bestand" maak je een
+// hash, nooit als leesbare tekst). Wie met een tijdelijk wachtwoord inlogt, moet
+// eerst een eigen wachtwoord kiezen. Gewijzigde wachtwoorden worden in deze browser bewaard; met "Accounts opslaan als bestand" maak je een
 // nieuw admin/accounts.js zodat ze ook op andere computers werken.
 (function () {
   "use strict";
@@ -9,7 +9,6 @@
   var STORE_KEY = "autosite-admins";
   var SESSION_KEY = "autosite-admin-session";
   var SESSION_HOURS = 8;
-  var INVITE_DAYS = 14;
   var ITERATIONS = 150000;
 
   var file = window.SITE_ADMINS || { updated: "", accounts: [] };
@@ -36,8 +35,10 @@
       /* niets opgeslagen */
     }
     list = clone(list || file);
-    // de hoofdbeheerder uit het bestand is er altijd
-    if (owner && !list.accounts.some(function (a) { return a.role === "owner"; })) list.accounts.unshift(clone(owner));
+    // accounts uit het bestand die nog niet in deze browser staan, komen erbij
+    (file.accounts || []).forEach(function (fa) {
+      if (!find(list, fa.email)) list.accounts.push(clone(fa));
+    });
     return list;
   }
 
@@ -90,11 +91,6 @@
     return hex(bits);
   }
 
-  async function sha256(text) {
-    needCrypto();
-    return hex(await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
-  }
-
   async function setPassword(account, password) {
     if (String(password || "").length < 8) throw new Error("Kies een wachtwoord van minstens 8 tekens.");
     account.salt = randomHex(16);
@@ -122,17 +118,11 @@
       var s = JSON.parse(window.sessionStorage.getItem(SESSION_KEY) || "null");
       if (!s || s.until < Date.now()) return null;
       var a = find(load(), s.email);
-      return a && a.status === "active" ? { email: a.email, role: a.role } : null;
+      return a && a.status === "active" && !a.mustChange ? { email: a.email, role: a.role } : null;
     } catch (e) {
       return null;
     }
   }
-
-  function pageUrl() {
-    return location.href.split(/[?#]/)[0];
-  }
-
-  var params = new URLSearchParams(location.search);
 
   window.AdminAuth = {
     ownerEmail: owner ? owner.email : "",
@@ -148,6 +138,22 @@
         });
         throw new Error("E-mailadres of wachtwoord klopt niet.");
       }
+      // eerste keer met een tijdelijk wachtwoord: eerst een eigen wachtwoord kiezen
+      if (a.mustChange) return { email: a.email, role: a.role, mustChange: true };
+      startSession(a.email);
+      return { email: a.email, role: a.role };
+    },
+
+    // eigen wachtwoord kiezen na inloggen met het tijdelijke wachtwoord
+    async setFirstPassword(email, tempPassword, newPassword) {
+      var list = load();
+      var a = find(list, email);
+      if (!a || !a.mustChange || !(await checkPassword(a, tempPassword))) throw new Error("Log opnieuw in met je tijdelijke wachtwoord.");
+      if (newPassword === tempPassword) throw new Error("Kies een ander wachtwoord dan het tijdelijke.");
+      await setPassword(a, newPassword);
+      delete a.mustChange;
+      a.changedAt = new Date().toISOString();
+      store(list);
       startSession(a.email);
       return { email: a.email, role: a.role };
     },
@@ -169,82 +175,10 @@
       store(list);
     },
 
-    // --- uitnodigingen ---
-
-    isInviteLink() {
-      return params.has("uitnodiging");
-    },
-
-    inviteEmail() {
-      return params.get("email") || "";
-    },
-
-    async completeInvite(email, password) {
-      var list = load();
-      var a = find(list, email);
-      var code = params.get("uitnodiging") || "";
-      var valid = a && a.status === "invited" && a.inviteHash && a.inviteHash === (await sha256(code)) && Date.now() - new Date(a.invitedAt).getTime() < INVITE_DAYS * 86400000;
-      if (!valid)
-        throw new Error(
-          "Deze uitnodiging is niet (meer) geldig op deze computer. Vraag de hoofdbeheerder om een nieuwe uitnodiging, of om het bestand accounts.js bij te werken als de site op een andere computer staat."
-        );
-      await setPassword(a, password);
-      a.status = "active";
-      a.activatedAt = new Date().toISOString();
-      delete a.inviteHash;
-      store(list);
-      startSession(a.email);
-      history.replaceState(null, "", pageUrl());
-      return { email: a.email, role: a.role };
-    },
-
     async listAdmins() {
       return load().accounts.map(function (a) {
-        return { email: a.email, role: a.role, status: a.role === "owner" ? "owner" : a.status, invitedAt: a.invitedAt };
+        return { email: a.email, role: a.role, status: a.role === "owner" ? "owner" : a.mustChange ? "temp" : "active" };
       });
-    },
-
-    // maakt (of vernieuwt) een uitnodiging en geeft de link + een kant-en-klare mail terug
-    async invite(email) {
-      var me = current();
-      if (!me || me.role !== "owner") throw new Error("Alleen de hoofdbeheerder kan beheerders uitnodigen.");
-      email = norm(email);
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Dit is geen geldig e-mailadres.");
-      var list = load();
-      var a = find(list, email);
-      if (a && a.role === "owner") throw new Error("Dit is het adres van de hoofdbeheerder zelf.");
-      if (!a) {
-        a = { email: email, role: "admin" };
-        list.accounts.push(a);
-      }
-      var code = randomHex(16);
-      a.status = "invited";
-      a.inviteHash = await sha256(code);
-      a.invitedAt = new Date().toISOString();
-      a.invitedBy = me.email;
-      delete a.hash;
-      delete a.salt;
-      store(list);
-      var link = pageUrl() + "?uitnodiging=" + code + "&email=" + encodeURIComponent(email);
-      var subject = "Uitnodiging: beheerder van de website “Hoe wordt een auto gemaakt?”";
-      var body =
-        "Hoi,\n\nJe bent uitgenodigd om de teksten van onze website “Hoe wordt een auto gemaakt?” te beheren.\n\n" +
-        "Open deze link en kies je eigen wachtwoord:\n" + link + "\n\n" +
-        "Daarna log je in met dit e-mailadres (" + email + ") en je wachtwoord.\nDe link is " + INVITE_DAYS + " dagen geldig.\n\nGroet,\n" + me.email;
-      return {
-        link: link,
-        mailto: "mailto:" + encodeURIComponent(email) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body),
-      };
-    },
-
-    async removeAdmin(email) {
-      var me = current();
-      if (!me || me.role !== "owner") throw new Error("Alleen de hoofdbeheerder kan beheerders verwijderen.");
-      var list = load();
-      list.accounts = list.accounts.filter(function (a) {
-        return a.role === "owner" || a.email !== norm(email);
-      });
-      store(list);
     },
 
     // inhoud voor een nieuw admin/accounts.js
