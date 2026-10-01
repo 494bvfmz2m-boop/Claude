@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label style="margin-top:14px">Verzending
       <select name="shipping_method" onchange="this.form.submit()">
         <option value="standard" <?= $method === 'standard' ? 'selected' : '' ?>>Standaard (PostNL) - <?= money(shipping_cents($subtotal, 'standard')) ?></option>
-        <option value="pickup" <?= $method === 'pickup' ? 'selected' : '' ?>>Ophalen in Ederveen - gratis</option>
+        <option value="pickup" <?= $method === 'pickup' ? 'selected' : '' ?>>Ophalen in Maarn - gratis</option>
       </select>
     </label>
     <p>Subtotaal <span style="float:right"><?= money($subtotal) ?></span></p>

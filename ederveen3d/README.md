@@ -1,6 +1,6 @@
 # Ederveen3D
 
-Website voor Ederveen3D, een kleine 3D-printstudio uit Ederveen. Gemaakt met PHP en MySQL.
+Website voor Ederveen3D, een kleine 3D-printstudio uit Maarn. Gemaakt met PHP en MySQL.
 Je hebt geen Node.js, build-stap of Composer nodig.
 
 De site heeft twee standen. Je wisselt tussen de twee onder **Beheer → Instellingen**:

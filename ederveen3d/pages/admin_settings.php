@@ -50,7 +50,7 @@ $mode = showcase_mode() ? 'showcase' : 'shop';
 
   <h2>Algemeen</h2>
   <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="promo_bar_enabled" value="1" style="width:auto" <?= setting('promo_bar_enabled', '1') === '1' ? 'checked' : '' ?>> Balk bovenaan tonen</label>
-  <label>Tekst in de balk <input name="promo_bar_text" value="<?= e(setting('promo_bar_text', 'Laag voor laag geprint in Ederveen')) ?>"></label>
+  <label>Tekst in de balk <input name="promo_bar_text" value="<?= e(setting('promo_bar_text', 'Laag voor laag geprint in Maarn')) ?>"></label>
   <label>Naam <input name="store_name" value="<?= e(setting('store_name', '')) ?>"></label>
   <label>Slogan <input name="tagline" value="<?= e(setting('tagline', '')) ?>"></label>
   <label>Contact-e-mail <input type="email" name="contact_email" value="<?= e(setting('contact_email', '')) ?>"></label>
@@ -66,7 +66,7 @@ $mode = showcase_mode() ? 'showcase' : 'shop';
   <h2>Bedrijfsgegevens</h2>
   <p class="small muted">Verplicht voor een webshop. Laat leeg zolang je niet bij de KvK staat ingeschreven; lege velden worden niet getoond.</p>
   <label>Naam eigenaar <input name="legal_name" value="<?= e(setting('legal_name', '')) ?>"></label>
-  <label>Adres <input name="business_address" placeholder="Straat 1, 6741 AA Ederveen" value="<?= e(setting('business_address', '')) ?>"></label>
+  <label>Adres <input name="business_address" placeholder="Straat 1, 3951 AA Maarn" value="<?= e(setting('business_address', '')) ?>"></label>
   <div class="row">
     <label>KvK-nummer <input name="kvk_number" value="<?= e(setting('kvk_number', '')) ?>"></label>
     <label>Btw-id <input name="btw_id" placeholder="NL000000000B01" value="<?= e(setting('btw_id', '')) ?>"></label>

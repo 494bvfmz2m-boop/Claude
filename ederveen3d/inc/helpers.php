@@ -125,7 +125,7 @@ function shipping_cents(int $subtotal, string $method): int {
 }
 
 function shipping_label(string $method): string {
-    return $method === 'pickup' ? 'ophalen in Ederveen' : 'PostNL';
+    return $method === 'pickup' ? 'ophalen in Maarn' : 'PostNL';
 }
 
 function btw_cents(int $amount): int {

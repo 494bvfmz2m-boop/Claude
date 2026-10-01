@@ -5,7 +5,7 @@ function render_page(string $path): void {
     $content = ob_get_clean();
     $store = setting('store_name', 'Ederveen3D');
     $title = $GLOBALS['page_title'] ?? $store;
-    $desc  = $GLOBALS['page_desc'] ?? setting('tagline', 'Laag voor laag geprint in Ederveen.');
+    $desc  = $GLOBALS['page_desc'] ?? setting('tagline', 'Laag voor laag geprint in Maarn.');
     $showcase = showcase_mode();
     $social = array_filter([
         'Instagram'   => setting('instagram_url', ''),
@@ -29,7 +29,7 @@ function render_page(string $path): void {
 <link rel="stylesheet" href="<?= e(url('assets/style.css')) ?>">
 </head>
 <body>
-<?php if (setting('promo_bar_enabled', '1') === '1'): ?><div class="announcement"><?= e(setting('promo_bar_text', 'Laag voor laag geprint in Ederveen')) ?></div><?php endif; ?>
+<?php if (setting('promo_bar_enabled', '1') === '1'): ?><div class="announcement"><?= e(setting('promo_bar_text', 'Laag voor laag geprint in Maarn')) ?></div><?php endif; ?>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand hover-lift" href="<?= e(url('?p=home')) ?>">
@@ -65,7 +65,7 @@ function render_page(string $path): void {
     <div>
       <img class="footer-logo" src="<?= e(url('assets/logo.svg')) ?>" alt="">
       <strong><?= e($store) ?></strong>
-      <p class="muted small">Kleine 3D-printstudio uit Ederveen. Alles wordt laag voor laag geprint en met de hand afgewerkt.</p>
+      <p class="muted small">Kleine 3D-printstudio uit Maarn. Alles wordt laag voor laag geprint en met de hand afgewerkt.</p>
     </div>
     <div>
       <a href="<?= e(url('?p=shop')) ?>"><?= $showcase ? 'Mijn werk' : 'Shop' ?></a>

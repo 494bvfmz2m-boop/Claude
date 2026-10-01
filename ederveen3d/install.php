@@ -145,7 +145,7 @@ SQL;
 
             $defaults = [
                 'store_name' => 'Ederveen3D',
-                'tagline' => 'Leuke, kleurrijke 3D-prints uit Ederveen',
+                'tagline' => 'Leuke, kleurrijke 3D-prints uit Maarn',
                 'contact_email' => $email,
                 'shop_mode' => 'showcase',
                 'currency' => 'eur',
@@ -156,7 +156,7 @@ SQL;
                 'stripe_enabled' => '0',
                 'stripe_mode' => 'test',
                 'promo_bar_enabled' => '1',
-                'promo_bar_text' => 'Laag voor laag geprint in Ederveen',
+                'promo_bar_text' => 'Laag voor laag geprint in Maarn',
             ];
             $st = $pdo->prepare('INSERT IGNORE INTO settings (skey, svalue) VALUES (?, ?)');
             foreach ($defaults as $k => $v) $st->execute([$k, $v]);

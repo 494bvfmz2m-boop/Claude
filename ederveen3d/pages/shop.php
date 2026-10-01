@@ -1,7 +1,7 @@
 <?php
 $showcase = showcase_mode();
 $GLOBALS['page_title'] = ($showcase ? 'Mijn werk' : 'Shop') . ' - ' . setting('store_name', 'Ederveen3D');
-$GLOBALS['page_desc'] = 'Bekijk draakjes, dieren, fidgets en handige spullen, laag voor laag geprint in Ederveen.';
+$GLOBALS['page_desc'] = 'Bekijk draakjes, dieren, fidgets en handige spullen, laag voor laag geprint in Maarn.';
 
 $search = trim((string)($_GET['q'] ?? ''));
 $cat = trim((string)($_GET['cat'] ?? ''));
