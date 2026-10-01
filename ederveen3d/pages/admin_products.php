@@ -106,7 +106,7 @@ $products = all('SELECT * FROM products ORDER BY created_at DESC');
     <label>Extra details <textarea name="product_details"><?= e($editing['product_details'] ?? '') ?></textarea></label>
     <div class="row">
       <label>Categorie <input name="category" list="cats" placeholder="Draken, Dieren, Magneten..." value="<?= e($editing['category'] ?? '') ?>"></label>
-      <label>Materiaal <input name="material" value="<?= e($editing['material'] ?? '') ?>"></label>
+      <label>Materiaal <input name="material" list="materials" placeholder="PLA Basic of PETG Basic" value="<?= e($editing['material'] ?? '') ?>"></label>
       <label>Kleuren (met komma's) <input name="colours" value="<?= e($editing['colours'] ?? '') ?>"></label>
       <label>Afmetingen <input name="size_text" value="<?= e($editing['size_text'] ?? '') ?>"></label>
       <label>Label <input name="promo_badge" placeholder="Populair, Nieuw, Uitverkocht" value="<?= e($editing['promo_badge'] ?? '') ?>"></label>
@@ -117,6 +117,7 @@ $products = all('SELECT * FROM products ORDER BY created_at DESC');
     <div class="row"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_best_seller" value="1" style="width:auto" <?= !empty($editing['is_best_seller']) ? 'checked' : '' ?>> Populair</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_new" value="1" style="width:auto" <?= !empty($editing['is_new']) ? 'checked' : '' ?>> Nieuw product</label></div>
     <label>Marktplaats-link <input name="marktplaats_url" type="url" placeholder="https://www.marktplaats.nl/v/..." value="<?= e($editing['marktplaats_url'] ?? '') ?>"></label>
     <label>Foto (JPG, PNG, WEBP, GIF of AVIF, max. 10 MB) <input type="file" name="image" accept="image/*"></label>
+    <datalist id="materials"><option value="PLA Basic"><option value="PETG Basic"></datalist>
     <datalist id="cats"><?php foreach (['Draken', 'Dieren', 'Magneten', 'Fidgets', 'Sleutelhangers', 'Overig'] as $c): ?><option value="<?= $c ?>"><?php endforeach; ?></datalist>
     <?php if (!empty($editing['image'])): ?>
       <img src="<?= e(url($editing['image'])) ?>" alt="" style="width:130px;border-radius:10px;margin-bottom:12px">

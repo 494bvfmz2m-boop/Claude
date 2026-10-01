@@ -12,7 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $email = trim((string)($_POST['email'] ?? ''));
     $name  = trim((string)($_POST['full_name'] ?? ''));
-    $material = trim((string)($_POST['material'] ?? 'PLA'));
+    $materials = ['PLA Basic', 'PETG Basic', 'Ander filament', 'Weet ik niet'];
+    $material = (string)($_POST['material'] ?? 'PLA Basic');
+    if (!in_array($material, $materials, true)) $material = 'Weet ik niet';
+    $other = mb_substr(trim((string)($_POST['material_other'] ?? '')), 0, 60);
+    if ($material === 'Ander filament') {
+        if ($other === '') $errors[] = 'Vul in welk ander filament je wilt.';
+        $material = 'Anders: ' . $other;
+    }
     $qty = max(1, (int)($_POST['quantity'] ?? 1));
     $details = trim((string)($_POST['details'] ?? ''));
     $stored = null; $original = null;
@@ -54,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <h1>Eigen idee laten printen</h1>
 <p class="muted">Heb je een 3D-bestand, of een idee voor iets wat je graag geprint wilt hebben? Stuur het op. Je hoort per e-mail of het kan, wat het kost en hoe lang het duurt. Je zit nergens aan vast.</p>
+<p class="small muted">Ik print standaard in <strong>PLA Basic</strong> en <strong>PETG Basic</strong> van Bambu Lab. Ander Bambu Lab-filament (bijvoorbeeld mat, silk of flexibel) kan op verzoek, maar dan is de prijs hoger.</p>
 
 <?php if ($sent): ?>
   <div class="card anim-pop" style="text-align:center">
@@ -71,11 +79,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <label>E-mail <input type="email" name="email" required value="<?= e($_POST['email'] ?? (current_user()['email'] ?? '')) ?>"></label>
       <label>Materiaal
         <select name="material">
-          <?php foreach (['PLA', 'PETG', 'TPU (flexibel)', 'Weet ik niet'] as $m): ?>
-            <option><?= e($m) ?></option>
+          <?php foreach (['PLA Basic' => 'PLA Basic', 'PETG Basic' => 'PETG Basic', 'Ander filament' => 'Ander filament (meerprijs)', 'Weet ik niet' => 'Weet ik niet'] as $v => $l): ?>
+            <option value="<?= e($v) ?>" <?= ($_POST['material'] ?? '') === $v ? 'selected' : '' ?>><?= e($l) ?></option>
           <?php endforeach; ?>
         </select>
       </label>
+      <label>Ander filament? (alleen bij "Ander filament") <input name="material_other" placeholder="Bijv. PLA Matte, PLA Silk+, TPU" value="<?= e($_POST['material_other'] ?? '') ?>"></label>
       <label>Aantal <input type="number" name="quantity" value="1" min="1"></label>
     </div>
     <label>3D-bestand (optioneel: STL, STEP, 3MF, OBJ of ZIP, max. 100 MB)

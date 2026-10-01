@@ -168,10 +168,10 @@ SQL;
             $count = (int)$pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
             if ($count === 0) {
                 $seed = [
-                    ['Beweegbaar draakje', 'beweegbaar-draakje', 'Een flexibel draakje dat in één keer geprint is. Alle schubben bewegen mee.', 'Draken', 'PLA', 1200, 3],
-                    ['Kikker-plantenpotje', 'kikker-plantenpotje', 'Een vrolijk kikkerpotje voor een klein plantje of vetplant.', 'Dieren', 'PETG', 900, 2],
-                    ['Kabelclips (set van 3)', 'kabelclips-set-van-3', 'Houd je bureau netjes met drie flexibele kabelclips.', 'Overig', 'TPU', 400, 10],
-                    ['Koptelefoonhouder', 'koptelefoonhouder', 'Een houder om onder je bureau te schroeven voor je koptelefoon.', 'Overig', 'PETG', 700, 4],
+                    ['Beweegbaar draakje', 'beweegbaar-draakje', 'Een flexibel draakje dat in één keer geprint is. Alle schubben bewegen mee.', 'Draken', 'PLA Basic', 1200, 3],
+                    ['Kikker-plantenpotje', 'kikker-plantenpotje', 'Een vrolijk kikkerpotje voor een klein plantje of vetplant.', 'Dieren', 'PETG Basic', 900, 2],
+                    ['Kabelclips (set van 3)', 'kabelclips-set-van-3', 'Houd je bureau netjes met drie kabelclips.', 'Overig', 'PLA Basic', 400, 10],
+                    ['Koptelefoonhouder', 'koptelefoonhouder', 'Een houder om onder je bureau te schroeven voor je koptelefoon.', 'Overig', 'PETG Basic', 700, 4],
                 ];
                 $st = $pdo->prepare('INSERT INTO products (name, slug, description, category, material, price_cents, stock) VALUES (?,?,?,?,?,?,?)');
                 foreach ($seed as $row) $st->execute($row);
