@@ -8,11 +8,13 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
 ?>
 <h1>Hoi <?= e($u['full_name'] ?: $u['email']) ?></h1>
 <div class="tabs">
-  <a class="tab active" href="<?= e(url('?p=account')) ?>">Bestellingen &amp; verzoeken</a>
+  <a class="tab active" href="<?= e(url('?p=account')) ?>"><?= showcase_mode() ? 'Printverzoeken' : 'Bestellingen &amp; verzoeken' ?></a>
+  <a class="tab" href="<?= e(url('?p=chat')) ?>">Chat</a>
   <a class="tab" href="<?= e(url('?p=security')) ?>">Beveiliging</a>
   <?php if (is_staff()): ?><a class="tab" href="<?= e(url('?p=admin')) ?>">Beheer</a><?php endif; ?>
 </div>
 
+<?php if (!showcase_mode() || $orders): ?>
 <div class="card">
   <h2>Je bestellingen</h2>
   <?php if (!$orders): ?><p class="muted">Nog geen bestellingen.</p><?php else: ?>
@@ -32,7 +34,9 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
   <?php endif; ?>
 </div>
 
-<div class="card" style="margin-top:20px">
+<?php endif; ?>
+
+<div class="card">
   <h2>Printverzoeken</h2>
   <?php if (!$requests): ?>
     <p class="muted">Nog geen verzoeken. <a href="<?= e(url('?p=custom')) ?>">Stuur een idee in</a>.</p>
@@ -45,7 +49,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
         <td><?= e($r['original_filename'] ?: '-') ?></td>
         <td><?= e($r['material']) ?></td>
         <td><?= (int)$r['quantity'] ?></td>
-        <td><span class="pill"><?= e($r['status']) ?></span></td>
+        <td><span class="pill"><?= e(request_statuses()[request_status((string)$r['status'])]) ?></span></td>
         <td><?= $r['quote_cents'] !== null ? money((int)$r['quote_cents']) : '<span class="muted">volgt</span>' ?></td>
       </tr>
     <?php endforeach; ?></tbody>

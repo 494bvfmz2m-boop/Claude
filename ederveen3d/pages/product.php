@@ -11,7 +11,7 @@ $mpUrl = trim((string)($product['marktplaats_url'] ?? ''));
 ?>
 <a class="back-link" href="<?= e(url('?p=shop')) ?>">← Terug naar het overzicht</a>
 <div class="grid cols-2 product-view">
-  <div class="product-photo hover-sheen"><img src="<?= e(url($product['image'] ?: 'assets/hero.jpg')) ?>" alt="<?= e($product['name']) ?>"></div>
+  <div class="product-photo"><img src="<?= e(url($product['image'] ?: 'assets/placeholder.svg')) ?>" alt="<?= e($product['name']) ?>"></div>
   <div><?php if ($product['promo_badge']): ?><span class="pill promo"><?= e($product['promo_badge']) ?></span><?php endif; ?><h1><?= e($product['name']) ?></h1><p class="price product-price"><?= money((int)$product['price_cents']) ?></p><p class="muted"><?= nl2br(e($product['description'])) ?></p>
     <?php if ($showcase): ?>
       <?php include __DIR__ . '/_order_options.php'; ?>

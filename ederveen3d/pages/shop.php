@@ -27,7 +27,7 @@ $cats = all('SELECT DISTINCT category FROM products WHERE visible = 1 AND catego
 <form class="card" method="get" style="margin-bottom:24px">
   <input type="hidden" name="p" value="shop">
   <input type="hidden" name="collection" value="<?= e($collection) ?>">
-  <div class="grid cols-3">
+  <div class="grid cols-3 shop-filters">
     <label>Zoeken <input name="q" value="<?= e($search) ?>" placeholder="Draak, sleutelhanger..."></label>
     <label>Categorie
       <select name="cat">
@@ -49,7 +49,7 @@ $cats = all('SELECT DISTINCT category FROM products WHERE visible = 1 AND catego
   <button class="btn" type="submit">Toepassen</button>
 </form>
 
-<div class="grid cols-3">
+<div class="products">
   <?php foreach ($products as $p): ?>
     <?php include __DIR__ . '/_product_card.php'; ?>
   <?php endforeach; ?>

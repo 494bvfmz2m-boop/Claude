@@ -23,12 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = one('SELECT * FROM users WHERE email = ?', [$email]);
         login_user($user);
         flash('Account aangemaakt. Welkom!');
-        redirect('?p=account');
+        $next = $_SESSION['after_login'] ?? null;
+        unset($_SESSION['after_login']);
+        redirect($next ?: '?p=chat');
     }
 }
 ?>
 <div class="card anim-pop" style="max-width:460px;margin:24px auto">
   <h1>Account aanmaken</h1>
+  <p class="muted small">Met een account kun je via de website met me chatten en je printverzoeken volgen.</p>
   <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
   <form method="post">
     <?= csrf_field() ?>

@@ -52,4 +52,22 @@ function ensure_storefront_schema(): void {
         $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['products', $name]);
         if (!$exists) q("ALTER TABLE products ADD COLUMN `$name` $definition");
     }
+    q('CREATE TABLE IF NOT EXISTS chats (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL UNIQUE,
+        status VARCHAR(20) NOT NULL DEFAULT "open",
+        admin_unread INT NOT NULL DEFAULT 0,
+        user_unread INT NOT NULL DEFAULT 0,
+        last_nudge_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    q('CREATE TABLE IF NOT EXISTS chat_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chat_id INT NOT NULL,
+        from_admin TINYINT(1) NOT NULL DEFAULT 0,
+        body TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (chat_id, id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 }

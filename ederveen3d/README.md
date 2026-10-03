@@ -42,6 +42,25 @@ creditcard/debitcard. Kiezen ze kaart, dan zien ze knoppen om je een bericht te 
 Discord, e-mail, Instagram, TikTok en WhatsApp. Vul je Discord-link en (later) je WhatsApp-nummer in bij
 **Beheer → Instellingen**. Zonder WhatsApp-nummer verschijnt er geen WhatsApp-knop.
 
+## Chat
+
+Bezoekers kunnen een account aanmaken en via **💬 Chat** (rechtsboven) met je chatten. Nieuwe
+berichten zie je onder **Beheer → Chats**. Het getal achter "Beheer" en "Chats" is het aantal
+ongelezen berichten. Je antwoord verschijnt binnen een paar seconden bij de klant, zonder herladen.
+
+- **🔔 Krijg aandacht** stuurt de klant een e-mail dat er een bericht klaarstaat, met een link naar de chat.
+  De mail gaat via de mailfunctie van je hosting (PHP `mail()`). Komt hij niet aan, kijk dan in de
+  spammap of vraag je hosting of "PHP mail" aanstaat.
+- **Archiveren** haalt een afgeronde chat uit de lijst. Stuurt de klant later weer iets, dan komt
+  de chat vanzelf terug.
+
+## Printverzoeken
+
+Onder **Beheer → Printverzoeken** zie je alle verzoeken met een gekleurde streep per status
+(Nieuw, In gesprek, Wordt geprint, Klaar, Afgewezen). Klik een status aan, vul eventueel een prijs
+in en klik op Opslaan. Stuurt een ingelogde klant een verzoek, dan komt het ook in zijn chat, zodat
+je daar meteen kunt antwoorden.
+
 ## Later: de webshop aanzetten
 
 1. Vul onder **Beheer → Instellingen → Bedrijfsgegevens** je naam, adres, KvK-nummer en btw-id in.

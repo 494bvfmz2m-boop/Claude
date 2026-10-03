@@ -49,7 +49,8 @@ $enabled = (int)$u['totp_enabled'] === 1;
 ?>
 <h1>Beveiliging</h1>
 <div class="tabs">
-  <a class="tab" href="<?= e(url('?p=account')) ?>">Bestellingen &amp; verzoeken</a>
+  <a class="tab" href="<?= e(url('?p=account')) ?>"><?= showcase_mode() ? 'Printverzoeken' : 'Bestellingen &amp; verzoeken' ?></a>
+  <a class="tab" href="<?= e(url('?p=chat')) ?>">Chat</a>
   <a class="tab active" href="<?= e(url('?p=security')) ?>">Beveiliging</a>
 </div>
 <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>

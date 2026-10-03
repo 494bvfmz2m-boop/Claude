@@ -21,6 +21,7 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/totp.php';
 require __DIR__ . '/inc/stripe.php';
+require __DIR__ . '/inc/chat.php';
 ensure_storefront_schema();
 
 header('X-Content-Type-Options: nosniff');
@@ -42,6 +43,7 @@ $routes = [
     'logout'    => 'logout.php',
     'account'   => 'account.php',
     'security'  => 'security.php',
+    'chat'      => 'chat.php',
     'admin'     => 'admin_orders.php',
     'admin_products' => 'admin_products.php',
     'admin_orders'   => 'admin_orders.php',
@@ -49,17 +51,24 @@ $routes = [
     'admin_settings' => 'admin_settings.php',
     'admin_payments' => 'admin_payments.php',
     'admin_team'     => 'admin_team.php',
+    'admin_chats'    => 'admin_chats.php',
 ];
 
 $page = $_GET['p'] ?? 'home';
 
 // Portfolio mode: no cart, checkout or customer accounts.
 if (showcase_mode()) {
-    $routes['admin'] = 'admin_products.php';
-    if (in_array($page, ['cart', 'checkout', 'register'], true)) {
+    $routes['admin'] = 'admin_chats.php';
+    if (in_array($page, ['cart', 'checkout'], true)) {
         flash('Bestellen gaat via de productpagina: kies daar Marktplaats of creditcard/debitcard.', 'warn');
         redirect('?p=shop');
     }
+}
+
+// JSON endpoint for the chat (no page layout).
+if ($page === 'chat_api') {
+    require __DIR__ . '/pages/chat_api.php';
+    exit;
 }
 
 $file = $routes[$page] ?? null;

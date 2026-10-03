@@ -145,3 +145,14 @@ function json_out($data, int $code = 200): void {
     echo json_encode($data);
     exit;
 }
+
+/** Print request statuses, in order. Older status names are mapped onto these. */
+function request_statuses(): array {
+    return ['new' => 'Nieuw', 'talking' => 'In gesprek', 'printing' => 'Wordt geprint', 'done' => 'Klaar', 'declined' => 'Afgewezen'];
+}
+
+function request_status(string $s): string {
+    $old = ['reviewing' => 'talking', 'quoted' => 'talking', 'accepted' => 'printing', 'complete' => 'done'];
+    $s = $old[$s] ?? $s;
+    return array_key_exists($s, request_statuses()) ? $s : 'new';
+}

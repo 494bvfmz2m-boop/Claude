@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div style="text-align:center">
     <img class="anim-float" src="<?= e(url('assets/logo.svg')) ?>" alt="" style="width:78px;border-radius:50%;box-shadow:0 0 0 2px var(--pink)">
     <h1>Welkom terug</h1>
-    <p class="muted small">Log in op je account.</p>
+    <p class="muted small">Log in om te chatten en je printverzoeken te volgen.</p>
   </div>
   <?php if ($error): ?><div class="note err anim-pop"><?= e($error) ?></div><?php endif; ?>
   <form method="post">
@@ -44,9 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>Wachtwoord <input type="password" name="password" required></label>
     <button class="btn hover-sheen" type="submit" style="width:100%">Inloggen</button>
   </form>
-  <?php if (!showcase_mode()): ?>
   <p class="small muted" style="text-align:center;margin-top:14px">
-    Nieuw hier? <a href="<?= e(url('?p=register')) ?>">Maak een account aan</a>
+    Nieuw hier? <a href="<?= e(url('?p=register')) ?>">Maak een account aan</a> om met me te chatten.
   </p>
-  <?php endif; ?>
 </div>

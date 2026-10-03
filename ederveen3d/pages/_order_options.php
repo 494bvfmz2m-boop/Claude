@@ -5,6 +5,7 @@ $about = 'Ik wil graag bestellen: ' . $product['name'];
 $email = setting('contact_email', '');
 $whatsapp = preg_replace('/\D+/', '', (string)setting('whatsapp_number', ''));
 $contacts = array_filter([
+    'Chat hier op de site' => url('?p=chat&about=' . urlencode($product['name'])),
     'Discord'   => setting('discord_url', ''),
     'E-mail'    => $email !== '' ? 'mailto:' . $email . '?subject=' . rawurlencode($about) : '',
     'Instagram' => setting('instagram_url', ''),
@@ -31,10 +32,10 @@ $hasMp = $mpUrl !== '';
       </div>
     <?php endif; ?>
     <div class="pay-panel pay-panel-direct">
-      <p class="small muted">Stuur me een bericht. Ik laat weten wat het met verzending kost en stuur je een betaallink voor je creditcard of debitcard.</p>
+      <p class="small muted">Stuur me een bericht, bijvoorbeeld via de chat hier op de site. Ik laat weten wat het met verzending kost en stuur je een betaallink voor je creditcard of debitcard.</p>
       <div class="contact-buttons">
         <?php foreach ($contacts as $label => $link): ?>
-          <a class="btn ghost small" href="<?= e($link) ?>" <?= str_starts_with($link, 'mailto:') ? '' : 'target="_blank" rel="noopener"' ?>><?= e($label) ?></a>
+          <a class="btn ghost small" href="<?= e($link) ?>" <?= str_starts_with($link, 'http') && !str_starts_with($link, url('')) ? 'target="_blank" rel="noopener"' : '' ?>><?= e($label) ?></a>
         <?php endforeach; ?>
         <?php if (!$contacts): ?><a class="btn ghost small" href="<?= e(url('?p=custom&about=' . urlencode($product['name']))) ?>">Contactformulier</a><?php endif; ?>
       </div>

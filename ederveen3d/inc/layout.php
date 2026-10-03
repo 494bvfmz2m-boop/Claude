@@ -27,33 +27,43 @@ function render_page(string $path): void {
 <link rel="icon" href="<?= e(url('assets/logo.svg')) ?>" type="image/svg+xml">
 <link rel="icon" href="<?= e(url('assets/logo.png')) ?>" type="image/png">
 <link rel="stylesheet" href="<?= e(url('assets/style.css')) ?>">
+<script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
 <?php if (setting('promo_bar_enabled', '1') === '1'): ?><div class="announcement"><?= e(setting('promo_bar_text', 'Laag voor laag geprint in Maarn')) ?></div><?php endif; ?>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand hover-lift" href="<?= e(url('?p=home')) ?>">
+    <a class="brand" href="<?= e(url('?p=home')) ?>">
       <img src="<?= e(url('assets/logo.svg')) ?>" alt="">
-      <span><?= e($store) ?></span>
+      <span>Ederveen<b>3D</b></span>
     </a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span></label>
     <nav class="nav">
-      <a href="<?= e(url('?p=home')) ?>">Home</a>
-      <a href="<?= e(url('?p=shop')) ?>"><?= $showcase ? 'Mijn werk' : 'Shop' ?></a><a href="<?= e(url('?p=home#categories')) ?>">Categorieën</a><a href="<?= e(url('?p=shop&collection=new')) ?>">Nieuw</a><a href="<?= e(url('?p=home#about')) ?>">Over mij</a><a href="<?= e(url('?p=custom')) ?>">Eigen idee?</a><a href="<?= e(url('?p=support')) ?>">Contact</a>
-      <?php if (is_staff()): ?><a class="accent" href="<?= e(url('?p=admin')) ?>">Beheer</a><?php endif; ?>
-      <?php if (is_logged_in()): ?>
+      <a href="<?= e(url('?p=shop')) ?>"><?= $showcase ? 'Mijn werk' : 'Shop' ?></a>
+      <a href="<?= e(url('?p=custom')) ?>">Eigen idee</a>
+      <a href="<?= e(url('?p=home#over')) ?>">Over mij</a>
+      <a href="<?= e(url('?p=support')) ?>">Vragen</a>
+      <?php if (is_staff()): ?>
+        <?php $adminUnread = chat_unread_for_admin(); ?>
+        <a class="nav-strong" href="<?= e(url('?p=admin')) ?>">Beheer<?php if ($adminUnread > 0): ?> <span class="badge"><?= $adminUnread ?></span><?php endif; ?></a>
+      <?php elseif (is_logged_in()): ?>
+        <?php $userUnread = chat_unread_for_user((int)current_user()['id']); ?>
         <a href="<?= e(url('?p=account')) ?>">Account</a>
-        <a href="<?= e(url('?p=logout')) ?>">Uitloggen</a>
-      <?php elseif (!$showcase): ?>
+        <a class="nav-cta" href="<?= e(url('?p=chat')) ?>">💬 Chat<?php if ($userUnread > 0): ?> <span class="badge"><?= $userUnread ?></span><?php endif; ?></a>
+      <?php else: ?>
         <a href="<?= e(url('?p=login')) ?>">Inloggen</a>
+        <a class="nav-cta" href="<?= e(url('?p=chat')) ?>">💬 Chat</a>
       <?php endif; ?>
+      <?php if (is_logged_in()): ?><a class="nav-quiet" href="<?= e(url('?p=logout')) ?>">Uitloggen</a><?php endif; ?>
       <?php if (!$showcase): ?>
-        <a class="cart-link hover-pop" href="<?= e(url('?p=cart')) ?>">Winkelwagen <span class="badge"><?= cart_count() ?></span></a>
+        <a class="cart-link" href="<?= e(url('?p=cart')) ?>">🛒 <span class="badge"><?= cart_count() ?></span></a>
       <?php endif; ?>
     </nav>
   </div>
 </header>
 
-<main class="wrap page anim-rise">
+<main class="wrap page">
   <?php foreach ((array)flash() as $f): ?>
     <div class="note <?= e($f['type']) ?> anim-pop"><?= e($f['msg']) ?></div>
   <?php endforeach; ?>
@@ -62,19 +72,27 @@ function render_page(string $path): void {
 
 <footer class="site-footer">
   <div class="wrap footer-inner">
-    <div>
-      <img class="footer-logo" src="<?= e(url('assets/logo.svg')) ?>" alt="">
-      <strong><?= e($store) ?></strong>
-      <p class="muted small">Kleine 3D-printstudio uit Maarn. Alles wordt laag voor laag geprint en met de hand afgewerkt.</p>
+    <div class="footer-brand">
+      <img src="<?= e(url('assets/logo.svg')) ?>" alt="">
+      <div>
+        <strong><?= e($store) ?></strong>
+        <p>3D-printstudio uit Maarn.<br>Laag voor laag geprint, met de hand afgewerkt.</p>
+      </div>
     </div>
     <div>
+      <h4>Kijken</h4>
       <a href="<?= e(url('?p=shop')) ?>"><?= $showcase ? 'Mijn werk' : 'Shop' ?></a>
-      <a href="<?= e(url('?p=shop&collection=new')) ?>">Nieuw</a><a href="<?= e(url('?p=home#categories')) ?>">Categorieën</a><a href="<?= e(url('?p=custom')) ?>">Eigen idee laten printen</a>
+      <a href="<?= e(url('?p=shop&collection=new')) ?>">Nieuw</a>
+      <a href="<?= e(url('?p=custom')) ?>">Eigen idee laten printen</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="<?= e(url('?p=chat')) ?>">Chat</a>
+      <a href="<?= e(url('?p=support')) ?>">Veelgestelde vragen</a>
+      <?php if (setting('contact_email', '')): ?><a href="mailto:<?= e(setting('contact_email', '')) ?>"><?= e(setting('contact_email', '')) ?></a><?php endif; ?>
       <?php foreach ($social as $label => $link): ?><a href="<?= e($link) ?>" target="_blank" rel="noopener"><?= e($label) ?></a><?php endforeach; ?>
     </div>
     <div>
-      <a href="<?= e(url('?p=support')) ?>">Contact &amp; veelgestelde vragen</a>
-      <?php if (setting('contact_email', '')): ?><p>Vragen? <a href="mailto:<?= e(setting('contact_email', '')) ?>"><?= e(setting('contact_email', '')) ?></a></p><?php endif; ?>
       <?php
         $legal = array_filter([
             setting('legal_name', ''),
@@ -83,8 +101,8 @@ function render_page(string $path): void {
             setting('btw_id', '') ? 'Btw-id ' . setting('btw_id', '') : '',
         ]);
       ?>
-      <?php if ($legal): ?><p class="muted small"><?= implode('<br>', array_map('e', $legal)) ?></p><?php endif; ?>
-      <p class="muted small">&copy; <?= date('Y') ?> <?= e($store) ?><?php if (!is_logged_in()): ?> · <a class="inline" href="<?= e(url('?p=login')) ?>">Inloggen</a><?php endif; ?></p>
+      <?php if ($legal): ?><p class="small"><?= implode('<br>', array_map('e', $legal)) ?></p><?php endif; ?>
+      <p class="small">&copy; <?= date('Y') ?> <?= e($store) ?></p>
     </div>
   </div>
 </footer>
@@ -94,7 +112,9 @@ function render_page(string $path): void {
 }
 
 function admin_tabs(string $active): void {
+    $unread = chat_unread_for_admin();
     $tabs = [
+        'admin_chats'    => 'Chats' . ($unread > 0 ? " ($unread)" : ''),
         'admin_products' => 'Producten',
         'admin_requests' => 'Printverzoeken',
         'admin_settings' => 'Instellingen',
