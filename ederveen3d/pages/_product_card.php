@@ -11,7 +11,7 @@
   <p class="muted small"><?= e($p['category'] ?: 'Overig') ?><?= !empty($p['is_new']) ? ' · Nieuw' : '' ?></p>
   <p class="price"><?= money((int)$p['price_cents']) ?></p>
   <?php if (showcase_mode()): ?>
-    <p class="small muted"><?= !empty($p['marktplaats_url']) ? 'Te koop via Marktplaats' : 'Op aanvraag' ?></p>
+    <p class="small muted">Te koop</p>
   <?php else: ?>
     <p class="small muted"><?= (int)$p['stock'] > 0 ? 'Op voorraad' : 'Wordt voor je geprint' ?></p>
   <?php endif; ?>

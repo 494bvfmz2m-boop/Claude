@@ -155,3 +155,16 @@ tbody tr:hover{background:rgba(63,208,224,.05)}
 .footer-logo{width:46px;height:46px;display:block;margin-bottom:8px}
 .footer-inner a.inline{display:inline}
 .home-hero h1 em{font-style:normal;color:var(--pink)}
+.order-box{margin:24px 0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:rgba(18,26,43,.5)}
+.order-box h2{margin-bottom:.3em}
+.pay-choice{display:flex;flex-wrap:wrap;gap:8px}
+.pay-choice input{position:absolute;opacity:0;pointer-events:none}
+.pay-choice>label{margin:0;padding:8px 16px;border:1px solid var(--line);border-radius:999px;cursor:pointer;color:var(--muted);transition:all .2s}
+.pay-choice>label:hover{color:var(--text);border-color:var(--cyan)}
+.pay-choice input:checked+label{background:rgba(63,208,224,.13);color:var(--cyan-2);border-color:rgba(63,208,224,.5)}
+.pay-choice input:focus-visible+label{outline:2px solid var(--cyan);outline-offset:2px}
+.pay-panel{display:none;flex-basis:100%;padding-top:10px}
+#pay-mp:checked~.pay-panel-mp,#pay-direct:checked~.pay-panel-direct{display:block}
+.contact-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.btn.is-soon{opacity:.5;cursor:default}
+.btn.is-soon:hover{transform:none;border-color:var(--line);color:var(--text)}

@@ -57,7 +57,7 @@ $page = $_GET['p'] ?? 'home';
 if (showcase_mode()) {
     $routes['admin'] = 'admin_products.php';
     if (in_array($page, ['cart', 'checkout', 'register'], true)) {
-        flash('Bestellen gaat op dit moment via Marktplaats. Klik bij een product op "Bekijk op Marktplaats".', 'warn');
+        flash('Bestellen gaat via de productpagina: kies daar Marktplaats, Tikkie of kaart.', 'warn');
         redirect('?p=shop');
     }
 }

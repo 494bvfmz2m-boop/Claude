@@ -14,17 +14,11 @@ $mpUrl = trim((string)($product['marktplaats_url'] ?? ''));
   <div class="product-photo hover-sheen"><img src="<?= e(url($product['image'] ?: 'assets/hero.jpg')) ?>" alt="<?= e($product['name']) ?>"></div>
   <div><?php if ($product['promo_badge']): ?><span class="pill promo"><?= e($product['promo_badge']) ?></span><?php endif; ?><h1><?= e($product['name']) ?></h1><p class="price product-price"><?= money((int)$product['price_cents']) ?></p><p class="muted"><?= nl2br(e($product['description'])) ?></p>
     <?php if ($showcase): ?>
-      <div class="buy-panel">
-        <?php if ($mpUrl !== ''): ?>
-          <a class="btn hover-sheen" href="<?= e($mpUrl) ?>" target="_blank" rel="noopener">Bekijk op Marktplaats ↗</a>
-        <?php else: ?>
-          <a class="btn hover-sheen" href="<?= e(url('?p=custom&about=' . urlencode($product['name']))) ?>">Stuur me een bericht</a>
-        <?php endif; ?>
-      </div>
+      <?php include __DIR__ . '/_order_options.php'; ?>
       <?php if ($colours): ?><p class="small muted">Beschikbare kleuren: <?= e(implode(', ', $colours)) ?></p><?php endif; ?>
     <?php else: ?>
       <form method="post" class="buy-panel"><?= csrf_field() ?><?php if ($colours): ?><label>Kleur<select name="colour"><?php foreach ($colours as $colour): ?><option><?= e($colour) ?></option><?php endforeach; ?></select></label><?php endif; ?><label>Aantal <input type="number" name="qty" value="1" min="1" max="99"></label><button class="btn hover-sheen" type="submit">In winkelwagen</button></form>
     <?php endif; ?>
-    <div class="product-info"><h2>Productinformatie</h2><dl><div><dt>Categorie</dt><dd><?= e($product['category'] ?: 'Overig') ?></dd></div><div><dt>Materiaal</dt><dd><?= e($product['material'] ?: 'Zie beschrijving') ?></dd></div><?php if ($product['size_text']): ?><div><dt>Afmetingen</dt><dd><?= e($product['size_text']) ?></dd></div><?php endif; ?><?php if (!$showcase): ?><div><dt>Beschikbaarheid</dt><dd><?= (int)$product['stock'] > 0 ? (int)$product['stock'] . ' op voorraad' : 'Wordt voor je geprint' ?></dd></div><?php endif; ?></dl><?php if ($product['product_details']): ?><p class="muted"><?= nl2br(e($product['product_details'])) ?></p><?php endif; ?><h2>Verzending</h2><p class="small muted">📦 Verstuurd binnen Nederland met PostNL, of ophalen in Maarn.</p></div>
+    <div class="product-info"><h2>Productinformatie</h2><dl><div><dt>Categorie</dt><dd><?= e($product['category'] ?: 'Overig') ?></dd></div><div><dt>Materiaal</dt><dd><?= e($product['material'] ?: 'Zie beschrijving') ?></dd></div><?php if ($product['size_text']): ?><div><dt>Afmetingen</dt><dd><?= e($product['size_text']) ?></dd></div><?php endif; ?><?php if (!$showcase): ?><div><dt>Beschikbaarheid</dt><dd><?= (int)$product['stock'] > 0 ? (int)$product['stock'] . ' op voorraad' : 'Wordt voor je geprint' ?></dd></div><?php endif; ?></dl><?php if ($product['product_details']): ?><p class="muted"><?= nl2br(e($product['product_details'])) ?></p><?php endif; ?><h2>Verzending</h2><p class="small muted">📦 Verstuurd binnen Nederland met PostNL; de verzendkosten zijn voor de klant. Ophalen in Maarn is gratis.</p></div>
   </div>
 </div>
