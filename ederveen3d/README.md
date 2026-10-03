@@ -38,7 +38,7 @@ Onder **Beheer → Instellingen** vul je ook je Marktplaats-profiel, Instagram e
 Die links komen in de footer en op de homepage.
 
 Op elke productpagina staat een blok **Bestellen**. Klanten kiezen daar tussen Marktplaats en
-Tikkie of kaart. Kiezen ze Tikkie of kaart, dan zien ze knoppen om je een bericht te sturen via
+creditcard/debitcard. Kiezen ze kaart, dan zien ze knoppen om je een bericht te sturen via
 Discord, e-mail, Instagram en WhatsApp. Vul je Discord-link en (later) je WhatsApp-nummer in bij
 **Beheer → Instellingen**. Zolang er geen WhatsApp-nummer staat, toont de site "WhatsApp (binnenkort)".
 

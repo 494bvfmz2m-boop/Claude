@@ -1,5 +1,5 @@
 <?php
-// How to order in portfolio mode: Marktplaats, or Tikkie / card after getting in touch.
+// How to order in portfolio mode: Marktplaats, or credit/debit card after getting in touch.
 // Expects $product (array) and $mpUrl (string).
 $about = 'Ik wil graag bestellen: ' . $product['name'];
 $email = setting('contact_email', '');
@@ -14,14 +14,14 @@ $hasMp = $mpUrl !== '';
 ?>
 <div class="order-box">
   <h2>Bestellen</h2>
-  <p class="small muted">Betalen kan via <strong>Marktplaats</strong>, <strong>Tikkie</strong> of <strong>creditcard/debitcard</strong>. Verzendkosten zijn voor de klant; ophalen in Maarn is gratis.</p>
+  <p class="small muted">Betalen kan via <strong>Marktplaats</strong> of <strong>creditcard/debitcard</strong>. Verzendkosten zijn voor de klant; ophalen in Maarn is gratis.</p>
   <div class="pay-choice" role="radiogroup" aria-label="Hoe wil je betalen?">
     <?php if ($hasMp): ?>
       <input type="radio" name="pay" id="pay-mp" checked>
       <label for="pay-mp">Marktplaats</label>
     <?php endif; ?>
     <input type="radio" name="pay" id="pay-direct" <?= $hasMp ? '' : 'checked' ?>>
-    <label for="pay-direct">Tikkie of kaart</label>
+    <label for="pay-direct">Creditcard/debitcard</label>
 
     <?php if ($hasMp): ?>
       <div class="pay-panel pay-panel-mp">
@@ -30,7 +30,7 @@ $hasMp = $mpUrl !== '';
       </div>
     <?php endif; ?>
     <div class="pay-panel pay-panel-direct">
-      <p class="small muted">Stuur me een bericht. Ik laat weten wat het met verzending kost en stuur je een Tikkie of betaallink.</p>
+      <p class="small muted">Stuur me een bericht. Ik laat weten wat het met verzending kost en stuur je een betaallink voor je creditcard of debitcard.</p>
       <div class="contact-buttons">
         <?php foreach ($contacts as $label => $link): ?>
           <a class="btn ghost small" href="<?= e($link) ?>" <?= str_starts_with($link, 'mailto:') ? '' : 'target="_blank" rel="noopener"' ?>><?= e($label) ?></a>

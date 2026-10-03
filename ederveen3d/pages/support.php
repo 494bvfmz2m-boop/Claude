@@ -3,7 +3,7 @@ $GLOBALS['page_title'] = 'Contact en veelgestelde vragen - ' . setting('store_na
 $GLOBALS['page_desc'] = 'Verzenden, ophalen, materialen en levertijden van mijn 3D-prints.';
 if (showcase_mode()) {
     $faq = [
-        ['Hoe kan ik iets kopen?', 'Betalen kan via Marktplaats, Tikkie of creditcard/debitcard. Kies op de productpagina hoe je wilt betalen. Bij Tikkie of kaart stuur je me een bericht via Discord, e-mail of Instagram, dan krijg je een Tikkie of betaallink.'],
+        ['Hoe kan ik iets kopen?', 'Betalen kan via Marktplaats of creditcard/debitcard. Kies op de productpagina hoe je wilt betalen. Bij creditcard/debitcard stuur je me een bericht via Discord, e-mail of Instagram, dan krijg je een betaallink.'],
         ['Verzenden of ophalen', 'Ik verstuur binnen Nederland met PostNL. De verzendkosten zijn voor de klant. Woon je in de buurt van Maarn? Dan kun je je print gratis ophalen.'],
         ['Levertijd', 'Wat klaarstaat, verstuur ik meestal binnen een paar dagen. Een print op maat duurt langer, afhankelijk van het formaat. Dat hoor je vooraf.'],
         ['Materialen', 'Ik print in PLA Basic en PETG Basic van Bambu Lab. PLA Basic is mooi voor details en kleuren, PETG Basic is steviger en kan beter tegen warmte en buiten. Ander Bambu Lab-filament kan op verzoek, tegen meerprijs.'],
