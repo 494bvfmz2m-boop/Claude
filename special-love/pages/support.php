@@ -5,7 +5,7 @@ $faq = [
     ['Shipping', 'We ship world wide, depending on your location shipping costs will differ.'],
     ['Returns', "Our Catalog and custom prints can't be returned."],
     ['Lead times', 'Catalog items usually leave within 2-4 business days. Custom prints depend on size and the queue; your quote will say.'],
-    ['Materials', 'PLA for detail and colour, PETG for strength and outdoor use, TPU for flexible parts, resin for fine detail.'],
+    ['Materials', 'PLA for detail and colour, PETG for strength and outdoor use and TPU for flexible parts.'],
     ['Custom files', 'We accept STL, STEP, 3MF, OBJ and ZIP up to 100 MB. Your files stay private and are only used for your order.'],
     ['Payments', 'Card payments are handled by Stripe. We never see or store your card details.'],
 ];

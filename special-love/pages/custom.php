@@ -5,6 +5,7 @@ $GLOBALS['page_desc'] = 'Upload your STL, STEP or 3MF model and get a quote with
 $errors = [];
 $sent = false;
 $allowed = ['stl', 'step', 'stp', '3mf', 'obj', 'zip'];
+$materials = ['PLA', 'PETG', 'ABS', 'TPU'];
 $maxBytes = 100 * 1024 * 1024;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim((string)($_POST['email'] ?? ''));
     $name  = trim((string)($_POST['full_name'] ?? ''));
     $material = trim((string)($_POST['material'] ?? 'PLA'));
+    if (!in_array($material, $materials, true)) $material = 'PLA';
     $qty = max(1, (int)($_POST['quantity'] ?? 1));
     $details = trim((string)($_POST['details'] ?? ''));
     $stored = null; $original = null;
@@ -69,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <label>Email <input type="email" name="email" required value="<?= e(current_user()['email'] ?? '') ?>"></label>
       <label>Material
         <select name="material">
-          <?php foreach (['PLA', 'PETG', 'ABS', 'TPU', 'Resin'] as $m): ?>
+          <?php foreach ($materials as $m): ?>
             <option><?= $m ?></option>
           <?php endforeach; ?>
         </select>
