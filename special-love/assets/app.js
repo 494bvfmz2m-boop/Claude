@@ -17,6 +17,7 @@
   }
 
   document.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return; // e.g. a cancelled "are you sure?" box
     var btn = e.target.querySelector('button[type=submit], .btn[type=submit]');
     if (btn && !btn.disabled) {
       btn.dataset.label = btn.textContent;

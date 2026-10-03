@@ -2,27 +2,34 @@
 $ref = (string)($_GET['ref'] ?? '');
 $order = $ref !== '' ? one('SELECT * FROM orders WHERE reference = ?', [$ref]) : null;
 
-if (!$order) {
+// Coming back from Stripe: ask Stripe directly so the order is confirmed even before the webhook arrives.
+if ($order && $order['payment_status'] === 'pending' && !empty($order['stripe_session_id'])) {
+    $session = stripe_request('GET', 'checkout/sessions/' . rawurlencode($order['stripe_session_id']));
+    if (($session['payment_status'] ?? '') === 'paid') {
+        q('UPDATE orders SET payment_status = "paid", status = IF(status = "new", "paid", status) WHERE id = ?', [$order['id']]);
+        $order = one('SELECT * FROM orders WHERE id = ?', [$order['id']]);
+    }
+}
+
+$paid = $order && in_array($order['payment_status'], ['paid', 'refunded'], true);
+// Just paid, payment still being confirmed by Stripe.
+$confirming = $order && !$paid && $order['payment_status'] === 'pending' && !empty($_GET['paid'])
+    && $ref === ($_SESSION['pending_order'] ?? null);
+
+if (!$paid && !$confirming) {
+    // Unpaid orders don't count as orders.
     http_response_code(404);
     echo '<h1>Order not found</h1><p class="muted">Check the link in your confirmation email.</p>';
     return;
 }
+if ($ref === ($_SESSION['pending_order'] ?? null)) {
+    $_SESSION['cart'] = [];
+    if ($paid) unset($_SESSION['pending_order']);
+}
 $GLOBALS['page_title'] = 'Order ' . $order['reference'] . ' - ' . setting('store_name', 'Special Love');
 $GLOBALS['page_desc'] = 'Order status and details for ' . $order['reference'] . '.';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay') {
-    csrf_check();
-    if (stripe_enabled() && $order['payment_status'] !== 'paid') {
-        $items = all('SELECT * FROM order_items WHERE order_id = ?', [$order['id']]);
-        [$payUrl, $err] = stripe_checkout_session($order, $items);
-        if ($payUrl) redirect($payUrl);
-        flash('Could not open the payment page: ' . $err, 'err');
-        redirect('?p=order&ref=' . urlencode($ref));
-    }
-}
-
 $items = all('SELECT * FROM order_items WHERE order_id = ?', [$order['id']]);
-$paid = $order['payment_status'] === 'paid';
 ?>
 <div class="card anim-pop" style="text-align:center">
   <?php if ($paid): ?>
@@ -30,16 +37,11 @@ $paid = $order['payment_status'] === 'paid';
     <h1>Thank you!</h1>
     <p class="muted">Payment received. We are getting your print started.</p>
   <?php else: ?>
-    <h1>Order received</h1>
-    <p class="muted">Your order is saved. <?= stripe_enabled() ? 'Complete payment below to start the print.' : 'We will be in touch about payment.' ?></p>
+    <h1>Confirming your payment…</h1>
+    <p class="muted">Stripe is confirming your payment. This usually takes a few seconds — refresh this page in a moment.</p>
   <?php endif; ?>
   <p><strong>Reference:</strong> <?= e($order['reference']) ?></p>
   <p><span class="pill"><?= e($order['status']) ?></span><span class="pill"><?= e($order['payment_status']) ?></span></p>
-  <?php if (!$paid && stripe_enabled()): ?>
-    <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="pay">
-      <button class="btn hover-sheen" type="submit">Pay now</button>
-    </form>
-  <?php endif; ?>
 </div>
 
 <div class="card" style="margin-top:20px">

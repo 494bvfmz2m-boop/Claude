@@ -49,11 +49,13 @@ function stripe_checkout_session(array $order, array $items): array {
     $params = [
         'mode'                                 => 'payment',
         'success_url'                          => url('?p=order&ref=' . urlencode($order['reference']) . '&paid=1'),
-        'cancel_url'                           => url('?p=order&ref=' . urlencode($order['reference'])),
+        'cancel_url'                           => url('?p=cart&cancel=' . urlencode($order['reference'])),
         'client_reference_id'                  => $order['reference'],
         'metadata[order_id]'                   => $order['id'],
         'metadata[order_reference]'            => $order['reference'],
         'payment_intent_data[metadata][order_reference]' => $order['reference'],
+        // Stripe's shortest allowed lifetime; unpaid orders are cleared after this.
+        'expires_at'                           => time() + 30 * 60 + 60,
     ];
     if (!empty($order['email'])) $params['customer_email'] = $order['email'];
 
@@ -76,6 +78,36 @@ function stripe_checkout_session(array $order, array $items): array {
     if (isset($res['error'])) return [null, $res['error']['message'] ?? 'Stripe error'];
     q('UPDATE orders SET stripe_session_id = ?, payment_status = ? WHERE id = ?', [$res['id'], 'pending', $order['id']]);
     return [$res['url'], null];
+}
+
+/** Delete an order and its items. */
+function delete_order(int $id): void {
+    q('DELETE FROM order_items WHERE order_id = ?', [$id]);
+    q('DELETE FROM orders WHERE id = ?', [$id]);
+}
+
+/**
+ * Throw away an unpaid order. If it has a Stripe payment page, that page is
+ * closed first; when Stripe says it's already paid, the order is kept.
+ */
+function discard_unpaid_order(array $order): bool {
+    if ($order['payment_status'] === 'paid' || $order['payment_status'] === 'refunded') return false;
+    if (!empty($order['stripe_session_id'])) {
+        $res = stripe_request('POST', 'checkout/sessions/' . rawurlencode($order['stripe_session_id']) . '/expire');
+        if (isset($res['error'])) {
+            $s = stripe_request('GET', 'checkout/sessions/' . rawurlencode($order['stripe_session_id']));
+            if (($s['payment_status'] ?? '') === 'paid' || ($s['status'] ?? '') === 'complete') return false;
+            if (($s['status'] ?? '') !== 'expired') return false; // Stripe unreachable: try again later
+        }
+    }
+    delete_order((int)$order['id']);
+    return true;
+}
+
+/** Remove orders that were never paid for (abandoned payment pages, old unpaid orders). */
+function purge_unpaid_orders(): void {
+    $old = all("SELECT * FROM orders WHERE payment_status IN ('unpaid', 'pending') AND created_at < (NOW() - INTERVAL 2 HOUR)");
+    foreach ($old as $o) discard_unpaid_order($o);
 }
 
 function stripe_verify_webhook(string $payload, ?string $sigHeader, string $secret): bool {

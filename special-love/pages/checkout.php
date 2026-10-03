@@ -8,6 +8,11 @@ if (!$lines) {
     return;
 }
 
+if (!stripe_enabled()) {
+    echo '<h1>Checkout</h1><div class="card"><p class="muted">Online payment isn\'t available right now, so orders can\'t be placed. Please try again later or <a href="' . e(url('?p=support')) . '">contact us</a>.</p><a class="btn" href="' . e(url('?p=cart')) . '">Back to cart</a></div>';
+    return;
+}
+
 $user = current_user();
 $errors = [];
 $method = $_POST['shipping_method'] ?? 'standard';
@@ -18,8 +23,11 @@ $ship = shipping_cents($subtotal, $method);
 $total = $subtotal + $ship;
 $gst = gst_cents($total);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_check();
+// Changing the shipping option only recalculates the totals; it must not place the order.
+$placeOrder = $_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST['recalc']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') csrf_check();
+
+if ($placeOrder) {
     $f = [
         'full_name' => trim((string)($_POST['full_name'] ?? '')),
         'email'     => trim((string)($_POST['email'] ?? '')),
@@ -38,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         // Totals are recalculated here from the database - never trusted from the form.
+        // The order is held as 'pending' and only shows up in Admin once Stripe confirms payment;
+        // unpaid ones are deleted (cancel, expiry or clean-up).
         $ref = order_ref();
         q('INSERT INTO orders (reference, user_id, email, full_name, phone, address1, address2, city, state, postcode, country, notes,
             shipping_method, subtotal_cents, shipping_cents, gst_cents, total_cents)
@@ -52,16 +62,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $orderId, (int)$l['product']['id'], $l['product']['name'], (int)$l['product']['price_cents'], (int)$l['qty'],
             ]);
         }
-        $_SESSION['cart'] = [];
-
-        if (stripe_enabled()) {
-            $order = one('SELECT * FROM orders WHERE id = ?', [$orderId]);
-            $items = all('SELECT * FROM order_items WHERE order_id = ?', [$orderId]);
-            [$payUrl, $err] = stripe_checkout_session($order, $items);
-            if ($payUrl) redirect($payUrl);
-            flash('Order saved, but the payment page could not be opened: ' . $err, 'warn');
+        // The cart is kept until payment goes through, so a cancelled payment loses nothing.
+        $order = one('SELECT * FROM orders WHERE id = ?', [$orderId]);
+        $items = all('SELECT * FROM order_items WHERE order_id = ?', [$orderId]);
+        [$payUrl, $err] = stripe_checkout_session($order, $items);
+        if ($payUrl) {
+            $_SESSION['pending_order'] = $ref;
+            redirect($payUrl);
         }
-        redirect('?p=order&ref=' . urlencode($ref));
+        delete_order($orderId);
+        $errors[] = 'The payment page could not be opened, so no order was placed: ' . $err;
     }
 }
 ?>
@@ -69,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php foreach ($errors as $err): ?><div class="note err"><?= e($err) ?></div><?php endforeach; ?>
 
 <form method="post" class="grid cols-2" style="align-items:start">
-  <?= csrf_field() ?>
+  <?= csrf_field() ?><input type="hidden" name="recalc" value="">
   <div class="card">
     <h2>Delivery details</h2>
     <label>Full name <input name="full_name" required value="<?= e($_POST['full_name'] ?? ($user['full_name'] ?? '')) ?>"></label>
@@ -98,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </table>
     </div>
     <label style="margin-top:14px">Shipping
-      <select name="shipping_method" onchange="this.form.submit()">
+      <select name="shipping_method" onchange="this.form.recalc.value='1'; this.form.submit()">
         <option value="standard" <?= $method === 'standard' ? 'selected' : '' ?>>Standard - <?= money(shipping_cents($subtotal, 'standard')) ?></option>
         <option value="express" <?= $method === 'express' ? 'selected' : '' ?>>Express - <?= money(shipping_cents($subtotal, 'express')) ?></option>
       </select>
@@ -108,12 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p class="muted small">Includes GST <span style="float:right"><?= money($gst) ?></span></p>
     <p class="price" style="font-size:1.3rem">Total <span style="float:right"><?= money($total) ?></span></p>
     <button class="btn hover-sheen" type="submit" style="width:100%">
-      <?= stripe_enabled() ? 'Pay now' : 'Place order' ?>
+      Pay now
     </button>
     <p class="small muted" style="margin-top:10px">
-      <?= stripe_enabled()
-        ? 'You will be taken to Stripe\'s secure payment page.'
-        : 'Card payments are not switched on yet - we will email you payment details.' ?>
+      You will be taken to Stripe's secure payment page. Your order is only placed once payment goes through.
     </p>
   </div>
 </form>

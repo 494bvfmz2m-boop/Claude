@@ -6,11 +6,19 @@ $GLOBALS['page_desc'] = 'Manage customer orders.';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $id = (int)($_POST['id'] ?? 0);
+    if (($_POST['action'] ?? '') === 'delete') {
+        $o = one('SELECT reference FROM orders WHERE id = ?', [$id]);
+        if ($o) {
+            delete_order($id);
+            flash('Order ' . $o['reference'] . ' deleted.');
+        }
+        redirect('?p=admin_orders');
+    }
     $status = (string)($_POST['status'] ?? 'new');
     $payment = (string)($_POST['payment_status'] ?? 'unpaid');
     $tracking = trim((string)($_POST['tracking'] ?? ''));
     $allowedStatus = ['new', 'paid', 'printing', 'finishing', 'shipped', 'complete', 'cancelled'];
-    $allowedPayment = ['unpaid', 'pending', 'paid', 'refunded'];
+    $allowedPayment = ['paid', 'refunded'];
     if (in_array($status, $allowedStatus, true) && in_array($payment, $allowedPayment, true)) {
         q('UPDATE orders SET status = ?, payment_status = ?, tracking = ? WHERE id = ?', [$status, $payment, $tracking ?: null, $id]);
         flash('Order updated.');
@@ -18,10 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('?p=admin_orders');
 }
 
+// Only paid orders are real orders. Unpaid ones are cleared out and never listed.
+purge_unpaid_orders();
 $filter = (string)($_GET['status'] ?? '');
 $orders = $filter !== ''
-    ? all('SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC LIMIT 200', [$filter])
-    : all('SELECT * FROM orders ORDER BY created_at DESC LIMIT 200');
+    ? all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') AND status = ? ORDER BY created_at DESC LIMIT 200", [$filter])
+    : all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') ORDER BY created_at DESC LIMIT 200");
 ?>
 <h1>Admin</h1>
 <?php admin_tabs('admin_orders'); ?>
@@ -34,7 +44,7 @@ $orders = $filter !== ''
       <a class="pill" href="<?= e(url('?p=admin_orders&status=' . $s)) ?>"><?= e($s) ?></a>
     <?php endforeach; ?>
   </p>
-  <?php if (!$orders): ?><p class="muted">No orders yet.</p><?php endif; ?>
+  <?php if (!$orders): ?><p class="muted">No paid orders yet.</p><?php endif; ?>
   <?php foreach ($orders as $o):
       $items = all('SELECT * FROM order_items WHERE order_id = ?', [$o['id']]); ?>
     <div class="card hover-lift" style="margin-bottom:14px">
@@ -61,13 +71,19 @@ $orders = $filter !== ''
           </label>
           <label>Payment
             <select name="payment_status">
-              <?php foreach (['unpaid', 'pending', 'paid', 'refunded'] as $s): ?>
+              <?php foreach (['paid', 'refunded'] as $s): ?>
                 <option value="<?= $s ?>" <?= $o['payment_status'] === $s ? 'selected' : '' ?>><?= $s ?></option>
               <?php endforeach; ?>
             </select>
           </label>
           <label>Tracking number <input name="tracking" value="<?= e($o['tracking']) ?>"></label>
           <button class="btn small" type="submit">Save</button>
+        </form>
+      </div>
+      <div style="text-align:right;margin-top:10px">
+        <form method="post" onsubmit="return confirm('Delete order <?= e($o['reference']) ?>? This cannot be undone.')" style="display:inline">
+          <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$o['id'] ?>"><input type="hidden" name="action" value="delete">
+          <button class="btn danger small" type="submit">Delete order</button>
         </form>
       </div>
     </div>

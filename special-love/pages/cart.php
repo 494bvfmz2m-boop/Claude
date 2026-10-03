@@ -2,6 +2,17 @@
 $GLOBALS['page_title'] = 'Your cart - ' . setting('store_name', 'Special Love');
 $GLOBALS['page_desc'] = 'Review the 3D prints in your cart before checkout.';
 
+// Back from Stripe without paying: the order is thrown away, the cart stays.
+$cancelRef = (string)($_GET['cancel'] ?? '');
+if ($cancelRef !== '' && $cancelRef === ($_SESSION['pending_order'] ?? null)) {
+    unset($_SESSION['pending_order']);
+    $pending = one('SELECT * FROM orders WHERE reference = ?', [$cancelRef]);
+    if ($pending && discard_unpaid_order($pending)) {
+        flash('Payment cancelled. No order was placed; your cart is still here.', 'warn');
+    }
+    redirect('?p=cart');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = $_POST['action'] ?? '';

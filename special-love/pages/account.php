@@ -3,7 +3,7 @@ require_login();
 $GLOBALS['page_title'] = 'Your account - ' . setting('store_name', 'Special Love');
 $GLOBALS['page_desc'] = 'Your orders, custom print requests and security settings.';
 $u = current_user();
-$orders = all('SELECT * FROM orders WHERE user_id = ? OR email = ? ORDER BY created_at DESC', [$u['id'], $u['email']]);
+$orders = all("SELECT * FROM orders WHERE (user_id = ? OR email = ?) AND payment_status IN ('paid', 'refunded') ORDER BY created_at DESC", [$u['id'], $u['email']]);
 $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? ORDER BY created_at DESC', [$u['id'], $u['email']]);
 ?>
 <h1>Hi <?= e($u['full_name'] ?: $u['email']) ?></h1>

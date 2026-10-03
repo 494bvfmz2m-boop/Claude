@@ -31,8 +31,10 @@ if ($type === 'checkout.session.completed' || $type === 'checkout.session.async_
         q('UPDATE orders SET payment_status = "paid" WHERE stripe_session_id = ?', [$sessionId]);
     }
 } elseif ($type === 'checkout.session.expired' || $type === 'checkout.session.async_payment_failed') {
+    // Never paid: throw the order away.
     $ref = $obj['client_reference_id'] ?? null;
-    if ($ref) q('UPDATE orders SET payment_status = "unpaid" WHERE reference = ? AND payment_status <> "paid"', [$ref]);
+    $order = $ref ? one('SELECT * FROM orders WHERE reference = ?', [$ref]) : null;
+    if ($order && !in_array($order['payment_status'], ['paid', 'refunded'], true)) delete_order((int)$order['id']);
 }
 
 http_response_code(200);
