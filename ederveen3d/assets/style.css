@@ -166,5 +166,3 @@ tbody tr:hover{background:rgba(63,208,224,.05)}
 .pay-panel{display:none;flex-basis:100%;padding-top:10px}
 #pay-mp:checked~.pay-panel-mp,#pay-direct:checked~.pay-panel-direct{display:block}
 .contact-buttons{display:flex;flex-wrap:wrap;gap:8px}
-.btn.is-soon{opacity:.5;cursor:default}
-.btn.is-soon:hover{transform:none;border-color:var(--line);color:var(--text)}

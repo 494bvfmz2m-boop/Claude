@@ -36,7 +36,6 @@ $hasMp = $mpUrl !== '';
         <?php foreach ($contacts as $label => $link): ?>
           <a class="btn ghost small" href="<?= e($link) ?>" <?= str_starts_with($link, 'mailto:') ? '' : 'target="_blank" rel="noopener"' ?>><?= e($label) ?></a>
         <?php endforeach; ?>
-        <?php if ($whatsapp === ''): ?><span class="btn ghost small is-soon" aria-disabled="true">WhatsApp (binnenkort)</span><?php endif; ?>
         <?php if (!$contacts): ?><a class="btn ghost small" href="<?= e(url('?p=custom&about=' . urlencode($product['name']))) ?>">Contactformulier</a><?php endif; ?>
       </div>
     </div>

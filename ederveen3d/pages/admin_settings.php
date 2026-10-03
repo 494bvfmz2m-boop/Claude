@@ -64,9 +64,9 @@ $mode = showcase_mode() ? 'showcase' : 'shop';
     <label>Instagram <input name="instagram_url" placeholder="https://instagram.com/ederveen3d" value="<?= e(setting('instagram_url', '')) ?>"></label>
     <label>TikTok <input name="tiktok_url" placeholder="https://tiktok.com/@ederveen3d" value="<?= e(setting('tiktok_url', '')) ?>"></label>
     <label>Discord-link <input name="discord_url" placeholder="https://discord.com/users/..." value="<?= e(setting('discord_url', '')) ?>"></label>
-    <label>WhatsApp-nummer <input name="whatsapp_number" placeholder="Leeg = &quot;binnenkort&quot;, bijv. 31612345678" value="<?= e(setting('whatsapp_number', '')) ?>"></label>
+    <label>WhatsApp-nummer <input name="whatsapp_number" placeholder="Bijv. 31612345678 (leeg = niet tonen)" value="<?= e(setting('whatsapp_number', '')) ?>"></label>
   </div>
-  <p class="small muted">Discord, e-mail, Instagram, TikTok en WhatsApp verschijnen op de productpagina als iemand met creditcard/debitcard wil betalen. Lege velden worden niet getoond; zonder WhatsApp-nummer staat er "WhatsApp (binnenkort)".</p>
+  <p class="small muted">Discord, e-mail, Instagram, TikTok en WhatsApp verschijnen op de productpagina als iemand met creditcard/debitcard wil betalen. Lege velden worden niet getoond.</p>
 
   <h2>Bedrijfsgegevens</h2>
   <p class="small muted">Verplicht voor een webshop. Laat leeg zolang je niet bij de KvK staat ingeschreven; lege velden worden niet getoond.</p>
