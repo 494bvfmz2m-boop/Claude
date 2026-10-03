@@ -58,6 +58,8 @@ function stripe_checkout_session(array $order, array $items): array {
         'expires_at'                           => time() + 30 * 60 + 60,
     ];
     if (!empty($order['email'])) $params['customer_email'] = $order['email'];
+    // Discount codes (kortingsbonnen) are made in the Stripe dashboard; Stripe checks them on its payment page.
+    if (setting('stripe_promo_codes', '1') === '1') $params['allow_promotion_codes'] = 'true';
 
     $i = 0;
     foreach ($items as $it) {
@@ -78,6 +80,25 @@ function stripe_checkout_session(array $order, array $items): array {
     if (isset($res['error'])) return [null, $res['error']['message'] ?? 'Stripe error'];
     q('UPDATE orders SET stripe_session_id = ?, payment_status = ? WHERE id = ?', [$res['id'], 'pending', $order['id']]);
     return [$res['url'], null];
+}
+
+/**
+ * Mark an order paid from a completed Checkout Session, recording any discount
+ * code used and the amount Stripe actually charged.
+ */
+function stripe_mark_paid(array $order, array $session): void {
+    $discount = (int)($session['total_details']['amount_discount'] ?? 0);
+    $code = null;
+    foreach ((array)($session['discounts'] ?? []) as $d) {
+        $promo = $d['promotion_code'] ?? null;
+        if (is_array($promo)) $promo = $promo['code'] ?? null;
+        elseif (is_string($promo) && $promo !== '') $promo = stripe_request('GET', 'promotion_codes/' . rawurlencode($promo))['code'] ?? null;
+        if ($promo) { $code = $promo; break; }
+    }
+    $total = isset($session['amount_total']) ? (int)$session['amount_total'] : (int)$order['total_cents'];
+    q('UPDATE orders SET payment_status = "paid", status = IF(status = "new", "paid", status),
+         total_cents = ?, discount_cents = ?, discount_code = ? WHERE id = ?',
+      [$total, $discount, $code, $order['id']]);
 }
 
 /** Delete an order and its items. */

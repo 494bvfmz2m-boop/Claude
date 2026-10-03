@@ -58,6 +58,7 @@ $orders = $filter !== ''
             <?php foreach ($items as $it): ?><li><?= e($it['name']) ?> &times; <?= (int)$it['qty'] ?> - <?= money((int)$it['unit_price_cents']) ?></li><?php endforeach; ?>
           </ul>
           <?php if ($o['notes']): ?><p class="small muted">Note: <?= e($o['notes']) ?></p><?php endif; ?>
+          <?php if ((int)($o['discount_cents'] ?? 0) > 0): ?><p class="small">Discount code <span class="pill"><?= e($o['discount_code'] ?: 'used') ?></span> &minus;<?= money((int)$o['discount_cents']) ?></p><?php endif; ?>
           <p class="price"><?= money((int)$o['total_cents']) ?> <span class="small muted">(<?= e($o['shipping_method']) ?>)</span></p>
         </div>
         <form method="post">

@@ -6,7 +6,7 @@ $order = $ref !== '' ? one('SELECT * FROM orders WHERE reference = ?', [$ref]) :
 if ($order && $order['payment_status'] === 'pending' && !empty($order['stripe_session_id'])) {
     $session = stripe_request('GET', 'checkout/sessions/' . rawurlencode($order['stripe_session_id']));
     if (($session['payment_status'] ?? '') === 'paid') {
-        q('UPDATE orders SET payment_status = "paid", status = IF(status = "new", "paid", status) WHERE id = ?', [$order['id']]);
+        stripe_mark_paid($order, $session);
         $order = one('SELECT * FROM orders WHERE id = ?', [$order['id']]);
     }
 }
@@ -57,6 +57,7 @@ $items = all('SELECT * FROM order_items WHERE order_id = ?', [$order['id']]);
   </table>
   </div>
   <p>Shipping (<?= e($order['shipping_method']) ?>) <span style="float:right"><?= money((int)$order['shipping_cents']) ?></span></p>
+  <?php if ((int)($order['discount_cents'] ?? 0) > 0): ?><p>Discount<?= $order['discount_code'] ? ' (' . e($order['discount_code']) . ')' : '' ?> <span style="float:right">&minus;<?= money((int)$order['discount_cents']) ?></span></p><?php endif; ?>
   <p class="price">Total <span style="float:right"><?= money((int)$order['total_cents']) ?></span></p>
 </div>
 

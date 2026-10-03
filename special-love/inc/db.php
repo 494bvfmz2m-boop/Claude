@@ -51,4 +51,13 @@ function ensure_storefront_schema(): void {
         $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['products', $name]);
         if (!$exists) q("ALTER TABLE products ADD COLUMN `$name` $definition");
     }
+    // Discount codes used on paid orders (added automatically, no reinstall needed).
+    $orderColumns = [
+        'discount_cents' => 'INT NOT NULL DEFAULT 0',
+        'discount_code' => 'VARCHAR(80) NULL',
+    ];
+    foreach ($orderColumns as $name => $definition) {
+        $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['orders', $name]);
+        if (!$exists) q("ALTER TABLE orders ADD COLUMN `$name` $definition");
+    }
 }

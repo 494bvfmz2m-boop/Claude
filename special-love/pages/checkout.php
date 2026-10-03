@@ -122,6 +122,7 @@ if ($placeOrder) {
     </button>
     <p class="small muted" style="margin-top:10px">
       You will be taken to Stripe's secure payment page. Your order is only placed once payment goes through.
+      <?php if (setting('stripe_promo_codes', '1') === '1'): ?><br>Have a discount code? You can enter it on the payment page.<?php endif; ?>
     </p>
   </div>
 </form>

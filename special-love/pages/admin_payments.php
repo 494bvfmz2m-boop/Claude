@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save') {
         set_setting('stripe_mode', ($_POST['stripe_mode'] ?? 'test') === 'live' ? 'live' : 'test');
         set_setting('stripe_enabled', isset($_POST['stripe_enabled']) ? '1' : '0');
+        set_setting('stripe_promo_codes', isset($_POST['stripe_promo_codes']) ? '1' : '0');
         set_setting('stripe_test_publishable', trim((string)($_POST['stripe_test_publishable'] ?? '')));
         set_setting('stripe_live_publishable', trim((string)($_POST['stripe_live_publishable'] ?? '')));
         // Secret fields are only overwritten when something new is typed in.
@@ -54,6 +55,11 @@ $has = fn(string $k) => setting($k, '') !== '' ? 'Saved' : 'Not set';
       <input type="checkbox" name="stripe_enabled" value="1" style="width:auto" <?= setting('stripe_enabled', '0') === '1' ? 'checked' : '' ?>>
       Take card payments at checkout
     </label>
+    <label style="display:flex;gap:8px;align-items:center">
+      <input type="checkbox" name="stripe_promo_codes" value="1" style="width:auto" <?= setting('stripe_promo_codes', '1') === '1' ? 'checked' : '' ?>>
+      Let customers enter a discount code (kortingsbon) on the payment page
+    </label>
+    <p class="small muted">Make discount codes in Stripe: Product catalogue &rarr; Coupons &rarr; New coupon, then add a customer-facing code (e.g. WELCOME10). Make them in Test mode to try, and again in Live mode for real customers.</p>
 
     <h3>Test keys</h3>
     <label>Publishable key <input name="stripe_test_publishable" value="<?= e(setting('stripe_test_publishable', '')) ?>" placeholder="pk_test_..."></label>
