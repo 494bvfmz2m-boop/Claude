@@ -66,7 +66,7 @@ $mode = showcase_mode() ? 'showcase' : 'shop';
     <label>Discord-link <input name="discord_url" placeholder="https://discord.com/users/..." value="<?= e(setting('discord_url', '')) ?>"></label>
     <label>WhatsApp-nummer <input name="whatsapp_number" placeholder="Leeg = &quot;binnenkort&quot;, bijv. 31612345678" value="<?= e(setting('whatsapp_number', '')) ?>"></label>
   </div>
-  <p class="small muted">Discord, e-mail, Instagram en WhatsApp verschijnen op de productpagina als iemand met creditcard/debitcard wil betalen. Lege velden worden niet getoond; zonder WhatsApp-nummer staat er "WhatsApp (binnenkort)".</p>
+  <p class="small muted">Discord, e-mail, Instagram, TikTok en WhatsApp verschijnen op de productpagina als iemand met creditcard/debitcard wil betalen. Lege velden worden niet getoond; zonder WhatsApp-nummer staat er "WhatsApp (binnenkort)".</p>
 
   <h2>Bedrijfsgegevens</h2>
   <p class="small muted">Verplicht voor een webshop. Laat leeg zolang je niet bij de KvK staat ingeschreven; lege velden worden niet getoond.</p>

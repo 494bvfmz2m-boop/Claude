@@ -39,7 +39,7 @@ Die links komen in de footer en op de homepage.
 
 Op elke productpagina staat een blok **Bestellen**. Klanten kiezen daar tussen Marktplaats en
 creditcard/debitcard. Kiezen ze kaart, dan zien ze knoppen om je een bericht te sturen via
-Discord, e-mail, Instagram en WhatsApp. Vul je Discord-link en (later) je WhatsApp-nummer in bij
+Discord, e-mail, Instagram, TikTok en WhatsApp. Vul je Discord-link en (later) je WhatsApp-nummer in bij
 **Beheer → Instellingen**. Zolang er geen WhatsApp-nummer staat, toont de site "WhatsApp (binnenkort)".
 
 ## Later: de webshop aanzetten

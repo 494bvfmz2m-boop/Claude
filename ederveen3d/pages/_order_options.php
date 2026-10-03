@@ -8,6 +8,7 @@ $contacts = array_filter([
     'Discord'   => setting('discord_url', ''),
     'E-mail'    => $email !== '' ? 'mailto:' . $email . '?subject=' . rawurlencode($about) : '',
     'Instagram' => setting('instagram_url', ''),
+    'TikTok'    => setting('tiktok_url', ''),
     'WhatsApp'  => $whatsapp !== '' ? 'https://wa.me/' . $whatsapp . '?text=' . rawurlencode($about) : '',
 ]);
 $hasMp = $mpUrl !== '';
