@@ -4,29 +4,11 @@ $GLOBALS['page_title'] = 'Products - admin';
 $GLOBALS['page_desc'] = 'Add products, upload photos and manage stock.';
 
 $errors = [];
-if (!defined('SL_MAX_IMAGE')) define('SL_MAX_IMAGE', 10 * 1024 * 1024);
-
-if (!function_exists('save_product_image')) {
-function save_product_image(array $file, array &$errors): ?string {
-    $allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'];
-    if (empty($file['name'])) return null;
-    if ($file['error'] !== UPLOAD_ERR_OK) { $errors[] = 'Photo upload failed.'; return null; }
-    if ((int)$file['size'] > SL_MAX_IMAGE) { $errors[] = 'Photos must be 10 MB or smaller.'; return null; }
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (!in_array($ext, $allowedExt, true)) { $errors[] = 'Use a JPG, PNG, WEBP, GIF or AVIF image.'; return null; }
-    $info = @getimagesize($file['tmp_name']);
-    if ($info === false) { $errors[] = 'That file is not a readable image.'; return null; }
-    $dir = __DIR__ . '/../uploads/products';
-    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-    $name = date('Ymd-His') . '-' . bin2hex(random_bytes(5)) . '.' . $ext;
-    if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
-        $errors[] = 'Could not save the photo. Check the uploads folder is writable.';
-        return null;
-    }
-    return 'uploads/products/' . $name;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$_POST && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    // The upload was bigger than the hosting's post_max_size, so PHP dropped the whole form.
+    flash('Those files are too big for your hosting to accept in one go (limit ' . ini_get('post_max_size') . '). Upload fewer at a time, or raise post_max_size in cPanel.', 'err');
+    redirect('?p=admin_products' . (isset($_GET['edit']) ? '&edit=' . (int)$_GET['edit'] : ''));
 }
-}
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -35,9 +17,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete' && $id) {
         $p = one('SELECT image FROM products WHERE id = ?', [$id]);
-        if ($p && $p['image']) @unlink(__DIR__ . '/../' . $p['image']);
+        $files = array_column(product_media($id), 'path');
+        if ($p && $p['image']) $files[] = $p['image'];
+        foreach (array_unique($files) as $f) if (strpos($f, 'uploads/products/') === 0) @unlink(__DIR__ . '/../' . $f);
+        q('DELETE FROM product_media WHERE product_id = ?', [$id]);
         q('DELETE FROM products WHERE id = ?', [$id]);
         flash('Product deleted.', 'warn');
+        redirect('?p=admin_products');
+    }
+
+    if (in_array($action, ['media_remove', 'media_first'], true)) {
+        $m = one('SELECT * FROM product_media WHERE id = ?', [(int)($_POST['media_id'] ?? 0)]);
+        if ($m) {
+            if ($action === 'media_remove') {
+                q('DELETE FROM product_media WHERE id = ?', [$m['id']]);
+                if (strpos($m['path'], 'uploads/products/') === 0) @unlink(__DIR__ . '/../' . $m['path']);
+                flash(ucfirst($m['kind']) . ' removed.');
+            } else {
+                q('UPDATE product_media SET sort = sort + 1 WHERE product_id = ?', [$m['product_id']]);
+                q('UPDATE product_media SET sort = 0 WHERE id = ?', [$m['id']]);
+                flash('Moved to the front.');
+            }
+            refresh_product_cover((int)$m['product_id']);
+            redirect('?p=admin_products&edit=' . (int)$m['product_id']);
+        }
         redirect('?p=admin_products');
     }
 
@@ -46,7 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') $errors[] = 'Give the product a name.';
     if ($price < 0) $errors[] = 'Price cannot be negative.';
 
-    $image = save_product_image($_FILES['image'] ?? ['name' => '', 'error' => UPLOAD_ERR_NO_FILE, 'size' => 0], $errors);
+    $uploads = [];
+    foreach (uploaded_files('media') as $file) {
+        $saved = save_product_media($file, $errors);
+        if ($saved) $uploads[] = $saved;
+    }
+    // Something failed: throw away the files that did upload so nothing is half-saved.
+    if ($errors) foreach ($uploads as $u) @unlink(__DIR__ . '/../' . $u['path']);
 
     if (!$errors) {
         $fields = [
@@ -65,27 +74,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             isset($_POST['visible']) ? 1 : 0,
         ];
         if ($action === 'update' && $id) {
-            $sql = 'UPDATE products SET name=?, description=?, category=?, material=?, product_details=?, colours=?, size_text=?, promo_badge=?, is_best_seller=?, is_new=?, price_cents=?, stock=?, visible=?';
-            if ($image) { $sql .= ', image=?'; $fields[] = $image; }
-            $sql .= ' WHERE id = ?';
             $fields[] = $id;
-            q($sql, $fields);
+            q('UPDATE products SET name=?, description=?, category=?, material=?, product_details=?, colours=?, size_text=?, promo_badge=?, is_best_seller=?, is_new=?, price_cents=?, stock=?, visible=? WHERE id = ?', $fields);
+            $productId = $id;
             flash('Product saved.');
         } else {
             $slug = slugify($name);
             $n = 1;
             while (one('SELECT id FROM products WHERE slug = ?', [$slug])) { $slug = slugify($name) . '-' . (++$n); }
             array_splice($fields, 1, 0, [$slug]);
-            $fields[] = $image;
-            q('INSERT INTO products (name, slug, description, category, material, product_details, colours, size_text, promo_badge, is_best_seller, is_new, price_cents, stock, visible, image)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $fields);
+            q('INSERT INTO products (name, slug, description, category, material, product_details, colours, size_text, promo_badge, is_best_seller, is_new, price_cents, stock, visible)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $fields);
+            $productId = (int)db()->lastInsertId();
             flash('Product added.');
         }
-        redirect('?p=admin_products');
+        $sort = (int)(one('SELECT MAX(sort) m FROM product_media WHERE product_id = ?', [$productId])['m'] ?? 0);
+        foreach ($uploads as $u) {
+            q('INSERT INTO product_media (product_id, path, kind, sort) VALUES (?,?,?,?)', [$productId, $u['path'], $u['kind'], ++$sort]);
+        }
+        refresh_product_cover($productId);
+        redirect($uploads && $action === 'update' ? '?p=admin_products&edit=' . $productId : '?p=admin_products');
     }
 }
 
 $editing = isset($_GET['edit']) ? one('SELECT * FROM products WHERE id = ?', [(int)$_GET['edit']]) : null;
+$editingMedia = $editing ? product_media((int)$editing['id']) : [];
 $products = all('SELECT * FROM products ORDER BY created_at DESC');
 ?>
 <h1>Admin</h1>
@@ -112,9 +125,23 @@ $products = all('SELECT * FROM products ORDER BY created_at DESC');
       <label>Stock <input name="stock" type="number" value="<?= (int)($editing['stock'] ?? 0) ?>"></label>
     </div>
     <div class="row"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_best_seller" value="1" style="width:auto" <?= !empty($editing['is_best_seller']) ? 'checked' : '' ?>> Best seller</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_new" value="1" style="width:auto" <?= !empty($editing['is_new']) ? 'checked' : '' ?>> New product</label></div>
-    <label>Photo (JPG, PNG, WEBP, GIF or AVIF, max 10 MB) <input type="file" name="image" accept="image/*"></label>
-    <?php if (!empty($editing['image'])): ?>
-      <img src="<?= e(url($editing['image'])) ?>" alt="" style="width:130px;border-radius:10px;margin-bottom:12px">
+    <label>Photos and videos (pick as many as you like)
+      <input type="file" name="media[]" multiple accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.m4v">
+      <span class="small muted" style="font-weight:400">Photos up to 10 MB (JPG, PNG, WEBP, GIF, AVIF). Videos up to 100 MB (MP4 works on every phone; WEBM and MOV also accepted). The first photo is the one shown in the shop.</span>
+    </label>
+    <?php if ($editingMedia): ?>
+      <div class="media-admin">
+        <?php foreach ($editingMedia as $i => $m): ?>
+          <div class="media-admin-item">
+            <?php if ($m['kind'] === 'video'): ?><video src="<?= e(url($m['path'])) ?>" muted preload="metadata"></video><span class="pill">video</span>
+            <?php else: ?><img src="<?= e(url($m['path'])) ?>" alt=""><?php endif; ?>
+            <div>
+              <?php if ($i > 0): ?><button class="btn ghost small" type="submit" form="mf<?= (int)$m['id'] ?>">Make first</button><?php endif; ?>
+              <button class="btn danger small" type="submit" form="mr<?= (int)$m['id'] ?>" onclick="return confirm('Remove this <?= e($m['kind']) ?>?')">Remove</button>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
     <?php endif; ?>
     <label style="display:flex;gap:8px;align-items:center">
       <input type="checkbox" name="visible" value="1" style="width:auto" <?= (!$editing || (int)$editing['visible'] === 1) ? 'checked' : '' ?>>
@@ -143,6 +170,10 @@ $products = all('SELECT * FROM products ORDER BY created_at DESC');
         </tr>
       <?php endforeach; ?></tbody>
     </table></div>
+    <?php foreach ($editingMedia as $m): ?>
+      <form id="mr<?= (int)$m['id'] ?>" method="post" style="display:none"><?= csrf_field() ?><input type="hidden" name="action" value="media_remove"><input type="hidden" name="media_id" value="<?= (int)$m['id'] ?>"></form>
+      <form id="mf<?= (int)$m['id'] ?>" method="post" style="display:none"><?= csrf_field() ?><input type="hidden" name="action" value="media_first"><input type="hidden" name="media_id" value="<?= (int)$m['id'] ?>"></form>
+    <?php endforeach; ?>
     <?php foreach ($products as $p): ?>
       <form id="del<?= (int)$p['id'] ?>" method="post" style="display:none">
         <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>">

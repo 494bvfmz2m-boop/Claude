@@ -8,6 +8,8 @@ session_start();
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/stripe.php';
+require __DIR__ . '/inc/auth.php';
+require __DIR__ . '/inc/extras.php';
 ensure_storefront_schema();
 
 $payload = file_get_contents('php://input') ?: '';

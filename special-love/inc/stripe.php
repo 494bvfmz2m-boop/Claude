@@ -44,12 +44,12 @@ function stripe_request(string $method, string $path, array $params = []) {
 }
 
 /** Create a Checkout Session for an order. Returns [url, error] */
-function stripe_checkout_session(array $order, array $items): array {
+function stripe_checkout_session(array $order, array $items, ?string $cancelPath = null): array {
     $currency = strtolower(setting('currency', 'aud'));
     $params = [
         'mode'                                 => 'payment',
         'success_url'                          => url('?p=order&ref=' . urlencode($order['reference']) . '&paid=1'),
-        'cancel_url'                           => url('?p=cart&cancel=' . urlencode($order['reference'])),
+        'cancel_url'                           => url($cancelPath ?? ('?p=cart&cancel=' . urlencode($order['reference']))),
         'client_reference_id'                  => $order['reference'],
         'metadata[order_id]'                   => $order['id'],
         'metadata[order_reference]'            => $order['reference'],
@@ -57,7 +57,11 @@ function stripe_checkout_session(array $order, array $items): array {
         // Stripe's shortest allowed lifetime; unpaid orders are cleared after this.
         'expires_at'                           => time() + 30 * 60 + 60,
     ];
-    if (!empty($order['email'])) $params['customer_email'] = $order['email'];
+    if (!empty($order['email'])) {
+        $params['customer_email'] = $order['email'];
+        // Stripe emails its own receipt too (live mode only).
+        $params['payment_intent_data[receipt_email]'] = $order['email'];
+    }
     // Discount codes (kortingsbonnen) are made in the Stripe dashboard; Stripe checks them on its payment page.
     if (setting('stripe_promo_codes', '1') === '1') $params['allow_promotion_codes'] = 'true';
 
@@ -99,6 +103,7 @@ function stripe_mark_paid(array $order, array $session): void {
     q('UPDATE orders SET payment_status = "paid", status = IF(status = "new", "paid", status),
          total_cents = ?, discount_cents = ?, discount_code = ? WHERE id = ?',
       [$total, $discount, $code, $order['id']]);
+    if (function_exists('after_order_paid')) after_order_paid((int)$order['id']);
 }
 
 /** Delete an order and its items. */

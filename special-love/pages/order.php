@@ -23,7 +23,8 @@ if (!$paid && !$confirming) {
     return;
 }
 if ($ref === ($_SESSION['pending_order'] ?? null)) {
-    $_SESSION['cart'] = [];
+    // Paying a custom print quote doesn't touch the shopping cart.
+    if (empty($order['request_id'])) $_SESSION['cart'] = [];
     if ($paid) unset($_SESSION['pending_order']);
 }
 $GLOBALS['page_title'] = 'Order ' . $order['reference'] . ' - ' . setting('store_name', 'Special Love');
@@ -36,6 +37,10 @@ $items = all('SELECT * FROM order_items WHERE order_id = ?', [$order['id']]);
     <div class="success-ring"><svg viewBox="0 0 48 48"><path d="M12 25l9 9 16-18"/></svg></div>
     <h1>Thank you!</h1>
     <p class="muted">Payment received. We are getting your print started.</p>
+    <p class="no-print"><a class="btn small" href="<?= e(url('?p=receipt&ref=' . urlencode($order['reference']))) ?>">View / print receipt</a>
+    <?php if (!empty($order['request_id']) && ($req = one('SELECT * FROM custom_requests WHERE id = ?', [$order['request_id']]))): ?>
+      <a class="btn ghost small" href="<?= e(request_link($req)) ?>">Back to your request chat</a>
+    <?php endif; ?></p>
   <?php else: ?>
     <h1>Confirming your payment…</h1>
     <p class="muted">Stripe is confirming your payment. This usually takes a few seconds — refresh this page in a moment.</p>

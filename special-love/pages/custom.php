@@ -8,7 +8,9 @@ $allowed = ['stl', 'step', 'stp', '3mf', 'obj', 'zip'];
 $materials = ['PLA', 'PETG', 'ABS', 'TPU'];
 $maxBytes = 100 * 1024 * 1024;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$open = custom_requests_open();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
     csrf_check();
     $email = trim((string)($_POST['email'] ?? ''));
     $name  = trim((string)($_POST['full_name'] ?? ''));
@@ -46,16 +48,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         $u = current_user();
-        q('INSERT INTO custom_requests (user_id, email, full_name, material, quantity, details, file_path, original_filename)
-           VALUES (?,?,?,?,?,?,?,?)', [$u['id'] ?? null, $email, $name, $material, $qty, $details, $stored, $original]);
-        $sent = true;
+        $token = bin2hex(random_bytes(16));
+        q('INSERT INTO custom_requests (user_id, email, full_name, material, quantity, details, file_path, original_filename, access_token)
+           VALUES (?,?,?,?,?,?,?,?,?)', [$u['id'] ?? null, $email, $name, $material, $qty, $details, $stored, $original, $token]);
+        $req = one('SELECT * FROM custom_requests WHERE id = ?', [(int)db()->lastInsertId()]);
+        add_request_message((int)$req['id'], 'system', 'Request received. We will reply here with questions or a quote.');
+        $link = request_link($req);
+        send_mail($email, 'We got your custom print request', "Thanks for your request!\n\nYou can chat with us, see your quote and pay here:\n" . $link . "\n\nKeep this link private - anyone with it can see your request.");
+        $owner = setting('contact_email', '');
+        if ($owner) send_mail($owner, 'New custom print request', ($name ?: $email) . " sent a custom print request.\n\n" . $details . "\n\nOpen it: " . url('?p=admin_requests&id=' . (int)$req['id']));
+        flash('Request received! This is your private chat page. Bookmark it, we also emailed you the link.');
+        redirect($link);
     }
 }
 ?>
 <h1>Custom print request</h1>
 <p class="muted">Send us your model and we will reply with a price and lead time. Nothing is charged until you accept the quote.</p>
 
-<?php if ($sent): ?>
+<?php if (!$open): ?>
+  <div class="card anim-pop" style="text-align:center">
+    <h2>🛑 Custom prints are paused</h2>
+    <p class="muted"><?= nl2br(e(setting('custom_closed_message', "We're fully booked on custom prints right now. Check back soon!"))) ?></p>
+    <a class="btn" href="<?= e(url('?p=shop')) ?>">Shop ready-made prints</a>
+  </div>
+<?php elseif ($sent): ?>
   <div class="card anim-pop" style="text-align:center">
     <div class="success-ring"><svg viewBox="0 0 48 48"><path d="M12 25l9 9 16-18"/></svg></div>
     <h2>Request received</h2>

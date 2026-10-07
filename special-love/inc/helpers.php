@@ -98,8 +98,8 @@ function cart_count(): int {
     return $n;
 }
 
-function cart_lines(): array {
-    $cart = cart();
+function cart_lines(?array $cart = null): array {
+    $cart = $cart ?? cart();
     if (!$cart) return [];
     $ids = array_map('intval', array_keys($cart));
     $in = implode(',', array_fill(0, count($ids), '?'));

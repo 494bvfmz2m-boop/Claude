@@ -21,6 +21,7 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/totp.php';
 require __DIR__ . '/inc/stripe.php';
+require __DIR__ . '/inc/extras.php';
 ensure_storefront_schema();
 
 header('X-Content-Type-Options: nosniff');
@@ -35,6 +36,8 @@ $routes = [
     'checkout'  => 'checkout.php',
     'order'     => 'order.php',
     'custom'    => 'custom.php',
+    'request'   => 'request.php',
+    'receipt'   => 'receipt.php',
     'support'   => 'support.php',
     'login'     => 'login.php',
     'register'  => 'register.php',
@@ -46,6 +49,7 @@ $routes = [
     'admin_products' => 'admin_products.php',
     'admin_orders'   => 'admin_orders.php',
     'admin_requests' => 'admin_requests.php',
+    'admin_reviews'  => 'admin_reviews.php',
     'admin_settings' => 'admin_settings.php',
     'admin_payments' => 'admin_payments.php',
     'admin_team'     => 'admin_team.php',

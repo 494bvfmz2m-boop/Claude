@@ -155,7 +155,7 @@ SQL;
                 'stripe_enabled' => '0',
                 'stripe_mode' => 'test',
                 'promo_bar_enabled' => '1',
-                'promo_bar_text' => 'Free gift with high priced orders',
+                'promo_bar_text' => 'Free gift with every order',
             ];
             $st = $pdo->prepare('INSERT IGNORE INTO settings (skey, svalue) VALUES (?, ?)');
             foreach ($defaults as $k => $v) $st->execute([$k, $v]);

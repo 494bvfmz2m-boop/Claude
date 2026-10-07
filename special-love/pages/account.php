@@ -25,7 +25,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
         <td><?= money((int)$o['total_cents']) ?></td>
         <td><span class="pill"><?= e($o['status']) ?></span></td>
         <td><span class="pill"><?= e($o['payment_status']) ?></span></td>
-        <td><a class="btn ghost small" href="<?= e(url('?p=order&ref=' . urlencode($o['reference']))) ?>">View</a></td>
+        <td style="white-space:nowrap"><a class="btn ghost small" href="<?= e(url('?p=order&ref=' . urlencode($o['reference']))) ?>">View</a> <a class="btn ghost small" href="<?= e(url('?p=receipt&ref=' . urlencode($o['reference']))) ?>">Receipt</a></td>
       </tr>
     <?php endforeach; ?></tbody>
   </table></div>
@@ -38,7 +38,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
     <p class="muted">No requests yet. <a href="<?= e(url('?p=custom')) ?>">Send us a model</a>.</p>
   <?php else: ?>
   <div class="table-scroll"><table>
-    <thead><tr><th>Date</th><th>File</th><th>Material</th><th>Qty</th><th>Status</th><th>Quote</th></tr></thead>
+    <thead><tr><th>Date</th><th>File</th><th>Material</th><th>Qty</th><th>Status</th><th>Quote</th><th></th></tr></thead>
     <tbody><?php foreach ($requests as $r): ?>
       <tr>
         <td><?= e(date('j M Y', strtotime($r['created_at']))) ?></td>
@@ -47,6 +47,7 @@ $requests = all('SELECT * FROM custom_requests WHERE user_id = ? OR email = ? OR
         <td><?= (int)$r['quantity'] ?></td>
         <td><span class="pill"><?= e($r['status']) ?></span></td>
         <td><?= $r['quote_cents'] !== null ? money((int)$r['quote_cents']) : '<span class="muted">pending</span>' ?></td>
+        <td><a class="btn ghost small" href="<?= e(request_link($r)) ?>">Chat<?= $r['status'] === 'quoted' ? ' &amp; pay' : '' ?></a></td>
       </tr>
     <?php endforeach; ?></tbody>
   </table></div>

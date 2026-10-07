@@ -30,3 +30,46 @@
     }
   });
 })();
+
+// Product gallery: click a thumbnail to show that photo or video.
+(function () {
+  document.querySelectorAll('[data-gallery]').forEach(function (g) {
+    var slides = g.querySelectorAll('.gallery-slide');
+    var thumbs = g.querySelectorAll('.gallery-thumb');
+    thumbs.forEach(function (t, i) {
+      t.addEventListener('click', function () {
+        slides.forEach(function (s, j) {
+          s.classList.toggle('active', i === j);
+          var v = s.querySelector('video');
+          if (v && i !== j) v.pause();
+        });
+        thumbs.forEach(function (x, j) { x.classList.toggle('active', i === j); });
+      });
+    });
+  });
+})();
+
+// Custom print chat: fetch new messages every 10 seconds without reloading the page.
+(function () {
+  var chat = document.querySelector('[data-chat]');
+  if (!chat) return;
+  chat.scrollTop = chat.scrollHeight;
+  setInterval(function () {
+    if (document.hidden) return;
+    fetch(window.location.href, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (html) {
+        if (!html) return;
+        var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('[data-chat]');
+        if (!fresh || fresh.dataset.count === chat.dataset.count) return;
+        var atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
+        chat.innerHTML = fresh.innerHTML;
+        chat.dataset.count = fresh.dataset.count;
+        if (atBottom) chat.scrollTop = chat.scrollHeight;
+        // A new quote may have arrived: refresh the quote box too.
+        var q = document.querySelector('[data-quote]'), fq = new DOMParser().parseFromString(html, 'text/html').querySelector('[data-quote]');
+        if (q && fq && !q.contains(document.activeElement)) q.innerHTML = fq.innerHTML;
+      })
+      .catch(function () {});
+  }, 10000);
+})();

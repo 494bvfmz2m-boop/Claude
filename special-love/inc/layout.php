@@ -19,13 +19,15 @@ function render_page(string $path): void {
 <link rel="icon" href="<?= e(url('assets/logo.png')) ?>">
 <link rel="stylesheet" href="<?= e(url('assets/style.css')) ?>">
 </head>
-<body>
-<?php if (setting('promo_bar_enabled', '1') === '1'): ?><div class="announcement"><?= e(setting('promo_bar_text', 'Free gift with high priced orders')) ?></div><?php endif; ?>
+<?php $theme = active_theme(); ?>
+<body class="theme-<?= e($theme) ?>">
+<?php if ($theme !== 'none'): ?><div class="theme-decor" aria-hidden="true"><?php for ($i = 0; $i < 14; $i++): ?><span><?= ['halloween' => ['🎃', '🦇', '👻'], 'christmas' => ['❄', '❅', '❆'], 'easter' => ['🥚', '🌸', '🐣']][$theme][$i % 3] ?></span><?php endfor; ?></div><?php endif; ?>
+<?php if (setting('promo_bar_enabled', '1') === '1'): ?><div class="announcement"><?= e(setting('promo_bar_text', 'Free gift with every order')) ?></div><?php endif; ?>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand hover-lift" href="<?= e(url('?p=home')) ?>">
       <img src="<?= e(url('assets/logo.png')) ?>" alt="">
-      <span><?= e(setting('store_name', 'Special Love')) ?></span>
+      <span><?= e(setting('store_name', 'Special Love')) ?><?= $theme !== 'none' ? ' ' . SL_THEMES[$theme]['icon'] : '' ?></span>
     </a>
     <nav class="nav">
       <a href="<?= e(url('?p=home')) ?>">Home</a>
@@ -53,13 +55,14 @@ function render_page(string $path): void {
   <div class="wrap footer-inner">
     <div>
       <strong><?= e(setting('store_name', 'Special Love')) ?></strong>
-      <p>A small Australian business bringing colourful products, thoughtful packing and a free gift with high priced orders.</p>
+      <p>A small Australian business bringing colourful products, thoughtful packing and a free gift with every order.</p>
     </div>
     <div>
       <a href="<?= e(url('?p=shop')) ?>">Shop</a>
       <a href="<?= e(url('?p=shop&collection=best')) ?>">Best Sellers</a><a href="<?= e(url('?p=shop&collection=new')) ?>">New Products</a><a href="<?= e(url('?p=home#categories')) ?>">Categories</a><a href="<?= e(url('?p=custom')) ?>">Custom Prints</a>
     </div>
     <div>
+      <?php foreach (social_links() as $label => $link): ?><a href="<?= e($link) ?>" target="_blank" rel="noopener"><?= e($label) ?></a><?php endforeach; ?>
       <a href="<?= e(url('?p=support')) ?>">Contact & FAQs</a><a href="<?= e(url('?p=support')) ?>">Shipping & Returns</a><p>Questions? <a href="mailto:<?= e(setting('contact_email', '')) ?>"><?= e(setting('contact_email', '')) ?></a></p>
       <p class="muted">&copy; <?= date('Y') ?> <?= e(setting('store_name', 'Special Love')) ?></p>
     </div>
@@ -75,6 +78,7 @@ function admin_tabs(string $active): void {
         'admin_orders'   => 'Orders',
         'admin_products' => 'Products',
         'admin_requests' => 'Print requests',
+        'admin_reviews'  => 'Reviews',
         'admin_settings' => 'Store settings',
         'admin_payments' => 'Payments',
     ];

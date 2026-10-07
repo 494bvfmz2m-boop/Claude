@@ -14,6 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('?p=admin_orders');
     }
+    if (in_array($_POST['action'] ?? '', ['hide', 'unhide'], true)) {
+        $hide = $_POST['action'] === 'hide';
+        q('UPDATE orders SET hidden = ? WHERE id = ?', [$hide ? 1 : 0, $id]);
+        flash($hide ? 'Order hidden. Find it under "Hidden".' : 'Order is back in the list.');
+        redirect('?p=admin_orders' . ($hide ? '' : '&hidden=1'));
+    }
     $status = (string)($_POST['status'] ?? 'new');
     $payment = (string)($_POST['payment_status'] ?? 'unpaid');
     $tracking = trim((string)($_POST['tracking'] ?? ''));
@@ -29,9 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Only paid orders are real orders. Unpaid ones are cleared out and never listed.
 purge_unpaid_orders();
 $filter = (string)($_GET['status'] ?? '');
+$showHidden = !empty($_GET['hidden']) ? 1 : 0;
 $orders = $filter !== ''
-    ? all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') AND status = ? ORDER BY created_at DESC LIMIT 200", [$filter])
-    : all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') ORDER BY created_at DESC LIMIT 200");
+    ? all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') AND hidden = ? AND status = ? ORDER BY created_at DESC LIMIT 200", [$showHidden, $filter])
+    : all("SELECT * FROM orders WHERE payment_status IN ('paid', 'refunded') AND hidden = ? ORDER BY created_at DESC LIMIT 200", [$showHidden]);
 ?>
 <h1>Admin</h1>
 <?php admin_tabs('admin_orders'); ?>
@@ -43,6 +50,7 @@ $orders = $filter !== ''
     <?php foreach (['new', 'paid', 'printing', 'shipped', 'complete'] as $s): ?>
       <a class="pill" href="<?= e(url('?p=admin_orders&status=' . $s)) ?>"><?= e($s) ?></a>
     <?php endforeach; ?>
+    <a class="pill<?= $showHidden ? ' promo' : '' ?>" href="<?= e(url('?p=admin_orders&hidden=1')) ?>">Hidden</a>
   </p>
   <?php if (!$orders): ?><p class="muted">No paid orders yet.</p><?php endif; ?>
   <?php foreach ($orders as $o):
@@ -82,6 +90,11 @@ $orders = $filter !== ''
         </form>
       </div>
       <div style="text-align:right;margin-top:10px">
+        <form method="post" style="display:inline">
+          <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$o['id'] ?>"><input type="hidden" name="action" value="<?= $showHidden ? 'unhide' : 'hide' ?>">
+          <button class="btn ghost small" type="submit"><?= $showHidden ? 'Unhide' : 'Hide' ?></button>
+        </form>
+        <a class="btn ghost small" href="<?= e(url('?p=receipt&ref=' . urlencode($o['reference']))) ?>" target="_blank" rel="noopener">Receipt</a>
         <form method="post" onsubmit="return confirm('Delete order <?= e($o['reference']) ?>? This cannot be undone.')" style="display:inline">
           <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$o['id'] ?>"><input type="hidden" name="action" value="delete">
           <button class="btn danger small" type="submit">Delete order</button>

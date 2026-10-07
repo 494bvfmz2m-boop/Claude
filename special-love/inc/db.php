@@ -35,29 +35,81 @@ function all(string $sql, array $params = []): array {
     return q($sql, $params)->fetchAll();
 }
 
+/** Add a column if it is missing (lets updates go live without running install.php again). */
+function ensure_column(string $table, string $name, string $definition): void {
+    $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', [$table, $name]);
+    if (!$exists) q("ALTER TABLE `$table` ADD COLUMN `$name` $definition");
+}
+
+/** Bump this when the schema below changes. */
+const SL_SCHEMA_VERSION = '3';
+
 function ensure_storefront_schema(): void {
     static $done = false;
     if ($done) return;
     $done = true;
-    $columns = [
+    $current = one("SELECT svalue FROM settings WHERE skey = 'schema_version'");
+    if ($current && $current['svalue'] === SL_SCHEMA_VERSION) return;
+
+    foreach ([
         'product_details' => 'TEXT NULL',
         'colours' => 'TEXT NULL',
         'size_text' => 'VARCHAR(190) NULL',
         'promo_badge' => 'VARCHAR(80) NULL',
         'is_best_seller' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'is_new' => 'TINYINT(1) NOT NULL DEFAULT 0',
-    ];
-    foreach ($columns as $name => $definition) {
-        $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['products', $name]);
-        if (!$exists) q("ALTER TABLE products ADD COLUMN `$name` $definition");
+    ] as $name => $definition) ensure_column('products', $name, $definition);
+
+    // Discount codes, hiding, and payments for custom print quotes.
+    ensure_column('orders', 'discount_cents', 'INT NOT NULL DEFAULT 0');
+    ensure_column('orders', 'discount_code', 'VARCHAR(80) NULL');
+    ensure_column('orders', 'hidden', 'TINYINT(1) NOT NULL DEFAULT 0');
+    ensure_column('orders', 'request_id', 'INT NULL');
+    ensure_column('orders', 'receipt_sent', 'TINYINT(1) NOT NULL DEFAULT 0');
+    ensure_column('custom_requests', 'hidden', 'TINYINT(1) NOT NULL DEFAULT 0');
+    ensure_column('custom_requests', 'access_token', 'VARCHAR(64) NULL');
+
+    q('CREATE TABLE IF NOT EXISTS product_media (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NOT NULL,
+        path VARCHAR(255) NOT NULL,
+        kind VARCHAR(10) NOT NULL DEFAULT "image",
+        sort INT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (product_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    q('CREATE TABLE IF NOT EXISTS reviews (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NULL,
+        name VARCHAR(120) NOT NULL,
+        email VARCHAR(190) NULL,
+        rating TINYINT NOT NULL DEFAULT 5,
+        body TEXT NOT NULL,
+        verified TINYINT(1) NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT "pending",
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (product_id), INDEX (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    q('CREATE TABLE IF NOT EXISTS request_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        request_id INT NOT NULL,
+        sender VARCHAR(10) NOT NULL,
+        body TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (request_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+    // Existing product photos become the first item of each product's gallery.
+    q('INSERT INTO product_media (product_id, path, kind, sort)
+       SELECT p.id, p.image, "image", 0 FROM products p
+       WHERE p.image IS NOT NULL AND p.image <> ""
+         AND NOT EXISTS (SELECT 1 FROM product_media m WHERE m.product_id = p.id)');
+    // Every custom request needs a private chat link.
+    foreach (all('SELECT id FROM custom_requests WHERE access_token IS NULL') as $r) {
+        q('UPDATE custom_requests SET access_token = ? WHERE id = ?', [bin2hex(random_bytes(16)), $r['id']]);
     }
-    // Discount codes used on paid orders (added automatically, no reinstall needed).
-    $orderColumns = [
-        'discount_cents' => 'INT NOT NULL DEFAULT 0',
-        'discount_code' => 'VARCHAR(80) NULL',
-    ];
-    foreach ($orderColumns as $name => $definition) {
-        $exists = one('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', ['orders', $name]);
-        if (!$exists) q("ALTER TABLE orders ADD COLUMN `$name` $definition");
-    }
+    // The free gift now comes with every order.
+    q("UPDATE settings SET svalue = 'Free gift with every order' WHERE skey = 'promo_bar_text' AND svalue = 'Free gift with high priced orders'");
+
+    q("INSERT INTO settings (skey, svalue) VALUES ('schema_version', ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)", [SL_SCHEMA_VERSION]);
 }
