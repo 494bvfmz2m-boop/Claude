@@ -11,6 +11,7 @@ namespace HowToFishMenu
         public string Name;
         public string Desc;
         public string Tag; // e.g. "HOST" = only fully works when you host / play solo
+        public bool Hidden; // hidden when the Advanced Mod Menu provides the same feature
         public int Key; // optional hotkey (virtual-key code)
         public string KeyName;
         public abstract string ValueText { get; }
@@ -86,6 +87,7 @@ namespace HowToFishMenu
     {
         public string Name;
         public readonly List<Entry> Items = new List<Entry>();
+        public List<Entry> Visible { get { return Items.Where(e => !e.Hidden).ToList(); } }
     }
 
     internal static class Menu
@@ -175,6 +177,7 @@ namespace HowToFishMenu
             foreach (var c in Categories)
                 foreach (var e in c.Items)
                     if (c.Name != "Menu") e.Reset();
+            OldMenu.ResetAll();
             Toast("All mods reset.");
         }
 
@@ -186,6 +189,7 @@ namespace HowToFishMenu
                     var t = e as Toggle;
                     if (t != null && c.Name != "Menu") t.Set(false);
                 }
+            OldMenu.ResetAll();
             Open = false;
             Toast("PANIC: everything turned off.");
         }
@@ -197,7 +201,33 @@ namespace HowToFishMenu
             if (Toasts.Count > 6) Toasts.RemoveAt(0);
         }
 
-        public static int TotalEntries { get { return Categories.Sum(c => c.Items.Count); } }
+        public static int TotalEntries { get { return Categories.Sum(c => c.Visible.Count); } }
+
+        public static bool IsOn(Entry e)
+        {
+            var t = e as Toggle;
+            if (t != null) return t.On;
+            var b = e as OldMenu.Bridged;
+            return b != null && b.On;
+        }
+
+        private static readonly string[] ReplacedByOldMenu =
+        {
+            "God Mode", "Keep Inventory", "No Drowning", "Never Lose a Fish", "Infinite Bait", "Birds Never Steal", "Always Rare Variant",
+            "Bite Delay", "Fast Reel", "Infinite Ammo", "No Reload", "No Recoil", "No Spread", "Damage Multiplier", "One-Hit Kill",
+            "Free Shopping", "Hide HUD", "No Screen Shake", "Teleport to Friend"
+        };
+
+        public static void OnOldMenuAttached()
+        {
+            foreach (var c in Categories)
+                foreach (var e in c.Items)
+                {
+                    if (e is OldMenu.Bridged || Array.IndexOf(ReplacedByOldMenu, e.Name) < 0) continue;
+                    e.Hidden = true;
+                    e.Reset();
+                }
+        }
 
         // ---------- input ----------
 
@@ -227,7 +257,9 @@ namespace HowToFishMenu
                 return;
             }
 
-            var items = Categories[_cat].Items;
+            var items = Categories[_cat].Visible;
+            if (items.Count == 0) { _inside = false; return; }
+            _row = Mathf.Clamp(_row, 0, items.Count - 1);
             if (Keys.Pressed(Keys.Up)) { _row = (_row + items.Count - 1) % items.Count; ScrollToRow(); }
             if (Keys.Pressed(Keys.Down)) { _row = (_row + 1) % items.Count; ScrollToRow(); }
             if (Keys.Pressed(Keys.PageUp)) { _row = Mathf.Max(0, _row - 8); ScrollToRow(); }
@@ -236,7 +268,7 @@ namespace HowToFishMenu
             if (Keys.Pressed(Keys.Right)) items[_row].Step(1);
             if (Keys.Pressed(Keys.Left))
             {
-                if (items[_row] is Button) _inside = false;
+                if (items[_row] is Button || items[_row] is OldMenu.Bridged) _inside = false;
                 else items[_row].Step(-1);
             }
         }
@@ -316,9 +348,8 @@ namespace HowToFishMenu
                     if (c.Name == "Menu") continue;
                     foreach (var e in c.Items)
                     {
-                        var t = e as Toggle;
-                        if (t == null || !t.On) continue;
-                        Draw.Text(new Vector2(Screen.width - 12f - 200f, y), t.Name + (t.KeyName != null ? " [" + t.KeyName + "]" : ""), Accent, false, 12);
+                        if (e.Hidden || !IsOn(e)) continue;
+                        Draw.Text(new Vector2(Screen.width - 12f - 200f, y), e.Name + (e.KeyName != null ? " [" + e.KeyName + "]" : ""), Accent, false, 12);
                         y += 16f;
                         if (y > Screen.height * 0.6f) return;
                     }
@@ -355,7 +386,7 @@ namespace HowToFishMenu
                 bool sel = i == _cat;
                 Draw.Rect(r, sel ? new Color(Accent.r, Accent.g, Accent.b, _inside ? 0.25f : 0.5f) : new Color(1, 1, 1, 0.04f));
                 _row_.normal.textColor = sel ? Color.white : new Color(0.8f, 0.8f, 0.85f);
-                GUI.Label(new Rect(r.x + 10, r.y, r.width - 10, r.height), Categories[i].Name.ToUpperInvariant() + "  (" + Categories[i].Items.Count + ")", _row_);
+                GUI.Label(new Rect(r.x + 10, r.y, r.width - 10, r.height), Categories[i].Name.ToUpperInvariant() + "  (" + Categories[i].Visible.Count + ")", _row_);
                 if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
                 {
                     _cat = i; _inside = true; _row = 0; _scroll = Vector2.zero;
@@ -364,7 +395,7 @@ namespace HowToFishMenu
             }
 
             // Items
-            var items = Categories[_cat].Items;
+            var items = Categories[_cat].Visible;
             float ix = x + 160f, iy = y + 62f, iw = w - 170f, ih = 440f;
             _scroll = GUI.BeginScrollView(new Rect(ix, iy, iw, ih), _scroll, new Rect(0, 0, iw - 20f, items.Count * RowH));
             for (int i = 0; i < items.Count; i++)
@@ -376,9 +407,12 @@ namespace HowToFishMenu
                 _row_.normal.textColor = Color.white;
                 string label = e.Name + (e.Tag != null ? "  <" + e.Tag + ">" : "") + (e.KeyName != null ? "  [" + e.KeyName + "]" : "");
                 GUI.Label(new Rect(r.x + 8, r.y, r.width - 100, r.height), label, _row_);
-                var t = e as Toggle;
-                _value.normal.textColor = t != null ? (t.On ? new Color(0.3f, 1f, 0.45f) : new Color(1f, 0.4f, 0.4f)) : Accent;
-                GUI.Label(new Rect(r.xMax - 110, r.y, 102, r.height), e is Button ? "[ RUN ]" : (e is Choice ? "< " + e.ValueText + " >" : e.ValueText), _value);
+                var bridged = e as OldMenu.Bridged;
+                bool isToggle = e is Toggle || (bridged != null && bridged.Kind == "Toggle");
+                bool isButton = e is Button || (bridged != null && bridged.Kind == "Action");
+                bool isChoice = e is Choice || (bridged != null && bridged.Kind == "Value");
+                _value.normal.textColor = isToggle ? (IsOn(e) ? new Color(0.3f, 1f, 0.45f) : new Color(1f, 0.4f, 0.4f)) : Accent;
+                GUI.Label(new Rect(r.xMax - 110, r.y, 102, r.height), isButton ? "[ RUN ]" : (isChoice ? "< " + e.ValueText + " >" : e.ValueText), _value);
 
                 if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
                 {

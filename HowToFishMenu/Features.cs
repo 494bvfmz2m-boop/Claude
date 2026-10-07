@@ -61,11 +61,7 @@ namespace HowToFishMenu
             if (Time.unscaledTime - _localTime > 1f)
             {
                 _localTime = Time.unscaledTime;
-                _localComps.Clear();
-                var root = G.LocalRoot;
-                if (root != null)
-                    foreach (var mb in root.GetComponentsInChildren<MonoBehaviour>(true))
-                        if (mb != null && mb.GetType().Assembly == G.Asm) _localComps.Add(mb);
+                _localComps = G.LocalParts();
             }
             _localComps.RemoveAll(c => c == null);
             return _localComps;
@@ -303,12 +299,11 @@ namespace HowToFishMenu
                 if (w == null) continue;
                 bool fresh = SeenWeapons.Add(w);
                 if (!always && !fresh) continue;
-                double per = G.Num(G.Get(w, "AmmoPerMag"));
-                if (double.IsNaN(per)) per = G.Num(G.Get(w, "_ammoPerMag"));
+                double per = G.AmmoPerMag(w);
                 if (double.IsNaN(per) || per <= 0) continue;
                 double cur = G.Num(G.Get(w, "Ammo"));
                 if (!double.IsNaN(cur) && cur >= per) continue;
-                if (!G.Set(w, "Ammo", per)) G.Set(w, "<Ammo>k__BackingField", per);
+                if (!G.Set(w, "<Ammo>k__BackingField", per)) G.Set(w, "Ammo", per);
             }
         }
 
@@ -325,7 +320,7 @@ namespace HowToFishMenu
 
         private static void BringCreatures(float radius)
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             var root = G.LocalRoot;
             if (cam == null || root == null) return;
             Vector3 spot = root.position + Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized * 6f + Vector3.up;
@@ -364,8 +359,15 @@ namespace HowToFishMenu
 
         // ---------- Harmony patches ----------
 
+        public static int PatchCount;
+
         public static void InstallPatches(HarmonyLib.Harmony h)
         {
+            // Run aim / FOV right AFTER the game's own camera + movement scripts, so they can't overwrite it.
+            foreach (var t in new[] { "PlayerCamera", "PlayerMovement" })
+                foreach (var m in new[] { "Update", "LateUpdate", "FixedUpdate" })
+                    Patch(h, t, m, null, "AfterGameCamera");
+
             Patch(h, "Weapon", "Shoot", "ShootPrefix", "ShootPostfix");
             Patch(h, "Weapon", "Reload", "ReloadPrefix", null);
             Patch(h, "Weapon", "Recoil", "RecoilPrefix", null);
@@ -409,7 +411,7 @@ namespace HowToFishMenu
                 foreach (var m in methods)
                 {
                     if (m.Name != method || m.IsAbstract || m.ContainsGenericParameters || m.GetMethodBody() == null) continue;
-                    try { h.Patch(m, pre, post); n++; }
+                    try { h.Patch(m, pre, post); n++; PatchCount++; }
                     catch (Exception e) { MelonLogger.Warning("Patch " + t.Name + "." + method + " failed: " + e.Message); }
                 }
             }
@@ -438,6 +440,11 @@ namespace HowToFishMenu
             }
         }
 
+        private static void AfterGameCamera()
+        {
+            try { Aimbot.LateUpdate(); Visuals.ApplyCameraFov(); } catch { }
+        }
+
         private static void ShootPrefix() { try { Aimbot.BeforeShot(); } catch { } }
 
         private static void ShootPostfix(object __instance)
@@ -445,17 +452,17 @@ namespace HowToFishMenu
             try { Aimbot.AfterShot(); } catch { }
             if (InfAmmo.On)
             {
-                double per = G.Num(G.Get(__instance, "AmmoPerMag"));
-                if (!double.IsNaN(per) && !G.Set(__instance, "Ammo", per)) G.Set(__instance, "<Ammo>k__BackingField", per);
+                double per = G.AmmoPerMag(__instance);
+                if (!double.IsNaN(per) && !G.Set(__instance, "<Ammo>k__BackingField", per)) G.Set(__instance, "<Ammo>k__BackingField", per);
             }
         }
 
         private static bool ReloadPrefix(object __instance)
         {
             if (!NoReload.On) return true;
-            double per = G.Num(G.Get(__instance, "AmmoPerMag"));
-            if (double.IsNaN(per)) return true; // can't refill ourselves, let the game reload
-            if (!G.Set(__instance, "Ammo", per)) G.Set(__instance, "<Ammo>k__BackingField", per);
+            double per = G.AmmoPerMag(__instance);
+            if (double.IsNaN(per)) per = 999;
+            if (!G.Set(__instance, "<Ammo>k__BackingField", per)) G.Set(__instance, "Ammo", per);
             return false;
         }
 

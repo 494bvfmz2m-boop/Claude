@@ -15,7 +15,7 @@ namespace HowToFishMenu
         public static Toggle Esp, Boxes, Names, Distance, Health, Tracers, HeadDots, FishEsp, MonsterEsp, BossEsp, PlayerEsp, ItemEsp, Radar, Offscreen, HealthColor;
         public static Choice EspRange, TracerOrigin, RadarRange, BoxStyle;
         // Misc
-        public static Toggle VSync, UnlockCursor;
+        public static Toggle VSync, UnlockCursor, StatusPanel;
         public static Choice FpsLimit;
 
         private static float? _gameFov;
@@ -79,6 +79,7 @@ namespace HowToFishMenu
             FpsLimit.Labels = new[] { "Game", "60", "120", "144", "240", "Unlimited", "30" };
             VSync = Menu.AddToggle("VSync Off", "Turns off vertical sync.", false, v => QualitySettings.vSyncCount = v ? 0 : 1);
             UnlockCursor = Menu.AddToggle("Unlock Cursor", "Keeps the mouse cursor free.", false);
+            StatusPanel = Menu.AddToggle("Status Panel", "Shows what the mod detected (player, camera, creatures, weapon, hooks). Screenshot this if something doesn't work.", true);
             Menu.AddButton("PANIC (turn everything off)", "Instantly disables every mod.", Menu.PanicOff, null, Keys.End, "END");
             Menu.AddButton("Take Screenshot", "Saves a screenshot next to the game exe.", () =>
             {
@@ -114,23 +115,19 @@ namespace HowToFishMenu
 
             if (HideHud.On)
                 foreach (var ui in G.Find("PlayerUI", 2f))
+                {
+                    G.Call(ui, "ToggleMainCanvas", false);
                     foreach (var canvas in ui.GetComponentsInChildren<Canvas>(true))
                         if (canvas.enabled) { canvas.enabled = false; HiddenCanvases.Add(canvas); }
+                }
         }
 
         public static void LateUpdate()
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam == null) return;
 
-            bool zoom = ZoomEnabled.On && Keys.Held(Keys.Mouse4) && !Menu.Open;
-            if (FovChoice.Value != 0f || zoom)
-            {
-                if (!_gameFov.HasValue) _gameFov = cam.fieldOfView;
-                float baseFov = FovChoice.Value != 0f ? FovChoice.Value : _gameFov.Value;
-                cam.fieldOfView = zoom ? baseFov / ZoomLevel.Value : baseFov;
-            }
-            else RestoreFov();
+            ApplyCameraFov();
 
             if (RenderDist.Value != 0f)
             {
@@ -153,16 +150,50 @@ namespace HowToFishMenu
             if (UnlockCursor.On) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
         }
 
+        private static Component _fovPc;
+        private static float _fovApplied;
+        private static float? _pcOrigFov;
+
+        // FOV goes through the game's PlayerCamera (_origFov + SetFov) so the game keeps it; zoom is applied on top.
+        public static void ApplyCameraFov()
+        {
+            var cam = G.Cam;
+            if (cam == null) return;
+            var pc = G.PlayerCam;
+            float want = FovChoice.Value;
+            if (pc != null && (pc != _fovPc || want != _fovApplied))
+            {
+                if (pc != _fovPc) _pcOrigFov = null;
+                if (!_pcOrigFov.HasValue) { double o = G.Num(G.Get(pc, "_origFov")); if (!double.IsNaN(o)) _pcOrigFov = (float)o; }
+                float target = want != 0f ? want : (_pcOrigFov ?? 0f);
+                if (target > 0f)
+                {
+                    G.Set(pc, "_origFov", target);
+                    if (G.Call(pc, "SetFov") == null) G.Call(pc, "SetFOV", target);
+                }
+                _fovPc = pc; _fovApplied = want;
+            }
+
+            bool zoom = ZoomEnabled.On && Keys.Held(Keys.Mouse4) && !Menu.Open;
+            if (FovChoice.Value != 0f || zoom)
+            {
+                if (!_gameFov.HasValue) _gameFov = cam.fieldOfView;
+                float baseFov = FovChoice.Value != 0f ? FovChoice.Value : _gameFov.Value;
+                cam.fieldOfView = zoom ? baseFov / ZoomLevel.Value : baseFov;
+            }
+            else RestoreFov();
+        }
+
         private static void RestoreFov()
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (_gameFov.HasValue && cam != null) cam.fieldOfView = _gameFov.Value;
             _gameFov = null;
         }
 
         private static void RestoreClip()
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (_farClip.HasValue && cam != null) cam.farClipPlane = _farClip.Value;
             _farClip = null;
         }
@@ -183,6 +214,7 @@ namespace HowToFishMenu
 
         private static void ShowHud()
         {
+            foreach (var ui in G.Find("PlayerUI", 0f)) G.Call(ui, "ToggleMainCanvas", true);
             foreach (var c in HiddenCanvases) if (c != null) c.enabled = true;
             HiddenCanvases.Clear();
         }
@@ -214,6 +246,8 @@ namespace HowToFishMenu
                 else Draw.Circle(center, s, c, 24);
             }
 
+            if (StatusPanel.On) DrawStatus(cam);
+
             float y = Radar.On ? 226f : 26f;
             var info = new List<string>();
             if (FpsCounter.On) info.Add("FPS " + _fps.ToString("0"));
@@ -222,6 +256,29 @@ namespace HowToFishMenu
             if (Speedometer.On) info.Add("Speed " + _speed.ToString("0.0") + " m/s");
             if (Clock.On) info.Add(DateTime.Now.ToString("HH:mm:ss"));
             foreach (var line in info) { Draw.Text(new Vector2(10, y), line, Color.white, false, 13); y += 18f; }
+        }
+
+        private static void DrawStatus(Camera cam)
+        {
+            var lp = G.LocalPlayer;
+            var pc = G.PlayerCam;
+            string[] lines =
+            {
+                "MOD STATUS (Misc > Status Panel to hide)",
+                "Game code: " + (G.Ready && G.T("Creature") != null ? "found" : "NOT FOUND"),
+                "Hooks installed: " + Features.PatchCount,
+                "Your player: " + (lp != null ? G.Name(lp) : "not found (load into the world)"),
+                "Camera: " + (cam != null ? cam.name + (pc != null ? " (PlayerCamera)" : " (fallback)") : "NONE"),
+                "Creatures loaded: " + G.Find("Creature").Count,
+                "Holding: " + (G.Held("Weapon") != null ? "weapon" : G.Held("FishingRod") != null ? "fishing rod" : "nothing/other"),
+                "Aimbot: " + Aimbot.Status,
+                "Advanced Mod Menu: " + (OldMenu.Attached ? "linked" : "not installed")
+            };
+            float w = 330f, h = lines.Length * 16f + 10f;
+            var r = new Rect(Screen.width - w - 10f, Screen.height - h - 60f, w, h);
+            Draw.Rect(r, new Color(0, 0, 0, 0.6f));
+            for (int i = 0; i < lines.Length; i++)
+                Draw.Text(new Vector2(r.x + 8, r.y + 5 + i * 16f), lines[i], i == 0 ? Menu.Accent : Color.white, false, 12);
         }
 
         private class EspTarget { public Component C; public string Label; public Color Color; public bool Creature; public bool Boss; }
@@ -376,7 +433,7 @@ namespace HowToFishMenu
                 var fields = mb.GetType().GetFields(G.Inst).Where(f => f.FieldType.IsPrimitive || f.FieldType == typeof(Vector2) || f.FieldType == typeof(Vector3));
                 MelonLogger.Msg(mb.GetType().Name + " @ " + mb.gameObject.name + ": " + string.Join(", ", fields.Select(f => { object v; try { v = f.GetValue(mb); } catch { v = "?"; } return f.Name + "=" + v; }).ToArray()));
             }
-            var cam = Camera.main;
+            var cam = G.Cam;
             MelonLogger.Msg("Camera: " + (cam != null ? cam.name + " parent=" + (cam.transform.parent != null ? cam.transform.parent.name : "none") : "none"));
             MelonLogger.Msg("Creatures: " + G.Find("Creature", 0f).Count + ", Players: " + G.Find("Player", 0f).Count + ", Weapons: " + G.Find("Weapon", 0f).Count + ", Server: " + G.IsServer);
             Menu.Toast("Dumped to MelonLoader console.");

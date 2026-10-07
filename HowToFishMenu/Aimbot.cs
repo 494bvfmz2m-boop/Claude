@@ -13,6 +13,7 @@ namespace HowToFishMenu
         public static Choice Mode, Part, Priority, Fov, Smooth, MaxDist, Prediction, TriggerDelay;
 
         public static Component Target;
+        public static string Status = "off";
         public static bool Active;
 
         private static Quaternion _desired;
@@ -56,11 +57,13 @@ namespace HowToFishMenu
         public static void Update()
         {
             Active = Enabled.On && Mode.Index == 0 || Mode.Index == 1 && Keys.Held(Keys.V);
-            var cam = Camera.main;
-            if (cam == null || Menu.Open) { _hasDesired = false; Target = null; RunTriggerbot(cam); return; }
+            var cam = G.Cam;
+            if (cam == null) { Status = "no camera found"; _hasDesired = false; Target = null; return; }
+            if (Menu.Open) { Status = "paused (menu open)"; _hasDesired = false; Target = null; return; }
 
             if (!Active)
             {
+                Status = "off (press V)";
                 Target = null;
                 _hasDesired = false;
                 RunTriggerbot(cam);
@@ -68,7 +71,13 @@ namespace HowToFishMenu
             }
 
             if (!Sticky.On || !Valid(Target, cam, Fov.Value * 1.5f)) Target = Pick(cam);
-            if (Target == null) { _hasDesired = false; RunTriggerbot(cam); return; }
+            if (Target == null)
+            {
+                int n = G.Find("Creature").Count;
+                Status = n == 0 ? "on - no creatures loaded" : "on - no target in FOV (" + n + " creatures)";
+                _hasDesired = false; RunTriggerbot(cam); return;
+            }
+            Status = "LOCKED " + G.Name(Target);
 
             TrackVelocity(Target);
             Vector3 dir = AimPoint(Target) - cam.transform.position;
@@ -87,7 +96,7 @@ namespace HowToFishMenu
         public static void LateUpdate()
         {
             if (!_hasDesired || !Active || Target == null) return;
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam != null) Look.Apply(cam, _desired, true);
         }
 
@@ -244,7 +253,7 @@ namespace HowToFishMenu
             Vector3 p = HeadPoint(c, Part.Index);
             if (Prediction.Value > 0f && _velFor == c)
             {
-                var cam = Camera.main;
+                var cam = G.Cam;
                 float dist = cam != null ? Vector3.Distance(cam.transform.position, p) : 0f;
                 p += _velocity * Prediction.Value * Mathf.Clamp(dist / 30f, 0.25f, 3f);
             }
@@ -296,13 +305,7 @@ namespace HowToFishMenu
         // Only auto-fire while a gun is out, never while holding the rod / items.
         private static bool HoldingWeapon()
         {
-            foreach (var w in G.Find("Weapon", 0.5f))
-            {
-                if (w == null || !w.gameObject.activeInHierarchy) continue;
-                object owner = G.Get(w, "IsOwner");
-                if (G.IsLocal(w) || (owner is bool && (bool)owner)) return true;
-            }
-            return false;
+            return G.Held("Weapon") != null;
         }
 
         // ---------- silent aim / shot redirection (Harmony prefix on Weapon.Shoot) ----------
@@ -314,7 +317,7 @@ namespace HowToFishMenu
         {
             _restoreAfterShot = false;
             if (!Active || Target == null) return;
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam == null) return;
             Vector3 dir = AimPoint(Target) - cam.transform.position;
             if (dir.sqrMagnitude < 0.0001f) return;
@@ -326,7 +329,7 @@ namespace HowToFishMenu
         public static void AfterShot()
         {
             if (!_restoreAfterShot) return;
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam != null) cam.transform.rotation = _shotRestore;
             _restoreAfterShot = false;
         }
@@ -341,6 +344,7 @@ namespace HowToFishMenu
                 float r = Mathf.Tan(Mathf.Min(Fov.Value, 89f) * Mathf.Deg2Rad) / Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * Screen.height / 2f;
                 if (Fov.Value < 90f) Draw.Circle(center, r, Active ? new Color(Menu.Accent.r, Menu.Accent.g, Menu.Accent.b, 0.8f) : new Color(1, 1, 1, 0.35f));
             }
+            if (Active && Target == null) Draw.Text(center + new Vector2(0, 30), "AIMBOT: " + Status, new Color(1f, 0.85f, 0.3f), true, 13);
             if (Target == null || cam == null) return;
 
             Vector2 s;
@@ -402,6 +406,8 @@ namespace HowToFishMenu
             var comps = new HashSet<Component>();
             if (lp != null) foreach (var c in lp.transform.root.GetComponentsInChildren<MonoBehaviour>(true)) comps.Add(c);
             foreach (var c in cam.GetComponentsInParent<MonoBehaviour>(true)) comps.Add(c);
+            var pc = G.PlayerCam;
+            if (pc != null) foreach (var c in pc.GetComponentsInParent<MonoBehaviour>(true)) comps.Add(c);
 
             foreach (var comp in comps)
             {
@@ -409,7 +415,8 @@ namespace HowToFishMenu
                 foreach (var f in comp.GetType().GetFields(G.Inst))
                 {
                     string n = f.Name.ToLowerInvariant();
-                    if (!Hints.Any(h => n.Contains(h))) continue;
+                    bool lookScript = comp.GetType().Name == "PlayerCamera" || comp.GetType().Name == "PlayerMovement";
+                    if (!lookScript && !Hints.Any(h => n.Contains(h))) continue;
                     if (n.Contains("speed") || n.Contains("sens") || n.Contains("min") || n.Contains("max") || n.Contains("clamp") || n.Contains("limit")) continue;
                     if (f.FieldType == typeof(float)) Match(new AngleField { Owner = comp, Field = f }, pitch, yaw);
                     else if (f.FieldType == typeof(Vector2))
@@ -443,8 +450,8 @@ namespace HowToFishMenu
             foreach (var f in Yaw) { try { float cur = f.Get(); f.Set(cur + Mathf.DeltaAngle(cur, yaw)); } catch { } }
             if (!setTransforms) return;
 
-            var root = G.LocalRoot;
-            if (root != null && cam.transform.IsChildOf(root) && !Movement.FreecamOn)
+            var root = G.Body;
+            if (root != null && !Movement.FreecamOn)
             {
                 Quaternion body = Quaternion.Euler(0f, yaw, 0f);
                 var rb = root.GetComponent<Rigidbody>();

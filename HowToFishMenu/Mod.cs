@@ -14,22 +14,32 @@ namespace HowToFishMenu
 
         public override void OnInitializeMelon()
         {
-            Menu.Init();
-            Aimbot.Build();
-            Visuals.Build(); // ESP, Visuals, Misc
-            Movement.Build(); // Movement, Teleport
-            Features.Build(); // Weapons, Player, Fishing, World
-            Menu.AddSystemCategory();
-            OrderCategories();
-            // These would surprise you on the next launch, so they always start off.
-            foreach (var t in new[] { Movement.Fly, Movement.Noclip, Movement.Freecam, Features.FreezeCreatures, Features.CreatureMagnet })
+            Step("preferences", Menu.Init);
+            Step("aimbot", Aimbot.Build);
+            Step("visuals/esp/misc", Visuals.Build);
+            Step("movement/teleport", Movement.Build);
+            Step("weapons/player/fishing/world", Features.Build);
+            Step("menu settings", Menu.AddSystemCategory);
+            Step("order", OrderCategories);
+            Step("start-off toggles", () =>
             {
-                t.On = false;
-                t.Pref.Value = false;
-            }
-            Visuals.Init();
-            Movement.ApplyGravity();
+                // These would surprise you on the next launch, so they always start off.
+                foreach (var t in new[] { Movement.Fly, Movement.Noclip, Movement.Freecam, Features.FreezeCreatures, Features.CreatureMagnet })
+                {
+                    if (t == null) continue;
+                    t.On = false;
+                    t.Pref.Value = false;
+                }
+            });
+            Step("visual init", Visuals.Init);
+            Step("gravity", Movement.ApplyGravity);
             LoggerInstance.Msg("Loaded " + Menu.TotalEntries + " options. Press BACKSPACE to open the menu.");
+        }
+
+        private void Step(string name, Action a)
+        {
+            try { a(); }
+            catch (Exception e) { LoggerInstance.Error("Startup step '" + name + "' failed: " + e); }
         }
 
         private static void OrderCategories()
@@ -44,6 +54,7 @@ namespace HowToFishMenu
             _nextPatchTry = Time.unscaledTime + 2f;
             if (!G.Ready || G.T("Creature") == null) return;
             _patched = true;
+            try { OldMenu.Patch(HarmonyInstance); } catch (Exception e) { LoggerInstance.Warning("Old menu link failed: " + e); }
             try { Features.InstallPatches(HarmonyInstance); }
             catch (Exception e) { LoggerInstance.Warning("Patching failed: " + e); }
         }
@@ -54,6 +65,8 @@ namespace HowToFishMenu
             TryPatch();
             Run(Menu.HandleInput);
             if (!_patched) return;
+            Run(OldMenu.TryBuild);
+            Run(OldMenu.Update);
             Run(Movement.Update);
             Run(Aimbot.Update);
             Run(Features.Update);
@@ -75,7 +88,7 @@ namespace HowToFishMenu
             {
                 if (Event.current.type == EventType.Repaint)
                 {
-                    var cam = Camera.main;
+                    var cam = G.Cam;
                     if (_patched)
                     {
                         Visuals.OnGUI(cam);

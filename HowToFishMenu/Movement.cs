@@ -33,7 +33,7 @@ namespace HowToFishMenu
             Noclip = Menu.AddToggle("Noclip", "Fly through walls and terrain.", false, v => { if (!v) { RestoreColliders(); if (!Fly.On && !Freecam.On) Unfreeze(); } }, null, Keys.F7, "F7");
             Freecam = Menu.AddToggle("Freecam", "Detach the camera and fly it around. Your body stays put.", false, v =>
             {
-                var cam = Camera.main;
+                var cam = G.Cam;
                 if (v && cam != null) _freecamPos = cam.transform.position;
                 if (!v && !Fly.On && !Noclip.On) Unfreeze();
             }, null, Keys.F8, "F8");
@@ -50,12 +50,12 @@ namespace HowToFishMenu
             Menu.BeginCategory("Teleport");
             Menu.AddButton("Teleport to Crosshair", "Teleport to the spot you are looking at.", TeleportToCrosshair, null, Keys.F9, "F9");
             Menu.AddButton("Teleport Up 15m", "Jump straight up 15 meters.", () => TeleportBy(Vector3.up * 15f));
-            Menu.AddButton("Teleport Forward 20m", "Move 20 meters forward.", () => { var c = Camera.main; if (c != null) TeleportBy(Flat(c.transform.forward) * 20f); });
+            Menu.AddButton("Teleport Forward 20m", "Move 20 meters forward.", () => { var c = G.Cam; if (c != null) TeleportBy(Flat(c.transform.forward) * 20f); });
             Menu.AddButton("Teleport Down 5m", "Drop 5 meters (good for getting under things).", () => TeleportBy(Vector3.down * 5f));
             for (int i = 0; i < 3; i++)
             {
                 int slot = i;
-                Menu.AddButton("Save Position " + (i + 1), "Remember where you are.", () => { var r = G.LocalRoot; if (r != null) { Slots[slot] = r.position; Menu.Toast("Saved position " + (slot + 1)); } });
+                Menu.AddButton("Save Position " + (i + 1), "Remember where you are.", () => { var r = G.Body; if (r != null) { Slots[slot] = r.position; Menu.Toast("Saved position " + (slot + 1)); } });
                 Menu.AddButton("Load Position " + (i + 1), "Teleport to the saved position.", () => { if (Slots[slot].HasValue) TeleportTo(Slots[slot].Value); else Menu.Toast("Slot " + (slot + 1) + " is empty."); });
             }
             Menu.AddButton("Teleport to Spawn", "Back to where you first spawned on this island.", () => { if (_spawn.HasValue) TeleportTo(_spawn.Value); });
@@ -66,7 +66,7 @@ namespace HowToFishMenu
             Menu.AddButton("Teleport to Aimbot Target", "Teleport next to the creature the aimbot is locked on.", () => { if (Aimbot.Target != null) TeleportNear(Aimbot.Target.transform.position); else Menu.Toast("No aimbot target."); });
             Menu.AddButton("Teleport to Highest Point", "Teleport on top of the tallest thing below you (raycast from sky).", () =>
             {
-                var r = G.LocalRoot; if (r == null) return;
+                var r = G.Body; if (r == null) return;
                 RaycastHit h;
                 if (Physics.Raycast(r.position + Vector3.up * 500f, Vector3.down, out h, 1000f, ~0, QueryTriggerInteraction.Ignore)) TeleportTo(h.point + Vector3.up * 1.5f);
             });
@@ -78,7 +78,7 @@ namespace HowToFishMenu
 
         public static void TeleportTo(Vector3 pos)
         {
-            var root = G.LocalRoot;
+            var root = G.Body;
             if (root == null) { Menu.Toast("Local player not found."); return; }
             var cc = root.GetComponent<CharacterController>();
             bool ccWas = cc != null && cc.enabled;
@@ -93,13 +93,13 @@ namespace HowToFishMenu
 
         public static void TeleportBy(Vector3 delta)
         {
-            var r = G.LocalRoot;
+            var r = G.Body;
             if (r != null) TeleportTo(r.position + delta);
         }
 
         public static void TeleportNear(Vector3 target)
         {
-            var r = G.LocalRoot;
+            var r = G.Body;
             Vector3 from = r != null ? r.position : target;
             Vector3 dir = from - target; dir.y = 0;
             dir = dir.sqrMagnitude > 0.01f ? dir.normalized : Vector3.back;
@@ -108,10 +108,10 @@ namespace HowToFishMenu
 
         private static void TeleportToCrosshair()
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam == null) return;
             RaycastHit h;
-            var root = G.LocalRoot;
+            var root = G.Body;
             var hits = Physics.RaycastAll(cam.transform.position, cam.transform.forward, 2000f, ~0, QueryTriggerInteraction.Ignore)
                 .Where(x => root == null || !x.collider.transform.IsChildOf(root)).OrderBy(x => x.distance).ToArray();
             if (hits.Length == 0) { Menu.Toast("Nothing under the crosshair."); return; }
@@ -121,7 +121,7 @@ namespace HowToFishMenu
 
         private static void TeleportToCreature(bool fish)
         {
-            var root = G.LocalRoot;
+            var root = G.Body;
             if (root == null) return;
             Component best = null; float bestD = float.MaxValue;
             foreach (var c in G.Find("Creature"))
@@ -161,12 +161,12 @@ namespace HowToFishMenu
 
         public static void Update()
         {
-            var root = G.LocalRoot;
+            var root = G.Body;
             if (root == null) return;
             if (!_spawn.HasValue) _spawn = root.position;
 
             // Undo last frame's third-person offset before the game positions the camera again.
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam != null && _cameraOffsetApplied != Vector3.zero)
             {
                 cam.transform.position -= _cameraOffsetApplied;
@@ -209,7 +209,7 @@ namespace HowToFishMenu
 
         public static void LateUpdate()
         {
-            var cam = Camera.main;
+            var cam = G.Cam;
             if (cam == null) return;
             if (Freecam.On)
             {
@@ -225,7 +225,7 @@ namespace HowToFishMenu
             {
                 Vector3 back = -cam.transform.forward * ThirdDist.Value + Vector3.up * 0.4f;
                 RaycastHit h;
-                var root = G.LocalRoot;
+                var root = G.Body;
                 var hits = Physics.RaycastAll(cam.transform.position, back.normalized, back.magnitude, ~0, QueryTriggerInteraction.Ignore);
                 foreach (var x in hits.OrderBy(x => x.distance))
                 {

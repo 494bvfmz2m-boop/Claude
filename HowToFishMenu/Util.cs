@@ -234,6 +234,119 @@ namespace HowToFishMenu
             }
         }
 
+        // Like the game's own lookup: on the object, its children, then its parents.
+        public static Component Comp(Component from, string typeName)
+        {
+            var t = T(typeName);
+            if (from == null || t == null) return null;
+            try
+            {
+                return from.GetComponent(t) ?? from.GetComponentInChildren(t) ?? from.GetComponentInParent(t);
+            }
+            catch { return null; }
+        }
+
+        private static readonly string[] PlayerParts = { "PlayerMovement", "PlayerVitals", "PlayerDying", "PlayerInventory", "PlayerScreenShake", "PlayerCamera", "PlayerUI", "PlayerToolMovement" };
+
+        // Every game script that belongs to the local player (its own object tree plus its parts found like the game does).
+        public static List<Component> LocalParts()
+        {
+            var list = new List<Component>();
+            var lp = LocalPlayer;
+            if (lp == null) return list;
+            foreach (var mb in lp.GetComponentsInChildren<MonoBehaviour>(true))
+                if (mb != null && mb.GetType().Assembly == Asm) list.Add(mb);
+            foreach (var n in PlayerParts)
+            {
+                var c = Comp(lp, n);
+                if (c != null && !list.Contains(c)) list.Add(c);
+            }
+            var pc = PlayerCam;
+            if (pc != null && !list.Contains(pc)) list.Add(pc);
+            return list;
+        }
+
+        // The transform that physically moves (PlayerMovement's object, which carries the Rigidbody).
+        private static Transform _body;
+        private static int _bodyFrame = -1;
+
+        public static Transform Body
+        {
+            get
+            {
+                if (_bodyFrame == Time.frameCount && _body != null) return _body;
+                _bodyFrame = Time.frameCount;
+                _body = FindBody();
+                return _body;
+            }
+        }
+
+        private static Transform FindBody()
+        {
+            {
+                var lp = LocalPlayer;
+                if (lp == null) return null;
+                var pm = Comp(lp, "PlayerMovement");
+                if (pm != null)
+                {
+                    var rb = pm.GetComponentInParent<Rigidbody>();
+                    if (rb != null) return rb.transform;
+                    return pm.transform;
+                }
+                var rb2 = lp.GetComponentInParent<Rigidbody>() ?? lp.GetComponentInChildren<Rigidbody>();
+                return rb2 != null ? rb2.transform : lp.transform;
+            }
+        }
+
+        // The game's PlayerCamera script (Player.Camera), which drives the view.
+        public static Component PlayerCam
+        {
+            get { return Get(LocalPlayer, "Camera") as Component; }
+        }
+
+        private static Camera _cam;
+        private static int _camFrame = -1;
+
+        // The camera the player actually sees through. Camera.main can be null in this game.
+        public static Camera Cam
+        {
+            get
+            {
+                if (_camFrame == Time.frameCount && _cam != null) return _cam;
+                _camFrame = Time.frameCount;
+                _cam = null;
+                var pc = PlayerCam;
+                if (pc != null)
+                {
+                    _cam = pc as Camera ?? pc.GetComponent<Camera>() ?? pc.GetComponentInChildren<Camera>() ?? pc.GetComponentInParent<Camera>();
+                    if (_cam != null && (!_cam.enabled || !_cam.gameObject.activeInHierarchy)) _cam = null;
+                }
+                if (_cam == null) _cam = Camera.main;
+                if (_cam == null)
+                {
+                    float best = float.MinValue;
+                    foreach (var c in Camera.allCameras)
+                        if (c != null && c.enabled && c.targetTexture == null && c.depth > best) { best = c.depth; _cam = c; }
+                }
+                return _cam;
+            }
+        }
+
+        // Player.Inventory.SyncedCurItem.<sub>  (sub = "Weapon" or "FishingRod")
+        public static object Held(string sub)
+        {
+            object inv = Get(LocalPlayer, "Inventory");
+            object item = Get(inv, "SyncedCurItem");
+            return item == null ? null : Get(item, sub);
+        }
+
+        public static double AmmoPerMag(object weapon)
+        {
+            double per = Num(Get(Get(weapon, "Attachments"), "AmmoPerMag"));
+            if (double.IsNaN(per)) per = Num(Get(weapon, "AmmoPerMag"));
+            return per;
+        }
+
         public static Transform LocalRoot
         {
             get
@@ -245,8 +358,11 @@ namespace HowToFishMenu
 
         public static bool IsLocal(Component c)
         {
+            if (c == null) return false;
             var root = LocalRoot;
-            return root != null && c != null && (c.transform == root || c.transform.IsChildOf(root));
+            if (root != null && (c.transform == root || c.transform.IsChildOf(root))) return true;
+            var body = Body;
+            return body != null && body != root && c.transform.IsChildOf(body);
         }
 
         public static bool IsServer

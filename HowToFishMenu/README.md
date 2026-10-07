@@ -5,7 +5,10 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 ## Install
 1. Install MelonLoader 0.7.3 on How to Fish.
 2. Copy `Mods/HowToFishMenu.dll` into `How to Fish\Mods\`.
-3. **Remove** `HowToFishModMenu.dll` (the old menu, which also uses Backspace) and `HowToFishAimbot.dll` (its aimbot is built in here).
+3. **Keep** `HowToFishModMenu.dll` (the Advanced Mod Menu) in the same folder. This menu links to it: all of its features
+   (GodMode, Keep Inventory, Auto-Perfect Reel, Guaranteed Rare, Infinite Money, Sell Price, Rig Casino, Unlock All Islands,
+   Unlock All Skins, Island/Friend teleports, Boss Health, ...) appear inside this menu, and its own panel stays hidden.
+4. **Remove** `HowToFishAimbot.dll` (its aimbot is built in here).
 
 ## Controls
 | Key | Action |
@@ -36,6 +39,11 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 - **Menu**: opacity, size, color theme, position, notifications, watermark, active-mods list, save, reset all.
 
 Options tagged `<HOST>` only fully work when you host or play solo, because a host decides money, damage and deaths for everyone else.
+
+## If something doesn't work
+The **Status Panel** (bottom-right, on by default, toggle in Misc) shows what the mod detected:
+game code, hooks, your player, the camera, loaded creatures, what you're holding, aimbot state, and whether the Advanced Mod Menu is linked.
+Send a screenshot of it plus `How to Fish\MelonLoader\Latest.log`.
 
 ## Notes
 - Settings save to `UserData/MelonPreferences.cfg` (`[HowToFishMenu]`). Fly, Noclip, Freecam, Freeze and Magnet always start off.
