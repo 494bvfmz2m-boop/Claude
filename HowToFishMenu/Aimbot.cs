@@ -43,6 +43,7 @@ namespace HowToFishMenu
             VisibleOnly = Menu.AddToggle("Visible Only", "Skip targets behind walls/terrain (water surfaces are ignored).", false);
             Sticky = Menu.AddToggle("Sticky Target", "Stay on the same target until it dies or leaves range.", true);
             Silent = Menu.AddToggle("Silent Aim", "Shots go to the target's head, but your camera doesn't move.", false);
+            Menu.MarkExperimental(Silent);
             DrawFov = Menu.AddToggle("Draw FOV Circle", "Shows the aim FOV on screen.", true);
             TargetMarker = Menu.AddToggle("Target Marker", "Marks the locked target and its aim point.", true);
             TargetInfo = Menu.AddToggle("Target Info", "Shows locked target's name, HP and distance under the crosshair.", true);
@@ -360,7 +361,7 @@ namespace HowToFishMenu
         public static void BeforeShot()
         {
             _restoreAfterShot = false;
-            if (!Active || Target == null) return;
+            if (!Silent.On || !Menu.ExperimentalOn || !Active || Target == null) return;
             var cam = G.Cam;
             if (cam == null) return;
             Vector3 dir = AimPoint(Target) - cam.transform.position;

@@ -40,6 +40,13 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 
 Options tagged `<HOST>` only fully work when you host or play solo, because a host decides money, damage and deaths for everyone else.
 
+## Safe by default
+Out of the box the menu only runs what should be reliable: the Advanced Mod Menu's own features, ESP and visuals,
+the mouse-driven aimbot, and fly/teleport through the game's own `LocalTeleport`.
+Options built on guessed game names (this menu's own weapon/player/fishing/world tweaks, silent aim, gravity,
+game speed, third person, infinite jump, dash) only appear, and their game hooks are only installed, after you turn on
+**Menu → Experimental Options**. If anything acts weird, turn it off and restart the game.
+
 ## If something doesn't work
 The **Status Panel** (bottom-right, on by default, toggle in Misc) shows what the mod detected:
 game code, hooks, your player, the camera, loaded creatures, what you're holding, aimbot state, and whether the Advanced Mod Menu is linked.

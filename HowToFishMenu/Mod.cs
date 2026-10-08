@@ -55,6 +55,17 @@ namespace HowToFishMenu
             if (!G.Ready || G.T("Creature") == null) return;
             _patched = true;
             try { OldMenu.Patch(HarmonyInstance); } catch (Exception e) { LoggerInstance.Warning("Old menu link failed: " + e); }
+            if (Menu.ExperimentalOn) InstallExperimental();
+            Menu.ExperimentalChanged = v => { if (v) InstallExperimental(); };
+        }
+
+        private bool _experimentalInstalled;
+
+        // My own game hooks (weapons, damage, money, ...). Only installed once Experimental Options is turned on.
+        private void InstallExperimental()
+        {
+            if (_experimentalInstalled || !_patched) return;
+            _experimentalInstalled = true;
             try { Features.InstallPatches(HarmonyInstance); }
             catch (Exception e) { LoggerInstance.Warning("Patching failed: " + e); }
         }

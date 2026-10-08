@@ -47,6 +47,7 @@ namespace HowToFishMenu
             GameSpeed = Menu.AddChoice("Game Speed", "Time scale. Clients may desync from host.", new[] { 1f, 1.25f, 1.5f, 2f, 3f, 0.5f, 0.25f }, 0, "0.##", "x", v => Time.timeScale = v, "HOST");
             ThirdPerson = Menu.AddToggle("Third Person", "Camera behind your character.", false);
             ThirdDist = Menu.AddChoice("Third Person Distance", "Camera distance in third person.", new[] { 4f, 2.5f, 6f, 10f }, 0, "0.#", "m");
+            Menu.MarkExperimental(InfJump, JumpBoost, AirStrafeBoost, Gravity, GameSpeed, ThirdPerson, ThirdDist);
             ClickTp = Menu.AddToggle("Click Teleport", "Hold CTRL + right mouse to teleport where you look.", false);
 
             Menu.BeginCategory("Teleport");

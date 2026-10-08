@@ -12,6 +12,7 @@ namespace HowToFishMenu
         public string Desc;
         public string Tag; // e.g. "HOST" = only fully works when you host / play solo
         public bool Hidden; // hidden when the Advanced Mod Menu provides the same feature
+        public bool Experimental; // only shown (and only active) when Experimental Options is on
         public int Key; // optional hotkey (virtual-key code)
         public string KeyName;
         public abstract string ValueText { get; }
@@ -87,7 +88,7 @@ namespace HowToFishMenu
     {
         public string Name;
         public readonly List<Entry> Items = new List<Entry>();
-        public List<Entry> Visible { get { return Items.Where(e => !e.Hidden).ToList(); } }
+        public List<Entry> Visible { get { return Items.Where(e => !e.Hidden && (!e.Experimental || Menu.ExperimentalOn)).ToList(); } }
     }
 
     internal static class Menu
@@ -103,7 +104,19 @@ namespace HowToFishMenu
         private static readonly List<KeyValuePair<string, float>> Toasts = new List<KeyValuePair<string, float>>();
 
         public static Choice Opacity, Scale, Theme, MenuX;
-        public static Toggle Notifications, Watermark, KeybindList;
+        public static Toggle Notifications, Watermark, KeybindList, Experimental;
+        public static bool ExperimentalOn { get { return Experimental != null && Experimental.On; } }
+        public static Action<bool> ExperimentalChanged;
+
+        // Everything added between these calls is experimental.
+        private static bool _markExperimental;
+        public static void BeginExperimental() { _markExperimental = true; }
+        public static void EndExperimental() { _markExperimental = false; }
+
+        public static void MarkExperimental(params Entry[] entries)
+        {
+            foreach (var e in entries) if (e != null) e.Experimental = true;
+        }
 
         private static CursorLockMode _savedLock;
         private static bool _savedVisible;
@@ -137,6 +150,7 @@ namespace HowToFishMenu
         {
             var t = new Toggle { Name = name, Desc = desc, Default = def, Changed = changed, Tag = tag, Key = key, KeyName = keyName };
             t.Pref = _prefs.CreateEntry(PrefKey(name), def);
+            t.Experimental = _markExperimental;
             _building.Items.Add(t);
             if (t.Pref.Value) { t.On = true; }
             return t;
@@ -147,6 +161,7 @@ namespace HowToFishMenu
             var c = new Choice { Name = name, Desc = desc, Values = values, DefaultIndex = defIndex, Format = fmt, Suffix = suffix, Changed = changed, Tag = tag, Labels = labels };
             c.Pref = _prefs.CreateEntry(PrefKey(name), defIndex);
             c.Index = Mathf.Clamp(c.Pref.Value, 0, values.Length - 1);
+            c.Experimental = _markExperimental;
             _building.Items.Add(c);
             return c;
         }
@@ -154,6 +169,7 @@ namespace HowToFishMenu
         public static Button AddButton(string name, string desc, Action run, string tag = null, int key = 0, string keyName = null)
         {
             var b = new Button { Name = name, Desc = desc, Run = run, Tag = tag, Key = key, KeyName = keyName };
+            b.Experimental = _markExperimental;
             _building.Items.Add(b);
             return b;
         }
@@ -165,6 +181,14 @@ namespace HowToFishMenu
             Scale = AddChoice("Menu Size", "Scale of the menu.", new[] { 1f, 1.15f, 1.3f, 0.85f }, 0, "0.##", "x");
             Theme = AddChoice("Menu Color", "Accent color.", new float[] { 0, 1, 2, 3, 4, 5 }, 0, labels: ThemeNames);
             MenuX = AddChoice("Menu Position", "Where the menu sits on screen.", new float[] { 0, 1, 2 }, 0, labels: new[] { "Left", "Center", "Right" });
+            Experimental = AddToggle("Experimental Options", "Shows extra options that use guessed game names. They may glitch the game; turn this off (and restart) if things act weird.", false, v =>
+            {
+                if (!v)
+                    foreach (var c in Categories)
+                        foreach (var e in c.Items)
+                            if (e.Experimental) e.Reset();
+                if (ExperimentalChanged != null) ExperimentalChanged(v);
+            });
             Notifications = AddToggle("Notifications", "Small pop-up messages when something changes.", true);
             Watermark = AddToggle("Watermark", "Small menu name in the top-left corner.", true);
             KeybindList = AddToggle("Active Mods List", "List of enabled mods on the right side of the screen.", true);
@@ -244,7 +268,7 @@ namespace HowToFishMenu
             foreach (var c in Categories)
                 foreach (var e in c.Items)
                 {
-                    if (e.Key != 0 && Keys.Pressed(e.Key) && !(Open && IsNavKey(e.Key))) e.Activate();
+                    if (e.Key != 0 && !e.Hidden && (!e.Experimental || ExperimentalOn) && Keys.Pressed(e.Key) && !(Open && IsNavKey(e.Key))) e.Activate();
                 }
 
             if (!Open) return;

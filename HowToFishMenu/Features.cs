@@ -128,6 +128,7 @@ namespace HowToFishMenu
 
         public static void Build()
         {
+            Menu.BeginExperimental();
             Menu.BeginCategory("Weapons");
             InfAmmo = Menu.AddToggle("Infinite Ammo", "Magazine is refilled after every shot.", false);
             NoReload = Menu.AddToggle("No Reload", "Reloading is instant / never needed.", false);
@@ -186,6 +187,7 @@ namespace HowToFishMenu
                 Menu.Toast(all.Count + " creatures (" + all.Count(Aimbot.IsFish) + " fish), " + G.Find("Boss", 0f).Count + " boss(es)");
             });
 
+            Menu.EndExperimental();
             RegisterTweaks();
         }
 
@@ -271,6 +273,11 @@ namespace HowToFishMenu
 
         public static void Update()
         {
+            if (!Menu.ExperimentalOn)
+            {
+                foreach (var t in Tweak.All) t.Restore();
+                return;
+            }
             foreach (var t in Tweak.All) t.Tick();
 
             if (InfAmmo.On || AutoReloadFull.On) RefillAmmo(InfAmmo.On);
