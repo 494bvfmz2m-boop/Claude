@@ -21,9 +21,9 @@ web dashboard for managing it all — built with Node.js, SQLite and Express.
 src/                the bot (discord.js client, commands, events, handlers)
 dashboard/          the web dashboard (Express server + static frontend)
 data/               SQLite database (created automatically, gitignored)
-scripts/            setup utilities (password hashing)
-Dockerfile          image shared by both services (see docker-compose.yml)
-docker-compose.yml  Coolify deployment: bot + dashboard services, shared volume
+scripts/            setup utilities (password hashing, the combined start.js entrypoint)
+Dockerfile          single-container image; CMD runs scripts/start.js
+docker-compose.yml  Coolify/Compose deployment: one service, same image
 ```
 
 Both the bot and the dashboard read/write the same SQLite database
@@ -82,9 +82,11 @@ For automatic order embeds, configure **one** of:
 ```bash
 npm install
 npm run deploy      # registers slash commands with Discord
-npm start            # runs the bot
-npm run dashboard    # runs the dashboard (in a separate terminal/process)
-# or, in development, run both at once:
+npm start            # runs the bot only
+npm run dashboard    # runs the dashboard only (in a separate terminal/process)
+# or run both together, the same way the Docker image does:
+npm run start:all
+# or, in development, with separate colored log streams instead:
 npm run dev
 ```
 
@@ -111,40 +113,46 @@ In Discord (or via the dashboard **Settings** tab), run `/config` to set:
 
 ## Deploying on Coolify
 
-The repo ships a `docker-compose.yml` and `Dockerfile` built for this: two
-services (`bot` and `dashboard`) from the same image, sharing one persistent
-volume (`bot-data`) for the SQLite database so both processes see the same
-data.
+This runs as a **single container**: `scripts/start.js` launches the bot and
+the dashboard together in one process tree, and the `Dockerfile`'s default
+command runs it. That's deliberate — some hosts' "Dockerfile"/"Application"
+deploy type builds `Dockerfile` directly and ignores `docker-compose.yml`'s
+service definitions entirely, so the image has to be self-sufficient on its
+own regardless of which one Coolify ends up using. Point Coolify at this repo
+with **either** build pack (Dockerfile or Docker Compose) and it works the
+same way: one service, one container, port `3000`.
 
-1. In Coolify, create a new resource → **Docker Compose**, pointed at this
-   repository (it will pick up `docker-compose.yml` at the root automatically).
-2. Coolify scans the compose file for `${VARIABLE}` placeholders and turns
-   each into an input field in its UI — fill in all of these there (do **not**
-   commit a `.env` file):
+1. In Coolify, create a new resource pointed at this repository and branch.
+   Either build pack works now.
+2. Set these as environment variables on that resource (do **not** commit a
+   `.env` file):
    - `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID` (optional)
-   - `DASHBOARD_URL` — the public https URL Coolify will give the `dashboard`
-     service (set this *after* Coolify assigns/you attach a domain)
+   - `DASHBOARD_URL` — the https URL Coolify gives this resource (set this
+     *after* you attach a domain)
    - `DASHBOARD_ADMIN_USERNAME`, `DASHBOARD_ADMIN_PASSWORD_HASH` (generate
      locally with `npm run hash-password -- "your-password"`)
    - `SESSION_SECRET` (generate locally, see above)
    - `ORDER_WEBHOOK_SECRET` and/or `STRIPE_WEBHOOK_SECRET` if you're using
      automatic order embeds
    - ⚠️ **The bcrypt hash and any secret containing a literal `$` needs each
-     `$` doubled (`$$`) when pasted into Coolify's env var field** — Compose
-     treats a single `$` as the start of a variable reference and will
-     silently mangle the value otherwise. Example:
-     `$2a$12$abc...` → `$$2a$$12$$abc...`.
-3. Expose the `dashboard` service on a domain in Coolify (it listens on port
-   `3000` internally) and leave `bot` with no exposed port — it only needs
-   outbound access to Discord's gateway.
-4. Deploy. Once it's up, register slash commands once from your machine (or
-   a one-off Coolify command) with `DISCORD_TOKEN=... CLIENT_ID=... npm run deploy`,
-   since that's a one-time action, not something that needs to run in the
-   container.
-5. The `bot-data` volume persists across redeploys — restarting or
-   redeploying the stack doesn't lose your configuration, warnings, tickets,
-   or giveaway history. The database schema self-migrates new columns on
+     `$` doubled (`$$`) when pasted into Coolify's env var field** if it's a
+     Docker Compose resource — Compose treats a single `$` as the start of a
+     variable reference and will silently mangle the value otherwise. Example:
+     `$2a$12$abc...` → `$$2a$$12$$abc...`. (A plain Dockerfile/Application
+     resource doesn't do this substitution, so paste the hash as-is there.)
+3. Assign your domain to this resource and confirm Coolify's port is `3000`.
+4. Deploy. Once it's up, register slash commands once from your own machine
+   (not something that needs to run in the container) with
+   `DISCORD_TOKEN=... CLIENT_ID=... npm run deploy`.
+5. The `/app/data` volume persists across redeploys — restarting or
+   redeploying doesn't lose your configuration, warnings, tickets, or
+   giveaway history. The database schema self-migrates new columns on
    startup, so pulling updates from this repo won't require a manual migration.
+
+Logs for both processes land in the same container log, prefixed `[bot]` /
+`[dashboard]`. If either one exits unexpectedly, the supervisor shuts the
+other down too and exits non-zero, so Coolify's restart policy brings the
+whole thing back up together rather than leaving half of it dead.
 
 ## Security notes
 

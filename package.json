@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node src/index.js",
+    "start:all": "node scripts/start.js",
     "deploy": "node src/deploy-commands.js",
     "dashboard": "node dashboard/server.js",
     "dev": "concurrently -n bot,dashboard -c blue,green \"node src/index.js\" \"node dashboard/server.js\"",

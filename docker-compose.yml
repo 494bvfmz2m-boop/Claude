@@ -1,32 +1,22 @@
-# Deploy target: Coolify (Docker Compose resource). Coolify scans this file for
-# ${VARIABLE} placeholders and generates matching input fields in its UI, so set
-# every value below there rather than committing a .env file to the repo.
+# Deploy target: Coolify. Coolify scans this file for ${VARIABLE} placeholders
+# and generates matching input fields in its UI, so set every value below
+# there rather than committing a .env file to the repo.
 #
-# Both services share one persisted SQLite database over the `bot-data` volume:
-# the bot process needs the gateway connection for live events (moderation,
-# tickets, giveaways, anti-raid, the honeypot), while the dashboard only needs
-# the Discord REST API + the same database file, so it can run independently.
+# One service, one container: the image's default command (scripts/start.js)
+# runs the bot and the dashboard together in the same process tree. This
+# matches the Dockerfile directly too, so the app behaves the same whether a
+# host builds this compose file or just builds the Dockerfile on its own
+# (some PaaS "Application"/"Dockerfile" deploy types do the latter and ignore
+# this file's service definitions entirely).
 services:
-  bot:
+  app:
     build: .
     image: discord-management-bot:latest
-    command: node src/index.js
     restart: unless-stopped
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
       GUILD_ID: ${GUILD_ID:-}
-      DATABASE_PATH: /app/data/bot.sqlite
-    volumes:
-      - bot-data:/app/data
-
-  dashboard:
-    build: .
-    image: discord-management-bot:latest
-    command: node dashboard/server.js
-    restart: unless-stopped
-    environment:
-      DISCORD_TOKEN: ${DISCORD_TOKEN}
       DATABASE_PATH: /app/data/bot.sqlite
       DASHBOARD_PORT: 3000
       DASHBOARD_URL: ${DASHBOARD_URL}
@@ -35,6 +25,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       NODE_ENV: production
       ORDER_WEBHOOK_SECRET: ${ORDER_WEBHOOK_SECRET:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
     ports:
       - "3000:3000"
     volumes:
