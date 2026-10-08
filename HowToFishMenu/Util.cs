@@ -40,6 +40,11 @@ namespace HowToFishMenu
         public static bool Held(int vk) { return Cur[vk]; }
         public static bool Pressed(int vk) { return Cur[vk] && !Prev[vk]; }
 
+        public static void MoveMouse(int dx, int dy)
+        {
+            try { mouse_event(0x0001, unchecked((uint)dx), unchecked((uint)dy), 0, UIntPtr.Zero); } catch { }
+        }
+
         public static void Click()
         {
             try
@@ -283,18 +288,57 @@ namespace HowToFishMenu
 
         private static Transform FindBody()
         {
+            var lp = LocalPlayer;
+            if (lp == null) return null;
+            var rb = lp.GetComponent<Rigidbody>() ?? lp.GetComponentInChildren<Rigidbody>();
+            if (rb != null && rb.GetComponentInParent(T("Player")) == lp) return rb.transform;
+            return lp.transform;
+        }
+
+        public static float ViewYaw()
+        {
+            var cam = Cam;
+            if (cam == null) return LocalRoot != null ? LocalRoot.eulerAngles.y : 0f;
+            Vector3 f = cam.transform.forward;
+            return Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+        }
+
+        private static bool _teleportWarned;
+
+        // The game's own teleport: Player.LocalTeleport(Vector3 pos, float rot, bool).
+        public static bool LocalTeleport(Vector3 pos)
+        {
+            var lp = LocalPlayer;
+            if (lp == null) return false;
+            var m = lp.GetType().GetMethods(All).FirstOrDefault(x => x.Name == "LocalTeleport" && x.GetParameters().Length == 3);
+            if (m == null) return false;
+            try { m.Invoke(lp, new object[] { pos, ViewYaw(), true }); return true; }
+            catch (Exception e)
             {
-                var lp = LocalPlayer;
-                if (lp == null) return null;
-                var pm = Comp(lp, "PlayerMovement");
-                if (pm != null)
+                if (!_teleportWarned) { _teleportWarned = true; MelonLoader.MelonLogger.Warning("LocalTeleport failed: " + (e.InnerException ?? e).Message); }
+                return false;
+            }
+        }
+
+        // Tell the host where we are (needed when you joined someone else's game), like the game's friend teleport does.
+        public static void SendPosition(Vector3 pos)
+        {
+            var lp = LocalPlayer;
+            var server = Singleton("Server");
+            if (lp == null || server == null) return;
+            float yaw = ViewYaw();
+            foreach (var m in server.GetType().GetMethods(All))
+            {
+                if (m.Name != "UpdatePlayerPosRot" && !m.Name.StartsWith("RpcWriter___UpdatePlayerPosRot")) continue;
+                var ps = m.GetParameters();
+                if (ps.Length != 6) continue;
+                try
                 {
-                    var rb = pm.GetComponentInParent<Rigidbody>();
-                    if (rb != null) return rb.transform;
-                    return pm.transform;
+                    object channel = ps[5].ParameterType.IsEnum ? Enum.Parse(ps[5].ParameterType, "Reliable") : null;
+                    m.Invoke(server, new object[] { lp, pos, new Vector2(0f, yaw), false, true, channel });
+                    return;
                 }
-                var rb2 = lp.GetComponentInParent<Rigidbody>() ?? lp.GetComponentInChildren<Rigidbody>();
-                return rb2 != null ? rb2.transform : lp.transform;
+                catch { }
             }
         }
 

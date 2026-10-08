@@ -88,7 +88,7 @@ namespace HowToFishMenu
                 Menu.Toast("Saved " + f);
             });
             Menu.AddButton("Dump Game Info to Console", "Logs your player's scripts and fields to the MelonLoader console (for troubleshooting).", DumpInfo);
-            Menu.AddButton("Refresh Game Objects", "Re-scan creatures/players if something looks stale.", () => { G.ClearCaches(); Look.Reset(); Menu.Toast("Refreshed."); });
+            Menu.AddButton("Refresh Game Objects", "Re-scan creatures/players if something looks stale.", () => { G.ClearCaches(); Menu.Toast("Refreshed."); });
             Menu.AddButton("Quit Game", "Closes the game immediately.", Application.Quit);
         }
 

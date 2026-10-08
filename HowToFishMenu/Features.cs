@@ -363,10 +363,6 @@ namespace HowToFishMenu
 
         public static void InstallPatches(HarmonyLib.Harmony h)
         {
-            // Run aim / FOV right AFTER the game's own camera + movement scripts, so they can't overwrite it.
-            foreach (var t in new[] { "PlayerCamera", "PlayerMovement" })
-                foreach (var m in new[] { "Update", "LateUpdate", "FixedUpdate" })
-                    Patch(h, t, m, null, "AfterGameCamera");
 
             Patch(h, "Weapon", "Shoot", "ShootPrefix", "ShootPostfix");
             Patch(h, "Weapon", "Reload", "ReloadPrefix", null);
@@ -438,11 +434,6 @@ namespace HowToFishMenu
                 else if (t == typeof(int)) args[i] = set >= 0 ? (int)set : Mathf.RoundToInt((int)args[i] * mult);
                 else if (t == typeof(double)) args[i] = set >= 0 ? set : (double)args[i] * mult;
             }
-        }
-
-        private static void AfterGameCamera()
-        {
-            try { Aimbot.LateUpdate(); Visuals.ApplyCameraFov(); } catch { }
         }
 
         private static void ShootPrefix() { try { Aimbot.BeforeShot(); } catch { } }

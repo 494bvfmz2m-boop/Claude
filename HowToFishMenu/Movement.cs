@@ -21,6 +21,8 @@ namespace HowToFishMenu
         private static bool _frozen;
 
         private static Vector3 _freecamPos;
+        private static Vector3? _flyPos;
+        private static float _nextFlySync;
         private static Vector3 _cameraOffsetApplied;
         private static Vector3 _defaultGravity;
         private static bool _gravitySaved;
@@ -28,14 +30,14 @@ namespace HowToFishMenu
         public static void Build()
         {
             Menu.BeginCategory("Movement");
-            Fly = Menu.AddToggle("Fly", "WASD to move, SPACE up, CTRL down, SHIFT = faster.", false, v => { if (!v && !Noclip.On && !Freecam.On) Unfreeze(); }, null, Keys.F6, "F6");
+            Fly = Menu.AddToggle("Fly", "WASD to move, SPACE up, CTRL down, SHIFT = faster.", false, null, null, Keys.F6, "F6");
             FlySpeed = Menu.AddChoice("Fly Speed", "Fly / noclip speed.", new[] { 15f, 25f, 40f, 60f, 100f, 5f, 10f }, 0, "0", "m/s");
-            Noclip = Menu.AddToggle("Noclip", "Fly through walls and terrain.", false, v => { if (!v) { RestoreColliders(); if (!Fly.On && !Freecam.On) Unfreeze(); } }, null, Keys.F7, "F7");
+            Noclip = Menu.AddToggle("Noclip", "Fly through walls and terrain.", false, v => { if (!v) RestoreColliders(); }, null, Keys.F7, "F7");
             Freecam = Menu.AddToggle("Freecam", "Detach the camera and fly it around. Your body stays put.", false, v =>
             {
                 var cam = G.Cam;
                 if (v && cam != null) _freecamPos = cam.transform.position;
-                if (!v && !Fly.On && !Noclip.On) Unfreeze();
+                if (!v) Unfreeze();
             }, null, Keys.F8, "F8");
             FreecamSpeed = Menu.AddChoice("Freecam Speed", "Freecam move speed.", new[] { 20f, 40f, 80f, 5f, 10f }, 0, "0", "m/s");
             InfJump = Menu.AddToggle("Infinite Jump", "Jump again in mid-air with SPACE.", false);
@@ -80,15 +82,14 @@ namespace HowToFishMenu
         {
             var root = G.Body;
             if (root == null) { Menu.Toast("Local player not found."); return; }
-            var cc = root.GetComponent<CharacterController>();
-            bool ccWas = cc != null && cc.enabled;
-            if (cc != null) cc.enabled = false;
-            var rb = root.GetComponent<Rigidbody>();
-            if (rb != null) { rb.position = pos; rb.velocity = Vector3.zero; }
-            root.position = pos;
-            if (cc != null) cc.enabled = ccWas;
+            if (!G.LocalTeleport(pos))
+            {
+                var trb = root.GetComponent<Rigidbody>();
+                if (trb != null) { trb.position = pos; trb.velocity = Vector3.zero; }
+                root.position = pos;
+            }
+            if (!G.IsServer) G.SendPosition(pos);
             if (FreecamOn) _freecamPos = pos + Vector3.up * 1.6f;
-            Physics.SyncTransforms();
         }
 
         public static void TeleportBy(Vector3 delta)
@@ -174,18 +175,32 @@ namespace HowToFishMenu
             }
 
             bool flying = Fly.On || Noclip.On;
-            if (flying || Freecam.On) Freeze(root);
+            if (Freecam.On) Freeze(root);
 
             if (Noclip.On) DisableColliders(root);
 
-            if (flying && !Freecam.On && !Menu.Open && cam != null)
+            if (flying && !Freecam.On && cam != null)
             {
-                Vector3 move = InputDir(cam.transform);
+                if (!_flyPos.HasValue) _flyPos = root.position;
+                Vector3 move = Menu.Open ? Vector3.zero : InputDir(cam.transform);
                 float speed = FlySpeed.Value * (Keys.Held(Keys.LShift) ? 2.5f : 1f);
-                Vector3 p = root.position + move * speed * Time.unscaledDeltaTime;
-                if (_rb != null) { _rb.position = p; _rb.velocity = Vector3.zero; }
-                root.position = p;
+                _flyPos += move * speed * Time.unscaledDeltaTime;
+                // Hold position with the game's own teleport every frame, so gravity/physics can't pull us down.
+                if (!G.LocalTeleport(_flyPos.Value))
+                {
+                    var frb = root.GetComponent<Rigidbody>();
+                    if (frb != null) { frb.position = _flyPos.Value; frb.velocity = Vector3.zero; }
+                    root.position = _flyPos.Value;
+                }
+                var vrb = root.GetComponent<Rigidbody>();
+                if (vrb != null && !vrb.isKinematic) vrb.velocity = Vector3.zero;
+                if (!G.IsServer && Time.unscaledTime >= _nextFlySync)
+                {
+                    _nextFlySync = Time.unscaledTime + 0.1f;
+                    G.SendPosition(_flyPos.Value);
+                }
             }
+            else _flyPos = null;
 
             var rb = root.GetComponent<Rigidbody>();
             if (!flying && !Freecam.On && !Menu.Open && rb != null && !rb.isKinematic)

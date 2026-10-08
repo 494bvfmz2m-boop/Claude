@@ -16,8 +16,6 @@ namespace HowToFishMenu
         public static string Status = "off";
         public static bool Active;
 
-        private static Quaternion _desired;
-        private static bool _hasDesired;
         private static float _nextTrigger;
 
         // Target velocity tracking for prediction.
@@ -58,14 +56,14 @@ namespace HowToFishMenu
         {
             Active = Enabled.On && Mode.Index == 0 || Mode.Index == 1 && Keys.Held(Keys.V);
             var cam = G.Cam;
-            if (cam == null) { Status = "no camera found"; _hasDesired = false; Target = null; return; }
-            if (Menu.Open) { Status = "paused (menu open)"; _hasDesired = false; Target = null; return; }
+            if (cam == null) { Status = "no camera found"; StopAim(); Target = null; return; }
+            if (Menu.Open) { Status = "paused (menu open)"; StopAim(); Target = null; return; }
 
             if (!Active)
             {
                 Status = "off (press V)";
                 Target = null;
-                _hasDesired = false;
+                StopAim();
                 RunTriggerbot(cam);
                 return;
             }
@@ -75,29 +73,75 @@ namespace HowToFishMenu
             {
                 int n = G.Find("Creature").Count;
                 Status = n == 0 ? "on - no creatures loaded" : "on - no target in FOV (" + n + " creatures)";
-                _hasDesired = false; RunTriggerbot(cam); return;
+                StopAim(); RunTriggerbot(cam); return;
             }
             Status = "LOCKED " + G.Name(Target);
 
             TrackVelocity(Target);
-            Vector3 dir = AimPoint(Target) - cam.transform.position;
-            Quaternion goal = Quaternion.LookRotation(dir);
-            _desired = Smooth.Value <= 0f ? goal : Quaternion.Slerp(cam.transform.rotation, goal, 1f - Mathf.Exp(-Time.deltaTime * 60f / Smooth.Value));
-            _hasDesired = !Silent.On;
-
-            if (_hasDesired)
-            {
-                Look.Calibrate(cam);
-                Look.Apply(cam, _desired, false);
-            }
+            if (!Silent.On) MouseAim(cam, AimPoint(Target));
             RunTriggerbot(cam);
         }
 
-        public static void LateUpdate()
+        public static void LateUpdate() { }
+
+        // ---------- mouse-driven aim ----------
+        // The aimbot moves the real mouse (like a hand would). The game's own look code then turns the camera,
+        // body and weapon together, so no game values are ever written. It learns how far the view turns per
+        // mouse count (your sensitivity, and whether Y is inverted) from what it observes each frame.
+
+        private static float _kx = 0.08f, _ky = 0.08f; // degrees per mouse count
+        private static int _learnedX, _learnedY;
+        private static int _sentX, _sentY;
+        private static float _lastYaw, _lastPitch;
+        private static bool _haveLast;
+
+        private static void Angles(Vector3 dir, out float yaw, out float pitch)
         {
-            if (!_hasDesired || !Active || Target == null) return;
-            var cam = G.Cam;
-            if (cam != null) Look.Apply(cam, _desired, true);
+            dir.Normalize();
+            yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+            pitch = -Mathf.Asin(Mathf.Clamp(dir.y, -1f, 1f)) * Mathf.Rad2Deg; // positive = looking down
+        }
+
+        private static void Learn(ref float k, ref int learned, float observed, int sent)
+        {
+            if (Mathf.Abs(sent) < 3 || Mathf.Abs(observed) < 0.01f) return;
+            float m = observed / sent;
+            if (Mathf.Abs(m) < 0.0005f || Mathf.Abs(m) > 5f) return;
+            if (Mathf.Sign(m) != Mathf.Sign(k) || learned == 0) k = m;
+            else k = Mathf.Lerp(k, m, 0.3f);
+            learned++;
+        }
+
+        private static void MouseAim(Camera cam, Vector3 aimPoint)
+        {
+            float camYaw, camPitch, tYaw, tPitch;
+            Angles(cam.transform.forward, out camYaw, out camPitch);
+            Angles(aimPoint - cam.transform.position, out tYaw, out tPitch);
+
+            if (_haveLast)
+            {
+                Learn(ref _kx, ref _learnedX, Mathf.DeltaAngle(_lastYaw, camYaw), _sentX);
+                Learn(ref _ky, ref _learnedY, camPitch - _lastPitch, _sentY);
+            }
+
+            float errYaw = Mathf.DeltaAngle(camYaw, tYaw);
+            float errPitch = tPitch - camPitch;
+            float gain = Smooth.Value <= 0f ? 0.6f : 1f / (1f + Smooth.Value / 3f);
+            int limitX = _learnedX >= 3 ? 600 : 80, limitY = _learnedY >= 3 ? 600 : 80;
+
+            int dx = Mathf.Abs(errYaw) < 0.1f ? 0 : Mathf.Clamp(Mathf.RoundToInt(errYaw * gain / _kx), -limitX, limitX);
+            int dy = Mathf.Abs(errPitch) < 0.1f ? 0 : Mathf.Clamp(Mathf.RoundToInt(errPitch * gain / _ky), -limitY, limitY);
+            if (dx != 0 || dy != 0) Keys.MoveMouse(dx, dy);
+
+            _sentX = dx; _sentY = dy;
+            _lastYaw = camYaw; _lastPitch = camPitch;
+            _haveLast = true;
+        }
+
+        private static void StopAim()
+        {
+            _haveLast = false;
+            _sentX = _sentY = 0;
         }
 
         private static void RunTriggerbot(Camera cam)
@@ -322,7 +366,7 @@ namespace HowToFishMenu
             Vector3 dir = AimPoint(Target) - cam.transform.position;
             if (dir.sqrMagnitude < 0.0001f) return;
             _shotRestore = cam.transform.rotation;
-            _restoreAfterShot = Silent.On;
+            _restoreAfterShot = true;
             cam.transform.rotation = Quaternion.LookRotation(dir);
         }
 
@@ -361,104 +405,6 @@ namespace HowToFishMenu
                 float dist = Vector3.Distance(cam.transform.position, Target.transform.position);
                 Draw.Text(center + new Vector2(0, 30), "LOCKED: " + G.Name(Target) + hpText + "  " + dist.ToString("0") + "m" + (IsBoss(Target) ? "  [BOSS]" : ""), new Color(1f, 0.35f, 0.35f), true, 14);
             }
-        }
-    }
-
-    // Writes aim into the game's own mouse-look fields (found by matching their values to the camera angles),
-    // so the aim sticks instead of being overwritten by the game's look script next frame.
-    internal static class Look
-    {
-        private class AngleField
-        {
-            public object Owner; public FieldInfo Field; public int Comp = -1; public float Sign = 1f;
-            public float Get()
-            {
-                object v = Field.GetValue(Owner);
-                if (Comp < 0) return (float)v;
-                var vec = (Vector2)v; return Comp == 0 ? vec.x : vec.y;
-            }
-            public void Set(float value)
-            {
-                if (Comp < 0) { Field.SetValue(Owner, value); return; }
-                var vec = (Vector2)Field.GetValue(Owner);
-                if (Comp == 0) vec.x = value; else vec.y = value;
-                Field.SetValue(Owner, vec);
-            }
-        }
-
-        private static readonly List<AngleField> Pitch = new List<AngleField>();
-        private static readonly List<AngleField> Yaw = new List<AngleField>();
-        private static Component _for;
-        private static bool _done;
-        private static readonly string[] Hints = { "rot", "pitch", "yaw", "look", "angle", "cam", "xr", "yr", "mouse" };
-
-        public static void Reset() { _done = false; _for = null; Pitch.Clear(); Yaw.Clear(); }
-
-        public static void Calibrate(Camera cam)
-        {
-            var lp = G.LocalPlayer;
-            if (_done && _for == lp) return;
-            Vector3 e = cam.transform.rotation.eulerAngles;
-            float pitch = Mathf.DeltaAngle(0f, e.x), yaw = e.y;
-            if (Mathf.Abs(pitch) < 2f || Mathf.Abs(Mathf.DeltaAngle(0f, yaw)) < 2f) return;
-
-            Pitch.Clear(); Yaw.Clear();
-            var comps = new HashSet<Component>();
-            if (lp != null) foreach (var c in lp.transform.root.GetComponentsInChildren<MonoBehaviour>(true)) comps.Add(c);
-            foreach (var c in cam.GetComponentsInParent<MonoBehaviour>(true)) comps.Add(c);
-            var pc = G.PlayerCam;
-            if (pc != null) foreach (var c in pc.GetComponentsInParent<MonoBehaviour>(true)) comps.Add(c);
-
-            foreach (var comp in comps)
-            {
-                if (comp == null || comp.GetType().Assembly != G.Asm) continue;
-                foreach (var f in comp.GetType().GetFields(G.Inst))
-                {
-                    string n = f.Name.ToLowerInvariant();
-                    bool lookScript = comp.GetType().Name == "PlayerCamera" || comp.GetType().Name == "PlayerMovement";
-                    if (!lookScript && !Hints.Any(h => n.Contains(h))) continue;
-                    if (n.Contains("speed") || n.Contains("sens") || n.Contains("min") || n.Contains("max") || n.Contains("clamp") || n.Contains("limit")) continue;
-                    if (f.FieldType == typeof(float)) Match(new AngleField { Owner = comp, Field = f }, pitch, yaw);
-                    else if (f.FieldType == typeof(Vector2))
-                    {
-                        Match(new AngleField { Owner = comp, Field = f, Comp = 0 }, pitch, yaw);
-                        Match(new AngleField { Owner = comp, Field = f, Comp = 1 }, pitch, yaw);
-                    }
-                }
-            }
-            _done = true; _for = lp;
-            MelonLogger.Msg("Aim calibration: pitch [" + string.Join(", ", Pitch.Select(a => a.Field.Name).ToArray()) + "] yaw [" + string.Join(", ", Yaw.Select(a => a.Field.Name).ToArray()) + "]");
-        }
-
-        private static void Match(AngleField af, float pitch, float yaw)
-        {
-            float v;
-            try { v = af.Get(); } catch { return; }
-            bool p = false, y = false;
-            if (Mathf.Abs(v - pitch) < 0.5f) { p = true; af.Sign = 1f; }
-            else if (Mathf.Abs(v + pitch) < 0.5f) { p = true; af.Sign = -1f; }
-            if (Mathf.Abs(Mathf.DeltaAngle(v, yaw)) < 0.5f) y = true;
-            if (p && y) return;
-            if (p) Pitch.Add(af); else if (y) Yaw.Add(af);
-        }
-
-        public static void Apply(Camera cam, Quaternion q, bool setTransforms)
-        {
-            Vector3 e = q.eulerAngles;
-            float pitch = Mathf.DeltaAngle(0f, e.x), yaw = e.y;
-            foreach (var f in Pitch) { try { f.Set(pitch * f.Sign); } catch { } }
-            foreach (var f in Yaw) { try { float cur = f.Get(); f.Set(cur + Mathf.DeltaAngle(cur, yaw)); } catch { } }
-            if (!setTransforms) return;
-
-            var root = G.Body;
-            if (root != null && !Movement.FreecamOn)
-            {
-                Quaternion body = Quaternion.Euler(0f, yaw, 0f);
-                var rb = root.GetComponent<Rigidbody>();
-                if (rb != null) rb.rotation = body;
-                root.rotation = body;
-            }
-            cam.transform.rotation = q;
         }
     }
 }

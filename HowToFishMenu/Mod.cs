@@ -104,7 +104,6 @@ namespace HowToFishMenu
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             G.ClearCaches();
-            Look.Reset();
             Tweak.ClearAll();
             Movement.OnSceneLoaded();
             Visuals.OnSceneLoaded();
