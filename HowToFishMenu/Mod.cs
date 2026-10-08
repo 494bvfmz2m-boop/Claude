@@ -112,6 +112,11 @@ namespace HowToFishMenu
             catch (Exception e) { LogOnce("GUI", e); }
         }
 
+        public override void OnDeinitializeMelon()
+        {
+            OldMenu.Shutdown();
+        }
+
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             G.ClearCaches();

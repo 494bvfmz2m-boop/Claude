@@ -272,7 +272,7 @@ namespace HowToFishMenu
                 "Creatures loaded: " + G.Find("Creature").Count,
                 "Holding: " + (G.Held("Weapon") != null ? "weapon" : G.Held("FishingRod") != null ? "fishing rod" : "nothing/other"),
                 "Aimbot: " + Aimbot.Status,
-                "Advanced Mod Menu: " + (OldMenu.Attached ? "linked" : "not installed")
+                "Advanced features: " + (OldMenu.Attached ? "built in" : "starting...") + (OldMenu.ExternalFound ? "  (delete HowToFishModMenu.dll)" : "")
             };
             float w = 330f, h = lines.Length * 16f + 10f;
             var r = new Rect(Screen.width - w - 10f, Screen.height - h - 60f, w, h);

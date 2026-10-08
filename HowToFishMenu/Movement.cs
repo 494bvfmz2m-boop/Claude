@@ -22,6 +22,8 @@ namespace HowToFishMenu
 
         private static Vector3 _freecamPos;
         private static Vector3? _flyPos;
+        private static Vector3 _tpPos;
+        private static float _tpUntil, _tpNext;
         private static float _nextFlySync;
         private static Vector3 _cameraOffsetApplied;
         private static Vector3 _defaultGravity;
@@ -83,13 +85,14 @@ namespace HowToFishMenu
         {
             var root = G.Body;
             if (root == null) { Menu.Toast("Local player not found."); return; }
-            if (!G.LocalTeleport(pos))
+            if (!G.FullTeleport(pos))
             {
                 var trb = root.GetComponent<Rigidbody>();
                 if (trb != null) { trb.position = pos; trb.velocity = Vector3.zero; }
                 root.position = pos;
             }
-            if (!G.IsServer) G.SendPosition(pos);
+            // Re-send for a moment, like the Advanced Mod Menu does, so the host doesn't pull us back.
+            _tpPos = pos; _tpUntil = Time.unscaledTime + 1f; _tpNext = Time.unscaledTime + 0.12f;
             if (FreecamOn) _freecamPos = pos + Vector3.up * 1.6f;
         }
 
@@ -175,6 +178,12 @@ namespace HowToFishMenu
                 _cameraOffsetApplied = Vector3.zero;
             }
 
+            if (_tpUntil > 0f)
+            {
+                if (Time.unscaledTime > _tpUntil) _tpUntil = 0f;
+                else if (Time.unscaledTime >= _tpNext) { _tpNext = Time.unscaledTime + 0.12f; G.FullTeleport(_tpPos); }
+            }
+
             bool flying = Fly.On || Noclip.On;
             if (Freecam.On) Freeze(root);
 
@@ -197,7 +206,7 @@ namespace HowToFishMenu
                 if (vrb != null && !vrb.isKinematic) vrb.velocity = Vector3.zero;
                 if (!G.IsServer && Time.unscaledTime >= _nextFlySync)
                 {
-                    _nextFlySync = Time.unscaledTime + 0.1f;
+                    _nextFlySync = Time.unscaledTime + 0.12f;
                     G.SendPosition(_flyPos.Value);
                 }
             }

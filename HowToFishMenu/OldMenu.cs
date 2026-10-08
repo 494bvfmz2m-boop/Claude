@@ -9,8 +9,8 @@ using UnityEngine;
 
 namespace HowToFishMenu
 {
-    // Drives the "Advanced Mod Menu" (HowToFishModMenu.dll) from inside this menu, so all of its
-    // features run with its own proven code. Its own Backspace panel is suppressed.
+    // Drives the embedded Advanced Mod Menu engine (Advanced/AdvancedEngine.cs) from inside this menu, so all of its
+    // features run with their original code.
     internal static class OldMenu
     {
         public static object Instance;
@@ -30,19 +30,38 @@ namespace HowToFishMenu
             { "Angler", "Player" }, { "Fishing", "Fishing" }, { "Arsenal", "Weapons" }, { "Island", "World" }, { "System", "Visuals" }
         };
 
+        public static Advanced.AdvancedEngine Engine;
+        public static bool ExternalFound;
+
+        // Starts the embedded Advanced Mod Menu engine (its exact feature code), and fully silences the separate
+        // HowToFishModMenu.dll if it is still installed so nothing runs twice.
         public static void Patch(HarmonyLib.Harmony h)
         {
             if (_patched) return;
-            _type = AppDomain.CurrentDomain.GetAssemblies()
-                .Select(a => { try { return a.GetType("HowToFishModMenu.ModMenu", false); } catch { return null; } })
-                .FirstOrDefault(t => t != null);
-            if (_type == null) return;
             _patched = true;
             const BindingFlags F = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            Hook(h, "KeyDown", nameof(KeyDownPrefix), null);
-            Hook(h, "OnUpdate", nameof(BlockEdges), nameof(CaptureInstance));
-            Hook(h, "OnGUI", nameof(SkipGui), null);
-            MelonLogger.Msg("Found the Advanced Mod Menu: its features are now inside this menu.");
+
+            var external = AppDomain.CurrentDomain.GetAssemblies()
+                .Select(a => { try { return a.GetType("HowToFishModMenu.ModMenu", false); } catch { return null; } })
+                .FirstOrDefault(t => t != null);
+            if (external != null)
+            {
+                ExternalFound = true;
+                Silence(h, external, "KeyDown", nameof(KeyDownPrefix));
+                Silence(h, external, "OnUpdate", nameof(Skip0));
+                Silence(h, external, "OnGUI", nameof(Skip0));
+                MelonLogger.Warning("HowToFishModMenu.dll is still installed. Its features are built into this menu now, so it was switched off. You can delete it.");
+            }
+
+            try
+            {
+                Engine = new Advanced.AdvancedEngine();
+                Engine.Init();
+            }
+            catch (Exception e) { MelonLogger.Error("Advanced engine failed to start: " + e); return; }
+
+            _type = typeof(Advanced.AdvancedEngine);
+            Instance = Engine;
             _activate = _type.GetMethod("ActivateSelected", F);
             _valueText = _type.GetMethod("GetValueText", F);
             _isEnabled = _type.GetMethod("IsEnabled", F);
@@ -53,64 +72,30 @@ namespace HowToFishMenu
             _open = _type.GetField("_menuOpen", F);
         }
 
-        private static void Hook(HarmonyLib.Harmony h, string method, string prefix, string postfix)
+        private static void Silence(HarmonyLib.Harmony h, Type t, string method, string prefix)
         {
             const BindingFlags F = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            try
-            {
-                var target = _type.GetMethod(method, F);
-                var pre = prefix != null ? new HarmonyMethod(typeof(OldMenu).GetMethod(prefix, BindingFlags.Static | BindingFlags.NonPublic)) : null;
-                var post = postfix != null ? new HarmonyMethod(typeof(OldMenu).GetMethod(postfix, BindingFlags.Static | BindingFlags.NonPublic)) : null;
-                h.Patch(target, pre, post);
-            }
-            catch (Exception e) { MelonLogger.Warning("Advanced Mod Menu hook " + method + " failed: " + e.Message); }
+            try { h.Patch(t.GetMethod(method, F), new HarmonyMethod(typeof(OldMenu).GetMethod(prefix, BindingFlags.Static | BindingFlags.NonPublic))); }
+            catch (Exception e) { MelonLogger.Warning("Could not switch off HowToFishModMenu." + method + ": " + e.Message); }
         }
 
-        // Fallback when the OnUpdate hook can't be installed: find it in MelonLoader's list of loaded mods.
-        public static void FindInstance()
-        {
-            if (Instance != null || _type == null) return;
-            try
-            {
-                foreach (var m in MelonBase.RegisteredMelons)
-                    if (m != null && _type.IsInstanceOfType(m)) { Instance = m; break; }
-            }
-            catch { }
-        }
+        private static bool Skip0() { return false; }
 
-        // Its menu keys (Backspace, Up, Down, Right Shift) never reach it, so its own panel never opens.
+        // Its menu keys (Backspace, Up, Down, Right Shift) never reach it.
         private static bool KeyDownPrefix(int vk, ref bool __result)
         {
             if (vk == 8 || vk == 38 || vk == 40 || vk == 161) { __result = false; return false; }
             return true;
         }
 
-        private static bool SkipGui() { return false; }
-
-        private static FieldInfo[] _wasDown;
-
-        // Pretend its menu keys were already held, so it never sees a fresh press (works even if KeyDown got inlined).
-        private static void BlockEdges(object __instance)
+        public static void Shutdown()
         {
-            if (_wasDown == null)
-                _wasDown = new[] { "_backWasDown", "_upWasDown", "_downWasDown", "_rshiftWasDown" }
-                    .Select(n => _type.GetField(n, BindingFlags.Instance | BindingFlags.NonPublic)).Where(f => f != null).ToArray();
-            foreach (var f in _wasDown) { try { f.SetValue(__instance, true); } catch { } }
-            try { if (_open != null) _open.SetValue(__instance, false); } catch { }
-        }
-
-        private static void CaptureInstance(object __instance)
-        {
-            if (Instance != null) return;
-            Instance = __instance;
-            try { _open.SetValue(__instance, false); } catch { }
+            if (Engine != null) { try { Engine.Shutdown(); } catch { } }
         }
 
         public static void TryBuild()
         {
-            if (Attached) return;
-            FindInstance();
-            if (Instance == null) return;
+            if (Attached || Instance == null) return;
             Attached = true;
             const BindingFlags F = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
             var pageType = _type.GetNestedType("Page", BindingFlags.NonPublic | BindingFlags.Public);
@@ -130,12 +115,20 @@ namespace HowToFishMenu
                     string kind = entry.GetType().GetField("Kind").GetValue(entry).ToString();
                     object feature = entry.GetType().GetField("Feature").GetValue(entry);
                     if (Skip.Contains(name) || kind == "Unavailable" || kind == "Category") continue;
-                    cat.Items.Insert(insertAt++, new Bridged { Name = name, Desc = "From the Advanced Mod Menu (works when hosting AND when joining).", Kind = kind, Feature = feature, Page = page, Index = i });
+                    cat.Items.Insert(insertAt++, new Bridged { Name = name, Desc = "Advanced Mod Menu feature (original code; works when hosting AND when joining).", Kind = kind, Feature = feature, Page = page, Index = i });
                     added++;
                 }
             }
             MelonLogger.Msg("Added " + added + " Advanced Mod Menu options.");
             Menu.OnOldMenuAttached();
+        }
+
+        private static bool _logged;
+        private static void LogOnce(Exception e)
+        {
+            if (_logged) return;
+            _logged = true;
+            MelonLogger.Warning("Advanced engine error: " + e);
         }
 
         public static void ResetAll()
@@ -146,8 +139,8 @@ namespace HowToFishMenu
 
         public static void Update()
         {
-            if (Instance == null || _status == null) return;
-            BlockEdges(Instance);
+            if (Engine == null) return;
+            try { Engine.Tick(); } catch (Exception e) { LogOnce(e); }
             try
             {
                 if (_open != null && (bool)_open.GetValue(Instance)) _open.SetValue(Instance, false);

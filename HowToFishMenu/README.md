@@ -5,9 +5,10 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 ## Install
 1. Install MelonLoader 0.7.3 on How to Fish.
 2. Copy `Mods/HowToFishMenu.dll` into `How to Fish\Mods\`.
-3. **Keep** `HowToFishModMenu.dll` (the Advanced Mod Menu) in the same folder. This menu links to it: all of its features
-   (GodMode, Keep Inventory, Auto-Perfect Reel, Guaranteed Rare, Infinite Money, Sell Price, Rig Casino, Unlock All Islands,
-   Unlock All Skins, Island/Friend teleports, Boss Health, ...) appear inside this menu, and its own panel stays hidden.
+3. **Delete** `HowToFishModMenu.dll`. The Advanced Mod Menu's code (by chadi7bark) is built into this DLL
+   (`AdvancedEngine.cs`, decompiled from v0.4.46), so all of its features (GodMode, Keep Inventory, Auto-Perfect Reel, Guaranteed Rare,
+   Infinite Money, Sell Price, Rig Casino, Unlock All Islands/Skins, Island/Friend teleports, Boss Health, ...) run with their original code.
+   If it is still installed it gets switched off automatically.
 4. **Remove** `HowToFishAimbot.dll` (its aimbot is built in here).
 
 ## Controls
@@ -40,12 +41,9 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 
 Options tagged `<HOST>` only fully work when you host or play solo, because a host decides money, damage and deaths for everyone else.
 
-## Safe by default
-Out of the box the menu only runs what should be reliable: the Advanced Mod Menu's own features, ESP and visuals,
-the mouse-driven aimbot, and fly/teleport through the game's own `LocalTeleport`.
-Options built on guessed game names (this menu's own weapon/player/fishing/world tweaks, silent aim, gravity,
-game speed, third person, infinite jump, dash) only appear, and their game hooks are only installed, after you turn on
-**Menu → Experimental Options**. If anything acts weird, turn it off and restart the game.
+## Extra Features switch
+**Menu → Extra Features** (on by default) shows this menu's own options on top of the Advanced Mod Menu features.
+Turn it off and restart the game if something acts weird.
 
 ## If something doesn't work
 The **Status Panel** (bottom-right, on by default, toggle in Misc) shows what the mod detected:

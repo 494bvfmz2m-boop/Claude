@@ -27,7 +27,8 @@ namespace HowToFishMenu
         {
             if (_frame == Time.frameCount) return;
             _frame = Time.frameCount;
-            bool focused = Application.isFocused;
+            bool focused;
+            try { focused = Advanced.AdvancedEngine.IsGameForeground(); } catch { focused = Application.isFocused; }
             for (int i = 1; i < 256; i++)
             {
                 Prev[i] = Cur[i];
@@ -229,6 +230,8 @@ namespace HowToFishMenu
                 _local = null;
                 var pt = T("Player");
                 if (pt == null) return null;
+                try { _local = Advanced.AdvancedEngine.FindLocalPlayerStatic() as Component; } catch { }
+                if (_local != null) return _local;
                 foreach (var p in Find("Player", 0f))
                 {
                     object owner = Get(p, "IsOwner");
@@ -244,10 +247,7 @@ namespace HowToFishMenu
         {
             var t = T(typeName);
             if (from == null || t == null) return null;
-            try
-            {
-                return from.GetComponent(t) ?? from.GetComponentInChildren(t) ?? from.GetComponentInParent(t);
-            }
+            try { return Advanced.AdvancedEngine.GetComponent(from, t) as Component; }
             catch { return null; }
         }
 
@@ -323,6 +323,7 @@ namespace HowToFishMenu
         // Tell the host where we are (needed when you joined someone else's game), like the game's friend teleport does.
         public static void SendPosition(Vector3 pos)
         {
+            try { if (Advanced.AdvancedEngine.TryNetworkPlayerPositionTeleport(LocalPlayer, pos, ViewYaw(), true)) return; } catch { }
             var lp = LocalPlayer;
             var server = Singleton("Server");
             if (lp == null || server == null) return;
@@ -340,6 +341,14 @@ namespace HowToFishMenu
                 }
                 catch { }
             }
+        }
+
+        // Full teleport exactly like the Advanced Mod Menu's friend teleport: LocalTeleport + host position + TeleportPlayer RPC.
+        public static bool FullTeleport(Vector3 pos)
+        {
+            var lp = LocalPlayer;
+            if (lp == null) return false;
+            try { return Advanced.AdvancedEngine.ForceFriendTeleportOnce(lp, pos, ViewYaw(), true); } catch { return false; }
         }
 
         // The game's PlayerCamera script (Player.Camera), which drives the view.
@@ -379,9 +388,7 @@ namespace HowToFishMenu
         // Player.Inventory.SyncedCurItem.<sub>  (sub = "Weapon" or "FishingRod")
         public static object Held(string sub)
         {
-            object inv = Get(LocalPlayer, "Inventory");
-            object item = Get(inv, "SyncedCurItem");
-            return item == null ? null : Get(item, sub);
+            try { return Advanced.AdvancedEngine.GetHeldSubItemStatic(LocalPlayer, sub); } catch { return null; }
         }
 
         public static double AmmoPerMag(object weapon)
@@ -413,6 +420,7 @@ namespace HowToFishMenu
         {
             get
             {
+                try { return !Advanced.AdvancedEngine.IsRemoteClientSession(); } catch { }
                 var p = LocalPlayer;
                 if (p == null) return true;
                 object s = Get(p, "IsServerInitialized") ?? Get(p, "IsServerStarted") ?? Get(p, "IsServer");

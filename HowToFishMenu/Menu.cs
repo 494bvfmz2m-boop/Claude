@@ -181,7 +181,7 @@ namespace HowToFishMenu
             Scale = AddChoice("Menu Size", "Scale of the menu.", new[] { 1f, 1.15f, 1.3f, 0.85f }, 0, "0.##", "x");
             Theme = AddChoice("Menu Color", "Accent color.", new float[] { 0, 1, 2, 3, 4, 5 }, 0, labels: ThemeNames);
             MenuX = AddChoice("Menu Position", "Where the menu sits on screen.", new float[] { 0, 1, 2 }, 0, labels: new[] { "Left", "Center", "Right" });
-            Experimental = AddToggle("Experimental Options", "Shows extra options that use guessed game names. They may glitch the game; turn this off (and restart) if things act weird.", false, v =>
+            Experimental = AddToggle("Extra Features", "This menu's own extra options (on top of the Advanced Mod Menu features). Turn off and restart the game if something acts weird.", true, v =>
             {
                 if (!v)
                     foreach (var c in Categories)
