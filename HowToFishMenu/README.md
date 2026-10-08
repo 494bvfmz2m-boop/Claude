@@ -41,6 +41,17 @@ About 140 options in 11 categories. Press **BACKSPACE** to open the menu.
 
 Options tagged `<HOST>` only fully work when you host or play solo, because a host decides money, damage and deaths for everyone else.
 
+## Built-in BepInEx mods
+The DLL also carries these BepInEx 5 mods inside it, with their original code, plus BepInEx 5.4.23's core for their
+configs and logging. Nothing else needs installing:
+- **KRAKEN v1.2.1** (INSERT, CTRL+INSERT; hotkeys F5-F11)
+- **Fish Menu 2.1.1** (INSERT)
+- **How to Fish Local Cheats 1.1.0** (F8)
+
+Turn each one on/off in the **Mods** tab. KRAKEN and Fish Menu both open on INSERT, so turn one off if both pop up.
+Their config files are in `How to Fish\UserData\BepInEx\config`. Each mod belongs to its original author.
+Building needs those DLLs in `embedded/` (not in git), see `build.sh`.
+
 ## Extra Features switch
 **Menu → Extra Features** (on by default) shows this menu's own options on top of the Advanced Mod Menu features.
 Turn it off and restart the game if something acts weird.

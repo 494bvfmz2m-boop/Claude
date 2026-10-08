@@ -4,6 +4,7 @@ using UnityEngine;
 
 [assembly: MelonInfo(typeof(HowToFishMenu.Mod), "How to Fish Mod Menu", "2.0.0", "HowToFishMenu")]
 [assembly: MelonGame(null, null)]
+[assembly: HarmonyDontPatchAll]
 
 namespace HowToFishMenu
 {
@@ -14,11 +15,13 @@ namespace HowToFishMenu
 
         public override void OnInitializeMelon()
         {
+            BepInHost.InstallResolver();
             Step("preferences", Menu.Init);
             Step("aimbot", Aimbot.Build);
             Step("visuals/esp/misc", Visuals.Build);
             Step("movement/teleport", Movement.Build);
             Step("weapons/player/fishing/world", Features.Build);
+            Step("embedded mods", BepInHost.BuildMenu);
             Step("menu settings", Menu.AddSystemCategory);
             Step("order", OrderCategories);
             Step("start-off toggles", () =>
@@ -44,7 +47,7 @@ namespace HowToFishMenu
 
         private static void OrderCategories()
         {
-            string[] order = { "Aimbot", "Weapons", "Player", "Movement", "Teleport", "Fishing", "ESP", "Visuals", "World", "Misc", "Menu" };
+            string[] order = { "Aimbot", "Weapons", "Player", "Movement", "Teleport", "Fishing", "ESP", "Visuals", "World", "Mods", "Misc", "Menu" };
             Menu.Categories.Sort((a, b) => Array.IndexOf(order, a.Name).CompareTo(Array.IndexOf(order, b.Name)));
         }
 
@@ -110,6 +113,11 @@ namespace HowToFishMenu
                 Menu.DrawMenu();
             }
             catch (Exception e) { LogOnce("GUI", e); }
+        }
+
+        public override void OnLateInitializeMelon()
+        {
+            Step("embedded BepInEx mods", BepInHost.Start);
         }
 
         public override void OnDeinitializeMelon()
