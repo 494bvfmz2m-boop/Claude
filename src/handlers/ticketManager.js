@@ -7,6 +7,16 @@ const { isStaff } = require('../utils/permissions');
 const { logger, sendToLogChannel } = require('../utils/logger');
 const config = require('../config');
 
+function sanitizeChannelName(name) {
+  const cleaned = name
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return (cleaned || 'user').slice(0, 90);
+}
+
 function panelRow(settings, withEmoji = true) {
   const button = new ButtonBuilder()
     .setCustomId('ticket_open')
@@ -104,7 +114,7 @@ async function openTicket(interaction) {
   }
 
   const channel = await interaction.guild.channels.create({
-    name: `ticket-${ticketNumber}`,
+    name: `${sanitizeChannelName(interaction.user.username)}-support`,
     type: ChannelType.GuildText,
     parent: settings.ticket_category_id,
     permissionOverwrites: overwrites,

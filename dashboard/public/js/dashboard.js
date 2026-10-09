@@ -80,7 +80,9 @@
     }
     guildListEl.innerHTML = state.guilds.map((g) => `
       <div class="guild-item" data-id="${esc(g.id)}">
-        ${g.icon ? `<img src="https://cdn.discordapp.com/icons/${esc(g.id)}/${esc(g.icon)}.png?size=64" alt="" />` : '<img alt="" />'}
+        ${g.icon
+          ? `<img src="https://cdn.discordapp.com/icons/${esc(g.id)}/${esc(g.icon)}.png?size=64" alt="" />`
+          : `<span class="guild-icon-fallback">${esc((g.name || '?').trim().charAt(0).toUpperCase())}</span>`}
         <span>${esc(g.name)}</span>
       </div>`).join('');
 
@@ -144,11 +146,11 @@
     const CATEGORY = [4];
 
     mainEl.innerHTML = `
-      <h1>Settings</h1>
+      <h1>⚙️ Settings</h1>
       <p class="hint">Configure moderation logging, welcome/leave messages, tickets, orders, and anti-raid.</p>
 
       <div class="card">
-        <h3>Join &amp; Leave Messages</h3>
+        <h3>👋 Join &amp; Leave Messages</h3>
         <div class="grid-2">
           <div>
             <label>Welcome Channel</label>
@@ -166,7 +168,7 @@
       </div>
 
       <div class="card">
-        <h3>Logging</h3>
+        <h3>📋 Logging</h3>
         <div class="grid-2">
           <div>
             <label>General / Anti-Raid Log Channel</label>
@@ -180,7 +182,7 @@
       </div>
 
       <div class="card">
-        <h3>Tickets</h3>
+        <h3>🎫 Tickets</h3>
         <div class="grid-2">
           <div>
             <label>Ticket Category</label>
@@ -194,7 +196,7 @@
         <label>Ticket Log Channel</label>
         <select id="ticket_log_channel_id">${channelOptions(TEXT, s.ticket_log_channel_id)}</select>
 
-        <h3 style="margin-top:20px">Panel Appearance</h3>
+        <h3 style="margin-top:20px;border-top:1px solid var(--border-soft);padding-top:20px">🎨 Panel Appearance</h3>
         <label>Panel Title</label>
         <input type="text" id="ticket_panel_title" value="${esc(s.ticket_panel_title)}" maxlength="256" />
         <label>Panel Description</label>
@@ -215,13 +217,13 @@
       </div>
 
       <div class="card">
-        <h3>Orders</h3>
+        <h3>🛒 Orders</h3>
         <label>Order Notifications Channel</label>
         <select id="order_channel_id">${channelOptions(TEXT, s.order_channel_id)}</select>
       </div>
 
       <div class="card">
-        <h3>Anti-Raid</h3>
+        <h3>🚨 Anti-Raid</h3>
         <label><input type="checkbox" id="antiraid_enabled" ${s.antiraid_enabled ? 'checked' : ''} style="width:auto;margin-right:8px" />Enabled</label>
         <div class="grid-2" style="margin-top:12px">
           <div>
@@ -247,7 +249,7 @@
       </div>
 
       <div class="card">
-        <h3>Anti-Raid Honeypot</h3>
+        <h3>🍯 Anti-Raid Honeypot</h3>
         <p class="hint" style="margin-top:-4px">Creates (or reuses) a trap channel. Anyone other than staff who posts in it is instantly soft-banned (kicked + recent messages purged — not a permanent ban). Never link, mention, or post in this channel yourself.</p>
         <label><input type="checkbox" id="honeypot_enabled" ${s.honeypot_enabled ? 'checked' : ''} style="width:auto;margin-right:8px" />Enabled</label>
         <div class="grid-2" style="margin-top:12px">
@@ -329,7 +331,7 @@
       return;
     }
     mainEl.innerHTML = `
-      <h1>Tickets</h1>
+      <h1>🎫 Tickets</h1>
       <p class="hint">Tickets are opened by members via the panel and managed with buttons in Discord.</p>
       <div class="card">
         ${rows.length === 0 ? '<div class="empty-state">No tickets yet.</div>' : `
@@ -362,11 +364,11 @@
     }
     const TEXT = [0, 5];
     mainEl.innerHTML = `
-      <h1>Giveaways</h1>
+      <h1>🎉 Giveaways</h1>
       <p class="hint">Start a giveaway embed with an Enter button, or end one early.</p>
 
       <div class="card">
-        <h3>Start a Giveaway</h3>
+        <h3>🚀 Start a Giveaway</h3>
         <label>Channel</label>
         <select id="g-channel">${channelOptions(TEXT, null, false)}</select>
         <label>Prize</label>
@@ -449,11 +451,11 @@
       return;
     }
     mainEl.innerHTML = `
-      <h1>Orders</h1>
+      <h1>🛒 Orders</h1>
       <p class="hint">Post an order embed manually, or configure the webhook in Settings for automatic order embeds from an external store.</p>
 
       <div class="card">
-        <h3>Post an Order</h3>
+        <h3>📦 Post an Order</h3>
         <div class="grid-2">
           <div>
             <label>Order Ref</label>
@@ -537,7 +539,7 @@
       return;
     }
     mainEl.innerHTML = `
-      <h1>Warnings</h1>
+      <h1>⚠️ Warnings</h1>
       <p class="hint">Issued with <code>/warn</code> in Discord. Use <code>/warnings clear</code> to remove them.</p>
       <div class="card">
         ${rows.length === 0 ? '<div class="empty-state">No warnings yet.</div>' : `

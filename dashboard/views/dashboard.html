@@ -5,19 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Bot Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <div class="app">
     <div class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">🤖</div>
+        <div>
+          <div class="brand-name">Bot Dashboard</div>
+          <div class="brand-sub">Admin control panel</div>
+        </div>
+      </div>
       <h2>Servers</h2>
       <div class="guild-list" id="guild-list"><div class="loading">Loading...</div></div>
       <div class="nav-tabs" id="nav-tabs" style="display:none">
-        <div class="nav-tab active" data-tab="settings">Settings</div>
-        <div class="nav-tab" data-tab="tickets">Tickets</div>
-        <div class="nav-tab" data-tab="giveaways">Giveaways</div>
-        <div class="nav-tab" data-tab="orders">Orders</div>
-        <div class="nav-tab" data-tab="warnings">Warnings</div>
+        <div class="nav-tab active" data-tab="settings"><span class="icon">⚙️</span>Settings</div>
+        <div class="nav-tab" data-tab="tickets"><span class="icon">🎫</span>Tickets</div>
+        <div class="nav-tab" data-tab="giveaways"><span class="icon">🎉</span>Giveaways</div>
+        <div class="nav-tab" data-tab="orders"><span class="icon">🛒</span>Orders</div>
+        <div class="nav-tab" data-tab="warnings"><span class="icon">⚠️</span>Warnings</div>
       </div>
       <button class="secondary logout-btn" id="logout-btn">Log Out</button>
     </div>
