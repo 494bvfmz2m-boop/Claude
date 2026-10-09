@@ -3,10 +3,9 @@ const config = require('./config');
 const { getAllCommandData } = require('./handlers/commandHandler');
 const { logger } = require('./utils/logger');
 
-async function main() {
+async function deployCommands() {
   if (!config.token || !config.clientId) {
-    logger.error('DISCORD_TOKEN and CLIENT_ID must be set in .env before deploying commands.');
-    process.exit(1);
+    throw new Error('DISCORD_TOKEN and CLIENT_ID must be set before deploying commands.');
   }
 
   const commands = getAllCommandData();
@@ -19,9 +18,14 @@ async function main() {
   logger.info(`Deploying ${commands.length} commands ${config.guildId ? `to guild ${config.guildId}` : 'globally'}...`);
   const data = await rest.put(route, { body: commands });
   logger.info(`Successfully deployed ${data.length} commands.`);
+  return data;
 }
 
-main().catch((err) => {
-  logger.error('Failed to deploy commands:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  deployCommands().catch((err) => {
+    logger.error('Failed to deploy commands:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { deployCommands };

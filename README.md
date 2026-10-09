@@ -81,14 +81,20 @@ For automatic order embeds, configure **one** of:
 
 ```bash
 npm install
-npm run deploy      # registers slash commands with Discord
-npm start            # runs the bot only
+npm start            # runs the bot only — this also registers slash commands on every boot
 npm run dashboard    # runs the dashboard only (in a separate terminal/process)
 # or run both together, the same way the Docker image does:
 npm run start:all
 # or, in development, with separate colored log streams instead:
 npm run dev
 ```
+
+The bot registers its slash commands with Discord automatically every time
+it starts (no separate step needed) — it just logs a warning and keeps
+running if that fails (e.g. a transient network issue), so a Discord hiccup
+during startup won't stop the bot from coming online. If you ever need to
+force a re-registration without restarting the bot, `npm run deploy` still
+works standalone.
 
 The dashboard listens on `DASHBOARD_PORT` (default `3000`). Log in with the
 username/password you configured above.
@@ -141,9 +147,13 @@ same way: one service, one container, port `3000`.
      `$2a$12$abc...` → `$$2a$$12$$abc...`. (A plain Dockerfile/Application
      resource doesn't do this substitution, so paste the hash as-is there.)
 3. Assign your domain to this resource and confirm Coolify's port is `3000`.
-4. Deploy. Once it's up, register slash commands once from your own machine
-   (not something that needs to run in the container) with
-   `DISCORD_TOKEN=... CLIENT_ID=... npm run deploy`.
+4. Deploy. Slash commands register themselves automatically on boot — no
+   manual step, no need for shell access into the container. If `GUILD_ID`
+   is set, double-check it's *this* server's ID: commands only register to
+   that one guild when it's set, so a stale ID from a different server means
+   commands silently never show up here. Leave it blank to register
+   globally (works on every server the bot's in, ~1hr to propagate instead
+   of instantly).
 5. The `/app/data` volume persists across redeploys — restarting or
    redeploying doesn't lose your configuration, warnings, tickets, or
    giveaway history. The database schema self-migrates new columns on
