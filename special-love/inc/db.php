@@ -50,6 +50,24 @@ function ensure_storefront_schema(): void {
     $done = true;
     $current = one("SELECT svalue FROM settings WHERE skey = 'schema_version'");
     if ($current && $current['svalue'] === SL_SCHEMA_VERSION) return;
+    try {
+        apply_schema_updates();
+    } catch (PDOException $e) {
+        error_log('Special Love database update failed: ' . $e->getMessage());
+        http_response_code(503);
+        header('Retry-After: 300');
+        $denied = stripos($e->getMessage(), 'denied') !== false;
+        exit('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Back soon</title>'
+           . '<div style="font:16px/1.6 system-ui,sans-serif;max-width:620px;margin:60px auto;padding:0 16px">'
+           . '<h1>We\'ll be right back</h1><p>The shop is finishing an update. Please try again in a few minutes.</p>'
+           . '<p style="color:#666;font-size:14px"><b>Shop owner:</b> the website could not update its database. '
+           . ($denied ? 'The database user is not allowed to change tables. In cPanel go to <b>MySQL Databases</b>, find your database user under "Add User To Database", and give it <b>ALL PRIVILEGES</b>. Then reload this page.'
+                      : 'Open check.php for details.')
+           . '<br><small>' . htmlspecialchars($e->getMessage()) . '</small></p></div>');
+    }
+}
+
+function apply_schema_updates(): void {
 
     foreach ([
         'product_details' => 'TEXT NULL',
