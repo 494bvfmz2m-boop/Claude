@@ -1,0 +1,61 @@
+# Lavalink audio server config. Values like ${NAME:default} are read from the environment
+# (docker compose passes them in from .env).
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+  plugins:
+    # YouTube support (Lavalink's built-in YouTube source is deprecated)
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
+      snapshot: false
+    # Spotify / Apple Music / Deezer links, resolved to playable YouTube audio
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
+      repository: "https://maven.lavalink.dev/releases"
+      snapshot: false
+  server:
+    password: "${LAVALINK_PASSWORD:youshallnotpass}"
+    sources:
+      youtube: false # handled by youtube-plugin
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true
+      local: false
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    playerUpdateInterval: 1
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+  lavasrc:
+    providers:
+      - 'ytsearch:"%ISRC%"'
+      - "ytsearch:%QUERY%"
+    sources:
+      spotify: ${SPOTIFY_ENABLED:false}
+      applemusic: ${APPLEMUSIC_ENABLED:false}
+      deezer: false
+    spotify:
+      clientId: "${SPOTIFY_CLIENT_ID:}"
+      clientSecret: "${SPOTIFY_CLIENT_SECRET:}"
+      countryCode: "US"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+    applemusic:
+      countryCode: "US"
+      mediaAPIToken: "${APPLEMUSIC_MEDIA_API_TOKEN:}"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+
+logging:
+  level:
+    root: INFO
+    lavalink: INFO

@@ -1,0 +1,22 @@
+{
+  "name": "music-bot",
+  "version": "0.1.0",
+  "description": "A FlaviBot-style Discord music bot (discord.js + Lavalink)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "check": "node src/check.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "dotenv": "^18.0.7",
+    "shoukaku": "^4.3.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}
