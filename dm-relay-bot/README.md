@@ -5,7 +5,7 @@ DMs to the bot show up as posts in a **forum channel**, one post per person, nam
 - **Close** button: tags the post `Closed` and archives it. It reopens (tagged `Open`) when they DM again.
 - **Delete** button: asks for confirmation, then deletes the post and its history. Their next DM starts a new post.
 - Posts close automatically after 24 hours without activity.
-- Start a message with `//` for an internal note that is **not** sent. `//close` and `//delete` also work as typed versions of the buttons.
+- Start a message with `//` for an internal note that is **not** sent. `//close` and `//delete` also work as typed versions of the buttons; add a reason after them (`//close Resolved, thanks!`) and it gets DMed to the person first.
 - If a DM can't be delivered (DMs closed, no shared server), the bot replies in the post with a warning.
 
 Filter the forum by the `Open` tag to see only active conversations.

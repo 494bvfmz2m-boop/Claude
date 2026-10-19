@@ -286,10 +286,25 @@ async function handleStaffMessage(message) {
     remember(userId, post);
   }
 
-  // Typed fallbacks for the buttons.
-  const command = message.content.trim().toLowerCase();
-  if (command === `${NOTE_PREFIX}close`) return closePost(post);
-  if (command === `${NOTE_PREFIX}delete`) return deletePost(post);
+  // Typed versions of the buttons. Anything after the command is sent to the user as the reason.
+  const command = message.content.trim().match(/^\/\/(close|delete)(?:\s+([\s\S]+))?$/i);
+  if (command) {
+    const action = command[1].toLowerCase();
+    const reason = command[2]?.trim();
+    if (reason) {
+      const verb = action === 'close' ? 'closed' : 'deleted';
+      try {
+        const user = await client.users.fetch(userId);
+        await user.send(`This conversation has been ${verb}.\n**Reason:** ${reason}`);
+      } catch (err) {
+        console.error(`Could not DM ${userId}:`, err.message);
+        if (action === 'close') {
+          await message.reply("⚠️ Couldn't send the reason to them, closing anyway.").catch(() => {});
+        }
+      }
+    }
+    return action === 'close' ? closePost(post) : deletePost(post);
+  }
   if (message.content.startsWith(NOTE_PREFIX)) return;
 
   const files = message.attachments.map((a) => ({ attachment: a.url, name: a.name }));
