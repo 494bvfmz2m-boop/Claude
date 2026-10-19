@@ -3,5 +3,5 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY . .
-USER node
+# Snippets, reminders and reaction roles are saved in /app/data; mount a persistent volume there.
 CMD ["node", "index.js"]

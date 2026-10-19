@@ -1,33 +1,65 @@
 # DM Relay Bot
 
-DMs to the bot show up as posts in a **forum channel**, one post per person, named after them. Anything you type in a post is DMed back to them.
+A modmail bot: DMs to the bot become posts in a **forum channel**, one post per person. Anything staff type in a post is DMed back. Also does reaction roles.
 
-- **Close** button: tags the post `Closed` and archives it. It reopens (tagged `Open`) when they DM again.
-- **Delete** button: asks for confirmation, then deletes the post and its history. Their next DM starts a new post.
-- Posts close automatically after 24 hours without activity.
-- Start a message with `//` for an internal note that is **not** sent. `//close` and `//delete` also work as typed versions of the buttons; add a reason after them (`//close Resolved, thanks!`) and it gets DMed to the person first.
-- If a DM can't be delivered (DMs closed, no shared server), the bot replies in the post with a warning.
+## Modmail
 
-Filter the forum by the `Open` tag to see only active conversations.
+- Each post starts with a **user info card** (account age, when they joined, their roles) and three buttons:
+  - 🙋 **Claim**: marks you as handling it. Click again to release; someone else clicking takes it over.
+  - 🔒 **Close**: tags it `Closed` and archives it. It reopens when they DM again.
+  - 🗑️ **Delete**: asks to confirm, then deletes the post.
+- Posts close by themselves after 24 hours without activity. Filter the forum by the `Open` tag to see active ones.
+- Replies are sent as **YourName:** message, or without a name if `ANONYMOUS_REPLIES=true`.
+- Optional: ping a role on new conversations (`PING_ROLE_ID`) and send an automatic reply (`AUTO_REPLY`).
+
+### Commands inside a post
+
+| Command | What it does |
+| --- | --- |
+| *(normal message)* | Sent to the person |
+| `// text` | Internal note, not sent |
+| `//close [reason]` | Close; the reason is DMed to them |
+| `//delete [reason]` | Delete; the reason is DMed to them |
+| `//s <name>` | Send a saved snippet |
+| `//snippet add <name> <text>` | Save a snippet |
+| `//snippet remove <name>` | Delete a snippet |
+| `//snippets` | List snippets |
+| `//remind <time> [note]` | Ping you later if the post is still open, e.g. `//remind 2h`, `//remind 1d12h` |
+| `//help` | Show this list |
+
+## Reaction roles
+
+Type `//reaction roles` in any channel (needs **Manage Roles**). A setup panel opens:
+
+1. **Set up a message** → paste the message ID or link.
+2. Pick a role from the menu, then **react to the panel** with the emoji for it (custom server emojis work).
+3. Repeat for more roles, then **Save**. The bot adds the reactions to the message.
+
+Run it on the same message again to edit it. **Remove from a message** and **Show all** are on the first screen.
 
 ## Setup
 
 1. Developer Portal → your app → **Bot** → turn on **Message Content Intent**.
-2. Create a **forum** channel (e.g. `#dms`), right-click it → **Copy Channel ID** (needs Developer Mode in Discord settings).
-3. In that forum, give the bot: View Channel, Send Messages, Create Posts, Send Messages in Posts, Manage Threads/Posts, Read Message History, Embed Links, Attach Files.
-4. Either also give it **Manage Channels** so it creates the `Open`/`Closed` tags itself, or create those two tags yourself in the forum settings.
+2. Create a **forum** channel, right-click it → **Copy Channel ID** (needs Developer Mode).
+3. Bot permissions in that forum: View Channel, Create Posts, Send Messages in Posts, Manage Threads/Posts, Read Message History, Embed Links, Attach Files. Add **Manage Channels** so it can create the `Open`/`Closed` tags, or make those tags yourself.
+4. For reaction roles: give the bot **Manage Roles**, **Add Reactions** and **Read Message History**, and drag the bot's role **above** the roles it should hand out.
 
 ## Environment variables
 
 | Name | Required | Description |
 | --- | --- | --- |
 | `DISCORD_TOKEN` | yes | Bot token |
-| `DM_CHANNEL_ID` | yes | ID of the forum channel |
-| `STAFF_ROLE_ID` | no | Only members with this role can reply and use the buttons |
+| `DM_CHANNEL_ID` | yes | Forum channel ID |
+| `STAFF_ROLE_ID` | no | Only this role can reply and use the buttons |
+| `PING_ROLE_ID` | no | Role pinged for new/reopened conversations |
+| `AUTO_REPLY` | no | Automatic first reply. `\n` = new line |
+| `ANONYMOUS_REPLIES` | no | `true` to hide staff names |
 
 ## Coolify
 
-New resource → this repo → branch `claude/clever-archimedes-olnmg7`, build pack **Dockerfile**, Base Directory `/dm-relay-bot`, Dockerfile Location `/Dockerfile`. No ports needed. Add the env vars above and deploy.
+New resource → this repo → branch `claude/clever-archimedes-olnmg7`, build pack **Dockerfile**, Base Directory `/dm-relay-bot`, Dockerfile Location `/Dockerfile`. No ports needed.
+
+**Persistent storage:** under the app's **Persistent Storage**, add a **Volume Mount** with destination path `/app/data`. Snippets, reminders and reaction roles are saved there; without it they're lost on every redeploy.
 
 ## Local
 
