@@ -1,3 +1,6 @@
+const { ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
+const config = require('./config');
+
 // Messages in a post starting with this stay internal and are not sent to the user.
 const NOTE_PREFIX = '//';
 
@@ -28,4 +31,25 @@ async function sendTemporary(channel, payload, ms = 60_000) {
   return sent;
 }
 
-module.exports = { NOTE_PREFIX, chunk, parseDuration, timestamp, sendTemporary };
+// "1h 5m" style text for a duration in milliseconds.
+function formatDuration(ms) {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return '<1m';
+  const d = Math.floor(minutes / 1440);
+  const h = Math.floor((minutes % 1440) / 60);
+  const m = minutes % 60;
+  return [d && `${d}d`, h && `${h}h`, !d && m && `${m}m`].filter(Boolean).join(' ');
+}
+
+// Server-management commands: admins, the staff role if one is set, otherwise Manage Server.
+function isModerator(member) {
+  if (!member) return false;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+  return config.staffRoleId
+    ? member.roles.cache.has(config.staffRoleId)
+    : member.permissions.has(PermissionFlagsBits.ManageGuild);
+}
+
+const row = (...components) => new ActionRowBuilder().addComponents(...components);
+
+module.exports = { NOTE_PREFIX, chunk, parseDuration, timestamp, sendTemporary, formatDuration, isModerator, row };

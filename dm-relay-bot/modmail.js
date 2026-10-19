@@ -8,6 +8,8 @@ const {
 } = require('discord.js');
 const config = require('./config');
 const storage = require('./storage');
+const stats = require('./stats');
+const faq = require('./faq');
 const { NOTE_PREFIX, chunk, parseDuration, timestamp } = require('./util');
 
 // Each forum post starts with a bot message whose footer holds the user ID.
@@ -116,6 +118,7 @@ async function init(discordClient) {
   if (forum?.type !== ChannelType.GuildForum) {
     throw new Error(`Channel ${config.forumId} is not a forum channel the bot can see.`);
   }
+  faq.init(client, (messages) => Promise.all(messages.map((m) => relayIncomingDm(m, { skipFaq: true }))));
   await setupTags();
   await loadExistingPosts();
   setInterval(() => checkReminders().catch((err) => console.error('Error checking reminders:', err)), 30_000);
@@ -124,11 +127,11 @@ async function init(discordClient) {
 
 // ---------- Incoming DMs ----------
 
-function relayIncomingDm(message) {
+function relayIncomingDm(message, options) {
   if (!forum) return;
   const userId = message.author.id;
   const next = (dmQueues.get(userId) ?? Promise.resolve())
-    .then(() => relayNow(message))
+    .then(() => relayNow(message, options))
     .catch((err) => console.error('Error relaying DM:', err));
   dmQueues.set(userId, next);
   next.finally(() => {
@@ -137,9 +140,27 @@ function relayIncomingDm(message) {
   return next;
 }
 
-async function relayNow(message) {
+async function hasOpenPost(userId) {
+  const known = postByUser.get(userId);
+  const post = known && (await client.channels.fetch(known.id).catch(() => null));
+  return Boolean(post && !post.archived);
+}
+
+async function relayNow(message, { skipFaq = false } = {}) {
   const user = message.author;
+  if (!skipFaq) {
+    // Writing again while an FAQ answer is open means it didn't help: pass everything on.
+    const held = faq.takePending(user.id);
+    if (held) {
+      for (const earlier of held) await relayNow(earlier, { skipFaq: true });
+    } else if (!(await hasOpenPost(user.id)) && (await faq.offerAnswer(message))) {
+      return;
+    }
+  }
+
+  stats.recordIncoming();
   const { post, created, reopened } = await getPostFor(user);
+  if (created || reopened) stats.openConversation(post.id, user.id);
 
   if ((created || reopened) && config.autoReply) {
     await user.send(config.autoReply).catch(() => {});
@@ -261,6 +282,7 @@ async function deliver(message, userId, content, files = []) {
       await user.send({ content: part || undefined, files: last ? files : [] });
     }
     await setStatusTag(message.channel, openTagId);
+    stats.recordReply(message.channel.id, userId, message.author.id);
     return true;
   } catch (err) {
     console.error(`Could not DM ${userId}:`, err.message);
@@ -315,16 +337,26 @@ async function closeOrDelete(message, post, userId, action, reason) {
       }
     }
   }
-  return action === 'close' ? closePost(post) : deletePost(post);
+  return action === 'close' ? closePost(post, { rate: true }) : deletePost(post);
 }
 
-async function closePost(post) {
+async function claimerOf(post) {
+  const starter = await post.fetchStarterMessage().catch(() => null);
+  const value = starter?.embeds[0]?.fields.find((f) => f.name === CLAIM_FIELD)?.value;
+  return value?.match(/^<@!?(\d+)>$/)?.[1] ?? null;
+}
+
+// rate: ask the person for a rating (only when staff close it, not on auto-close).
+async function closePost(post, { rate = false } = {}) {
+  const conversation = stats.closeConversation(post.id);
+  if (rate) await stats.requestRating(conversation, await claimerOf(post));
   await setStatusTag(post, closedTagId);
   await post.setArchived(true);
 }
 
 async function deletePost(post) {
   forget(post.id);
+  stats.closeConversation(post.id);
   const before = storage.data.reminders.length;
   storage.data.reminders = storage.data.reminders.filter((r) => r.postId !== post.id);
   if (storage.data.reminders.length !== before) storage.save();
@@ -425,7 +457,7 @@ async function handleInteraction(interaction) {
       return toggleClaim(interaction);
     case 'relay:close':
       await interaction.reply(`🔒 Closed by ${interaction.user}.`);
-      return closePost(interaction.channel);
+      return closePost(interaction.channel, { rate: true });
     case 'relay:delete':
       return interaction.reply({
         content: 'Delete this conversation for good? The history will be gone.',

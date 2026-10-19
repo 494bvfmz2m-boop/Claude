@@ -4,7 +4,15 @@ const { dataDir } = require('./config');
 
 const FILE = path.join(dataDir, 'data.json');
 
-const defaults = () => ({ snippets: {}, reminders: [], reactionRoles: {} });
+const defaults = () => ({
+  snippets: {},
+  reminders: [],
+  reactionRoles: {},
+  faqs: {},
+  stats: { conversations: [], hours: Array(24).fill(0) },
+  suggestions: { channelId: null, count: 0, items: {} },
+  movieNights: {},
+});
 
 const storage = {
   data: defaults(),

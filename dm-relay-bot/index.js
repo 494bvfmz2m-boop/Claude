@@ -4,6 +4,11 @@ const storage = require('./storage');
 const modmail = require('./modmail');
 const reactionRoles = require('./reactionRoles');
 const commands = require('./commands');
+const stats = require('./stats');
+const faq = require('./faq');
+const verify = require('./verify');
+const suggestions = require('./suggestions');
+const movieNight = require('./movieNight');
 
 if (!config.token || !config.forumId) {
   console.error('Missing DISCORD_TOKEN or DM_CHANNEL_ID environment variable.');
@@ -17,6 +22,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
   ],
@@ -30,6 +36,9 @@ client.once('ready', async () => {
   try {
     const { forum, posts } = await modmail.init(client);
     reactionRoles.init(client);
+    stats.init(client);
+    suggestions.init(client);
+    await movieNight.init(client);
     ready = true;
     console.log(`Logged in as ${client.user.tag}, relaying DMs to forum #${forum.name} (${posts} existing posts)`);
   } catch (err) {
@@ -58,12 +67,15 @@ on('messageCreate', async (message) => {
 });
 
 on('interactionCreate', async (interaction) => {
-  await modmail.handleInteraction(interaction);
-  await reactionRoles.handleInteraction(interaction);
+  // Each module ignores interactions whose custom ID isn't its own.
+  for (const feature of [modmail, reactionRoles, stats, faq, verify, suggestions, movieNight]) {
+    await feature.handleInteraction(interaction);
+  }
 });
 
 on('threadUpdate', modmail.handleThreadUpdate);
 on('threadDelete', modmail.handleThreadDelete);
+on('voiceStateUpdate', movieNight.handleVoiceState);
 on('messageReactionAdd', (reaction, user) => reactionRoles.handleReaction(reaction, user, true));
 on('messageReactionRemove', (reaction, user) => reactionRoles.handleReaction(reaction, user, false));
 

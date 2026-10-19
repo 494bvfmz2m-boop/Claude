@@ -1,7 +1,12 @@
 const { PermissionFlagsBits } = require('discord.js');
 const modmail = require('./modmail');
 const reactionRoles = require('./reactionRoles');
-const { NOTE_PREFIX, sendTemporary } = require('./util');
+const faq = require('./faq');
+const stats = require('./stats');
+const verify = require('./verify');
+const suggestions = require('./suggestions');
+const movieNight = require('./movieNight');
+const { NOTE_PREFIX, sendTemporary, isModerator } = require('./util');
 
 const LIST_MS = 120_000;
 
@@ -32,21 +37,39 @@ function listText(client) {
     '**Anywhere**',
     `• ${at('list')}: this list`,
     `• ${at('reaction roles')}: create, edit or delete reaction-role messages (needs Manage Roles)`,
+    `• ${at('faq')}: automatic answers for common DM questions`,
+    `• ${at('stats')}: staff stats, ratings and busiest hours`,
+    `• ${at('verify')}: post a verification button in this channel`,
+    `• ${at('suggestions setup')}: use this channel for suggestions`,
+    `• ${at('movie night [name]')}: voice channel where only admins can talk and stream`,
+    '',
+    '**For everyone**',
+    `• ${at('suggest <idea>')}: post a suggestion`,
   ].join('\n');
 }
 
 const canUse = (member) =>
-  modmail.isStaff(member) || Boolean(member?.permissions.has(PermissionFlagsBits.ManageRoles));
+  modmail.isStaff(member) || isModerator(member) || Boolean(member?.permissions.has(PermissionFlagsBits.ManageRoles));
 
 async function handle(message, text) {
-  if (!message.inGuild() || !canUse(message.member)) return;
+  if (!message.inGuild()) return;
   const command = text.split(/\s+/)[0].toLowerCase();
+  const rest = text.slice(command.length).trim();
+
+  if (command === 'suggest') return suggestions.submit(message, rest);
+  if (!canUse(message.member)) return;
 
   if (command === '' || command === 'list' || command === 'help') {
     await message.delete().catch(() => {});
     return sendTemporary(message.channel, { content: listText(message.client), allowedMentions: { parse: [] } }, LIST_MS);
   }
   if (reactionRoles.isCommand(text)) return reactionRoles.openPrompt(message);
+  if (command === 'faq') return faq.openMenu(message);
+  if (command === 'stats') return stats.show(message);
+  if (command === 'verify') return verify.openPrompt(message);
+  if (/^suggestions?\s+setup$/i.test(text)) return suggestions.setup(message);
+  const movie = text.match(/^movie[\s-]*night\b\s*([\s\S]*)$/i);
+  if (movie) return movieNight.start(message, movie[1].trim());
   if (modmail.isRelayPost(message.channel) && (await modmail.handleCommand(message, text))) return;
 
   await message.delete().catch(() => {});

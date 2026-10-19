@@ -29,6 +29,14 @@ All commands start by mentioning the bot (`@Bot`). `@Bot list` shows everything.
 | `@Bot remind <time> [note]` | post | Ping you later if still open, e.g. `2h`, `1d12h` |
 | `@Bot list` | anywhere | List all commands (auto-deletes) |
 | `@Bot reaction roles` | anywhere | Reaction roles menu (needs Manage Roles) |
+| `@Bot faq` | anywhere | Manage automatic FAQ answers |
+| `@Bot stats` | anywhere | Staff stats, ratings, busiest hours |
+| `@Bot verify` | anywhere | Post a verification button in this channel |
+| `@Bot suggestions setup` | anywhere | Use this channel for suggestions |
+| `@Bot movie night [name]` | anywhere | Voice channel where only admins can talk/stream |
+| `@Bot suggest <idea>` | anywhere, **everyone** | Post a suggestion |
+
+Server-management commands (`faq`, `stats`, `verify`, `suggestions setup`, `movie night`) need the staff role if `STAFF_ROLE_ID` is set, otherwise **Manage Server**. Admins can always use them.
 
 ## Reaction roles
 
@@ -46,13 +54,36 @@ All commands start by mentioning the bot (`@Bot`). `@Bot list` shows everything.
 
 If something in the form is wrong, the bot says which line and gives a **Fix it** button that reopens the form with what you typed. All setup messages are only visible to you and disappear by themselves.
 
+## FAQ answers
+
+`@Bot faq` → **Add** opens a pop-up with a title, keywords (comma separated) and the answer. When someone with no open conversation DMs a message containing a keyword, they get the answer with **✅ Yes, thanks** / **❌ I still need help**. Only ❌ (or writing again) opens a post, and their original message is passed on.
+
+## Ratings and stats
+
+When staff close a post (button or `@Bot close`), the person gets ⭐1–5 buttons. The rating counts for whoever claimed the post, otherwise whoever replied most. Auto-closed and deleted posts don't ask for a rating.
+
+`@Bot stats` shows the last 30 days: conversations, average first reply time, average rating, per-staff numbers and the busiest hours (set `TIMEZONE`).
+
+## Verification
+
+Run `@Bot verify` in your #verify channel → pop-up: which role to give, title and text. People click **Verify**, then pick the right picture out of four (e.g. "Click the 🍌"). Wrong answers wait 30 seconds. Then make your other channels visible only to that role.
+
+## Suggestions
+
+Run `@Bot suggestions setup` in the suggestions channel once. Anyone can then use `@Bot suggest <idea>` anywhere: it's posted with 👍/👎 and **Approve** / **Deny** buttons for staff. Staff can add a reason, and the person gets a DM with the result.
+
+## Movie night
+
+`@Bot movie night [name]` creates a voice channel next to the current channel and posts an announcement. Everyone is muted and can't share their screen or use soundboard/activities. Members with **Administrator** (e.g. Owner) ignore channel permissions, so only they can talk and stream. The channel copies its category's permissions, so it's as private as the category. It deletes itself 5 minutes after everyone leaves (15 if nobody joins), or with the **End movie night** button.
+
 ## Setup
 
 1. Developer Portal → your app → **Bot** → turn on **Message Content Intent**.
 2. Create a **forum** channel, right-click it → **Copy Channel ID** (needs Developer Mode).
 3. Bot permissions in that forum: View Channel, Create Posts, Send Messages in Posts, Manage Threads/Posts, Read Message History, Embed Links, Attach Files. Add **Manage Channels** so it can create the `Open`/`Closed` tags, or make those tags yourself.
 4. For reaction roles: give the bot **Manage Roles**, **Add Reactions** and **Read Message History**, and drag the bot's role **above** the roles it should hand out.
-5. Give the bot **Manage Messages** so it can delete `@Bot list` / `@Bot reaction roles` command messages.
+5. For movie night: **Manage Channels** and **Manage Roles**. For verification: **Manage Roles** with the bot's role above the verified role.
+6. Give the bot **Manage Messages** so it can delete `@Bot list` / `@Bot reaction roles` command messages.
 
 ## Environment variables
 
@@ -64,6 +95,7 @@ If something in the form is wrong, the bot says which line and gives a **Fix it*
 | `PING_ROLE_ID` | no | Role pinged for new/reopened conversations |
 | `AUTO_REPLY` | no | Automatic first reply. `\n` = new line |
 | `ANONYMOUS_REPLIES` | no | `true` to hide staff names |
+| `TIMEZONE` | no | For busiest hours in stats, e.g. `Europe/Amsterdam` |
 
 ## Coolify
 
