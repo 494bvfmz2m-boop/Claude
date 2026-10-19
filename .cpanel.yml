@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    # Copies everything in site/ into the live website folder.
+    # Existing files on the server that aren't in site/ are left alone.
+    - export DEPLOYPATH=$HOME/public_html/
+    - /bin/cp -R site/. $DEPLOYPATH
