@@ -1,0 +1,16 @@
+{
+  "name": "dm-relay-bot",
+  "version": "1.0.0",
+  "description": "Relays DMs to a Discord channel and sends channel replies back as DMs.",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}
