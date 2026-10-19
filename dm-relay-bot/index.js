@@ -3,6 +3,7 @@ const config = require('./config');
 const storage = require('./storage');
 const modmail = require('./modmail');
 const reactionRoles = require('./reactionRoles');
+const commands = require('./commands');
 
 if (!config.token || !config.forumId) {
   console.error('Missing DISCORD_TOKEN or DM_CHANNEL_ID environment variable.');
@@ -51,7 +52,8 @@ function on(event, handler) {
 on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (message.channel.type === ChannelType.DM) return modmail.relayIncomingDm(message);
-  if (reactionRoles.isCommand(message.content)) return reactionRoles.handleCommand(message);
+  const command = commands.parse(message);
+  if (command !== null) return commands.handle(message, command);
   if (modmail.isRelayPost(message.channel)) return modmail.handleStaffMessage(message);
 });
 

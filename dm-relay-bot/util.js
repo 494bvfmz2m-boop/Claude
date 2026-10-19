@@ -1,4 +1,5 @@
-const PREFIX = '//';
+// Messages in a post starting with this stay internal and are not sent to the user.
+const NOTE_PREFIX = '//';
 
 function chunk(text, size = 2000) {
   const parts = [];
@@ -20,4 +21,11 @@ function parseDuration(text) {
 
 const timestamp = (ms, style = 'R') => `<t:${Math.floor(ms / 1000)}:${style}>`;
 
-module.exports = { PREFIX, chunk, parseDuration, timestamp };
+// Sends a message that deletes itself after a while.
+async function sendTemporary(channel, payload, ms = 60_000) {
+  const sent = await channel.send(payload);
+  setTimeout(() => sent.delete().catch(() => {}), ms);
+  return sent;
+}
+
+module.exports = { NOTE_PREFIX, chunk, parseDuration, timestamp, sendTemporary };

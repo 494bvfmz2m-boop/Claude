@@ -8,7 +8,7 @@ const {
 } = require('discord.js');
 const config = require('./config');
 const storage = require('./storage');
-const { PREFIX, chunk, parseDuration, timestamp } = require('./util');
+const { NOTE_PREFIX, chunk, parseDuration, timestamp } = require('./util');
 
 // Each forum post starts with a bot message whose footer holds the user ID.
 // A post shares its starter message's ID, so no database is needed to find it again.
@@ -21,21 +21,10 @@ const UNCLAIMED = 'Nobody';
 const DELIVERY_FAILED =
   "⚠️ Couldn't deliver that. They may have DMs closed or no longer share a server with the bot.";
 
-const HELP = [
-  '**In a post**',
-  'Type normally to reply to the person.',
-  '`// text` internal note, not sent',
-  '`//close [reason]` close the post (reason is DMed to them)',
-  '`//delete [reason]` delete the post (reason is DMed to them)',
-  '`//s <name>` send a saved snippet',
-  '`//snippet add <name> <text>` / `//snippet remove <name>` / `//snippets`',
-  '`//remind <time> [note]` ping you later if still open, e.g. `//remind 2h`',
-  '',
-  '**Anywhere**',
-  '`//reaction roles` open the reaction roles setup (needs Manage Roles)',
-].join('\n');
-
 let client;
+
+// How a command is written in help texts, e.g. `@Bot close`.
+const at = (command) => `\`@${client.user.username} ${command}\``;
 let forum;
 let openTagId;
 let closedTagId;
@@ -226,7 +215,7 @@ async function createPost(user) {
           .setAuthor({ name: `DMs with ${user.tag}`, iconURL: user.displayAvatarURL() })
           .setThumbnail(user.displayAvatarURL())
           .setDescription(
-            `<@${user.id}>\n\nType here to reply. Start a message with \`${PREFIX}\` for an internal note, \`${PREFIX}help\` for commands.`
+            `<@${user.id}>\n\nType here to reply. Start a message with \`${NOTE_PREFIX}\` for an internal note. ${at('list')} shows all commands.`
           )
           .addFields(await userInfoFields(user))
           .setFooter({ text: `${FOOTER_PREFIX}${user.id}` }),
@@ -253,7 +242,7 @@ async function handleStaffMessage(message) {
   const userId = await userIdForPost(post);
   if (!userId) return;
 
-  if (message.content.startsWith(PREFIX)) return handleCommand(message, post, userId);
+  if (message.content.startsWith(NOTE_PREFIX)) return;
 
   const files = attachmentsOf(message);
   if (!message.content && files.length === 0) return;
@@ -280,28 +269,37 @@ async function deliver(message, userId, content, files = []) {
   }
 }
 
-async function handleCommand(message, post, userId) {
-  // "// text" (with a space) or an unknown command is just an internal note.
-  const match = message.content.match(/^\/\/(\S+)(?:\s+([\s\S]*))?$/);
-  if (!match) return;
+// Handles "@Bot <command>" inside a post. Returns false if it isn't a post command.
+async function handleCommand(message, text) {
+  if (!isStaff(message.member)) return true;
+  const post = message.channel;
+  const userId = await userIdForPost(post);
+  if (!userId) return false;
+
+  const match = text.match(/^(\S+)(?:\s+([\s\S]*))?$/);
+  if (!match) return false;
   const command = match[1].toLowerCase();
   const args = (match[2] ?? '').trim();
 
   switch (command) {
     case 'close':
     case 'delete':
-      return closeOrDelete(message, post, userId, command, args);
+      await closeOrDelete(message, post, userId, command, args);
+      return true;
     case 's':
-      return sendSnippet(message, userId, args);
+      await sendSnippet(message, userId, args);
+      return true;
     case 'snippet':
-      return manageSnippet(message, args);
+      await manageSnippet(message, args);
+      return true;
     case 'snippets':
-      return listSnippets(message);
+      await listSnippets(message);
+      return true;
     case 'remind':
-      return addReminder(message, post, args);
-    case 'help':
-      return message.reply({ content: HELP, allowedMentions: { parse: [] } });
+      await addReminder(message, post, args);
+      return true;
   }
+  return false;
 }
 
 async function closeOrDelete(message, post, userId, action, reason) {
@@ -339,7 +337,7 @@ async function sendSnippet(message, userId, args) {
   const name = args.split(/\s+/)[0]?.toLowerCase();
   const text = name && storage.data.snippets[name];
   if (!text) {
-    return message.reply(`No snippet called \`${name || '?'}\`. See \`${PREFIX}snippets\`.`);
+    return message.reply(`No snippet called \`${name || '?'}\`. See ${at('snippets')}.`);
   }
   if (await deliver(message, userId, text)) {
     await message.reply({ content: `📎 Sent **${name}**:\n${text}`.slice(0, 2000), allowedMentions: { parse: [] } });
@@ -347,7 +345,7 @@ async function sendSnippet(message, userId, args) {
 }
 
 async function manageSnippet(message, args) {
-  const usage = `Usage: \`${PREFIX}snippet add <name> <text>\` or \`${PREFIX}snippet remove <name>\``;
+  const usage = `Usage: ${at('snippet add <name> <text>')} or ${at('snippet remove <name>')}`;
   const match = args.match(/^(add|remove)\s+(\S+)(?:\s+([\s\S]+))?$/i);
   if (!match) return message.reply(usage);
   const action = match[1].toLowerCase();
@@ -357,7 +355,7 @@ async function manageSnippet(message, args) {
     if (!match[3]?.trim()) return message.reply(usage);
     storage.data.snippets[name] = match[3].trim();
     storage.save();
-    return message.reply(`💾 Saved snippet **${name}**. Send it with \`${PREFIX}s ${name}\`.`);
+    return message.reply(`💾 Saved snippet **${name}**. Send it with ${at(`s ${name}`)}.`);
   }
   if (!(name in storage.data.snippets)) return message.reply(`No snippet called \`${name}\`.`);
   delete storage.data.snippets[name];
@@ -370,7 +368,7 @@ async function listSnippets(message) {
   return message.reply(
     names.length
       ? `**Snippets:** ${names.map((n) => `\`${n}\``).join(', ')}`
-      : `No snippets yet. Add one with \`${PREFIX}snippet add <name> <text>\`.`
+      : `No snippets yet. Add one with ${at('snippet add <name> <text>')}.`
   );
 }
 
@@ -380,7 +378,7 @@ async function addReminder(message, post, args) {
   const when = args.split(/\s+/)[0] ?? '';
   const ms = parseDuration(when);
   if (!ms) {
-    return message.reply(`Usage: \`${PREFIX}remind <time> [note]\`, e.g. \`${PREFIX}remind 2h check back\` (m, h, d, w).`);
+    return message.reply(`Usage: ${at('remind <time> [note]')}, e.g. ${at('remind 2h check back')} (m, h, d, w).`);
   }
   const at = Date.now() + ms;
   storage.data.reminders.push({
@@ -479,6 +477,8 @@ function handleThreadDelete(post) {
 module.exports = {
   init,
   isRelayPost,
+  isStaff,
+  handleCommand,
   relayIncomingDm,
   handleStaffMessage,
   handleInteraction,

@@ -12,30 +12,39 @@ A modmail bot: DMs to the bot become posts in a **forum channel**, one post per 
 - Replies are sent as **YourName:** message, or without a name if `ANONYMOUS_REPLIES=true`.
 - Optional: ping a role on new conversations (`PING_ROLE_ID`) and send an automatic reply (`AUTO_REPLY`).
 
-### Commands inside a post
+### Commands
 
-| Command | What it does |
-| --- | --- |
-| *(normal message)* | Sent to the person |
-| `// text` | Internal note, not sent |
-| `//close [reason]` | Close; the reason is DMed to them |
-| `//delete [reason]` | Delete; the reason is DMed to them |
-| `//s <name>` | Send a saved snippet |
-| `//snippet add <name> <text>` | Save a snippet |
-| `//snippet remove <name>` | Delete a snippet |
-| `//snippets` | List snippets |
-| `//remind <time> [note]` | Ping you later if the post is still open, e.g. `//remind 2h`, `//remind 1d12h` |
-| `//help` | Show this list |
+All commands start by mentioning the bot (`@Bot`). `@Bot list` shows everything.
+
+| Command | Where | What it does |
+| --- | --- | --- |
+| *(normal message)* | post | Sent to the person |
+| `// text` | post | Internal note, not sent |
+| `@Bot close [reason]` | post | Close; the reason is DMed to them |
+| `@Bot delete [reason]` | post | Delete; the reason is DMed to them |
+| `@Bot s <name>` | post | Send a saved snippet |
+| `@Bot snippet add <name> <text>` | post | Save a snippet |
+| `@Bot snippet remove <name>` | post | Delete a snippet |
+| `@Bot snippets` | post | List snippets |
+| `@Bot remind <time> [note]` | post | Ping you later if still open, e.g. `2h`, `1d12h` |
+| `@Bot list` | anywhere | List all commands (auto-deletes) |
+| `@Bot reaction roles` | anywhere | Reaction roles menu (needs Manage Roles) |
 
 ## Reaction roles
 
-Type `//reaction roles` in any channel (needs **Manage Roles**). A setup panel opens:
+`@Bot reaction roles` opens a small menu (your command message is deleted):
 
-1. **Set up a message** → paste the message ID or link.
-2. Pick a role from the menu, then **react to the panel** with the emoji for it (custom server emojis work).
-3. Repeat for more roles, then **Save**. The bot adds the reactions to the message.
+- **Create new** opens a pop-up: title, optional description, and one line per role, e.g.
+  ```
+  🎮 Gamer
+  🎨 Artist
+  :pog: Announcements
+  ```
+  Paste normal emojis directly; for server emojis type their name like `:pog:`. The bot posts the message in that channel and adds the reactions.
+- **Edit** / **Delete** let you pick one of the messages from a list.
+- **Show all** lists every reaction-role message.
 
-Run it on the same message again to edit it. **Remove from a message** and **Show all** are on the first screen.
+If something in the form is wrong, the bot says which line and gives a **Fix it** button that reopens the form with what you typed. All setup messages are only visible to you and disappear by themselves.
 
 ## Setup
 
@@ -43,6 +52,7 @@ Run it on the same message again to edit it. **Remove from a message** and **Sho
 2. Create a **forum** channel, right-click it → **Copy Channel ID** (needs Developer Mode).
 3. Bot permissions in that forum: View Channel, Create Posts, Send Messages in Posts, Manage Threads/Posts, Read Message History, Embed Links, Attach Files. Add **Manage Channels** so it can create the `Open`/`Closed` tags, or make those tags yourself.
 4. For reaction roles: give the bot **Manage Roles**, **Add Reactions** and **Read Message History**, and drag the bot's role **above** the roles it should hand out.
+5. Give the bot **Manage Messages** so it can delete `@Bot list` / `@Bot reaction roles` command messages.
 
 ## Environment variables
 
