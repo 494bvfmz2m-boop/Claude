@@ -13,8 +13,11 @@ if (!DISCORD_TOKEN || !DM_CHANNEL_ID) {
   process.exit(1);
 }
 
-// The user ID is stored in the embed footer, so replies keep working after a restart.
+// Each thread hangs off a bot message in the relay channel whose footer holds the user ID.
+// A thread started from a message shares that message's ID, so no database is needed.
 const FOOTER_PREFIX = 'User ID: ';
+// Messages in a thread starting with this stay internal and are not sent to the user.
+const NOTE_PREFIX = '//';
 
 const client = new Client({
   intents: [
@@ -28,6 +31,35 @@ const client = new Client({
 });
 
 let relayChannel;
+const threadByUser = new Map(); // userId -> threadId
+const userByThread = new Map(); // threadId -> userId
+const pendingThreads = new Map(); // userId -> Promise<thread>, avoids duplicate threads
+
+function userIdFromStarter(message) {
+  if (message?.author.id !== client.user.id) return null;
+  const footer = message.embeds[0]?.footer?.text;
+  return footer?.startsWith(FOOTER_PREFIX) ? footer.slice(FOOTER_PREFIX.length) : null;
+}
+
+function remember(userId, threadId) {
+  threadByUser.set(userId, threadId);
+  userByThread.set(threadId, userId);
+}
+
+// Rebuild the user -> thread lookup from the relay channel's history after a restart.
+async function loadExistingThreads() {
+  let before;
+  for (;;) {
+    const batch = await relayChannel.messages.fetch({ limit: 100, before });
+    if (batch.size === 0) break;
+    for (const message of batch.values()) {
+      const userId = userIdFromStarter(message);
+      // Newest first, so the first match per user is their latest thread.
+      if (userId && message.hasThread && !threadByUser.has(userId)) remember(userId, message.id);
+    }
+    before = batch.last().id;
+  }
+}
 
 client.once('ready', async () => {
   try {
@@ -36,11 +68,14 @@ client.once('ready', async () => {
     console.error(`Could not fetch channel ${DM_CHANNEL_ID}:`, err.message);
     process.exit(1);
   }
-  if (!relayChannel?.isTextBased()) {
-    console.error(`Channel ${DM_CHANNEL_ID} is not a text channel.`);
+  if (relayChannel?.type !== ChannelType.GuildText) {
+    console.error(`Channel ${DM_CHANNEL_ID} is not a regular text channel.`);
     process.exit(1);
   }
-  console.log(`Logged in as ${client.user.tag}, relaying DMs to #${relayChannel.name}`);
+  await loadExistingThreads();
+  console.log(
+    `Logged in as ${client.user.tag}, relaying DMs to #${relayChannel.name} (${threadByUser.size} existing threads)`
+  );
 });
 
 client.on('messageCreate', async (message) => {
@@ -49,7 +84,7 @@ client.on('messageCreate', async (message) => {
   try {
     if (message.channel.type === ChannelType.DM) {
       await relayIncomingDm(message);
-    } else if (message.channelId === DM_CHANNEL_ID && message.reference?.messageId) {
+    } else if (message.channel.isThread() && message.channel.parentId === DM_CHANNEL_ID) {
       await sendReply(message);
     }
   } catch (err) {
@@ -57,36 +92,69 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+async function getThreadFor(user) {
+  const threadId = threadByUser.get(user.id);
+  if (threadId) {
+    const thread = await client.channels.fetch(threadId).catch(() => null);
+    // If the thread is gone or locked, fall through and start a fresh one.
+    if (thread && (!thread.archived || (await thread.setArchived(false).catch(() => null)))) {
+      return thread;
+    }
+  }
+
+  if (!pendingThreads.has(user.id)) {
+    pendingThreads.set(
+      user.id,
+      createThread(user).finally(() => pendingThreads.delete(user.id))
+    );
+  }
+  return pendingThreads.get(user.id);
+}
+
+async function createThread(user) {
+  const starter = await relayChannel.send({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setAuthor({ name: `DMs with ${user.tag}`, iconURL: user.displayAvatarURL() })
+        .setDescription(`<@${user.id}>`)
+        .setFooter({ text: `${FOOTER_PREFIX}${user.id}` }),
+    ],
+    allowedMentions: { parse: [] },
+  });
+  const thread = await starter.startThread({
+    name: user.displayName.slice(0, 100),
+    autoArchiveDuration: 10080, // 1 week
+  });
+  remember(user.id, thread.id);
+  return thread;
+}
+
 async function relayIncomingDm(message) {
   if (!relayChannel) return;
 
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setAuthor({
-      name: `${message.author.tag} (${message.author.displayName})`,
-      iconURL: message.author.displayAvatarURL(),
-    })
-    .setDescription(message.content || '*(no text)*')
-    .setFooter({ text: `${FOOTER_PREFIX}${message.author.id}` })
-    .setTimestamp(message.createdAt);
-
+  const thread = await getThreadFor(message.author);
   const files = message.attachments.map((a) => ({ attachment: a.url, name: a.name }));
+  const fallback = message.stickers.size ? '*(sent a sticker)*' : '*(empty message)*';
 
-  await relayChannel.send({ embeds: [embed], files });
-  await message.react('📨').catch(() => {});
+  await thread.send({
+    content: message.content || (files.length ? undefined : fallback),
+    files,
+    allowedMentions: { parse: [] },
+  });
 }
 
 async function sendReply(message) {
+  if (message.content.startsWith(NOTE_PREFIX)) return;
   if (STAFF_ROLE_ID && !message.member?.roles.cache.has(STAFF_ROLE_ID)) return;
 
-  const original = await message.channel.messages
-    .fetch(message.reference.messageId)
-    .catch(() => null);
-  if (!original || original.author.id !== client.user.id) return;
-
-  const footer = original.embeds[0]?.footer?.text;
-  if (!footer?.startsWith(FOOTER_PREFIX)) return;
-  const userId = footer.slice(FOOTER_PREFIX.length);
+  const thread = message.channel;
+  let userId = userByThread.get(thread.id);
+  if (!userId) {
+    userId = userIdFromStarter(await thread.fetchStarterMessage().catch(() => null));
+    if (!userId) return;
+    remember(userId, thread.id);
+  }
 
   const files = message.attachments.map((a) => ({ attachment: a.url, name: a.name }));
   if (!message.content && files.length === 0) return;
@@ -94,12 +162,10 @@ async function sendReply(message) {
   try {
     const user = await client.users.fetch(userId);
     await user.send({ content: message.content || undefined, files });
-    await message.react('✅');
   } catch (err) {
     console.error(`Could not DM ${userId}:`, err.message);
-    await message.react('❌').catch(() => {});
     await message
-      .reply("Couldn't deliver that DM. The user may have DMs closed or no longer share a server with the bot.")
+      .reply("⚠️ Couldn't deliver that. They may have DMs closed or no longer share a server with the bot.")
       .catch(() => {});
   }
 }
