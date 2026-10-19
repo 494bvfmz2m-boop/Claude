@@ -1,23 +1,29 @@
 # DM Relay Bot
 
-When someone DMs the bot, it opens a thread named after them in your relay channel and posts their messages there. Anything you type in that thread gets DMed back to them. One thread per person; it's reused (and reopened if archived) when they message again.
+DMs to the bot show up as posts in a **forum channel**, one post per person, named after them. Anything you type in a post is DMed back to them.
 
-- Start a message with `//` to leave an internal note that is **not** sent to the user.
-- If a DM can't be delivered (DMs closed, no shared server), the bot replies in the thread with a warning.
+- **Close** button: tags the post `Closed` and archives it. It reopens (tagged `Open`) when they DM again.
+- **Delete** button: asks for confirmation, then deletes the post and its history. Their next DM starts a new post.
+- Posts close automatically after 24 hours without activity.
+- Start a message with `//` for an internal note that is **not** sent. `//close` and `//delete` also work as typed versions of the buttons.
+- If a DM can't be delivered (DMs closed, no shared server), the bot replies in the post with a warning.
+
+Filter the forum by the `Open` tag to see only active conversations.
 
 ## Setup
 
 1. Developer Portal → your app → **Bot** → turn on **Message Content Intent**.
-2. Create a text channel (e.g. `#dms`), right-click it → **Copy Channel ID** (needs Developer Mode in Discord settings).
-3. In that channel, give the bot: View Channel, Send Messages, Create Public Threads, Send Messages in Threads, Read Message History, Embed Links, Attach Files.
+2. Create a **forum** channel (e.g. `#dms`), right-click it → **Copy Channel ID** (needs Developer Mode in Discord settings).
+3. In that forum, give the bot: View Channel, Send Messages, Create Posts, Send Messages in Posts, Manage Threads/Posts, Read Message History, Embed Links, Attach Files.
+4. Either also give it **Manage Channels** so it creates the `Open`/`Closed` tags itself, or create those two tags yourself in the forum settings.
 
 ## Environment variables
 
 | Name | Required | Description |
 | --- | --- | --- |
 | `DISCORD_TOKEN` | yes | Bot token |
-| `DM_CHANNEL_ID` | yes | Channel where the threads are created |
-| `STAFF_ROLE_ID` | no | Only members with this role can reply |
+| `DM_CHANNEL_ID` | yes | ID of the forum channel |
+| `STAFF_ROLE_ID` | no | Only members with this role can reply and use the buttons |
 
 ## Coolify
 
