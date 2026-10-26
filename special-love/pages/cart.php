@@ -16,45 +16,36 @@ if ($cancelRef !== '' && $cancelRef === ($_SESSION['pending_order'] ?? null)) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = $_POST['action'] ?? '';
+    $key = (string)($_POST['key'] ?? '');
+    $cart = cart();
+    $saved = normalise_cart($_SESSION['saved'] ?? []);
     if ($action === 'update') {
-        $cart = [];
-        foreach ((array)($_POST['qty'] ?? []) as $id => $qty) {
+        foreach ((array)($_POST['qty'] ?? []) as $k => $qty) {
+            if (!isset($cart[$k])) continue;
             $qty = (int)$qty;
-            if ($qty > 0) $cart[(int)$id] = ['qty' => min(99, $qty)];
+            if ($qty > 0) $cart[$k]['qty'] = min(99, $qty); else unset($cart[$k]);
         }
         $_SESSION['cart'] = $cart;
         flash('Cart updated.');
     } elseif ($action === 'remove') {
-        $cart = cart();
-        unset($cart[(int)($_POST['id'] ?? 0)]);
+        unset($cart[$key]);
         $_SESSION['cart'] = $cart;
         flash('Item removed.');
-    } elseif ($action === 'save_later') {
+    } elseif ($action === 'save_later' && isset($cart[$key])) {
         // Keep it, but leave it out of this order.
-        $id = (int)($_POST['id'] ?? 0);
-        $cart = cart();
-        if (isset($cart[$id])) {
-            $saved = $_SESSION['saved'] ?? [];
-            $saved[$id] = ['qty' => (int)$cart[$id]['qty']];
-            $_SESSION['saved'] = $saved;
-            unset($cart[$id]);
-            $_SESSION['cart'] = $cart;
-            flash('Saved for later. It won\'t be included when you check out.');
-        }
-    } elseif ($action === 'move_to_cart') {
-        $id = (int)($_POST['id'] ?? 0);
-        $saved = $_SESSION['saved'] ?? [];
-        if (isset($saved[$id])) {
-            $cart = cart();
-            $cart[$id] = ['qty' => min(99, (int)($cart[$id]['qty'] ?? 0) + (int)$saved[$id]['qty'])];
-            $_SESSION['cart'] = $cart;
-            unset($saved[$id]);
-            $_SESSION['saved'] = $saved;
-            flash('Moved back to your cart.');
-        }
+        $l = $cart[$key];
+        $_SESSION['saved'] = cart_put($saved, $l['id'], $l['qty'], $l['colour'], $l['size']);
+        unset($cart[$key]);
+        $_SESSION['cart'] = $cart;
+        flash('Saved for later. It won\'t be included when you check out.');
+    } elseif ($action === 'move_to_cart' && isset($saved[$key])) {
+        $l = $saved[$key];
+        $_SESSION['cart'] = cart_put($cart, $l['id'], $l['qty'], $l['colour'], $l['size']);
+        unset($saved[$key]);
+        $_SESSION['saved'] = $saved;
+        flash('Moved back to your cart.');
     } elseif ($action === 'remove_saved') {
-        $saved = $_SESSION['saved'] ?? [];
-        unset($saved[(int)($_POST['id'] ?? 0)]);
+        unset($saved[$key]);
         $_SESSION['saved'] = $saved;
         flash('Item removed.');
     } elseif ($action === 'clear') {
@@ -81,11 +72,11 @@ $subtotal = array_sum(array_column($lines, 'subtotal'));
     <tbody>
     <?php foreach ($lines as $l): $p = $l['product']; ?>
       <tr>
-        <td><a href="<?= e(url('?p=product&slug=' . urlencode($p['slug']))) ?>"><?= e($p['name']) ?></a></td>
-        <td><?= money((int)$p['price_cents']) ?></td>
-        <td class="cart-qty" style="max-width:110px"><input type="number" name="qty[<?= (int)$p['id'] ?>]" value="<?= (int)$l['qty'] ?>" min="1" max="99"></td>
+        <td><a href="<?= e(url('?p=product&slug=' . urlencode($p['slug']))) ?>"><?= e($p['name']) ?></a><?php if ($l['options'] !== ''): ?><br><span class="small muted"><?= e($l['options']) ?></span><?php endif; ?></td>
+        <td><?= money((int)$l['unit']) ?></td>
+        <td class="cart-qty" style="max-width:110px"><input type="number" name="qty[<?= e($l['key']) ?>]" value="<?= (int)$l['qty'] ?>" min="1" max="99"></td>
         <td><?= money((int)$l['subtotal']) ?></td>
-        <td class="cart-actions" style="white-space:nowrap"><button class="btn ghost small" type="submit" form="sv<?= (int)$p['id'] ?>" title="Keep it, but don't buy it in this order">Save for later</button> <button class="btn ghost small" type="submit" form="rm<?= (int)$p['id'] ?>">Remove</button></td>
+        <td class="cart-actions" style="white-space:nowrap"><button class="btn ghost small" type="submit" form="sv<?= md5($l['key']) ?>" title="Keep it, but don't buy it in this order">Save for later</button> <button class="btn ghost small" type="submit" form="rm<?= md5($l['key']) ?>">Remove</button></td>
       </tr>
     <?php endforeach; ?>
     </tbody>
@@ -96,13 +87,13 @@ $subtotal = array_sum(array_column($lines, 'subtotal'));
   <a class="btn hover-sheen" href="<?= e(url('?p=checkout')) ?>">Checkout</a>
 </form>
 <?php foreach ($lines as $l): ?>
-  <form id="rm<?= (int)$l['product']['id'] ?>" method="post" style="display:none">
+  <form id="rm<?= md5($l['key']) ?>" method="post" style="display:none">
     <?= csrf_field() ?><input type="hidden" name="action" value="remove">
-    <input type="hidden" name="id" value="<?= (int)$l['product']['id'] ?>">
+    <input type="hidden" name="key" value="<?= e($l['key']) ?>">
   </form>
-  <form id="sv<?= (int)$l['product']['id'] ?>" method="post" style="display:none">
+  <form id="sv<?= md5($l['key']) ?>" method="post" style="display:none">
     <?= csrf_field() ?><input type="hidden" name="action" value="save_later">
-    <input type="hidden" name="id" value="<?= (int)$l['product']['id'] ?>">
+    <input type="hidden" name="key" value="<?= e($l['key']) ?>">
   </form>
 <?php endforeach; ?>
 <?php endif; ?>
@@ -115,11 +106,11 @@ $subtotal = array_sum(array_column($lines, 'subtotal'));
     <tbody>
     <?php foreach ($savedLines as $l): $p = $l['product']; ?>
       <tr>
-        <td><a href="<?= e(url('?p=product&slug=' . urlencode($p['slug']))) ?>"><?= e($p['name']) ?></a></td>
-        <td><?= money((int)$p['price_cents']) ?> &times; <?= (int)$l['qty'] ?></td>
+        <td><a href="<?= e(url('?p=product&slug=' . urlencode($p['slug']))) ?>"><?= e($p['name']) ?></a><?php if ($l['options'] !== ''): ?><br><span class="small muted"><?= e($l['options']) ?></span><?php endif; ?></td>
+        <td><?= money((int)$l['unit']) ?> &times; <?= (int)$l['qty'] ?></td>
         <td style="white-space:nowrap;text-align:right">
-          <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_to_cart"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><button class="btn small" type="submit">Move to cart</button></form>
-          <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="remove_saved"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><button class="btn ghost small" type="submit">Remove</button></form>
+          <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="move_to_cart"><input type="hidden" name="key" value="<?= e($l['key']) ?>"><button class="btn small" type="submit">Move to cart</button></form>
+          <form method="post" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="remove_saved"><input type="hidden" name="key" value="<?= e($l['key']) ?>"><button class="btn ghost small" type="submit">Remove</button></form>
         </td>
       </tr>
     <?php endforeach; ?>

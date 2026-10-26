@@ -73,3 +73,25 @@
       .catch(function () {});
   }, 10000);
 })();
+
+// Product page: update the price as colour, size and quantity change.
+(function () {
+  var form = document.querySelector('[data-buy]');
+  var price = document.querySelector('[data-price]');
+  if (!form || !price) return;
+  var base = parseInt(price.dataset.base, 10) || 0;
+  function fmt(c) { return '$' + (c / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function update() {
+    var unit = base;
+    form.querySelectorAll('select').forEach(function (s) {
+      var o = s.options[s.selectedIndex];
+      if (o && o.dataset.extra) unit += parseInt(o.dataset.extra, 10) || 0;
+    });
+    var qtyEl = form.querySelector('input[name=qty]');
+    var qty = Math.max(1, parseInt(qtyEl && qtyEl.value, 10) || 1);
+    price.textContent = fmt(unit) + (qty > 1 ? ' each · ' + fmt(unit * qty) + ' total' : '');
+  }
+  form.addEventListener('change', update);
+  form.addEventListener('input', update);
+  update();
+})();

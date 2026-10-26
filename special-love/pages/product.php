@@ -8,13 +8,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $product) {
         $reviewErrors = submit_review((int)$product['id']);
         if (!$reviewErrors) redirect('?p=product&slug=' . urlencode($product['slug']) . '#reviews');
     } else {
-        $qty = max(1, min(99, (int)($_POST['qty'] ?? 1))); $id = (int)$product['id']; $cart = cart(); $cart[$id] = ['qty' => (int)($cart[$id]['qty'] ?? 0) + $qty]; $_SESSION['cart'] = $cart; flash($product['name'] . ' added to your cart.'); redirect('?p=cart');
+        $qty = max(1, min(99, (int)($_POST['qty'] ?? 1)));
+        // Only accept a colour/size the product actually offers.
+        $colourOpt = find_option(product_options($product['colours']), trim((string)($_POST['colour'] ?? '')));
+        $sizeOpt = find_option(product_options($product['sizes'] ?? ''), trim((string)($_POST['size'] ?? '')));
+        if (product_options($product['colours']) && !$colourOpt) { flash('Please choose a colour.', 'err'); redirect('?p=product&slug=' . urlencode($product['slug'])); }
+        if (product_options($product['sizes'] ?? '') && !$sizeOpt) { flash('Please choose a size.', 'err'); redirect('?p=product&slug=' . urlencode($product['slug'])); }
+        $colour = $colourOpt['label'] ?? '';
+        $size = $sizeOpt['label'] ?? '';
+        $_SESSION['cart'] = cart_put(cart(), (int)$product['id'], $qty, $colour, $size);
+        $opt = option_text($colour, $size);
+        flash($product['name'] . ($opt !== '' ? ' (' . $opt . ')' : '') . ' added to your cart.');
+        redirect('?p=cart');
     }
 }
 if (!$product) { http_response_code(404); echo '<h1>Product not found</h1><p><a class="btn" href="' . e(url('?p=shop')) . '">Back to the shop</a></p>'; return; }
 $GLOBALS['page_title'] = $product['name'] . ' - ' . setting('store_name', 'Special Love 3D');
 $GLOBALS['page_desc'] = mb_substr(strip_tags((string)$product['description']) ?: $product['name'], 0, 155);
-$colours = array_values(array_filter(array_map('trim', explode(',', (string)$product['colours']))));
+$colours = product_options($product['colours']);
+$sizes = product_options($product['sizes'] ?? '');
+$hasExtras = (bool)array_filter(array_merge($colours, $sizes), fn($o) => $o['extra'] > 0);
+$optionLabel = fn(array $o) => $o['label'] . ($o['extra'] > 0 ? ' (+' . money($o['extra']) . ')' : '');
 $media = product_media((int)$product['id']);
 if (!$media) $media = [['path' => $product['image'] ?: 'assets/hero.jpg', 'kind' => 'image']];
 $reviews = all('SELECT * FROM reviews WHERE product_id = ? AND status = "approved" ORDER BY created_at DESC LIMIT 50', [$product['id']]);
@@ -44,8 +58,11 @@ $reviews = all('SELECT * FROM reviews WHERE product_id = ? AND status = "approve
       </div>
     <?php endif; ?>
   </div>
-  <div><?php if ($product['promo_badge']): ?><span class="pill promo"><?= e($product['promo_badge']) ?></span><?php endif; ?><h1><?= e($product['name']) ?></h1><p class="price product-price"><?= money((int)$product['price_cents']) ?> <small>AUD</small></p><p class="muted"><?= nl2br(e($product['description'])) ?></p>
-    <form method="post" class="buy-panel"><?= csrf_field() ?><?php if ($colours): ?><label>Colour<select name="colour"><?php foreach ($colours as $colour): ?><option><?= e($colour) ?></option><?php endforeach; ?></select></label><?php endif; ?><label>Quantity <input type="number" name="qty" value="1" min="1" max="99"></label><button class="btn hover-sheen" type="submit">Add to cart</button></form>
+  <div><?php if ($product['promo_badge']): ?><span class="pill promo"><?= e($product['promo_badge']) ?></span><?php endif; ?><h1><?= e($product['name']) ?></h1><p class="price product-price"><span data-price data-base="<?= (int)$product['price_cents'] ?>"><?= money((int)$product['price_cents']) ?></span> <small>AUD</small></p><?php if ($hasExtras): ?><p class="small muted" style="margin-top:-8px">Price depends on the options you choose.</p><?php endif; ?><p class="muted"><?= nl2br(e($product['description'])) ?></p>
+    <form method="post" class="buy-panel" data-buy><?= csrf_field() ?>
+      <?php if ($colours): ?><label>Colour<select name="colour" required><?php if (count($colours) > 1): ?><option value="" data-extra="0">Choose a colour</option><?php endif; ?><?php foreach ($colours as $o): ?><option value="<?= e($o['label']) ?>" data-extra="<?= (int)$o['extra'] ?>"><?= e($optionLabel($o)) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+      <?php if ($sizes): ?><label>Size<select name="size" required><?php if (count($sizes) > 1): ?><option value="" data-extra="0">Choose a size</option><?php endif; ?><?php foreach ($sizes as $o): ?><option value="<?= e($o['label']) ?>" data-extra="<?= (int)$o['extra'] ?>"><?= e($optionLabel($o)) ?></option><?php endforeach; ?></select></label><?php endif; ?>
+      <label>Quantity <input type="number" name="qty" value="1" min="1" max="99"></label><button class="btn hover-sheen" type="submit">Add to cart</button></form>
     <div class="gift-note"><b>🎁 Free gift with every order</b><p class="small muted">Gift may vary depending on availability.</p></div>
     <div class="product-info"><h2>Product information</h2><dl><div><dt>Category</dt><dd><?= e($product['category'] ?: 'Other') ?></dd></div><div><dt>Material</dt><dd><?= e($product['material'] ?: 'See description') ?></dd></div><?php if ($product['size_text']): ?><div><dt>Size</dt><dd><?= e($product['size_text']) ?></dd></div><?php endif; ?><div><dt>Availability</dt><dd><?= (int)$product['stock'] > 0 ? (int)$product['stock'] . ' in stock' : 'Made to order' ?></dd></div></dl><?php if ($product['product_details']): ?><p class="muted"><?= nl2br(e($product['product_details'])) ?></p><?php endif; ?><h2>Shipping information</h2><p class="small muted">🌍 We ship worldwide. Fees are calculated at checkout based on location and order. Tracking is available where supported.</p></div>
   </div>

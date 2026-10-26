@@ -88,8 +88,75 @@ function slugify(string $s): string {
     return trim($s, '-') ?: 'item';
 }
 
+/**
+ * Parse a product's colour or size list, e.g. "Purple, Orange, Glow in the dark +2.50".
+ * A "+amount" after an option adds that much to the price.
+ * Returns [['label' => 'Glow in the dark', 'extra' => 250], ...].
+ */
+function product_options(?string $raw): array {
+    $out = [];
+    foreach (explode(',', (string)$raw) as $part) {
+        $part = trim($part);
+        if ($part === '') continue;
+        $extra = 0;
+        if (preg_match('/^(.*?)\s*\(?\+\s*\$?\s*(\d+(?:[.,]\d{1,2})?)\s*\)?$/u', $part, $m) && trim($m[1]) !== '') {
+            $part = trim($m[1]);
+            $extra = (int)round((float)str_replace(',', '.', $m[2]) * 100);
+        }
+        $out[] = ['label' => $part, 'extra' => $extra];
+    }
+    return $out;
+}
+
+/** Find the option the customer picked; null when it isn't one of the product's options. */
+function find_option(array $options, string $label): ?array {
+    foreach ($options as $o) if (strcasecmp($o['label'], $label) === 0) return $o;
+    return null;
+}
+
+/** Price of one item with the chosen colour and size. */
+function option_price(array $product, string $colour, string $size): int {
+    $price = (int)$product['price_cents'];
+    if ($colour !== '' && ($o = find_option(product_options($product['colours'] ?? ''), $colour))) $price += $o['extra'];
+    if ($size !== '' && ($o = find_option(product_options($product['sizes'] ?? ''), $size))) $price += $o['extra'];
+    return $price;
+}
+
+/** "Colour: Purple, Size: Large" (empty when the product has no choices). */
+function option_text(string $colour, string $size): string {
+    return implode(', ', array_filter([$colour !== '' ? 'Colour: ' . $colour : '', $size !== '' ? 'Size: ' . $size : '']));
+}
+
+/**
+ * Cart lines are keyed per product AND colour AND size, so a purple and an orange
+ * clicker are two separate lines: ['id' => 5, 'qty' => 1, 'colour' => 'Purple', 'size' => ''].
+ */
 function cart(): array {
-    return $_SESSION['cart'] ?? [];
+    return normalise_cart($_SESSION['cart'] ?? []);
+}
+
+/** Upgrade carts saved by the old version (keyed by product id only). */
+function normalise_cart(array $cart): array {
+    $out = [];
+    foreach ($cart as $key => $line) {
+        $id = (int)($line['id'] ?? $key);
+        $colour = (string)($line['colour'] ?? '');
+        $size = (string)($line['size'] ?? '');
+        $k = cart_key($id, $colour, $size);
+        $out[$k] = ['id' => $id, 'qty' => min(99, (int)($out[$k]['qty'] ?? 0) + max(1, (int)($line['qty'] ?? 1))), 'colour' => $colour, 'size' => $size];
+    }
+    return $out;
+}
+
+function cart_key(int $id, string $colour, string $size): string {
+    return $id . '|' . $colour . '|' . $size;
+}
+
+/** Add a product to a cart array (cart or saved-for-later) and return it. */
+function cart_put(array $cart, int $id, int $qty, string $colour, string $size): array {
+    $k = cart_key($id, $colour, $size);
+    $cart[$k] = ['id' => $id, 'qty' => min(99, (int)($cart[$k]['qty'] ?? 0) + $qty), 'colour' => $colour, 'size' => $size];
+    return $cart;
 }
 
 function cart_count(): int {
@@ -99,15 +166,20 @@ function cart_count(): int {
 }
 
 function cart_lines(?array $cart = null): array {
-    $cart = $cart ?? cart();
+    $cart = $cart === null ? cart() : normalise_cart($cart);
     if (!$cart) return [];
-    $ids = array_map('intval', array_keys($cart));
+    $ids = array_values(array_unique(array_map(fn($l) => (int)$l['id'], $cart)));
     $in = implode(',', array_fill(0, count($ids), '?'));
-    $rows = all("SELECT * FROM products WHERE id IN ($in) AND visible = 1", $ids);
+    $products = [];
+    foreach (all("SELECT * FROM products WHERE id IN ($in) AND visible = 1", $ids) as $p) $products[(int)$p['id']] = $p;
     $lines = [];
-    foreach ($rows as $p) {
-        $qty = max(1, (int)$cart[$p['id']]['qty']);
-        $lines[] = ['product' => $p, 'qty' => $qty, 'subtotal' => $qty * (int)$p['price_cents']];
+    foreach ($cart as $key => $l) {
+        $p = $products[(int)$l['id']] ?? null;
+        if (!$p) continue;
+        $qty = max(1, (int)$l['qty']);
+        $unit = option_price($p, $l['colour'], $l['size']);
+        $lines[] = ['key' => $key, 'product' => $p, 'qty' => $qty, 'colour' => $l['colour'], 'size' => $l['size'],
+                    'options' => option_text($l['colour'], $l['size']), 'unit' => $unit, 'subtotal' => $qty * $unit];
     }
     return $lines;
 }

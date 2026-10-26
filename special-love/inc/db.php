@@ -42,7 +42,7 @@ function ensure_column(string $table, string $name, string $definition): void {
 }
 
 /** Bump this when the schema below changes. */
-const SL_SCHEMA_VERSION = '3';
+const SL_SCHEMA_VERSION = '4';
 
 function ensure_storefront_schema(): void {
     static $done = false;
@@ -77,6 +77,8 @@ function apply_schema_updates(): void {
         'is_best_seller' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'is_new' => 'TINYINT(1) NOT NULL DEFAULT 0',
     ] as $name => $definition) ensure_column('products', $name, $definition);
+    // Size choices (with optional price increases), e.g. "Small, Medium +3, Large +6".
+    ensure_column('products', 'sizes', 'TEXT NULL');
 
     // Discount codes, hiding, and payments for custom print quotes.
     ensure_column('orders', 'discount_cents', 'INT NOT NULL DEFAULT 0');

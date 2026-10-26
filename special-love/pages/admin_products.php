@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             trim((string)($_POST['material'] ?? '')),
             trim((string)($_POST['product_details'] ?? '')),
             trim((string)($_POST['colours'] ?? '')),
+            trim((string)($_POST['sizes'] ?? '')),
             trim((string)($_POST['size_text'] ?? '')),
             trim((string)($_POST['promo_badge'] ?? '')),
             isset($_POST['is_best_seller']) ? 1 : 0,
@@ -75,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         if ($action === 'update' && $id) {
             $fields[] = $id;
-            q('UPDATE products SET name=?, description=?, category=?, material=?, product_details=?, colours=?, size_text=?, promo_badge=?, is_best_seller=?, is_new=?, price_cents=?, stock=?, visible=? WHERE id = ?', $fields);
+            q('UPDATE products SET name=?, description=?, category=?, material=?, product_details=?, colours=?, sizes=?, size_text=?, promo_badge=?, is_best_seller=?, is_new=?, price_cents=?, stock=?, visible=? WHERE id = ?', $fields);
             $productId = $id;
             flash('Product saved.');
         } else {
@@ -83,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $n = 1;
             while (one('SELECT id FROM products WHERE slug = ?', [$slug])) { $slug = slugify($name) . '-' . (++$n); }
             array_splice($fields, 1, 0, [$slug]);
-            q('INSERT INTO products (name, slug, description, category, material, product_details, colours, size_text, promo_badge, is_best_seller, is_new, price_cents, stock, visible)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $fields);
+            q('INSERT INTO products (name, slug, description, category, material, product_details, colours, sizes, size_text, promo_badge, is_best_seller, is_new, price_cents, stock, visible)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', $fields);
             $productId = (int)db()->lastInsertId();
             flash('Product added.');
         }
@@ -117,13 +118,15 @@ $products = all('SELECT * FROM products ORDER BY created_at DESC');
     <div class="row">
       <label>Category <input name="category" value="<?= e($editing['category'] ?? '') ?>"></label>
       <label>Material <input name="material" value="<?= e($editing['material'] ?? '') ?>"></label>
-      <label>Colours (comma separated) <input name="colours" value="<?= e($editing['colours'] ?? '') ?>"></label>
-      <label>Size / dimensions <input name="size_text" value="<?= e($editing['size_text'] ?? '') ?>"></label>
+      <label>Colours customers can choose <input name="colours" placeholder="Purple, Orange, Glow in the dark +2.50" value="<?= e($editing['colours'] ?? '') ?>"></label>
+      <label>Sizes customers can choose <input name="sizes" placeholder="Small, Medium +3, Large +6" value="<?= e($editing['sizes'] ?? '') ?>"></label>
+      <label>Size / dimensions (shown as info) <input name="size_text" value="<?= e($editing['size_text'] ?? '') ?>"></label>
       <label>Product label <input name="promo_badge" placeholder="Popular, New, Handmade For Sale" value="<?= e($editing['promo_badge'] ?? '') ?>"></label>
       <label>Price (<?= e(strtoupper(setting('currency', 'AUD'))) ?>)
         <input name="price" type="number" step="0.01" min="0" value="<?= number_format((int)($editing['price_cents'] ?? 0) / 100, 2, '.', '') ?>"></label>
       <label>Stock <input name="stock" type="number" value="<?= (int)($editing['stock'] ?? 0) ?>"></label>
     </div>
+    <p class="small muted" style="margin-top:-6px">Colours and sizes: separate with commas. To charge more for an option, add <b>+</b> and the extra amount after it, using a dot for cents: <code>Large +6</code>, <code>Glow in the dark +2.50</code>. Customers must pick one, and the price updates as they choose.</p>
     <div class="row"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_best_seller" value="1" style="width:auto" <?= !empty($editing['is_best_seller']) ? 'checked' : '' ?>> Best seller</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_new" value="1" style="width:auto" <?= !empty($editing['is_new']) ? 'checked' : '' ?>> New product</label></div>
     <label>Photos and videos (pick as many as you like)
       <input type="file" name="media[]" multiple accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.m4v">

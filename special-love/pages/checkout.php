@@ -59,7 +59,8 @@ if ($placeOrder) {
         $orderId = (int)db()->lastInsertId();
         foreach ($lines as $l) {
             q('INSERT INTO order_items (order_id, product_id, name, unit_price_cents, qty) VALUES (?,?,?,?,?)', [
-                $orderId, (int)$l['product']['id'], $l['product']['name'], (int)$l['product']['price_cents'], (int)$l['qty'],
+                // The chosen colour/size is part of the item name so it shows on the order, receipt, emails and Stripe.
+                $orderId, (int)$l['product']['id'], mb_substr($l['product']['name'] . ($l['options'] !== '' ? ' (' . $l['options'] . ')' : ''), 0, 190), (int)$l['unit'], (int)$l['qty'],
             ]);
         }
         // The cart is kept until payment goes through, so a cancelled payment loses nothing.
@@ -102,7 +103,7 @@ if ($placeOrder) {
     <table>
       <tbody>
       <?php foreach ($lines as $l): ?>
-        <tr><td><?= e($l['product']['name']) ?> &times; <?= (int)$l['qty'] ?></td><td style="text-align:right"><?= money((int)$l['subtotal']) ?></td></tr>
+        <tr><td><?= e($l['product']['name']) ?> &times; <?= (int)$l['qty'] ?><?php if ($l['options'] !== ''): ?><br><span class="small muted"><?= e($l['options']) ?></span><?php endif; ?></td><td style="text-align:right"><?= money((int)$l['subtotal']) ?></td></tr>
       <?php endforeach; ?>
       </tbody>
     </table>

@@ -237,3 +237,4 @@ body.theme-easter .announcement{color:#3b2a4a}
 .photo-feature figcaption{font-size:.85rem;color:var(--muted);margin-top:8px;text-align:center}
 .split-reverse{grid-template-columns:1.2fr minmax(240px,.8fr)}
 @media(max-width:820px){.split-reverse{grid-template-columns:1fr}}
+.buy-panel{flex-wrap:wrap}
