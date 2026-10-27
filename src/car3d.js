@@ -81,6 +81,46 @@ function keyed(keys, t, out) {
   return out.copy(keys[keys.length - 1][1]);
 }
 
+// Vloeiende camerabaan door sleutelstanden: per as een monotone kubische spline
+// (Fritsch-Carlson). De camera stopt dus niet meer bij elk standpunt, maar schiet
+// ook nooit voorbij een stand: twee gelijke standen achter elkaar blijven een rustig shot.
+function smoothPath(keys) {
+  const n = keys.length;
+  const ts = keys.map((k) => k[0]);
+  const axes = ["x", "y", "z"].map((a) => {
+    const v = keys.map((k) => k[1][a]);
+    const d = [];
+    for (let i = 0; i < n - 1; i++) d.push((v[i + 1] - v[i]) / (ts[i + 1] - ts[i]));
+    const m = new Array(n).fill(0);
+    for (let i = 1; i < n - 1; i++) {
+      if (d[i - 1] * d[i] <= 0) continue;
+      const h0 = ts[i] - ts[i - 1];
+      const h1 = ts[i + 1] - ts[i];
+      // gewogen harmonisch gemiddelde: geen overshoot, ook bij ongelijke tussenpozen
+      const w1 = 2 * h1 + h0;
+      const w2 = h1 + 2 * h0;
+      m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
+    }
+    return { v, m };
+  });
+  return (t, out) => {
+    if (t <= ts[0]) return out.copy(keys[0][1]);
+    if (t >= ts[n - 1]) return out.copy(keys[n - 1][1]);
+    let i = 0;
+    while (i < n - 2 && t > ts[i + 1]) i++;
+    const h = ts[i + 1] - ts[i];
+    const s = (t - ts[i]) / h;
+    const s2 = s * s;
+    const s3 = s2 * s;
+    const h00 = 2 * s3 - 3 * s2 + 1;
+    const h10 = s3 - 2 * s2 + s;
+    const h01 = -2 * s3 + 3 * s2;
+    const h11 = s3 - s2;
+    const c = axes.map(({ v, m }) => h00 * v[i] + h10 * h * m[i] + h01 * v[i + 1] + h11 * h * m[i + 1]);
+    return out.set(c[0], c[1], c[2]);
+  };
+}
+
 function b64ToArrayBuffer(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -1378,6 +1418,9 @@ class CarFactory {
     this.doneFired = false;
     this.visible = true;
     this.lastFrame = performance.now();
+    this.lastTick = this.lastFrame;
+    this.tick = 0;
+    this.refresh = 0;
     this.frameTimes = [];
     this.warmup = 90;
     this.pausedAt = null;
@@ -1471,6 +1514,9 @@ class CarFactory {
       this.composer.addPass(this.gtao);
     }
     this.bloom = new UnrealBloomPass(new THREE.Vector2(512, 288), 0.22, 0.3, 2.4);
+    // gloed is toch wazig: op halve resolutie ziet hij er hetzelfde uit en kost hij een kwart
+    const bloomSetSize = this.bloom.setSize.bind(this.bloom);
+    this.bloom.setSize = (w, h) => bloomSetSize(Math.max(1, Math.round(w * 0.5)), Math.max(1, Math.round(h * 0.5)));
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.fxaa = new FXAAPass();
@@ -1605,8 +1651,10 @@ class CarFactory {
 
   applyQuality() {
     const high = this.level === 0;
-    this.bloom.enabled = high && !this.photoMode;
-    const samples = this.level === 0 ? 4 : 0;
+    // gloed en gladde randen (MSAA) ook op middel: sinds het glas geen extra pass meer
+    // kost en de gloed op halve resolutie draait, kan een gewone laptop dat aan
+    this.bloom.enabled = this.level < 2 && !this.photoMode;
+    const samples = this.level < 2 ? 4 : 0;
     this.fxaa.enabled = samples === 0;
     if (samples !== this.samples) {
       this.samples = samples;
@@ -1718,6 +1766,30 @@ class CarFactory {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
+      }
+    });
+
+    // Glas met "transmission" (echte lichtbreking) laat three.js elk beeld de hele
+    // fabriek nóg een keer tekenen. Getint, spiegelend glas ziet er bijna hetzelfde
+    // uit en kost niets extra: dat scheelt bijna de helft van het werk per beeld.
+    const glassDone = new Set();
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m || glassDone.has(m) || !(m.transmission > 0)) continue;
+        glassDone.add(m);
+        m.transmission = 0;
+        m.thickness = 0;
+        m.transparent = true;
+        m.depthWrite = false;
+        m.opacity = 0.32;
+        m.color.multiplyScalar(0.35);
+        m.roughness = Math.min(m.roughness, 0.04);
+        m.metalness = 0;
+        m.envMapIntensity = 1.6;
+        if ("specularIntensity" in m) m.specularIntensity = 1;
+        m.needsUpdate = true;
+        o.castShadow = false;
       }
     });
 
@@ -1922,6 +1994,13 @@ class CarFactory {
 
   loop(now) {
     requestAnimationFrame(this.loop);
+    // Snelle schermen (120/144 Hz): niet vaker dan ±60 keer per seconde tekenen.
+    // Dat ziet er even vloeiend uit en halveert het werk voor de videokaart.
+    const gap = now - this.lastTick;
+    this.lastTick = now;
+    if (gap > 0 && gap < 40) this.refresh = this.refresh ? this.refresh * 0.95 + gap * 0.05 : gap;
+    const every = this.refresh && this.refresh < 11 ? Math.round(16.7 / this.refresh) : 1;
+    if (++this.tick % every !== 0) return;
     const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
     if (!this.ready) return;
@@ -2001,6 +2080,13 @@ class CarFactory {
     const toTunnel = easeInOut(seg(t, TL.tunnel, TL.tunnel + 5.0));
     const carZ = lerp(-14, 0, arrive) + TUNNEL_Z * toTunnel;
     this.carRoot.position.set(0, S, carZ);
+    // het schaduwvlak reist mee naar de lichttunnel, zodat de auto daar ook een schaduw heeft
+    const shadowZ = Math.max(0, carZ);
+    if (this.keyLight.target.position.z !== shadowZ) {
+      this.keyLight.position.set(4.5, 9, 5.5 + shadowZ);
+      this.keyLight.target.position.set(0, 0.6, shadowZ);
+      this.keyLight.target.updateMatrixWorld();
+    }
     const rollers = this.hallParts.rollers;
     const rollAngle = carZ / 0.05;
     for (let i = 0; i < rollers.count; i++) {
@@ -2570,6 +2656,8 @@ class CarFactory {
     // in de lichttunnel: omgevingslicht fel omhoog (goedkoper dan extra lampen)
     const inTunnel = seg(t, TL.tunnel + 2.5, TL.tunnel + 4.5) * (1 - seg(t, TL.end - 0.6, TL.end));
     this.scene.environmentIntensity = 0.9 + 0.9 * inTunnel;
+    // de vele felle lichtbalken zouden met de gewone gloed het hele beeld wit waas geven
+    this.bloom.strength = 0.22 - 0.16 * seg(t, TL.tunnel + 1.2, TL.tunnel + 3.2) * (1 - seg(t, TL.end - 0.6, TL.end));
   }
 
   updateCamera(t, clock) {
@@ -2597,8 +2685,10 @@ class CarFactory {
         [30.0, V(1.8, 2.4, 5.8)],
         [31.3, V(1.2, 1.45, 6.9)],
         [32.6, V(2.4, 1.8, 8.6)],
-        [34.0, V(3.8, 3.6, 11.0)],
-        [35.4, V(0.8, 3.4, 20.5)],
+        // midden over de lichttunnel heen: boven de borden "EINDCONTROLE" (bovenkant y=3,65),
+        // onder de hangbaan (y=4,8) en ver genoeg van de tunnelwanden (x=±2,35)
+        [34.0, V(2.2, 4.3, 10.0)],
+        [35.4, V(0.6, 4.4, 21.0)],
         [36.6, V(1.6, 1.45, 21.6)],
         [37.8, V(1.5, 1.35, 20.8)],
         [40.8, V(-1.7, 1.9, 21.3)],
@@ -2624,16 +2714,17 @@ class CarFactory {
         [28.8, V(0, 1.6, 0.8)],
         [30.0, V(0, 1.0, 0.8)],
         [31.3, V(0, 0.8, 0.6)],
-        [32.6, V(0, 0.8, 2.2)],
-        [34.0, V(0, 0.9, 8.0)],
-        [35.4, V(0, 0.8, 13.6)],
+        [32.6, V(0, 0.8, 1.4)],
+        // het richtpunt volgt de auto op weg naar de tunnel (z≈2 bij 34 s, z≈11 bij 35,4 s)
+        [34.0, V(0, 0.9, 3.0)],
+        [35.4, V(0, 0.8, 11.6)],
         [36.6, V(0, 0.85, 14.8)],
         [37.8, V(0, 0.8, 15.3)],
         [40.8, V(0, 0.8, 15.3)],
         [43.0, V(0, 0.8, 15.3)],
       ];
-      this.camKeys.pos = pos;
-      this.camKeys.tgt = tgt;
+      this.camKeys.pos = smoothPath(pos);
+      this.camKeys.tgt = smoothPath(tgt);
     }
     const { pos, tgt } = this.camKeys;
     if (this.debugCam) {
@@ -2641,8 +2732,8 @@ class CarFactory {
       this.camera.lookAt(this.debugCam.target);
       return;
     }
-    keyed(pos, t, this.camera.position);
-    const target = keyed(tgt, t, this.camKeys.target);
+    pos(t, this.camera.position);
+    const target = tgt(t, this.camKeys.target);
     // lichte "camerakraan"-beweging
     this.camera.position.x += Math.sin(clock * 0.37) * 0.06;
     this.camera.position.y += Math.sin(clock * 0.29) * 0.04;
