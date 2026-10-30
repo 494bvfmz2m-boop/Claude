@@ -1,4 +1,4 @@
-/* PeakMail client */
+/* EderveenGroup client */
 (function () {
     'use strict';
 
@@ -21,7 +21,7 @@
     };
 
     async function api(path, opts = {}) {
-        const init = { method: opts.method || 'GET', headers: { 'X-PeakMail': '1' } };
+        const init = { method: opts.method || 'GET', headers: { 'X-EG': '1' } };
         if (opts.form) init.body = opts.form;
         else if (opts.body !== undefined) {
             init.headers['Content-Type'] = 'application/json';
@@ -81,7 +81,7 @@
         const parts = label.replace(/["'<>]/g, '').split(/[\s._@-]+/).filter(Boolean);
         const initials = ((parts[0] || '?')[0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
         const hh = hue((person && person.address) || label);
-        return `<div class="avatar ${size}" style="background:linear-gradient(135deg,hsl(${hh} 70% 58%),hsl(${(hh + 40) % 360} 75% 48%))">${esc(initials)}</div>`;
+        return `<div class="avatar ${size}" style="--h:${hh}">${esc(initials)}</div>`;
     }
     const personName = p => (p ? p.name || p.address : '');
     const fmtAddr = p => (p.name ? `${p.name} <${p.address}>` : p.address);
@@ -121,11 +121,11 @@
         const theme = s.theme === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : s.theme;
         root.dataset.theme = theme;
         root.dataset.density = s.density;
-        root.style.setProperty('--accent', s.accent);
-        $('meta[name=theme-color]').content = theme === 'light' ? '#f4f4fa' : '#0a0a12';
+        window.egApplyAccent(s.accent);
+        $('meta[name=theme-color]').content = theme === 'light' ? '#f1efea' : '#09090b';
         $('#theme-btn').innerHTML = icon(theme === 'light' ? 'moon' : 'sun');
         try {
-            localStorage.setItem('pm.look', JSON.stringify({ theme: s.theme, accent: s.accent, density: s.density }));
+            localStorage.setItem('eg.look', JSON.stringify({ theme: s.theme, accent: s.accent, density: s.density }));
         } catch {
             // private mode
         }
@@ -169,7 +169,7 @@
             custom.map(row).join('');
         const inbox = state.folders.find(f => f.path === 'INBOX');
         const n = inbox ? inbox.unseen : 0;
-        document.title = `${n ? `(${n}) ` : ''}${folderInfo(state.folder).name} · PeakMail`;
+        document.title = `${n ? `(${n}) ` : ''}${folderInfo(state.folder).name} · EderveenGroup`;
     }
 
     $('#folders').addEventListener('click', e => {
@@ -205,7 +205,7 @@
         $$('.folder.drop-target').forEach(x => x.classList.remove('drop-target'));
         if (!btn) return;
         e.preventDefault();
-        const uids = JSON.parse(e.dataTransfer.getData('application/x-peakmail') || '[]');
+        const uids = JSON.parse(e.dataTransfer.getData('application/x-eg') || '[]');
         if (uids.length) moveTo(uids, btn.dataset.path);
     });
 
@@ -274,13 +274,23 @@
 
     /* ================= message list ================= */
 
+    // Lists are cached per view and shown instantly, then refreshed in the background.
+    const listCache = new Map();
+    const listKey = () => [state.folder, state.page, state.query, state.filter].join('\u0000');
+
     let listToken = 0;
     async function loadMessages({ quiet = false } = {}) {
         const token = ++listToken;
         const info = folderInfo(state.folder);
         $('#folder-title').innerHTML = esc(state.query ? `Search` : info.name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
-        if (!quiet) {
-            $('#messages').innerHTML = Array.from({ length: 8 }, (_, i) => `<div class="skeleton" style="opacity:${1 - i * 0.1}"><div class="b" style="width:38px;height:38px;border-radius:12px"></div><div style="flex:1"><div class="b" style="height:12px;width:40%;margin:4px 0 8px"></div><div class="b" style="height:10px;width:85%;margin-bottom:6px"></div><div class="b" style="height:10px;width:60%"></div></div></div>`).join('');
+        const cached = listCache.get(listKey());
+        if (cached && !quiet) {
+            state.messages = cached.messages;
+            state.total = cached.total;
+            renderList(true);
+            quiet = true;
+        } else if (!quiet) {
+            $('#messages').innerHTML = Array.from({ length: 9 }, (_, i) => `<div class="skeleton" style="opacity:${1 - i * 0.1}"><div class="b" style="width:36px;height:36px;border-radius:50%"></div><div style="flex:1"><div class="b" style="height:11px;width:38%;margin:4px 0 9px"></div><div class="b" style="height:10px;width:82%;margin-bottom:7px"></div><div class="b" style="height:10px;width:58%"></div></div></div>`).join('');
         }
         try {
             const r = await api('/api/messages?' + qs({ folder: state.folder, page: state.page, q: state.query, filter: state.filter }));
@@ -288,7 +298,7 @@
             state.messages = r.messages;
             state.total = r.total;
             state.pageSize = r.pageSize;
-            renderList();
+            renderList(!quiet);
         } catch (e) {
             if (token !== listToken) return;
             $('#messages').innerHTML = `<div class="empty"><div><div class="big">${icon('junk')}</div><h3>Couldn’t load mail</h3><p>${esc(e.message)}</p><button class="btn" id="retry">Try again</button></div></div>`;
@@ -296,8 +306,9 @@
         }
     }
 
-    function renderList() {
+    function renderList(animate = false) {
         const list = $('#messages');
+        listCache.set(listKey(), { messages: state.messages, total: state.total });
         const start = state.page * state.pageSize;
         $('#range').textContent = state.total ? `${start + 1}–${Math.min(start + state.messages.length, state.total)} of ${state.total.toLocaleString()}` : '';
         $('#prev-page').disabled = state.page === 0;
@@ -305,7 +316,7 @@
         if (!state.messages.length) {
             const zero = state.query || state.filter
                 ? ['search', 'Nothing matches', 'Try a different search or filter.']
-                : ['sparkle', 'All caught up', 'Nothing in here. Enjoy the peace.'];
+                : ['sparkle', 'All caught up', 'Nothing here. Enjoy the quiet.'];
             list.innerHTML = `<div class="empty"><div><div class="big">${icon(zero[0])}</div><h3>${zero[1]}</h3><p>${zero[2]}</p></div></div>`;
             updateBulk();
             return;
@@ -317,8 +328,8 @@
                 const starred = m.flags.includes('\\Flagged');
                 const who = showTo ? m.to[0] : m.from[0];
                 const whoText = showTo ? `To: ${m.to.map(personName).join(', ') || '(no recipients)'}` : personName(who) || '(unknown)';
-                return `<div class="msg${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true" style="animation-delay:${Math.min(i, 15) * 18}ms">
-                    <div class="sel-toggle" title="Select">${state.checked.has(m.uid) ? `<div class="avatar">${icon('check')}</div>` : avatar(who)}</div>
+                return `<div class="msg${animate ? ' enter' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
+                    <div class="sel-toggle" title="Select">${state.checked.has(m.uid) ? `<div class="avatar check">${icon('check')}</div>` : avatar(who)}</div>
                     <div class="msg-body">
                         <div class="msg-top"><span class="msg-from">${esc(whoText)}</span>
                             <span class="msg-meta">${m.flags.includes('\\Answered') ? icon('reply') : ''}${m.hasAttachments ? icon('clip') : ''}</span>
@@ -345,7 +356,7 @@
         if (!row) return;
         const uid = Number(row.dataset.uid);
         const uids = state.checked.has(uid) ? [...state.checked] : [uid];
-        e.dataTransfer.setData('application/x-peakmail', JSON.stringify(uids));
+        e.dataTransfer.setData('application/x-eg', JSON.stringify(uids));
         e.dataTransfer.effectAllowed = 'move';
         const ghost = h(`<div class="toast" style="position:fixed;top:-100px">${icon('mail')} Move ${uids.length} message${uids.length > 1 ? 's' : ''}</div>`);
         document.body.append(ghost);
@@ -569,13 +580,32 @@
     function showEmptyReader() {
         state.openUid = null;
         state.current = null;
-        $('#reader').innerHTML = `<div class="empty"><div><div class="big">${icon('mail')}</div><h3>Pick a message</h3><p>Or hit <kbd>C</kbd> to write something peak.<br>Press <kbd>?</kbd> for shortcuts.</p></div></div>`;
+        $('#reader').innerHTML = `<div class="empty"><div><div class="big">${icon('mail')}</div><h3>Nothing selected</h3><p>Select a conversation to read it here.<br>Press <kbd>C</kbd> to write, <kbd>?</kbd> for shortcuts.</p></div></div>`;
         $$('.msg.selected').forEach(x => x.classList.remove('selected'));
     }
 
+    // Full messages are fetched with peek=1 (never marks read) so hovering can prefetch them.
+    const msgCache = new Map();
+    function fetchMessage(folder, uid) {
+        const key = `${folder}\u0000${uid}`;
+        if (!msgCache.has(key)) {
+            const p = api('/api/message?' + qs({ folder, uid, peek: 1 }));
+            p.catch(() => msgCache.delete(key));
+            msgCache.set(key, p);
+            if (msgCache.size > 80) msgCache.delete(msgCache.keys().next().value);
+        }
+        return msgCache.get(key);
+    }
+    let hoverTimer;
+    $('#messages').addEventListener('mouseover', e => {
+        const row = e.target.closest('.msg');
+        clearTimeout(hoverTimer);
+        if (row && !isDrafts()) hoverTimer = setTimeout(() => fetchMessage(state.folder, Number(row.dataset.uid)), 90);
+    });
+
     async function withMessage(uid, fn) {
         try {
-            fn(state.current && state.current.uid === uid ? state.current : await api('/api/message?' + qs({ folder: state.folder, uid })));
+            fn(state.current && state.current.uid === uid ? state.current : await fetchMessage(state.folder, uid));
         } catch (e) {
             toast(e.message, { error: true });
         }
@@ -590,7 +620,7 @@
         if (row) row.scrollIntoView({ block: 'nearest' });
         if (isDrafts()) {
             try {
-                const msg = await api('/api/message?' + qs({ folder: state.folder, uid }));
+                const msg = await api('/api/message?' + qs({ folder: state.folder, uid, peek: 1 }));
                 openComposer('draft', msg);
             } catch (e) {
                 toast(e.message, { error: true });
@@ -598,12 +628,19 @@
             return;
         }
         $('#app').dataset.view = 'reader';
-        $('#reader').innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
+        const folder = state.folder;
+        const slow = setTimeout(() => token === readToken && ($('#reader').innerHTML = `<div class="empty"><div class="spinner"></div></div>`), 160);
         try {
-            const msg = await api('/api/message?' + qs({ folder: state.folder, uid }));
+            const msg = await fetchMessage(folder, uid);
+            clearTimeout(slow);
             if (token !== readToken) return;
             state.current = msg;
             const listed = state.messages.find(m => m.uid === uid);
+            if (listed) msg.flags = [...listed.flags];
+            if (!msg.flags.includes('\\Seen')) {
+                msg.flags.push('\\Seen');
+                api('/api/messages/flags', { method: 'POST', body: { folder, uids: [uid], add: ['\\Seen'] } }).catch(() => {});
+            }
             if (listed && !listed.flags.includes('\\Seen')) {
                 listed.flags.push('\\Seen');
                 $(`.msg[data-uid="${uid}"]`)?.classList.remove('unread');
@@ -615,6 +652,7 @@
             }
             renderReader();
         } catch (e) {
+            clearTimeout(slow);
             if (token !== readToken) return;
             $('#reader').innerHTML = `<div class="empty"><div><div class="big">${icon('junk')}</div><h3>Couldn’t open that one</h3><p>${esc(e.message)}</p></div></div>`;
         }
@@ -650,7 +688,7 @@
                 <button class="icon-btn" data-act="forward" data-tip="Forward (F)">${icon('forward')}</button>
                 <button class="icon-btn" data-act="more" data-tip="More">${icon('more')}</button>
             </div>
-            <div class="reader-scroll">
+            <div class="reader-scroll"><div class="reader-content">
                 <h1>${esc(m.subject || '(no subject)')}</h1>
                 <div class="sender">
                     ${avatar(from, 'lg')}
@@ -677,7 +715,7 @@
                     ${recipients.length + m.from.length > 2 ? `<button class="btn" data-act="replyAll">${icon('replyAll')} Reply all</button>` : ''}
                     <button class="btn" data-act="forward">${icon('forward')} Forward</button>
                 </div>
-            </div>`;
+            </div></div>`;
         renderReaderBar();
         renderBody(m, remoteOk);
     }
@@ -699,7 +737,7 @@
         const csp = `default-src 'none'; img-src data: cid:${remoteOk ? ' https: http:' : ''}; style-src 'unsafe-inline'; font-src data:${remoteOk ? ' https:' : ''}`;
         const doc = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank">
             <style>html,body{margin:0}body{padding:20px;font:14.5px/1.55 -apple-system,'Segoe UI',Roboto,Inter,sans-serif;color:#1d1d2b;background:#fff;word-wrap:break-word;overflow-wrap:anywhere}
-            img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ccc;margin:8px 0;padding-left:12px;color:#555}a{color:#5b3fe0}</style></head><body>${m.html}</body></html>`;
+            img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ccc;margin:8px 0;padding-left:12px;color:#555}a{color:#7a5a1f}${remoteOk ? '' : 'img[src^="http:"],img[src^="https:"]{visibility:hidden}'}</style></head><body>${m.html}</body></html>`;
         const frame = h('<iframe class="body-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="Message body"></iframe>');
         frame.srcdoc = doc;
         host.replaceChildren(frame);
@@ -790,7 +828,7 @@
 
     function saveTrustedSenders() {
         try {
-            localStorage.setItem('pm.trusted', JSON.stringify([...state.allowImagesFor].filter(x => x.includes('@'))));
+            localStorage.setItem('eg.trusted', JSON.stringify([...state.allowImagesFor].filter(x => x.includes('@'))));
         } catch {
             // ignore
         }
@@ -899,7 +937,7 @@
                 <button class="icon-btn" data-cmd="link" title="Link (Ctrl K)">${icon('link')}</button>
                 <button class="icon-btn" data-cmd="removeFormat" title="Clear formatting">${icon('eraser')}</button>
             </div>
-            <div class="editor" contenteditable="true" data-placeholder="Write something peak…">${body}</div>
+            <div class="editor" contenteditable="true" data-placeholder="Write your message…">${body}</div>
             <div class="c-attachments"></div>
             <div class="composer-foot">
                 <button class="btn btn-primary send-btn" data-c="send" title="Send (Ctrl Enter)">${icon('send')} Send</button>
@@ -1341,9 +1379,9 @@
     const SIG_TEMPLATES = {
         Minimal: name => `<div>— ${esc(name)}</div>`,
         Professional: (name, email) =>
-            `<table cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;font-size:13px;color:#333"><tr><td style="padding-right:14px;border-right:3px solid ${state.settings.accent}"><b style="font-size:15px;color:${state.settings.accent}">${esc(name)}</b><br><span style="color:#777">Your title · Company</span></td><td style="padding-left:14px;line-height:1.6"><a href="mailto:${esc(email)}" style="color:${state.settings.accent};text-decoration:none">${esc(email)}</a><br><span style="color:#777">+1 (555) 000-0000</span></td></tr></table>`,
-        Peak: name =>
-            `<div style="font-family:Arial,sans-serif"><div style="font-size:16px;font-weight:bold;color:${state.settings.accent}">${esc(name)}</div><div style="font-size:12px;color:#888;letter-spacing:1px;text-transform:uppercase">Sent with PeakMail ⚡</div></div>`
+            `<table cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;font-size:13px;color:#333"><tr><td style="padding-right:14px;border-right:3px solid ${state.settings.accent}"><b style="font-size:15px;color:${state.settings.accent}">${esc(name)}</b><br><span style="color:#777">Your title · EderveenGroup</span></td><td style="padding-left:14px;line-height:1.6"><a href="mailto:${esc(email)}" style="color:${state.settings.accent};text-decoration:none">${esc(email)}</a><br><span style="color:#777">+1 (555) 000-0000</span></td></tr></table>`,
+        Executive: (name, email) =>
+            `<div style="font-family:Georgia,'Times New Roman',serif"><div style="font-size:18px;color:${state.settings.accent}">${esc(name)}</div><div style="font-family:Arial,sans-serif;font-size:11px;color:#8a8a8a;letter-spacing:2px;text-transform:uppercase;margin-top:2px">EderveenGroup</div><div style="font-family:Arial,sans-serif;font-size:12px;margin-top:8px"><a href="mailto:${esc(email)}" style="color:#8a8a8a;text-decoration:none">${esc(email)}</a></div></div>`
     };
 
     function openSettings(tab = 'general') {
@@ -1377,7 +1415,7 @@
 
         const tabs = {
             general() {
-                section.innerHTML = `<h3>General</h3><p class="hint">How PeakMail behaves.</p>
+                section.innerHTML = `<h3>General</h3><p class="hint">How your inbox behaves.</p>
                     <div class="row"><div class="lbl"><b>Display name</b><small>Shown to people you email</small></div><input class="input" data-s="displayName" value="${esc(s.displayName)}" placeholder="Your name"></div>
                     <div class="row"><div class="lbl"><b>Undo send</b><small>Grace period before mail actually leaves</small></div>
                         <div class="seg" data-seg="undoSendSeconds">${[0, 5, 10, 20].map(n => `<button data-v="${n}" class="${s.undoSendSeconds === n ? 'on' : ''}">${n ? n + 's' : 'Off'}</button>`).join('')}</div></div>
@@ -1393,7 +1431,7 @@
                 };
             },
             look() {
-                const accents = ['#7c5cff', '#00a3ff', '#00c896', '#ff4f8b', '#ff7a1a', '#f5c400', '#e5484d', '#8e8ea0'];
+                const accents = ['#c9a66b', '#d0784a', '#e26d8f', '#8b7cf6', '#5b7cfa', '#3fae8c', '#a3a3ad', '#e5484d'];
                 section.innerHTML = `<h3>Appearance</h3><p class="hint">Make it yours.</p>
                     <div class="row"><div class="lbl"><b>Theme</b></div><div class="seg" data-seg="theme">${['dark', 'light', 'system'].map(t => `<button data-v="${t}" class="${s.theme === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
                     <div class="row"><div class="lbl"><b>Accent color</b></div><div class="swatches">${accents.map(a => `<button class="swatch${s.accent === a ? ' on' : ''}" data-accent="${a}" style="background:${a}" aria-label="${a}"></button>`).join('')}<label class="swatch swatch-custom${accents.includes(s.accent) ? '' : ' on'}" title="Custom"><input type="color" value="${esc(s.accent)}"></label></div></div>
@@ -1708,9 +1746,9 @@
             const after = (folderInfo('INBOX') || {}).unseen || 0;
             if (state.folder === 'INBOX' && state.page === 0 && !state.query) loadMessages({ quiet: true });
             if (evt.type === 'exists' && after > before) {
-                toast(`📬 ${after - before} new message${after - before > 1 ? 's' : ''}`, { action: state.folder === 'INBOX' ? null : 'View', onAction: () => openFolder('INBOX') });
+                toast(`${after - before} new message${after - before > 1 ? 's' : ''}`, { action: state.folder === 'INBOX' ? null : 'View', onAction: () => openFolder('INBOX') });
                 if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-                    new Notification('PeakMail', { body: `${after - before} new message${after - before > 1 ? 's' : ''}`, icon: '/favicon.svg' });
+                    new Notification('EderveenGroup', { body: `${after - before} new message${after - before > 1 ? 's' : ''}`, icon: '/favicon.svg' });
                 }
             }
         }, 400));
@@ -1759,7 +1797,7 @@
             return;
         }
         try {
-            JSON.parse(localStorage.getItem('pm.trusted') || '[]').forEach(a => state.allowImagesFor.add(a));
+            JSON.parse(localStorage.getItem('eg.trusted') || '[]').forEach(a => state.allowImagesFor.add(a));
         } catch {
             // ignore
         }

@@ -1,6 +1,6 @@
-# PeakMail ⚡
+# EderveenGroup
 
-A fast, good-looking webmail client for **[Purelymail](https://purelymail.com)**. It runs on your own server and talks to Purelymail over IMAP and SMTP (SSL/TLS).
+A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It runs on your own server and talks to Purelymail over IMAP and SMTP (SSL/TLS).
 
 ## Features
 
@@ -14,7 +14,8 @@ A fast, good-looking webmail client for **[Purelymail](https://purelymail.com)**
 - **Signatures.** Create as many as you want with the rich editor or raw HTML, start from templates, set separate defaults for new mail and for replies, and switch while composing.
 - **Organize:** star, read/unread, archive, spam, delete (with undo), move, drag messages onto folders, multi-select (shift-click ranges), create/delete folders, empty Trash/Junk, and right-click menus.
 - **Keyboard first:** `c` `/` `j` `k` `r` `a` `f` `e` `#` `s` `u` `x`, a `Ctrl K` command palette, and `?` for the full list.
-- **Make it yours:** dark/light/system theme, accent color picker, comfortable/compact density.
+- **Feels instant:** messages are prefetched on hover, and folders you've visited render from cache while refreshing in the background.
+- **Make it yours:** dark/light/system theme (warm black and paper-white), champagne-gold accent or any colour you pick, comfortable/compact density.
 - **Mobile friendly** with a slide-out folder drawer and a full-screen composer.
 - View original source, download `.eml`, print, and one-click unsubscribe.
 
@@ -23,7 +24,7 @@ A fast, good-looking webmail client for **[Purelymail](https://purelymail.com)**
 Requires Node.js 20.12+.
 
 ```bash
-cd peakmail
+cd ederveengroup
 npm install
 cp .env.example .env   # then set SESSION_SECRET
 npm start
@@ -34,8 +35,8 @@ Open http://localhost:3000 and sign in with your full Purelymail address and pas
 ### Docker
 
 ```bash
-docker build -t peakmail .
-docker run -d -p 3000:3000 -v peakmail-data:/data -e SESSION_SECRET="$(openssl rand -hex 32)" peakmail
+docker build -t ederveengroup .
+docker run -d -p 3000:3000 -v ederveengroup-data:/data -e SESSION_SECRET="$(openssl rand -hex 32)" ederveengroup
 ```
 
 ## Deploying for real

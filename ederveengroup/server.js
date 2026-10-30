@@ -55,7 +55,7 @@ const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch
 // Every state-changing API call must carry this header: browsers won't send it
 // cross-site without a CORS preflight, which we never approve (CSRF guard).
 app.use('/api', (req, res, next) => {
-    if (req.method !== 'GET' && req.get('X-PeakMail') !== '1') return res.status(403).json({ error: 'Bad request origin' });
+    if (req.method !== 'GET' && req.get('X-EG') !== '1') return res.status(403).json({ error: 'Bad request origin' });
     next();
 });
 
@@ -164,7 +164,7 @@ app.get('/api/messages', wrap(async (req, res) => {
 }));
 
 app.get('/api/message', wrap(async (req, res) => {
-    const msg = await mail.getMessage(req.session, folderOf(req), Number(req.query.uid));
+    const msg = await mail.getMessage(req.session, folderOf(req), Number(req.query.uid), { markSeen: !req.query.peek });
     store.rememberContacts(req.session.email, msg.from);
     res.json(msg);
 }));
@@ -283,4 +283,4 @@ app.use((err, req, res, next) => {
     res.status(status).json({ error: status >= 500 ? (err.responseText || err.response || err.message || 'Something went wrong') : err.message });
 });
 
-app.listen(PORT, () => console.log(`PeakMail running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`EderveenGroup running on http://localhost:${PORT}`));

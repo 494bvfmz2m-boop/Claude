@@ -58,9 +58,19 @@
         file: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/>'
     };
     window.icon = function (name, cls) {
-        return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
+        return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (P[name] || '') + '</svg>';
+    };
+    // EG monogram: a geometric E whose short middle bar and spur also read as a G.
+    window.brandMark = function () {
+        return '<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="egm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb, var(--accent) 65%, #fff)"/><stop offset="1" style="stop-color:var(--accent)"/></linearGradient></defs>' +
+            '<rect x=".5" y=".5" width="31" height="31" rx="9" style="fill:var(--surface-3);stroke:var(--line-2)"/>' +
+            '<g fill="url(#egm)"><rect x="8" y="8" width="2.6" height="16" rx="1"/><rect x="8" y="8" width="16" height="2.6" rx="1"/><rect x="8" y="21.4" width="16" height="2.6" rx="1"/>' +
+            '<rect x="14.5" y="14.7" width="9.5" height="2.6" rx="1"/><rect x="21.4" y="14.7" width="2.6" height="9.3" rx="1"/></g></svg>';
     };
     document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.brand-mark').forEach(function (el) {
+            el.innerHTML = window.brandMark();
+        });
         document.querySelectorAll('[data-icon]').forEach(function (el) {
             el.insertAdjacentHTML('afterbegin', window.icon(el.dataset.icon));
         });

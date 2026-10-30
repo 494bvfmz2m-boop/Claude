@@ -9,7 +9,7 @@ const path = require('path');
 const DEFAULTS = {
     displayName: '',
     theme: 'dark',
-    accent: '#7c5cff',
+    accent: '#c9a66b',
     density: 'comfortable',
     loadRemoteImages: false,
     undoSendSeconds: 5,

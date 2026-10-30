@@ -13,11 +13,11 @@
         e.preventDefault();
         err.classList.add('hidden');
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner" style="border-top-color:#fff"></div><span>Connecting to Purelymail…</span>';
+        btn.innerHTML = '<div class="spinner" style="border-top-color:currentColor"></div><span>Signing in…</span>';
         try {
             const res = await fetch('/api/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-PeakMail': '1' },
+                headers: { 'Content-Type': 'application/json', 'X-EG': '1' },
                 body: JSON.stringify({
                     email: document.getElementById('email').value,
                     password: pw.value,
@@ -26,7 +26,7 @@
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Sign in failed');
-            btn.innerHTML = window.icon('check') + '<span>You’re in</span>';
+            btn.innerHTML = window.icon('check') + '<span>Welcome</span>';
             location.replace('/');
         } catch (ex) {
             err.textContent = ex.message;

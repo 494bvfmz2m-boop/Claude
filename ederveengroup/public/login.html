@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Sign in · EderveenGroup</title>
+    <meta name="theme-color" content="#09090b">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/app.css">
+    <script src="/js/boot.js"></script>
+    <script src="/js/icons.js"></script>
+    <script src="/js/login.js" defer></script>
+</head>
+<body>
+    <div class="login-split">
+        <section class="login-art" aria-hidden="true">
+            <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+            <svg class="rings" viewBox="0 0 400 400" fill="none" stroke="currentColor">
+                <g stroke-width=".6" stroke-dasharray="1 5"><circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="70"/></g>
+                <g stroke-width=".5" opacity=".7"><circle cx="200" cy="200" r="170"/><circle cx="200" cy="200" r="110"/><path d="M200 10v380M10 200h380" opacity=".35"/><circle cx="200" cy="30" r="3" fill="currentColor"/><circle cx="310" cy="200" r="2.5" fill="currentColor"/></g>
+            </svg>
+            <div>
+                <h1>Correspondence,<br><em>refined.</em></h1>
+                <p>Every conversation in one calm, fast inbox. Sign in with your Purelymail account to continue.</p>
+            </div>
+            <div class="foot"><span data-icon="lock">SSL/TLS to Purelymail</span><span data-icon="sparkle">Live delivery</span></div>
+        </section>
+        <main class="login-main">
+            <form class="login-form" id="login" novalidate>
+                <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+                <h2>Welcome back</h2>
+                <p class="sub">Sign in with your full email address.</p>
+                <div class="form-error hidden" id="err" role="alert"></div>
+                <label class="field">
+                    <span>Email</span>
+                    <input class="input" id="email" type="email" autocomplete="username" placeholder="name@ederveengroup.com" required autofocus>
+                </label>
+                <label class="field">
+                    <span>Password</span>
+                    <div class="pw-wrap">
+                        <input class="input" id="password" type="password" autocomplete="current-password" placeholder="Password or app password" required>
+                        <button type="button" class="icon-btn" id="peek" data-icon="eye" aria-label="Show password"></button>
+                    </div>
+                </label>
+                <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in for 30 days</label>
+                <button class="btn btn-primary" id="submit" type="submit"><span>Sign in</span></button>
+                <div class="login-note"><span data-icon="lock"></span><span>Your session is encrypted on this device. For extra safety, sign in with a Purelymail app password.</span></div>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

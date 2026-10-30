@@ -317,9 +317,9 @@ function unsubscribeLink(parsed) {
     return opts.find(u => /^https:/i.test(u)) || opts[0] || null;
 }
 
-async function getMessage(session, folder, uid) {
+async function getMessage(session, folder, uid, { markSeen = true } = {}) {
     const { parsed, flags } = await fetchParsed(session, folder, uid);
-    if (!flags.includes('\\Seen')) {
+    if (markSeen && !flags.includes('\\Seen')) {
         await withMailbox(session, folder, c => c.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })).catch(() => {});
         flags.push('\\Seen');
     }
@@ -418,7 +418,7 @@ async function buildMessage(session, input) {
         attachments: input.attachments || [],
         inReplyTo: input.inReplyTo || undefined,
         references: input.references && input.references.length ? input.references : undefined,
-        messageId: `<${crypto.randomUUID()}@${session.email.split('@')[1] || 'peakmail.local'}>`,
+        messageId: `<${crypto.randomUUID()}@${session.email.split('@')[1] || 'ederveengroup.local'}>`,
         date: new Date()
     };
     if (input.forwardFrom) {

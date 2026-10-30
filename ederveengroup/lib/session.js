@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const COOKIE = 'pm_session';
+const COOKIE = 'eg_session';
 const LONG_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days ("remember me")
 const SHORT_TTL = 12 * 60 * 60 * 1000; // 12 hours otherwise
 const RENEW_AFTER = 24 * 60 * 60 * 1000; // slide the 30-day window once a day

@@ -1,7 +1,7 @@
 {
-  "name": "peakmail",
+  "name": "ederveengroup",
   "version": "1.0.0",
-  "description": "PeakMail: a slick webmail client for Purelymail (IMAP/SMTP)",
+  "description": "EderveenGroup: webmail for Purelymail (IMAP/SMTP)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

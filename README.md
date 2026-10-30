@@ -1,4 +1,4 @@
 # Claude
 For my Claude projects
 
-- [`peakmail/`](peakmail/): PeakMail, a webmail client for Purelymail
+- [`ederveengroup/`](ederveengroup/): EderveenGroup, a webmail client for Purelymail
