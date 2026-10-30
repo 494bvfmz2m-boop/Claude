@@ -24,7 +24,12 @@ const MAX_CONTACTS = 500;
 
 function createStore(dataDir) {
     const dir = path.join(dataDir, 'users');
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    try {
+        fs.chmodSync(dataDir, 0o700);
+    } catch {
+        // best effort (e.g. Windows)
+    }
     const cache = new Map();
 
     const fileFor = email => path.join(dir, crypto.createHash('sha256').update(email.toLowerCase()).digest('hex') + '.json');
@@ -39,7 +44,7 @@ function createStore(dataDir) {
         }
         const saved = data.settings || {};
         if (saved.accent === '#c9a66b' || saved.accent === '#7c5cff') delete saved.accent; // retired defaults
-        const user = { settings: { ...DEFAULTS, ...saved }, contacts: data.contacts || {}, snoozes: data.snoozes || [], twofa: data.twofa || null };
+        const user = { settings: { ...DEFAULTS, ...saved }, contacts: data.contacts || {}, snoozes: data.snoozes || [], twofa: data.twofa || null, epoch: data.epoch || 0 };
         cache.set(email, user);
         return user;
     }
@@ -98,6 +103,11 @@ function createStore(dataDir) {
 
         // two-factor: { secret, since, recovery: [sha256 hashes], pending? }
         getTwofa: email => load(email).twofa,
+        getEpoch: email => load(email).epoch,
+        bumpEpoch(email) {
+            load(email).epoch++;
+            save(email);
+        },
         setTwofa(email, value) {
             load(email).twofa = value;
             save(email);

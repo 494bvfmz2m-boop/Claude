@@ -165,6 +165,7 @@
         renderFolders();
     }
 
+    const lastCounts = new Map();
     function renderFolders() {
         const special = state.folders.filter(f => f.specialUse);
         const custom = state.folders.filter(f => !f.specialUse);
@@ -180,6 +181,14 @@
             special.map(row).join('') +
             `<div class="folder-section">Folders<button id="new-folder" title="New folder">${icon('plus')}</button></div>` +
             custom.map(row).join('');
+        // bump a badge when its unread count goes up
+        $$('#folders .folder').forEach((el, i) => {
+            el.style.setProperty('--i', i);
+            const f = folderInfo(el.dataset.path);
+            const prev = lastCounts.get(f.path);
+            if (prev !== undefined && f.unseen > prev) el.querySelector('.count')?.classList.add('bump');
+            lastCounts.set(f.path, f.unseen);
+        });
         const inbox = state.folders.find(f => f.path === 'INBOX');
         const n = inbox ? inbox.unseen : 0;
         if (state.me) {
@@ -619,6 +628,7 @@
         });
         patchLocal(uids, m => (allStarred ? dropFlag(m, '\\Flagged') : addFlag(m, '\\Flagged')));
         renderList();
+        if (!allStarred) uids.forEach(u => $(`.msg[data-uid="${u}"] .star-btn`)?.classList.add('burst'));
         if (state.current && uids.includes(state.current.uid)) renderReaderBar();
         await setFlags(uids, allStarred ? [] : ['\\Flagged'], allStarred ? ['\\Flagged'] : []);
     }
@@ -637,7 +647,16 @@
                 $('#app').dataset.view = 'list';
             }
         }
-        renderList();
+        // let the removed rows slide out and collapse before re-rendering
+        const rows = uids.map(u => $(`.msg[data-uid="${u}"]`)).filter(Boolean);
+        if (rows.length && rows.length <= 40 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            rows.forEach((r, n) => {
+                r.style.height = r.offsetHeight + 'px';
+                r.style.animationDelay = `${Math.min(n, 10) * 18}ms`;
+                r.classList.add('out');
+            });
+            setTimeout(() => renderList(), 300 + Math.min(rows.length, 10) * 18);
+        } else renderList();
     }
 
     async function moveTo(uids, target, label) {
@@ -2129,8 +2148,17 @@
                 section.innerHTML = `<h3>Account</h3><p class="hint">Connected to Purelymail over IMAP (993) and SMTP (465), both SSL/TLS.</p>
                     <div class="row"><div class="lbl"><b>Signed in as</b><small>${esc(state.me.email)}</small></div>${avatar({ address: state.me.email, name: s.displayName })}</div>
                     <div class="row"><div class="lbl"><b>Session</b><small>Stays signed in until ${esc(fmtDate(state.me.sessionExpires, true))}</small></div>${icon('lock')}</div>
-                    <div class="row"><div class="lbl"><b>Sign out</b><small>Clears the session cookie on this device</small></div><button class="btn btn-danger" data-logout>${icon('logout')} Sign out</button></div>`;
+                    <div class="row"><div class="lbl"><b>Sign out</b><small>Clears the session cookie on this device</small></div><button class="btn btn-danger" data-logout>${icon('logout')} Sign out</button></div>
+                    <div class="row"><div class="lbl"><b>Sign out everywhere</b><small>Ends every session on every device right away. Use it if a device is lost.</small></div><button class="btn btn-danger" data-logout-all>${icon('lock')} Sign out everywhere</button></div>`;
                 $('[data-logout]', section).onclick = logout;
+                $('[data-logout-all]', section).onclick = async () => {
+                    if (!confirm('Sign out on every device, including this one?')) return;
+                    try {
+                        await api('api/logout/everywhere', { method: 'POST' });
+                    } finally {
+                        location.replace('login');
+                    }
+                };
             }
         };
 
@@ -2409,6 +2437,22 @@
     }
     $('.me').addEventListener('click', () => openSettings('profile'));
 
+    // ink ripple on buttons, folders and chips
+    document.addEventListener('pointerdown', e => {
+        const el = e.target.closest('.btn, .folder, .chip, .w-stats button, .menu button, .palette li');
+        if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const r = el.getBoundingClientRect();
+        const box = document.createElement('span');
+        box.className = 'ripple-box';
+        const dot = document.createElement('span');
+        const size = Math.max(r.width, r.height) * 2.2;
+        dot.className = 'ripple';
+        dot.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+        box.append(dot);
+        el.append(box);
+        setTimeout(() => box.remove(), 650);
+    });
+
     /* ================= boot ================= */
 
     (async function init() {
@@ -2436,6 +2480,8 @@
             // storage unavailable
         }
         showEmptyReader();
+        $('#folders').classList.add('intro');
+        setTimeout(() => $('#folders').classList.remove('intro'), 1600);
         await loadFolders();
         await loadMessages();
         const splash = $('#splash');

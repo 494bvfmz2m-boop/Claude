@@ -873,3 +873,51 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
 .l-foot a { color: var(--text-3); text-decoration: none; transition: color .2s; }
 .l-foot a:hover { color: var(--accent-ink); }
 @media (max-width: 600px) { .landing .rings { width: 150vmin; opacity: .4; } .l-hero h1 { margin: 22px 0; } }
+
+/* ================= extra motion ================= */
+/* ripple */
+.btn, .folder, .chip, .w-stats button, .menu button, .palette li { position: relative; }
+.ripple-box { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .18; transform: scale(0); animation: ripple .6s cubic-bezier(.22, 1, .36, 1) forwards; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* rows slide out and collapse when archived / deleted / moved */
+.msg.out { animation: rowOut .3s cubic-bezier(.55, 0, .2, 1) forwards; overflow: hidden; pointer-events: none; }
+@keyframes rowOut {
+    40% { opacity: 0; transform: translateX(36px); }
+    to { opacity: 0; transform: translateX(36px); height: 0; padding-top: 0; padding-bottom: 0; }
+}
+
+/* star burst */
+.star-btn.burst .i { animation: starPop .5s cubic-bezier(.34, 1.56, .64, 1); }
+.star-btn.burst::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 0 2px var(--warn); animation: starRing .5s ease-out forwards; pointer-events: none; }
+.star-btn { position: relative; }
+@keyframes starPop { 0% { transform: scale(.4) rotate(-30deg); } 60% { transform: scale(1.35) rotate(8deg); } }
+@keyframes starRing { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+
+/* folders cascade in on load; badges bump when they grow */
+.folders.intro .folder { animation: rowUp .55s var(--ease) both; animation-delay: calc(var(--i, 0) * 45ms + 120ms); }
+.folder .count.bump { animation: bump .6s cubic-bezier(.34, 1.56, .64, 1); display: inline-block; }
+@keyframes bump { 30% { transform: scale(1.5); } }
+
+/* opening a message */
+.reader-content h1 { animation: focusIn .6s var(--ease) both; }
+@keyframes focusIn { from { opacity: 0; filter: blur(8px); transform: translateY(6px); letter-spacing: .02em; } }
+.reader-content .sender .avatar { animation: pop .5s cubic-bezier(.34, 1.56, .64, 1) .08s both; }
+.reader-content .sender .info { animation: rise .5s var(--ease) .12s both; }
+.reader-content #body-host { animation: rise .6s var(--ease) .18s both; }
+.reader-content .att { animation: rowUp .5s var(--ease) both; }
+.reader-content .att:nth-child(2) { animation-delay: .06s; } .reader-content .att:nth-child(3) { animation-delay: .12s; } .reader-content .att:nth-child(n+4) { animation-delay: .18s; }
+.reader-content .quick-reply .btn { animation: rowUp .5s var(--ease) both; }
+.reader-content .quick-reply .btn:nth-child(1) { animation-delay: .22s; } .reader-content .quick-reply .btn:nth-child(2) { animation-delay: .28s; } .reader-content .quick-reply .btn:nth-child(3) { animation-delay: .34s; }
+
+/* springier toasts, menus, modals */
+.toast { animation: toastIn .55s cubic-bezier(.34, 1.56, .64, 1); }
+.menu { animation: menuIn .28s cubic-bezier(.34, 1.4, .64, 1); }
+.modal { animation: modalIn .45s cubic-bezier(.34, 1.3, .64, 1); }
+
+/* little hover touches */
+.compose-btn:hover > .i { animation: wiggle .5s ease; }
+@keyframes wiggle { 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+#theme-btn:hover .i { transform: rotate(40deg); transition: transform .4s var(--ease); }
+.list-head #refresh-btn:active .i { transform: rotate(-180deg); transition: transform .4s var(--ease); }

@@ -45,6 +45,7 @@ site.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
 const sessions = createSessions({
     dataDir: DATA_DIR,
+    epochOf: email => store.getEpoch(email),
     cookiePath: BASE_URL,
     secureCookies: process.env.SECURE_COOKIES === 'true' || process.env.NODE_ENV === 'production'
 });
@@ -53,12 +54,16 @@ const avatars = createAvatars(DATA_DIR);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } });
 
 site.use((req, res, next) => {
+    if (req.secure) res.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
     res.set({
         'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'SAMEORIGIN',
+        'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'no-referrer',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
         'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     });
     next();
 });
@@ -85,7 +90,12 @@ const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch
 // Every state-changing API call must carry this header: browsers won't send it
 // cross-site without a CORS preflight, which we never approve (CSRF guard).
 app.use('/api', (req, res, next) => {
-    if (req.method !== 'GET' && req.get('X-EG') !== '1') return res.status(403).json({ error: 'Bad request origin' });
+    if (req.method !== 'GET') {
+        if (req.get('X-EG') !== '1') return res.status(403).json({ error: 'Bad request origin' });
+        // belt and braces: a browser-sent Origin must be this site
+        const origin = req.get('Origin');
+        if (origin && origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: 'Bad request origin' });
+    }
     next();
 });
 
@@ -93,6 +103,22 @@ function requireAuth(req, res, next) {
     if (!req.session) return res.status(401).json({ error: 'Not signed in' });
     next();
 }
+
+// Failed sign-ins per account (stops slow brute force spread over many IPs).
+const accountFails = new Map();
+const FAIL_WINDOW = 15 * 60 * 1000;
+function accountLocked(key, max) {
+    const now = Date.now();
+    const list = (accountFails.get(key) || []).filter(t => now - t < FAIL_WINDOW);
+    accountFails.set(key, list);
+    return list.length >= max;
+}
+const accountFailed = key => accountFails.set(key, [...(accountFails.get(key) || []), Date.now()]);
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, list] of accountFails) if (!list.some(t => now - t < FAIL_WINDOW)) accountFails.delete(k);
+    for (const [k, list] of attempts) if (!list.some(t => now - t < FAIL_WINDOW)) attempts.delete(k);
+}, 5 * 60 * 1000).unref();
 
 const attempts = new Map();
 function loginThrottle(req, res, next) {
@@ -117,14 +143,18 @@ const parseAddresses = v =>
 app.post('/api/login', loginThrottle, wrap(async (req, res) => {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    if (!/^[^\s@]+@[^\s@]+$/.test(email) || !password) return res.status(400).json({ error: 'Enter your full email address and password.' });
+    if (!/^[^\s@]+@[^\s@]+$/.test(email) || !password || password.length > 1024) return res.status(400).json({ error: 'Enter your full email address and password.' });
+    if (accountLocked('pw:' + email, 8)) return res.status(429).json({ error: 'Too many failed attempts for this account. Try again in 15 minutes.' });
     let ok;
     try {
         ok = await mail.verifyLogin(email, password);
     } catch (err) {
         return res.status(502).json({ error: 'Could not reach Purelymail. Try again in a moment.' });
     }
-    if (!ok) return res.status(401).json({ error: 'That email and password combo didn’t work.' });
+    if (!ok) {
+        accountFailed('pw:' + email);
+        return res.status(401).json({ error: 'That email and password combo didn’t work.' });
+    }
     const remember = req.body.remember !== false;
     const tf = store.getTwofa(email);
     if (tf && tf.secret && !sessions.isTrusted(req, email, tf.since)) {
@@ -173,14 +203,26 @@ app.post('/api/login/2fa', loginThrottle, (req, res) => {
     const tf = store.getTwofa(t.email);
     let result = { ok: true };
     if (tf && tf.secret) {
+        if (accountLocked('2fa:' + t.email, 5)) return res.status(429).json({ error: 'Too many wrong codes. Wait 15 minutes, then sign in again.', restart: true });
         result = checkSecondFactor(t.email, tf, req.body.code);
-        if (!result.ok) return res.status(401).json({ error: 'That code didn\u2019t work. Check your authenticator and try again.' });
+        if (!result.ok) {
+            accountFailed('2fa:' + t.email);
+            return res.status(401).json({ error: 'That code didn\u2019t work. Check your authenticator and try again.' });
+        }
         if (req.body.trust) sessions.trustDevice(res, t.email, tf.since);
     }
     attempts.delete(req.ip);
     sessions.start(res, { email: t.email, password: t.password, remember: t.remember });
     res.json(result);
 });
+
+app.post('/api/logout/everywhere', wrap(async (req, res) => {
+    if (!req.session) return res.status(401).json({ error: 'Not signed in' });
+    store.bumpEpoch(req.session.email);
+    await mail.closeClient(req.session);
+    sessions.clear(res);
+    res.json({ ok: true });
+}));
 
 app.post('/api/logout', wrap(async (req, res) => {
     if (req.session) await mail.closeClient(req.session);
@@ -259,6 +301,9 @@ app.post('/api/2fa/enable', (req, res) => {
     if (totp.verify(tf.pending, req.body.code) === null) return res.status(400).json({ error: 'That code didn\u2019t match. Make sure your phone\u2019s clock is right and try the newest code.' });
     const { codes, hashes } = newRecoveryCodes();
     store.setTwofa(req.session.email, { secret: tf.pending, since: Date.now(), recovery: hashes });
+    // other sessions never passed a 2FA check: end them, keep this one
+    store.bumpEpoch(req.session.email);
+    sessions.start(res, { email: req.session.email, password: req.session.password, remember: req.session.remember });
     res.json({ ok: true, recovery: codes });
 });
 

@@ -62,7 +62,7 @@ function parseCookies(header) {
     return out;
 }
 
-function createSessions({ dataDir, secureCookies, cookiePath = '/' }) {
+function createSessions({ dataDir, secureCookies, cookiePath = '/', epochOf = () => 0 }) {
     const key = loadKey(dataDir);
     // HTTPS directly, or via a trusted reverse proxy (X-Forwarded-Proto), marks cookies Secure
     const secure = res => secureCookies || !!(res.req && res.req.secure);
@@ -97,7 +97,7 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/' }) {
 
         start(res, { email, password, remember }) {
             const now = Date.now();
-            const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL) };
+            const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), ep: epochOf(email) };
             write(res, session);
             return session;
         },
@@ -112,6 +112,8 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/' }) {
                 const token = parseCookies(req.headers.cookie)[COOKIE];
                 let session = token ? unseal(key, token) : null;
                 if (session && (!session.exp || session.exp < Date.now())) session = null;
+                // "sign out everywhere" bumps the account's epoch, invalidating older cookies
+                if (session && (session.ep || 0) !== epochOf(session.email)) session = null;
                 if (session && session.remember && Date.now() - session.iat > RENEW_AFTER) {
                     session.iat = Date.now();
                     session.exp = session.iat + LONG_TTL;

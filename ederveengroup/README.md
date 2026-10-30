@@ -72,6 +72,18 @@ This packages the last commit with production dependencies into `ederveengroup.z
 
 IMAP and SMTP have no way to ask for a second factor, so no mail app can show Purelymail's own 2FA prompt. If you enable 2FA in your Purelymail account, sign in here with a **Purelymail app password**, and enable EderveenGroup's two-step verification to protect this web login with your authenticator app.
 
+## Security
+
+- Encrypted, HttpOnly, SameSite session cookies scoped to `/mail/`, marked Secure automatically behind HTTPS
+- "Sign out everywhere" (Settings, then Account) invalidates every session instantly. Turning on 2FA ends all other sessions too.
+- Brute-force protection per IP and per account, plus a separate limit on 2FA code guesses
+- CSRF protection: a custom header plus an Origin check on every state-changing request
+- Strict Content-Security-Policy, HSTS over HTTPS, no framing, locked-down Permissions-Policy, cross-origin isolation
+- Incoming mail is sanitized server-side and rendered in a script-less sandbox; remote images are blocked by default
+- Sender photos are fetched by the server, so senders never see your IP
+- 2FA codes can't be replayed; recovery codes are single-use and stored hashed
+- The data folder is readable only by the user running the app
+
 ## How sessions work
 
 IMAP and SMTP need your password for every connection, so the session cookie carries your email and password **encrypted with the server's secret key**. The browser can't read it (HttpOnly), and without the key it's useless. The server keeps no session table, so restarts don't sign anyone out. If your Purelymail password changes, the next request fails auth and you're sent back to the login page. Using a Purelymail app password lets you revoke access at any time.
