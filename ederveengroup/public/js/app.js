@@ -29,7 +29,7 @@
         }
         const res = await fetch(path, init);
         if (res.status === 401) {
-            location.replace('/login');
+            location.replace('login');
             throw new Error('Signed out');
         }
         const data = await res.json().catch(() => ({}));
@@ -85,7 +85,7 @@
         const mine = state.me && addr === state.me.email;
         // photos: your own upload, colleagues' uploads, then Gravatar / company logo (if enabled)
         const wantImg = addr.includes('@') && !missingPhotos.has(addr) && (mine ? state.me.photo || state.settings.senderPhotos !== false : state.settings && state.settings.senderPhotos !== false);
-        const img = wantImg ? `<img class="av-img" alt="" loading="lazy" decoding="async" data-email="${esc(addr)}" src="/api/avatar?${qs({ email: addr, v: mine ? state.me.photo || 0 : undefined })}">` : '';
+        const img = wantImg ? `<img class="av-img" alt="" loading="lazy" decoding="async" data-email="${esc(addr)}" src="api/avatar?${qs({ email: addr, v: mine ? state.me.photo || 0 : undefined })}">` : '';
         return `<div class="avatar ${size}" style="--h:${hh}">${esc(initials)}${img}</div>`;
     }
     const missingPhotos = new Set();
@@ -148,7 +148,7 @@
         Object.assign(state.settings, patch);
         applyLook();
         try {
-            state.settings = await api('/api/settings', { method: 'PUT', body: patch });
+            state.settings = await api('api/settings', { method: 'PUT', body: patch });
         } catch (e) {
             toast(e.message, { error: true });
         }
@@ -158,7 +158,7 @@
 
     async function loadFolders() {
         try {
-            state.folders = await api('/api/folders');
+            state.folders = await api('api/folders');
         } catch (e) {
             return toast(e.message, { error: true });
         }
@@ -230,7 +230,7 @@
         const name = prompt('New folder name');
         if (!name) return;
         try {
-            await api('/api/folders', { method: 'POST', body: { name } });
+            await api('api/folders', { method: 'POST', body: { name } });
             toast(`Created “${name}”`);
             loadFolders();
         } catch (e) {
@@ -240,7 +240,7 @@
     async function deleteFolder(f) {
         if (!confirm(`Delete the folder “${f.name}” and everything in it?`)) return;
         try {
-            await api('/api/folders?' + qs({ folder: f.path }), { method: 'DELETE' });
+            await api('api/folders?' + qs({ folder: f.path }), { method: 'DELETE' });
             if (state.folder === f.path) openFolder('INBOX');
             loadFolders();
         } catch (e) {
@@ -250,7 +250,7 @@
     async function emptyFolder(f) {
         if (!confirm(`Permanently delete every message in ${f.name}?`)) return;
         try {
-            await api('/api/folders/empty', { method: 'POST', body: { folder: f.path } });
+            await api('api/folders/empty', { method: 'POST', body: { folder: f.path } });
             toast(`${f.name} emptied`);
             loadFolders();
             if (state.folder === f.path) loadMessages();
@@ -263,11 +263,11 @@
             const list = path === state.folder ? state.messages : [];
             const uids = list.filter(m => !m.flags.includes('\\Seen')).map(m => m.uid);
             if (path !== state.folder) {
-                const r = await api('/api/messages?' + qs({ folder: path, filter: 'unread' }));
+                const r = await api('api/messages?' + qs({ folder: path, filter: 'unread' }));
                 uids.push(...r.messages.map(m => m.uid));
             }
             if (!uids.length) return toast('Nothing unread here');
-            await api('/api/messages/flags', { method: 'POST', body: { folder: path, uids, add: ['\\Seen'] } });
+            await api('api/messages/flags', { method: 'POST', body: { folder: path, uids, add: ['\\Seen'] } });
             list.forEach(m => m.flags.includes('\\Seen') || m.flags.push('\\Seen'));
             renderList();
             loadFolders();
@@ -311,7 +311,7 @@
             $('#messages').innerHTML = Array.from({ length: 9 }, (_, i) => `<div class="skeleton" style="opacity:${1 - i * 0.1}"><div class="b" style="width:36px;height:36px;border-radius:50%"></div><div style="flex:1"><div class="b" style="height:11px;width:38%;margin:4px 0 9px"></div><div class="b" style="height:10px;width:82%;margin-bottom:7px"></div><div class="b" style="height:10px;width:58%"></div></div></div>`).join('');
         }
         try {
-            const r = await api('/api/messages?' + qs({ folder: state.folder, page: state.page, q: state.query, filter: state.filter }));
+            const r = await api('api/messages?' + qs({ folder: state.folder, page: state.page, q: state.query, filter: state.filter }));
             if (token !== listToken) return;
             state.messages = r.messages;
             state.total = r.total;
@@ -600,7 +600,7 @@
 
     async function setFlags(uids, add, remove) {
         try {
-            await api('/api/messages/flags', { method: 'POST', body: { folder: state.folder, uids, add, remove } });
+            await api('api/messages/flags', { method: 'POST', body: { folder: state.folder, uids, add, remove } });
         } catch (e) {
             toast(e.message, { error: true });
             loadMessages({ quiet: true });
@@ -644,7 +644,7 @@
         const from = state.folder;
         dropFromList(uids);
         try {
-            const r = await api('/api/messages/move', { method: 'POST', body: { folder: from, uids, to: target } });
+            const r = await api('api/messages/move', { method: 'POST', body: { folder: from, uids, to: target } });
             const name = label || folderInfo(r.movedTo).name;
             toast(`${uids.length > 1 ? `${uids.length} conversations` : 'Conversation'} moved to ${name}`);
             loadFolders();
@@ -663,15 +663,15 @@
         if (inTrash && !confirm(`Permanently delete ${uids.length} message${uids.length > 1 ? 's' : ''}?`)) return;
         dropFromList(uids);
         try {
-            const r = await api('/api/messages/delete', { method: 'POST', body: { folder: from, uids } });
+            const r = await api('api/messages/delete', { method: 'POST', body: { folder: from, uids } });
             if (r.movedTo) {
                 toast(`Moved to Trash`, {
                     action: 'Undo',
                     onAction: async () => {
                         // pull the newest matching uids back out of Trash
-                        const t = await api('/api/messages?' + qs({ folder: r.movedTo }));
+                        const t = await api('api/messages?' + qs({ folder: r.movedTo }));
                         const back = t.messages.slice(0, uids.length).map(m => m.uid);
-                        await api('/api/messages/move', { method: 'POST', body: { folder: r.movedTo, uids: back, to: from } });
+                        await api('api/messages/move', { method: 'POST', body: { folder: r.movedTo, uids: back, to: from } });
                         loadFolders();
                         if (state.folder === from) loadMessages({ quiet: true });
                     }
@@ -747,7 +747,7 @@
         const from = state.folder;
         dropFromList(uids);
         try {
-            await api('/api/messages/snooze', { method: 'POST', body: { folder: from, uids, until: when.toISOString() } });
+            await api('api/messages/snooze', { method: 'POST', body: { folder: from, uids, until: when.toISOString() } });
             toast(`Snoozed until ${fmtUntil(when)}`);
             loadFolders();
         } catch (e) {
@@ -757,7 +757,7 @@
     }
     async function loadSnoozeIndex() {
         try {
-            snoozeIndex = new Map((await api('/api/snoozes')).map(s => [s.messageId, s]));
+            snoozeIndex = new Map((await api('api/snoozes')).map(s => [s.messageId, s]));
         } catch {
             // labels are optional
         }
@@ -906,7 +906,7 @@
     function fetchMessage(folder, uid) {
         const key = `${folder}\u0000${uid}`;
         if (!msgCache.has(key)) {
-            const p = api('/api/message?' + qs({ folder, uid, peek: 1 }));
+            const p = api('api/message?' + qs({ folder, uid, peek: 1 }));
             p.catch(() => msgCache.delete(key));
             msgCache.set(key, p);
             if (msgCache.size > 80) msgCache.delete(msgCache.keys().next().value);
@@ -937,7 +937,7 @@
         if (row) row.scrollIntoView({ block: 'nearest' });
         if (isDrafts()) {
             try {
-                const msg = await api('/api/message?' + qs({ folder: state.folder, uid, peek: 1 }));
+                const msg = await api('api/message?' + qs({ folder: state.folder, uid, peek: 1 }));
                 openComposer('draft', msg);
             } catch (e) {
                 toast(e.message, { error: true });
@@ -956,7 +956,7 @@
             if (listed) msg.flags = [...listed.flags];
             if (!msg.flags.includes('\\Seen')) {
                 msg.flags.push('\\Seen');
-                api('/api/messages/flags', { method: 'POST', body: { folder, uids: [uid], add: ['\\Seen'] } }).catch(() => {});
+                api('api/messages/flags', { method: 'POST', body: { folder, uids: [uid], add: ['\\Seen'] } }).catch(() => {});
             }
             if (listed && !listed.flags.includes('\\Seen')) {
                 listed.flags.push('\\Seen');
@@ -1040,7 +1040,7 @@
 
     function attachmentCard(m, a) {
         const ext = (a.filename.split('.').pop() || 'file').slice(0, 4);
-        const href = '/api/attachment?' + qs({ folder: m.folder, uid: m.uid, idx: a.idx });
+        const href = 'api/attachment?' + qs({ folder: m.folder, uid: m.uid, idx: a.idx });
         return `<a class="att" href="${href}" target="_blank" rel="noopener"><span class="ext">${esc(ext)}</span><span class="meta"><b>${esc(a.filename)}</b><small>${fmtSize(a.size)}</small></span>
             <span class="icon-btn" data-download="${esc(href + '&download=1')}" title="Download">${icon('download')}</span></a>`;
     }
@@ -1140,8 +1140,8 @@
             case 'more': {
                 const r = b.getBoundingClientRect();
                 showMenu(r.left - 160, r.bottom + 4, [
-                    { icon: 'code', label: 'View original', run: () => window.open('/api/message/raw?' + qs({ folder: m.folder, uid }), '_blank', 'noopener') },
-                    { icon: 'download', label: 'Download .eml', run: () => (location.href = '/api/message/raw?' + qs({ folder: m.folder, uid, download: 1 })) },
+                    { icon: 'code', label: 'View original', run: () => window.open('api/message/raw?' + qs({ folder: m.folder, uid }), '_blank', 'noopener') },
+                    { icon: 'download', label: 'Download .eml', run: () => (location.href = 'api/message/raw?' + qs({ folder: m.folder, uid, download: 1 })) },
                     { icon: 'image', label: 'Print', run: () => printMessage(m) }
                 ]);
                 break;
@@ -1426,7 +1426,7 @@
             const status = $('.status', el);
             status.textContent = 'Saving…';
             try {
-                const r = await api('/api/drafts', { method: 'POST', form: formData() });
+                const r = await api('api/drafts', { method: 'POST', form: formData() });
                 c.meta.draftUid = r.uid || null;
                 c.dirty = false;
                 status.textContent = 'Draft saved';
@@ -1479,7 +1479,7 @@
                 if (cancelled) return;
                 const t = toast('Sending…', { duration: 0 });
                 try {
-                    await api('/api/send', { method: 'POST', form: fd });
+                    await api('api/send', { method: 'POST', form: fd });
                     t.close();
                     toast('Message sent', { duration: 3000 });
                     if (composer === c) composer = null;
@@ -1539,7 +1539,7 @@
                     break;
                 case 'discard':
                     if (c.meta.draftUid) {
-                        api('/api/messages/delete', { method: 'POST', body: { folder: specialPath('\\Drafts') || 'Drafts', uids: [c.meta.draftUid] } }).then(() => {
+                        api('api/messages/delete', { method: 'POST', body: { folder: specialPath('\\Drafts') || 'Drafts', uids: [c.meta.draftUid] } }).then(() => {
                             loadFolders();
                             if (isDrafts()) loadMessages({ quiet: true });
                         });
@@ -1618,7 +1618,7 @@
             if (!q) return hideSugg();
             let list = [];
             try {
-                list = await api('/api/contacts?' + qs({ q }));
+                list = await api('api/contacts?' + qs({ q }));
             } catch {
                 return;
             }
@@ -1778,7 +1778,7 @@
                 const btn = e.target.closest('[data-save]');
                 btn.disabled = true;
                 try {
-                    const r = await api('/api/profile/photo', { method: 'PUT', body: { dataUrl: out.toDataURL('image/jpeg', 0.9) } });
+                    const r = await api('api/profile/photo', { method: 'PUT', body: { dataUrl: out.toDataURL('image/jpeg', 0.9) } });
                     state.me.photo = r.photo;
                     missingPhotos.delete(state.me.email);
                     close();
@@ -2001,7 +2001,7 @@
                     if (rm)
                         rm.onclick = async () => {
                             try {
-                                state.me.photo = (await api('/api/profile/photo', { method: 'DELETE' })).photo;
+                                state.me.photo = (await api('api/profile/photo', { method: 'DELETE' })).photo;
                                 missingPhotos.delete(state.me.email);
                                 refreshMe();
                                 renderList();
@@ -2024,7 +2024,7 @@
                 here.innerHTML = `<h3>Security</h3><p class="hint">Two-step verification asks for a code from your phone after your password, so a leaked password alone can’t get in.</p><div class="spinner"></div>`;
                 let st;
                 try {
-                    st = await api('/api/2fa');
+                    st = await api('api/2fa');
                 } catch (e) {
                     return toast(e.message, { error: true });
                 }
@@ -2065,7 +2065,7 @@
                         e.target.closest('button').disabled = true;
                         let setup;
                         try {
-                            setup = await api('/api/2fa/setup', { method: 'POST' });
+                            setup = await api('api/2fa/setup', { method: 'POST' });
                         } catch (err) {
                             e.target.closest('button').disabled = false;
                             return toast(err.message, { error: true });
@@ -2079,7 +2079,7 @@
                         input.focus();
                         const go = async () => {
                             try {
-                                const r = await api('/api/2fa/enable', { method: 'POST', body: { code: input.value.replace(/\s/g, '') } });
+                                const r = await api('api/2fa/enable', { method: 'POST', body: { code: input.value.replace(/\s/g, '') } });
                                 toast('Two-step verification is on');
                                 here.querySelector('.tf-status').outerHTML = `<div class="tf-status on"><div class="shield">${icon('check')}</div><div class="meta"><b>Two-step verification is on</b><small>You’ll be asked for a code when you sign in on a new device.</small></div></div>`;
                                 area.innerHTML = codesBlock(r.recovery);
@@ -2111,13 +2111,13 @@
                 };
                 $('[data-regen]', area).onclick = e =>
                     ask(e.target.closest('button'), 'Confirm', 'btn-primary', async code => {
-                        const r = await api('/api/2fa/recovery', { method: 'POST', body: { code } });
+                        const r = await api('api/2fa/recovery', { method: 'POST', body: { code } });
                         area.innerHTML = codesBlock(r.recovery);
                         wireCodes(r.recovery);
                     });
                 $('[data-off]', area).onclick = e =>
                     ask(e.target.closest('button'), 'Turn off', 'btn-danger', async code => {
-                        await api('/api/2fa/disable', { method: 'POST', body: { code } });
+                        await api('api/2fa/disable', { method: 'POST', body: { code } });
                         toast('Two-step verification is off');
                         tabs.security();
                     });
@@ -2316,7 +2316,7 @@
     let es = null;
     function connectLive() {
         if (!window.EventSource) return;
-        es = new EventSource('/api/events');
+        es = new EventSource('api/events');
         const dot = $('#live-dot');
         const text = $('#live-text');
         es.addEventListener('ready', () => {
@@ -2348,7 +2348,7 @@
             if (evt.type === 'exists' && after > before) {
                 toast(`${after - before} new message${after - before > 1 ? 's' : ''}`, { action: state.folder === 'INBOX' ? null : 'View', onAction: () => openFolder('INBOX') });
                 if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-                    new Notification('EderveenGroup', { body: `${after - before} new message${after - before > 1 ? 's' : ''}`, icon: '/favicon.svg' });
+                    new Notification('EderveenGroup', { body: `${after - before} new message${after - before > 1 ? 's' : ''}`, icon: 'favicon.svg' });
                 }
             }
         }, 400));
@@ -2376,9 +2376,9 @@
     }
     async function logout() {
         try {
-            await api('/api/logout', { method: 'POST' });
+            await api('api/logout', { method: 'POST' });
         } finally {
-            location.replace('/login');
+            location.replace('login');
         }
     }
 
@@ -2413,7 +2413,7 @@
 
     (async function init() {
         try {
-            const me = await api('/api/me');
+            const me = await api('api/me');
             state.me = me;
             state.settings = me.settings;
         } catch {

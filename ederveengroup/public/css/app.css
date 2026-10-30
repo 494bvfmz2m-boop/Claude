@@ -838,3 +838,38 @@ kbd {
 .tf-codes code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; letter-spacing: .08em; text-align: center; padding: 10px; border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); animation: pop .3s var(--ease) both; }
 .tf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 760px) { .tf-setup { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ================= landing (work in progress) ================= */
+body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+.landing .stars { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; animation: fade 2s ease .4s both; }
+.landing .rings {
+    position: fixed; left: 50%; top: 50%; width: min(118vmin, 1100px); aspect-ratio: 1; z-index: 0; pointer-events: none;
+    transform: translate(-50%, -50%); color: var(--accent-ink); opacity: .55;
+    translate: var(--px, 0) var(--py, 0); transition: translate .6s var(--ease);
+}
+.landing::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%, color-mix(in srgb, var(--bg) 70%, transparent), transparent 75%);
+}
+.l-top, .l-hero, .l-foot { position: relative; z-index: 1; }
+.l-top { display: flex; align-items: center; justify-content: space-between; padding: 28px clamp(18px, 4vw, 48px); animation: rise .8s var(--ease) both; }
+.l-mail { height: 38px; border-radius: 11px; color: var(--text); text-decoration: none; background: color-mix(in srgb, var(--surface-2) 70%, transparent); backdrop-filter: blur(8px); }
+.l-mail .i { width: 16px; height: 16px; }
+.l-hero { align-self: center; justify-self: center; text-align: center; padding: 0 20px; max-width: 900px; }
+.l-pill {
+    display: inline-flex; align-items: center; gap: 10px; height: 32px; padding: 0 14px; border-radius: 99px; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent-ink); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); backdrop-filter: blur(8px);
+    animation: rowUp .8s var(--ease) .1s both;
+}
+.l-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: livePulse 2s ease-out infinite; }
+@keyframes livePulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+.l-hero h1 { font-family: var(--display); font-weight: 400; font-size: clamp(64px, 12vw, 168px); line-height: .92; letter-spacing: -0.03em; margin: 26px 0 26px; }
+.l-hero h1 em { color: var(--accent-ink); }
+.l-hero p { color: var(--text-2); font-size: clamp(15px, 1.6vw, 18px); line-height: 1.6; margin: 0 auto; animation: rise 1s var(--ease) .45s both; }
+.l-progress { width: min(320px, 70vw); height: 3px; margin: 36px auto 0; border-radius: 3px; background: var(--line-2); overflow: hidden; animation: fade 1s ease .7s both; }
+.l-progress span { display: block; height: 100%; width: 38%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff)); box-shadow: 0 0 12px var(--accent); animation: building 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
+@keyframes building { from { transform: translateX(-110%); } to { transform: translateX(290%); } }
+.l-foot { display: flex; justify-content: space-between; gap: 16px; padding: 22px clamp(18px, 4vw, 48px) 26px; color: var(--text-3); font-size: 12.5px; animation: fade 1s ease 1s both; }
+.l-foot a { color: var(--text-3); text-decoration: none; transition: color .2s; }
+.l-foot a:hover { color: var(--accent-ink); }
+@media (max-width: 600px) { .landing .rings { width: 150vmin; opacity: .4; } .l-hero h1 { margin: 22px 0; } }

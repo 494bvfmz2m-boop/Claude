@@ -25,32 +25,48 @@ A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It 
 - **Mobile friendly** with a slide-out folder drawer and a full-screen composer.
 - View original source, download `.eml`, print, and one-click unsubscribe.
 
-## Run it
+## Run it (no commands needed)
 
-Requires Node.js 20.12+.
+The release zip includes everything, so you don't need `npm install` or a config file.
 
-```bash
-cd ederveengroup
-npm install
-cp .env.example .env   # then set SESSION_SECRET
-npm start
-```
+1. Install **[Node.js](https://nodejs.org)** (free, the LTS version) once.
+2. Extract the zip.
+3. Double-click the launcher for your system:
+   - **Windows:** `Start EderveenGroup (Windows).bat`
+   - **Mac:** `Start EderveenGroup (Mac).command` (the first time, right-click it and choose **Open**)
+   - **Linux / a server:** `./start.sh`
+4. Your browser opens **http://localhost:3000/mail/**. Sign in with your Purelymail address.
 
-Open http://localhost:3000 and sign in with your full Purelymail address and password. An [app password](https://purelymail.com/manage) is recommended.
+The domain root (`http://localhost:3000/`) shows the **Work in progress** page; the webmail lives at **`/mail`**. Set `BASE_PATH=/` in a `.env` file to put the mail at the root instead.
+
+A secret key for sessions is created automatically in `data/session.key` on first start. Keep the `data/` folder: it holds the key, settings, signatures, photos and 2FA setups.
+
+### Putting it on mydomain.net
+
+It needs a machine that can run Node.js (a VPS, a home server, or a host with Node.js support). It won't run on PHP-only shared hosting.
+
+1. Copy the extracted folder to the server and start it with `./start.sh`. To keep it running after you log out, use a service manager such as systemd or pm2.
+2. Install [Caddy](https://caddyserver.com) for free automatic HTTPS. Rename `Caddyfile.example` to `Caddyfile`, put in your domain, and run `caddy run`.
+3. Point your domain's DNS at the server. Visitors get the Work in progress page at `https://mydomain.net/` and mail at `https://mydomain.net/mail/`.
+
+Cookies are marked `Secure` automatically behind HTTPS.
+
+**cPanel hosts with "Setup Node.js App":** create an app with startup file `server.js` and application URL set to your domain, then restart it.
 
 ### Docker
 
 ```bash
 docker build -t ederveengroup .
-docker run -d -p 3000:3000 -v ederveengroup-data:/data -e SESSION_SECRET="$(openssl rand -hex 32)" ederveengroup
+docker run -d -p 3000:3000 -v ederveengroup-data:/data ederveengroup
 ```
 
-## Deploying for real
+### Building the release zip (developers)
 
-- **Always serve it over HTTPS** (Caddy, nginx, Cloudflare Tunnel…). `NODE_ENV=production` marks cookies `Secure`.
-- Set a long random `SESSION_SECRET`. Changing it signs everyone out.
-- Behind a reverse proxy, set `TRUST_PROXY=1` so login rate limiting sees real client IPs.
-- Settings, signatures and contacts live in `DATA_DIR` (one JSON file per account). Back it up or mount it as a volume.
+```bash
+npm run release
+```
+
+This packages the last commit with production dependencies into `ederveengroup.zip`.
 
 ## Two-step verification and Purelymail
 
@@ -70,5 +86,7 @@ lib/sanitize.js    HTML sanitizing for incoming mail and composed mail
 lib/store.js       Per-user settings, signatures, snoozes and contacts (JSON files)
 lib/avatars.js     Uploaded profile photos plus cached Gravatar / company-logo lookups
 lib/totp.js        Authenticator codes (RFC 6238) for two-step verification
-public/            Login page and the single-page app (vanilla JS, no build step)
+views/             Pages: the app, the login, and the Work in progress landing page
+public/            Styles, scripts and icons (vanilla JS, no build step)
+Start EderveenGroup (Windows).bat / (Mac).command / start.sh   Double-click launchers
 ```

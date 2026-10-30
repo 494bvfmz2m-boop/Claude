@@ -62,15 +62,17 @@ function parseCookies(header) {
     return out;
 }
 
-function createSessions({ dataDir, secureCookies }) {
+function createSessions({ dataDir, secureCookies, cookiePath = '/' }) {
     const key = loadKey(dataDir);
+    // HTTPS directly, or via a trusted reverse proxy (X-Forwarded-Proto), marks cookies Secure
+    const secure = res => secureCookies || !!(res.req && res.req.secure);
 
     function write(res, session) {
-        const parts = [`${COOKIE}=${seal(key, session)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+        const parts = [`${COOKIE}=${seal(key, session)}`, `Path=${cookiePath}`, 'HttpOnly', 'SameSite=Lax'];
         if (session.remember) {
             parts.push(`Max-Age=${Math.floor((session.exp - Date.now()) / 1000)}`);
         }
-        if (secureCookies) parts.push('Secure');
+        if (secure(res)) parts.push('Secure');
         res.append('Set-Cookie', parts.join('; '));
     }
 
@@ -85,7 +87,7 @@ function createSessions({ dataDir, secureCookies }) {
         // "Trust this device": skip the 2FA code on this browser for 30 days.
         trustDevice(res, email, twofaSince) {
             const token = seal(key, { purpose: 'trust', email, since: twofaSince, exp: Date.now() + TRUST_TTL });
-            res.append('Set-Cookie', `${TRUST_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${TRUST_TTL / 1000}${secureCookies ? '; Secure' : ''}`);
+            res.append('Set-Cookie', `${TRUST_COOKIE}=${token}; Path=${cookiePath}; HttpOnly; SameSite=Lax; Max-Age=${TRUST_TTL / 1000}${secure(res) ? '; Secure' : ''}`);
         },
         isTrusted(req, email, twofaSince) {
             const t = unseal(key, parseCookies(req.headers.cookie)[TRUST_COOKIE] || '');
@@ -101,7 +103,7 @@ function createSessions({ dataDir, secureCookies }) {
         },
 
         clear(res) {
-            res.append('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureCookies ? '; Secure' : ''}`);
+            res.append('Set-Cookie', `${COOKIE}=; Path=${cookiePath}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
         },
 
         // Express middleware: attaches req.session (or null) and slides long sessions.

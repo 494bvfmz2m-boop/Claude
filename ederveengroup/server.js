@@ -2,6 +2,11 @@
 
 const path = require('path');
 
+if (Number(process.versions.node.split('.')[0]) < 20) {
+    console.error(`EderveenGroup needs Node.js 20 or newer (you have ${process.versions.node}). Get it free at https://nodejs.org/`);
+    process.exit(1);
+}
+
 try {
     process.loadEnvFile(path.join(__dirname, '.env'));
 } catch {
@@ -21,26 +26,39 @@ const crypto = require('crypto');
 const { sanitizeComposeHtml } = require('./lib/sanitize');
 const mail = require('./lib/mail');
 
+const fs = require('fs');
+
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUBLIC = path.join(__dirname, 'public');
+const VIEWS = path.join(__dirname, 'views');
+// Where the webmail lives: /mail by default; set BASE_PATH=/ to serve it at the root instead.
+const BASE = ('/' + (process.env.BASE_PATH ?? '/mail')).replace(/\/+/g, '/').replace(/\/$/, '');
+const BASE_URL = BASE + '/';
 
-const app = express();
-app.disable('x-powered-by');
-if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY);
+// `site` is the whole domain; `app` is the webmail, mounted at BASE.
+const site = express();
+const app = express.Router();
+site.disable('x-powered-by');
+// Trust X-Forwarded-* only from a proxy on this machine (e.g. Caddy) unless told otherwise.
+site.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
-const sessions = createSessions({ dataDir: DATA_DIR, secureCookies: process.env.SECURE_COOKIES === 'true' || process.env.NODE_ENV === 'production' });
+const sessions = createSessions({
+    dataDir: DATA_DIR,
+    cookiePath: BASE_URL,
+    secureCookies: process.env.SECURE_COOKIES === 'true' || process.env.NODE_ENV === 'production'
+});
 const store = createStore(DATA_DIR);
 const avatars = createAvatars(DATA_DIR);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } });
 
-app.use((req, res, next) => {
+site.use((req, res, next) => {
     res.set({
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'no-referrer',
         'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'self'; form-action 'self'"
     });
     next();
 });
@@ -49,8 +67,15 @@ app.use(express.json({ limit: '2mb' }));
 
 /* ---------- pages ---------- */
 
-app.get('/', (req, res) => (req.session ? res.sendFile(path.join(PUBLIC, 'app.html')) : res.redirect('/login')));
-app.get('/login', (req, res) => (req.session ? res.redirect('/') : res.sendFile(path.join(PUBLIC, 'login.html'))));
+const pages = {};
+function page(name) {
+    if (!pages[name]) pages[name] = fs.readFileSync(path.join(VIEWS, name), 'utf8').replaceAll('%BASE%', BASE_URL);
+    return pages[name];
+}
+const sendPage = (res, name, status = 200) => res.status(status).type('html').set('Cache-Control', 'no-cache').send(page(name));
+
+app.get('/', (req, res) => (req.session ? sendPage(res, 'app.html') : res.redirect(BASE_URL + 'login')));
+app.get('/login', (req, res) => (req.session ? res.redirect(BASE_URL) : sendPage(res, 'login.html')));
 app.use(express.static(PUBLIC, { index: false, maxAge: '1h' }));
 
 /* ---------- api plumbing ---------- */
@@ -437,4 +462,34 @@ app.use((err, req, res, next) => {
     res.status(status).json({ error: status >= 500 ? (err.responseText || err.response || err.message || 'Something went wrong') : err.message });
 });
 
-app.listen(PORT, () => console.log(`EderveenGroup running on http://localhost:${PORT}`));
+/* ---------- the rest of the domain ---------- */
+
+if (BASE) {
+    // /mail -> /mail/ so relative URLs inside the app resolve correctly
+    site.use((req, res, next) => {
+        if (req.path !== BASE) return next();
+        const q = req.originalUrl.slice(req.originalUrl.indexOf(BASE) + BASE.length);
+        res.redirect(301, BASE_URL + q);
+    });
+}
+site.use(BASE || '/', app);
+if (BASE) {
+    site.get('/', (req, res) => sendPage(res, 'landing.html'));
+    site.use((req, res) => sendPage(res, 'landing.html', 404));
+}
+
+site.listen(PORT, () => {
+    const url = `http://localhost:${PORT}${BASE_URL}`;
+    console.log(`EderveenGroup is running.\n  Mail:    ${url}${BASE ? `\n  Website: http://localhost:${PORT}/` : ''}`);
+    if (process.env.OPEN_BROWSER) openBrowser(url);
+});
+
+function openBrowser(url) {
+    const { spawn } = require('child_process');
+    const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+    try {
+        spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+    } catch {
+        // no browser available; the URL is printed above
+    }
+}

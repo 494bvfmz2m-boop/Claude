@@ -1,0 +1,8 @@
+# Put EderveenGroup on your domain with automatic HTTPS using Caddy (https://caddyserver.com).
+# 1. Point your domain's DNS (A record) at this server.
+# 2. Rename this file to "Caddyfile", replace mydomain.net, and run: caddy run
+# Website: https://mydomain.net/   Mail: https://mydomain.net/mail/
+
+mydomain.net {
+    reverse_proxy localhost:3000
+}
