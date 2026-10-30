@@ -9,8 +9,11 @@
     [...form.children].forEach((el, i) => el.style.setProperty('--i', i));
 
     // shared artwork motion (also used by the landing page)
+    window.egFx.splitChars(document.querySelector('.login-art h1 .split'));
     window.egFx.parallax(document.getElementById('rings'));
     window.egFx.starfield(document.getElementById('stars'));
+    window.egFx.magnetic(document.querySelectorAll('[data-magnetic]'));
+    window.egFx.cursorGlow();
 
     // caps lock hint
     const caps = document.getElementById('caps');

@@ -14,6 +14,7 @@ try {
 }
 
 const express = require('express');
+const compression = require('compression');
 const multer = require('multer');
 const addressparser = require('nodemailer/lib/addressparser');
 const { htmlToText } = require('html-to-text');
@@ -62,6 +63,9 @@ const store = createStore(DATA_DIR);
 const avatars = createAvatars(DATA_DIR);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } });
 
+// gzip/brotli text responses, except the live event stream (it must not be buffered)
+site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && compression.filter(req, res) }));
+
 site.use((req, res, next) => {
     if (req.secure) res.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
     res.set({
@@ -81,16 +85,47 @@ app.use(express.json({ limit: '2mb' }));
 
 /* ---------- pages ---------- */
 
+// Asset version: a hash of everything in public/, so ?v= URLs change on every deploy
+// and the files themselves can be cached by browsers for a year.
+const VERSION = (() => {
+    const hash = crypto.createHash('sha1');
+    const walk = dir => {
+        for (const f of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+            const full = path.join(dir, f.name);
+            if (f.isDirectory()) walk(full);
+            else hash.update(f.name).update(fs.readFileSync(full));
+        }
+    };
+    walk(PUBLIC);
+    return hash.digest('hex').slice(0, 10);
+})();
+
 const pages = {};
 function page(name) {
-    if (!pages[name]) pages[name] = fs.readFileSync(path.join(VIEWS, name), 'utf8').replaceAll('%BASE%', BASE_URL);
+    if (!pages[name]) {
+        pages[name] = fs
+            .readFileSync(path.join(VIEWS, name), 'utf8')
+            .replace(/<!--include:([a-z-]+)-->/g, (_, part) => fs.readFileSync(path.join(VIEWS, 'partials', part + '.html'), 'utf8'))
+            .replaceAll('%BASE%', BASE_URL)
+            .replaceAll('%V%', VERSION);
+    }
     return pages[name];
 }
-const sendPage = (res, name, status = 200) => res.status(status).type('html').set('Cache-Control', 'no-cache').send(page(name));
+const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
+const sendPage = (res, name, status = 200) =>
+    res.status(status).type('html').set('Cache-Control', 'no-cache').send(page(name).replaceAll('%ORIGIN%', originOf(res.req)));
 
 app.get('/', (req, res) => (req.session ? sendPage(res, 'app.html') : res.redirect(BASE_URL + 'login')));
 app.get('/login', (req, res) => (req.session ? res.redirect(BASE_URL) : sendPage(res, 'login.html')));
-app.use(express.static(PUBLIC, { index: false, maxAge: '1h' }));
+app.use(
+    express.static(PUBLIC, {
+        index: false,
+        setHeaders(res) {
+            // versioned URLs never change; everything else revalidates hourly
+            res.set('Cache-Control', res.req.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
+        }
+    })
+);
 
 /* ---------- api plumbing ---------- */
 

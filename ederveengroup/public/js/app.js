@@ -69,6 +69,121 @@
         if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         return d.toLocaleDateString(undefined, { year: '2-digit', month: 'numeric', day: 'numeric' });
     }
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+
+    // A highlight pill that slides to the active item instead of jumping. The container keeps
+    // the last position in a dataset, so it still glides after the items are re-rendered.
+    function glide(container, active) {
+        if (!container) return;
+        let g = container.querySelector(':scope > .glider');
+        if (!g) {
+            g = document.createElement('span');
+            g.className = 'glider';
+            container.prepend(g);
+        }
+        if (!active || !active.offsetParent) {
+            g.style.opacity = '0';
+            return;
+        }
+        const to = { x: active.offsetLeft, y: active.offsetTop, w: active.offsetWidth, h: active.offsetHeight };
+        const from = container.dataset.glide ? JSON.parse(container.dataset.glide) : null;
+        container.dataset.glide = JSON.stringify(to);
+        const place = r => {
+            g.style.width = r.w + 'px';
+            g.style.height = r.h + 'px';
+            g.style.transform = `translate(${r.x}px, ${r.y}px)`;
+        };
+        if (from && !calm && !g.dataset.placed) {
+            // fresh element after a re-render: start where the old one was
+            g.style.transition = 'none';
+            place(from);
+            void g.offsetWidth;
+            g.style.transition = '';
+        } else if (!from) g.style.transition = 'none';
+        g.dataset.placed = '1';
+        place(to);
+        g.style.opacity = '1';
+        if (!from) requestAnimationFrame(() => (g.style.transition = ''));
+    }
+
+    // the button that was pressed last, so things like the composer can grow out of it
+    let lastPress = null;
+    document.addEventListener('pointerdown', e => {
+        const b = e.target.closest && e.target.closest('button, .btn, [data-act]');
+        if (b) lastPress = { rect: b.getBoundingClientRect(), t: performance.now() };
+    }, { capture: true, passive: true });
+    const recentPress = () => (lastPress && performance.now() - lastPress.t < 1200 ? lastPress.rect : null);
+    const visibleRect = el => {
+        if (!el || !el.offsetParent) return null;
+        const r = el.getBoundingClientRect();
+        return r.width && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight ? r : null;
+    };
+
+    // grow an element out of a rectangle (or shrink it into one); transform/opacity only
+    function morphFrom(el, from, { duration = 480 } = {}) {
+        if (calm || !from) return null;
+        const to = el.getBoundingClientRect();
+        el.style.animation = 'none';
+        return el.animate(
+            [
+                { transformOrigin: '0 0', transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0.15 },
+                { transformOrigin: '0 0', transform: 'none', opacity: 1 }
+            ],
+            { duration, easing: 'cubic-bezier(.2, .9, .22, 1)' }
+        );
+    }
+    function morphTo(el, target, { duration = 420 } = {}) {
+        const from = el.getBoundingClientRect();
+        el.style.pointerEvents = 'none';
+        const frames = calm
+            ? [{ opacity: 1 }, { opacity: 0 }]
+            : target
+              ? [
+                    { transformOrigin: '0 0', transform: 'none', opacity: 1 },
+                    { transformOrigin: '0 0', transform: `translate(${target.left - from.left}px, ${target.top - from.top}px) scale(${target.width / from.width}, ${target.height / from.height})`, opacity: 0 }
+                ]
+              : [{ transform: 'none', opacity: 1 }, { transform: 'translateY(16px) scale(.94)', opacity: 0 }];
+        return el.animate(frames, { duration, easing: 'cubic-bezier(.55, 0, .25, 1)', fill: 'forwards' }).finished.catch(() => {});
+    }
+    let caught = null; // { path, t }: re-applied if the sidebar re-renders mid-animation
+    function catchIn(btn) {
+        if (!btn) return;
+        caught = { path: btn.dataset.path, t: performance.now() };
+        btn.classList.remove('catch');
+        void btn.offsetWidth;
+        btn.classList.add('catch');
+    }
+
+    // archived / deleted / moved rows fly into their folder in the sidebar
+    function flyToFolder(rows, path) {
+        if (calm || !path || !rows.length) return;
+        const btn = $(`#folders .folder[data-path="${CSS.escape(path)}"]`);
+        const to = visibleRect(btn);
+        if (!to) return;
+        rows.slice(0, 3).forEach((row, n) => {
+            const r = row.getBoundingClientRect();
+            const ghost = document.createElement('div');
+            ghost.className = 'ghost';
+            ghost.innerHTML = (row.querySelector('.sel-toggle .avatar')?.outerHTML || '') + `<span>${esc(row.querySelector('.msg-subject')?.textContent || '')}</span>`;
+            Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+            document.body.append(ghost);
+            const dx = to.left + 14 - r.left, dy = to.top + to.height / 2 - (r.top + r.height / 2);
+            const lift = Math.min(90, Math.abs(dy) * 0.35 + 30);
+            ghost.animate(
+                [
+                    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                    { transform: `translate(${dx * 0.4}px, ${dy * 0.4 - lift}px) scale(.62)`, opacity: 1, offset: 0.42 },
+                    { transform: `translate(${dx}px, ${dy}px) scale(.06)`, opacity: 0.25 }
+                ],
+                { duration: 700, delay: n * 70, easing: 'cubic-bezier(.45, 0, .2, 1)', fill: 'both' }
+            ).finished.then(() => {
+                ghost.remove();
+                if (n === 0) catchIn(btn);
+            });
+        });
+    }
+
     const fmtSize = n => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
     function hue(str) {
@@ -181,6 +296,8 @@
             special.map(row).join('') +
             `<div class="folder-section">Folders<button id="new-folder" title="New folder">${icon('plus')}</button></div>` +
             custom.map(row).join('');
+        glide($('#folders'), $('#folders .folder.active'));
+        if (caught && performance.now() - caught.t < 600) $(`#folders .folder[data-path="${CSS.escape(caught.path)}"]`)?.classList.add('catch');
         // bump a badge when its unread count goes up
         $$('#folders .folder').forEach((el, i) => {
             el.style.setProperty('--i', i);
@@ -236,7 +353,7 @@
     });
 
     async function newFolder() {
-        const name = prompt('New folder name');
+        const name = await askText({ title: 'New folder', message: 'What should it be called?', icon: 'folder', confirm: 'Create folder', input: { placeholder: 'e.g. Projects' } });
         if (!name) return;
         try {
             await api('api/folders', { method: 'POST', body: { name } });
@@ -247,7 +364,7 @@
         }
     }
     async function deleteFolder(f) {
-        if (!confirm(`Delete the folder “${f.name}” and everything in it?`)) return;
+        if (!(await askConfirm({ title: `Delete “${f.name}”?`, message: 'The folder and every message in it will be deleted for good.', icon: 'trash', confirm: 'Delete folder', danger: true }))) return;
         try {
             await api('api/folders?' + qs({ folder: f.path }), { method: 'DELETE' });
             if (state.folder === f.path) openFolder('INBOX');
@@ -257,7 +374,7 @@
         }
     }
     async function emptyFolder(f) {
-        if (!confirm(`Permanently delete every message in ${f.name}?`)) return;
+        if (!(await askConfirm({ title: `Empty ${f.name}?`, message: 'Every message in it will be deleted for good. This can’t be undone.', icon: 'trash', confirm: `Empty ${f.name}`, danger: true }))) return;
         try {
             await api('api/folders/empty', { method: 'POST', body: { folder: f.path } });
             toast(`${f.name} emptied`);
@@ -286,6 +403,8 @@
     }
 
     function openFolder(path) {
+        const order = state.folders.map(f => f.path);
+        $('#messages').style.setProperty('--dir', order.indexOf(path) < order.indexOf(state.folder) ? '-1' : '1');
         state.folder = path;
         state.page = 0;
         state.query = '';
@@ -322,10 +441,14 @@
         try {
             const r = await api('api/messages?' + qs({ folder: state.folder, page: state.page, q: state.query, filter: state.filter }));
             if (token !== listToken) return;
+            // on background refreshes, remember which rows are new so they can slide in
+            const known = new Set(state.messages.map(m => m.uid));
+            state.fresh = quiet && state.messages.length ? new Set(r.messages.filter(m => !known.has(m.uid)).map(m => m.uid)) : new Set();
             state.messages = r.messages;
             state.total = r.total;
             state.pageSize = r.pageSize;
             renderList(!quiet);
+            state.fresh = new Set();
         } catch (e) {
             if (token !== listToken) return;
             $('#messages').innerHTML = `<div class="empty"><div><div class="big">${icon('junk')}</div><h3>Couldn’t load mail</h3><p>${esc(e.message)}</p><button class="btn" id="retry">Try again</button></div></div>`;
@@ -399,7 +522,7 @@
                 const starred = m.flags.includes('\\Flagged');
                 const who = showTo ? m.to[0] : m.from[0];
                 const whoText = showTo ? `To: ${m.to.map(personName).join(', ') || '(no recipients)'}` : personName(who) || '(unknown)';
-                return `${header}<div class="msg${animate ? ' enter' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
+                return `${header}<div class="msg${animate ? ' enter' : ''}${state.fresh && state.fresh.has(m.uid) ? ' fresh' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
                     <div class="sel-toggle" title="Select">${state.checked.has(m.uid) ? `<div class="avatar check">${icon('check')}</div>` : avatar(who)}</div>
                     <div class="msg-body">
                         <div class="msg-top"><span class="msg-from">${esc(whoText)}</span>
@@ -476,13 +599,19 @@
     });
 
     // cursor spotlight on rows
+    let spotRaf = 0, spotEvent = null;
     $('#messages').addEventListener('mousemove', e => {
-        const row = e.target.closest('.msg');
-        if (!row) return;
-        const r = row.getBoundingClientRect();
-        row.style.setProperty('--mx', `${e.clientX - r.left}px`);
-        row.style.setProperty('--my', `${e.clientY - r.top}px`);
-    });
+        spotEvent = e;
+        if (spotRaf) return;
+        spotRaf = requestAnimationFrame(() => {
+            spotRaf = 0;
+            const row = spotEvent.target.closest && spotEvent.target.closest('.msg');
+            if (!row) return;
+            const r = row.getBoundingClientRect();
+            row.style.setProperty('--mx', `${spotEvent.clientX - r.left}px`);
+            row.style.setProperty('--my', `${spotEvent.clientY - r.top}px`);
+        });
+    }, { passive: true });
 
     // touch: swipe right to archive, left to delete
     (function swipe() {
@@ -541,6 +670,7 @@
         else state.checked.add(uid);
         state.lastChecked = uid;
         renderList();
+        $(`.msg[data-uid="${uid}"] .sel-toggle .avatar`)?.classList.add('flip');
     }
     function updateBulk() {
         const n = state.checked.size;
@@ -585,6 +715,7 @@
         const c = e.target.closest('.chip');
         if (!c) return;
         $$('.chip').forEach(x => x.classList.toggle('active', x === c));
+        glide($('#chips'), c);
         state.filter = c.dataset.filter;
         state.page = 0;
         loadMessages();
@@ -633,7 +764,8 @@
         await setFlags(uids, allStarred ? [] : ['\\Flagged'], allStarred ? ['\\Flagged'] : []);
     }
 
-    function dropFromList(uids) {
+    function dropFromList(uids, toPath) {
+        flyToFolder(uids.map(u => $(`.msg[data-uid="${u}"]`)).filter(Boolean), toPath);
         const idx = state.messages.findIndex(m => uids.includes(m.uid));
         state.messages = state.messages.filter(m => !uids.includes(m.uid));
         state.total = Math.max(0, state.total - uids.length);
@@ -661,7 +793,7 @@
 
     async function moveTo(uids, target, label) {
         const from = state.folder;
-        dropFromList(uids);
+        dropFromList(uids, target.startsWith('\\') ? specialPath(target) : target);
         try {
             const r = await api('api/messages/move', { method: 'POST', body: { folder: from, uids, to: target } });
             const name = label || folderInfo(r.movedTo).name;
@@ -679,8 +811,8 @@
     async function remove(uids) {
         const from = state.folder;
         const inTrash = folderInfo(from).specialUse === '\\Trash';
-        if (inTrash && !confirm(`Permanently delete ${uids.length} message${uids.length > 1 ? 's' : ''}?`)) return;
-        dropFromList(uids);
+        if (inTrash && !(await askConfirm({ title: 'Delete forever?', message: `${uids.length > 1 ? `These ${uids.length} messages` : 'This message'} will be gone for good.`, icon: 'trash', confirm: 'Delete forever', danger: true }))) return;
+        dropFromList(uids, inTrash ? null : specialPath('\\Trash'));
         try {
             const r = await api('api/messages/delete', { method: 'POST', body: { folder: from, uids } });
             if (r.movedTo) {
@@ -764,7 +896,7 @@
     }
     async function snooze(uids, when) {
         const from = state.folder;
-        dropFromList(uids);
+        dropFromList(uids, specialPath('\\Snoozed'));
         try {
             await api('api/messages/snooze', { method: 'POST', body: { folder: from, uids, until: when.toISOString() } });
             toast(`Snoozed until ${fmtUntil(when)}`);
@@ -832,6 +964,88 @@
         requestAnimationFrame(tick);
     }
 
+    /* ================= dialogs ================= */
+
+    // In-site replacement for confirm()/prompt(): themed, animated and keyboard friendly.
+    // Resolves to true/false, or to the entered text (null when cancelled) when `input` is given.
+    function dialog({ title, message = '', icon: ic = 'sparkle', confirm = 'OK', cancel = 'Cancel', danger = false, input = null }) {
+        return new Promise(resolve => {
+            const before = document.activeElement;
+            const back = h(`<div class="modal-back dlg-back"><div class="dlg${danger ? ' danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title">
+                <div class="dlg-icon">${icon(ic)}</div>
+                <h2 id="dlg-title">${esc(title)}</h2>
+                ${message ? `<p>${esc(message)}</p>` : ''}
+                ${input ? `<input class="input dlg-input" type="${input.type || 'text'}" placeholder="${esc(input.placeholder || '')}" value="${esc(input.value || '')}" spellcheck="false" autocomplete="off">` : ''}
+                <div class="dlg-actions"><button class="btn" data-dlg="no">${esc(cancel)}</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-dlg="yes">${esc(confirm)}</button></div>
+            </div></div>`);
+            document.body.append(back);
+            const box = $('.dlg', back);
+            const field = $('.dlg-input', back);
+            const buttons = $$('[data-dlg]', back);
+            const finish = ok => {
+                if (back.classList.contains('closing')) return;
+                let value = true;
+                if (field) {
+                    value = field.value.trim();
+                    if (ok && (!value || value === (input.value || '').trim() && input.value === 'https://')) {
+                        box.classList.remove('nudge');
+                        void box.offsetWidth;
+                        box.classList.add('nudge');
+                        return field.focus();
+                    }
+                }
+                back.classList.add('closing');
+                document.removeEventListener('keydown', onKey, true);
+                setTimeout(() => back.remove(), 240);
+                if (before && before.focus) before.focus({ preventScroll: true });
+                resolve(ok ? value : field ? null : false);
+            };
+            const onKey = e => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    finish(false);
+                } else if (e.key === 'Enter' && e.target === field) {
+                    e.preventDefault();
+                    finish(true);
+                } else if (e.key === 'Tab') {
+                    // keep focus inside the dialog
+                    const items = [field, ...buttons].filter(Boolean);
+                    const i = items.indexOf(document.activeElement);
+                    e.preventDefault();
+                    items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length].focus();
+                }
+            };
+            document.addEventListener('keydown', onKey, true);
+            back.addEventListener('click', e => {
+                if (e.target === back) return finish(false);
+                const b = e.target.closest('[data-dlg]');
+                if (b) finish(b.dataset.dlg === 'yes');
+            });
+            requestAnimationFrame(() => {
+                if (field) {
+                    field.focus();
+                    field.select();
+                } else buttons[danger ? 0 : 1].focus(); // destructive: Enter should not delete by accident
+            });
+        });
+    }
+    const askConfirm = opts => dialog(opts);
+    const askText = opts => dialog({ ...opts, input: opts.input || {} });
+
+    // dialogs steal focus from rich-text editors, so remember the caret and put it back
+    const saveSelection = () => {
+        const sel = getSelection();
+        return sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    };
+    const restoreSelection = (editor, range) => {
+        editor.focus();
+        if (!range) return;
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    };
+
     /* ================= menus ================= */
 
     function showMenu(x, y, items) {
@@ -889,20 +1103,34 @@
             ['\\Drafts', 'Drafts', 'draft']
         ];
         const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const digits = t => [...t].map(ch => `<span class="dg">${esc(ch)}</span>`).join('');
         const existing = $('.welcome');
         if (existing) {
-            // refresh in place so the entrance animation doesn't replay
-            $('.w-time', existing).textContent = time;
+            // refresh in place so the entrance animation doesn't replay; changed digits roll over
+            const clock = $('.w-time', existing);
+            const spans = $$('.dg', clock);
+            if (spans.length !== time.length) clock.innerHTML = digits(time);
+            else [...time].forEach((ch, i) => {
+                if (spans[i].textContent === ch) return;
+                const d = h(`<span class="dg roll">${esc(ch)}</span>`);
+                spans[i].replaceWith(d);
+            });
             $$('.w-stats button', existing).forEach((btn, i) => {
                 const path = stats[i][0] === '\\Inbox' ? 'INBOX' : specialPath(stats[i][0]);
                 btn.dataset.go = path || '';
                 btn.disabled = !path;
-                $('b', btn).textContent = count(stats[i][0]);
+                const b = $('b', btn), n = String(count(stats[i][0]));
+                if (b.textContent !== n) {
+                    b.textContent = n;
+                    b.classList.remove('roll');
+                    void b.offsetWidth;
+                    b.classList.add('roll');
+                }
             });
             return;
         }
         $('#reader').innerHTML = `<div class="welcome"><div class="welcome-inner">
-            <div class="w-time">${time}</div>
+            <div class="w-time">${digits(time)}</div>
             <div class="w-date">${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
             <h3 class="w-hi">${esc(greetingFor())}.</h3>
             <div class="w-stats">${stats
@@ -914,7 +1142,28 @@
             <div class="w-tip">${tip[0].split(' ').map(k => `<kbd>${k}</kbd>`).join(' ')} ${esc(tip[1])}</div>
         </div></div>`;
     }
-    setInterval(() => !state.openUid && $('.welcome') && renderWelcome(), 30000);
+    setInterval(() => !state.openUid && $('.welcome') && renderWelcome(), 15000);
+
+    // stat cards tilt towards the cursor in 3D
+    let tiltRaf = 0, tiltEvent = null;
+    $('#reader').addEventListener('pointermove', e => {
+        tiltEvent = e;
+        if (tiltRaf || calm) return;
+        tiltRaf = requestAnimationFrame(() => {
+            tiltRaf = 0;
+            const card = tiltEvent.target.closest && tiltEvent.target.closest('.w-stats button');
+            $$('.w-stats button.tilt').forEach(b => b !== card && b.classList.remove('tilt'));
+            if (!card) return;
+            const r = card.getBoundingClientRect();
+            const x = (tiltEvent.clientX - r.left) / r.width, y = (tiltEvent.clientY - r.top) / r.height;
+            card.classList.add('tilt');
+            card.style.setProperty('--rx', `${(0.5 - y) * 14}deg`);
+            card.style.setProperty('--ry', `${(x - 0.5) * 16}deg`);
+            card.style.setProperty('--gx', `${x * 100}%`);
+            card.style.setProperty('--gy', `${y * 100}%`);
+        });
+    }, { passive: true });
+    $('#reader').addEventListener('pointerleave', () => $$('.w-stats button.tilt').forEach(b => b.classList.remove('tilt')));
     $('#reader').addEventListener('click', e => {
         const go = e.target.closest('[data-go]');
         if (go && go.dataset.go) openFolder(go.dataset.go);
@@ -963,7 +1212,10 @@
             }
             return;
         }
-        $('#app').dataset.view = 'reader';
+        // the subject and avatar fly from the list into the reader (View Transitions, where supported)
+        const morph = !!(row && document.startViewTransition && !calm && !document.hidden);
+        if (!morph) $('#app').dataset.view = 'reader';
+        else row.classList.add('opening');
         const folder = state.folder;
         const slow = setTimeout(() => token === readToken && ($('#reader').innerHTML = `<div class="empty"><div class="spinner"></div></div>`), 160);
         try {
@@ -979,15 +1231,37 @@
             }
             if (listed && !listed.flags.includes('\\Seen')) {
                 listed.flags.push('\\Seen');
-                $(`.msg[data-uid="${uid}"]`)?.classList.remove('unread');
+                const r = $(`.msg[data-uid="${uid}"]`);
+                if (r) {
+                    r.classList.add('reading');
+                    setTimeout(() => r.classList.remove('unread', 'reading'), 380);
+                }
                 const f = folderInfo(state.folder);
                 if (f.unseen) {
                     f.unseen--;
                     renderFolders();
                 }
             }
-            renderReader();
+            row?.classList.remove('opening');
+            const show = () => {
+                $('#app').dataset.view = 'reader';
+                renderReader({ morph });
+            };
+            const subj = morph && row.isConnected ? row.querySelector('.msg-subject') : null;
+            if (subj) {
+                const av = row.querySelector('.sel-toggle .avatar');
+                subj.style.viewTransitionName = 'eg-subject';
+                if (av) av.style.viewTransitionName = 'eg-avatar';
+                const t = document.startViewTransition(() => {
+                    subj.style.viewTransitionName = '';
+                    if (av) av.style.viewTransitionName = '';
+                    show();
+                });
+                t.finished.finally(() => $$('.reader-content [style*="view-transition-name"]').forEach(x => (x.style.viewTransitionName = '')));
+            } else show();
         } catch (e) {
+            row?.classList.remove('opening');
+            if (morph) $('#app').dataset.view = 'reader';
             clearTimeout(slow);
             if (token !== readToken) return;
             $('#reader').innerHTML = `<div class="empty"><div><div class="big">${icon('junk')}</div><h3>Couldn’t open that one</h3><p>${esc(e.message)}</p></div></div>`;
@@ -1003,7 +1277,7 @@
         $('[data-act=star]', bar).innerHTML = icon('star').replace('fill="none"', starred ? 'fill="currentColor"' : 'fill="none"');
     }
 
-    function renderReader() {
+    function renderReader({ morph = false } = {}) {
         const m = state.current;
         const from = m.from[0] || { address: '' };
         const remoteOk = state.settings.loadRemoteImages || state.allowImagesFor.has(from.address.toLowerCase()) || state.allowImagesFor.has(`${m.folder}:${m.uid}`);
@@ -1025,10 +1299,10 @@
                 <button class="icon-btn" data-act="forward" data-tip="Forward (F)">${icon('forward')}</button>
                 <button class="icon-btn" data-act="more" data-tip="More">${icon('more')}</button>
             </div>
-            <div class="reader-scroll"><div class="reader-content">
-                <h1>${esc(m.subject || '(no subject)')}</h1>
+            <div class="reader-scroll"><div class="reader-content${morph ? ' vt' : ''}">
+                <h1${morph ? ' style="view-transition-name:eg-subject"' : ''}>${esc(m.subject || '(no subject)')}</h1>
                 <div class="sender">
-                    ${avatar(from, 'lg')}
+                    ${morph ? avatar(from, 'lg').replace('style="', 'style="view-transition-name:eg-avatar;') : avatar(from, 'lg')}
                     <div class="info">
                         <div><span class="name">${esc(from.name || from.address)}</span>${from.name ? `<span class="addr">&lt;${esc(from.address)}&gt;</span>` : ''}</div>
                         <div class="to" data-act="details">to ${esc(recipients.map(p => (p.address.toLowerCase() === state.me.email ? 'me' : personName(p))).join(', ') || 'undisclosed recipients')} ${icon('down')}</div>
@@ -1289,6 +1563,7 @@
                 <button class="icon-btn" data-c="discard" title="Discard">${icon('trash')}</button>
             </div></div>`);
         document.body.append(el);
+        morphFrom(el, recentPress() || visibleRect($('#compose-btn')) || visibleRect($('#fab')));
 
         const editor = $('.editor', el);
         const files = [];
@@ -1365,13 +1640,15 @@
             c.dirty = true;
         };
         $('.toolbar', el).addEventListener('mousedown', e => e.target.closest('[data-cmd]') && e.preventDefault());
-        $('.toolbar', el).addEventListener('click', e => {
+        $('.toolbar', el).addEventListener('click', async e => {
             const b = e.target.closest('[data-cmd]');
             if (!b) return;
             const cmd = b.dataset.cmd;
             if (cmd === 'link') {
-                const url = prompt('Link URL', 'https://');
-                if (url && url !== 'https://') exec('createLink', /^(https?:|mailto:)/i.test(url) ? url : `https://${url}`);
+                const range = saveSelection();
+                const url = await askText({ title: 'Add a link', message: 'Paste the address the selected text should open.', icon: 'link', confirm: 'Add link', input: { type: 'url', value: 'https://', placeholder: 'https://example.com' } });
+                restoreSelection(editor, range);
+                if (url) exec('createLink', /^(https?:|mailto:)/i.test(url) ? url : `https://${url}`);
             } else if (cmd === 'quote') exec('formatBlock', 'blockquote');
             else exec(cmd);
         });
@@ -1462,12 +1739,21 @@
         const autosave = debounce(() => composer === c && c.dirty && !c.sending && saveDraft(false), 20000);
         el.addEventListener('input', autosave);
 
-        c.close = ({ save } = {}) => {
+        c.close = ({ save, discard } = {}) => {
+            if (c.closing) return;
+            c.closing = true;
             if (composer === c) composer = null;
             $('.composer-backdrop')?.remove();
-            el.remove();
+            const keep = save && c.dirty && !c.sending;
+            // shrink into Drafts when it's being saved, back into the compose button otherwise
+            const drafts = $(`#folders .folder[data-path="${CSS.escape(specialPath('\\Drafts') || 'Drafts')}"]`);
+            const target = discard ? null : keep ? visibleRect(drafts) || visibleRect($('#compose-btn')) : visibleRect($('#compose-btn')) || visibleRect($('#fab'));
+            morphTo(el, target).then(() => {
+                el.remove();
+                if (keep) catchIn(drafts);
+            });
             // detached nodes are still readable, so the draft can be saved after removal
-            if (save && c.dirty && !c.sending) saveDraft(false).then(ok => ok && toast('Saved to Drafts'));
+            if (keep) saveDraft(false).then(ok => ok && toast('Saved to Drafts'));
         };
 
         async function send() {
@@ -1480,9 +1766,9 @@
                 return c.fields.to.focus();
             }
             if (all.some(p => !validEmail(p.address))) return toast('One of the addresses looks off', { error: true });
-            if (!subjectInput.value.trim() && !confirm('Send without a subject?')) return;
+            if (!subjectInput.value.trim() && !(await askConfirm({ title: 'Send without a subject?', message: 'A subject helps people find your email later.', icon: 'send', confirm: 'Send anyway', cancel: 'Add one' }))) return subjectInput.focus();
             const lower = (editor.innerText + subjectInput.value).toLowerCase();
-            if (/\b(attached|attachment|enclosed)\b/.test(lower.split('wrote:')[0]) && !files.length && !c.meta.forwardUid && !confirm('You mentioned an attachment but didn’t attach anything. Send anyway?')) return;
+            if (/\b(attached|attachment|enclosed)\b/.test(lower.split('wrote:')[0]) && !files.length && !c.meta.forwardUid && !(await askConfirm({ title: 'Forgot the attachment?', message: 'You mention an attachment, but nothing is attached yet.', icon: 'clip', confirm: 'Send anyway', cancel: 'Go back' }))) return;
 
             const fd = formData();
             c.sending = true;
@@ -1564,7 +1850,7 @@
                         });
                     }
                     c.dirty = false;
-                    c.close();
+                    c.close({ discard: true });
                     toast('Draft discarded');
                     break;
                 case 'show-cc':
@@ -1848,7 +2134,7 @@
             document.removeEventListener('keydown', onEsc, true);
         };
         const onEsc = e => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !$('.dlg-back')) {
                 e.stopPropagation();
                 close();
             }
@@ -1933,7 +2219,7 @@
                             document.execCommand('foreColor', false, e.target.value);
                             sig.html = ed.innerHTML;
                         });
-                        $('.toolbar', card).addEventListener('click', e => {
+                        $('.toolbar', card).addEventListener('click', async e => {
                             const b = e.target.closest('[data-cmd]');
                             if (!b) return;
                             const cmd = b.dataset.cmd;
@@ -1953,11 +2239,16 @@
                             } else {
                                 ed.focus();
                                 if (cmd === 'link') {
-                                    const url = prompt('Link URL', 'https://');
-                                    if (url) document.execCommand('createLink', false, url);
+                                    const range = saveSelection();
+                                    const url = await askText({ title: 'Add a link', icon: 'link', confirm: 'Add link', input: { type: 'url', value: 'https://', placeholder: 'https://example.com' } });
+                                    restoreSelection(ed, range);
+                                    if (url) document.execCommand('createLink', false, /^(https?:|mailto:)/i.test(url) ? url : `https://${url}`);
                                 } else if (cmd === 'image') {
-                                    const url = prompt('Image URL (https://…)');
+                                    const range = saveSelection();
+                                    const url = await askText({ title: 'Add an image', message: 'Paste a link to an image (https://…), like your company logo.', icon: 'image', confirm: 'Add image', input: { type: 'url', placeholder: 'https://example.com/logo.png' } });
+                                    restoreSelection(ed, range);
                                     if (url && /^https:\/\//i.test(url)) document.execCommand('insertHTML', false, `<img src="${esc(url)}" alt="" style="max-width:240px;height:auto">`);
+                                    else if (url) toast('Image links need to start with https://', { error: true });
                                 } else document.execCommand(cmd);
                             }
                             sig.html = ed.innerHTML;
@@ -2152,7 +2443,7 @@
                     <div class="row"><div class="lbl"><b>Sign out everywhere</b><small>Ends every session on every device right away. Use it if a device is lost.</small></div><button class="btn btn-danger" data-logout-all>${icon('lock')} Sign out everywhere</button></div>`;
                 $('[data-logout]', section).onclick = logout;
                 $('[data-logout-all]', section).onclick = async () => {
-                    if (!confirm('Sign out on every device, including this one?')) return;
+                    if (!(await askConfirm({ title: 'Sign out everywhere?', message: 'Every device signed in to your account will be signed out right away, including this one.', icon: 'lock', confirm: 'Sign out everywhere', danger: true }))) return;
                     try {
                         await api('api/logout/everywhere', { method: 'POST' });
                     } finally {
@@ -2168,6 +2459,7 @@
         });
         function show(name) {
             $$('nav button', back).forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+            glide($('nav', back), $(`nav [data-tab="${name}"]`, back));
             // fresh element per tab so listeners from the previous tab don't pile up
             const fresh = section.cloneNode(false);
             section.replaceWith(fresh);
@@ -2232,6 +2524,7 @@
         let idx = 0;
         const draw = () => {
             ul.innerHTML = shown.map((c, i) => `<li class="${i === idx ? 'on' : ''}" data-i="${i}">${icon(c.icon)}${esc(c.label)}${c.key ? `<kbd>${c.key}</kbd>` : ''}</li>`).join('') || '<li>No matches</li>';
+            glide(ul, $('li.on', ul));
             $('li.on', ul)?.scrollIntoView({ block: 'nearest' });
         };
         const close = () => back.remove();
@@ -2470,6 +2763,7 @@
         }
         applyLook();
         refreshMe();
+        glide($('#chips'), $('.chip.active'));
         try {
             const left = sessionStorage.getItem('eg.recoveryLeft');
             if (left !== null) {
@@ -2480,15 +2774,21 @@
             // storage unavailable
         }
         showEmptyReader();
+        const started = performance.now();
+        // folders and the inbox load side by side; the inbox needs nothing from the folder list
+        const folders = loadFolders();
+        const messages = loadMessages();
         $('#folders').classList.add('intro');
-        setTimeout(() => $('#folders').classList.remove('intro'), 1600);
-        await loadFolders();
-        await loadMessages();
+        // leave the splash as soon as folders arrive (or after 1.4 s at most), once the logo has drawn
+        await Promise.race([folders, new Promise(r => setTimeout(r, 1400))]);
+        await new Promise(r => setTimeout(r, Math.max(0, 850 - (performance.now() - started))));
         const splash = $('#splash');
         if (splash) {
             splash.classList.add('out');
-            setTimeout(() => splash.remove(), 700);
+            setTimeout(() => splash.remove(), 600);
         }
+        setTimeout(() => $('#folders').classList.remove('intro'), 1800);
+        await Promise.allSettled([folders, messages]);
         connectLive();
         setInterval(loadFolders, 120000);
     })();

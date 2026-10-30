@@ -27,16 +27,36 @@ function newClient(email, password) {
 }
 
 // Verify credentials by opening (and closing) a throwaway IMAP connection.
+function addToPool(key, client, ready) {
+    const entry = { client, ready, timer: null };
+    client.on('error', () => pool.get(key) === entry && pool.delete(key));
+    client.on('close', () => pool.get(key) === entry && pool.delete(key));
+    pool.set(key, entry);
+    return entry;
+}
+
+// Checks credentials with a real IMAP login and keeps that connection for the
+// session that follows, so the first page load doesn't connect a second time.
 async function verifyLogin(email, password) {
     const client = newClient(email, password);
     try {
         await client.connect();
-        await client.logout();
-        return true;
     } catch (err) {
         if (err.authenticationFailed) return false;
         throw err;
     }
+    const key = poolKey(email, password);
+    const existing = pool.get(key);
+    if (existing && existing.client.usable) {
+        client.logout().catch(() => {});
+    } else {
+        const entry = addToPool(key, client, Promise.resolve());
+        entry.timer = setTimeout(() => {
+            pool.delete(key);
+            client.logout().catch(() => {});
+        }, IDLE_CLOSE_MS);
+    }
+    return true;
 }
 
 async function getClient({ email, password }) {
@@ -48,10 +68,7 @@ async function getClient({ email, password }) {
     }
     if (!entry) {
         const client = newClient(email, password);
-        entry = { client, ready: client.connect(), timer: null };
-        client.on('error', () => pool.delete(key));
-        client.on('close', () => pool.get(key) === entry && pool.delete(key));
-        pool.set(key, entry);
+        entry = addToPool(key, client, client.connect());
     }
     try {
         await entry.ready;
