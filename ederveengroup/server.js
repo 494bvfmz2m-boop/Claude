@@ -40,14 +40,23 @@ const BASE_URL = BASE + '/';
 const site = express();
 const app = express.Router();
 site.disable('x-powered-by');
-// Trust X-Forwarded-* only from a proxy on this machine (e.g. Caddy) unless told otherwise.
-site.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+// Which reverse proxies to believe for X-Forwarded-* (client IP, https). Default: only one on
+// this machine (e.g. Caddy). Behind Coolify/Traefik or another single proxy use TRUST_PROXY=1.
+function trustSetting(v) {
+    if (!v) return 'loopback';
+    if (/^\d+$/.test(v)) return Number(v); // number of proxy hops
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+    return v; // IPs / subnets / 'loopback', comma separated
+}
+site.set('trust proxy', trustSetting(process.env.TRUST_PROXY));
 
 const sessions = createSessions({
     dataDir: DATA_DIR,
     epochOf: email => store.getEpoch(email),
     cookiePath: BASE_URL,
-    secureCookies: process.env.SECURE_COOKIES === 'true' || process.env.NODE_ENV === 'production'
+    // cookies are marked Secure whenever the request arrived over HTTPS; this forces it always
+    secureCookies: process.env.SECURE_COOKIES === 'true'
 });
 const store = createStore(DATA_DIR);
 const avatars = createAvatars(DATA_DIR);
@@ -93,8 +102,15 @@ app.use('/api', (req, res, next) => {
     if (req.method !== 'GET') {
         if (req.get('X-EG') !== '1') return res.status(403).json({ error: 'Bad request origin' });
         // belt and braces: a browser-sent Origin must be this site
+        // (compares hosts, so it also holds behind proxies that talk plain http to us)
         const origin = req.get('Origin');
-        if (origin && origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: 'Bad request origin' });
+        let originHost = null;
+        try {
+            originHost = origin ? new URL(origin).host : null;
+        } catch {
+            originHost = 'invalid';
+        }
+        if (origin && originHost !== req.get('host')) return res.status(403).json({ error: 'Bad request origin' });
     }
     next();
 });

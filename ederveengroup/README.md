@@ -53,11 +53,19 @@ Cookies are marked `Secure` automatically behind HTTPS.
 
 **cPanel hosts with "Setup Node.js App":** create an app with startup file `server.js` and application URL set to your domain, then restart it.
 
+### Coolify
+
+1. Point your domain's DNS `A` record at the server, and open ports 80 and 443.
+2. In Coolify: **+ New → Application**, then pick this GitHub repository and branch.
+3. **Build Pack:** Dockerfile · **Base Directory:** `/ederveengroup` · **Ports Exposes:** `3000` · **Domains:** `https://mydomain.net`
+4. **Persistent Storage → Volume** mounted at **`/data`** (keeps sign-ins, settings, photos and 2FA across deploys).
+5. Deploy. No environment variables are needed: the image runs as a non-root user, trusts Coolify's proxy (`TRUST_PROXY=1`) and has a health check.
+
 ### Docker
 
 ```bash
 docker build -t ederveengroup .
-docker run -d -p 3000:3000 -v ederveengroup-data:/data ederveengroup
+docker run -d -p 3000:3000 -v ederveengroup-data:/data -e TRUST_PROXY=loopback ederveengroup
 ```
 
 ### Building the release zip (developers)
@@ -74,7 +82,7 @@ IMAP and SMTP have no way to ask for a second factor, so no mail app can show Pu
 
 ## Security
 
-- Encrypted, HttpOnly, SameSite session cookies scoped to `/mail/`, marked Secure automatically behind HTTPS
+- Encrypted, HttpOnly, SameSite session cookies scoped to `/mail/`, marked Secure automatically when served over HTTPS
 - "Sign out everywhere" (Settings, then Account) invalidates every session instantly. Turning on 2FA ends all other sessions too.
 - Brute-force protection per IP and per account, plus a separate limit on 2FA code guesses
 - CSRF protection: a custom header plus an Origin check on every state-changing request
