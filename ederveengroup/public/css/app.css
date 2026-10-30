@@ -143,9 +143,7 @@ kbd {
     border-right: 1px solid var(--line);
     background: radial-gradient(700px 500px at 30% 70%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%);
 }
-.login-art .rings { position: absolute; right: -22%; top: 50%; width: 120%; aspect-ratio: 1; transform: translateY(-50%); color: var(--accent-ink); opacity: .5; pointer-events: none; }
-.login-art .rings g { transform-origin: 50% 50%; animation: turn 120s linear infinite; }
-.login-art .rings g:nth-child(2) { animation-duration: 180s; animation-direction: reverse; }
+.login-art .rings { position: absolute; right: -22%; top: 50%; width: 120%; aspect-ratio: 1; transform: translateY(-50%); color: var(--accent-ink); opacity: .6; pointer-events: none; }
 @keyframes turn { to { transform: rotate(360deg); } }
 .login-art h1 { font-family: var(--display); font-weight: 400; font-size: clamp(48px, 6vw, 84px); line-height: .98; letter-spacing: -0.02em; margin: 0 0 22px; position: relative; }
 .login-art h1 em { color: var(--accent-ink); }
@@ -154,7 +152,7 @@ kbd {
 .login-art .foot span { display: inline-flex; align-items: center; gap: 7px; }
 .login-art .foot .i { width: 14px; height: 14px; }
 .login-main { display: grid; place-items: center; padding: 40px 24px; }
-.login-form { width: 100%; max-width: 380px; animation: rise .8s var(--ease) both; }
+.login-form { width: 100%; max-width: 380px; transition: opacity .4s var(--ease), transform .5s var(--ease), filter .5s; }
 .login-form .brand { display: none; margin-bottom: 40px; }
 .login-form h2 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: -0.01em; margin: 0 0 6px; }
 .login-form .sub { color: var(--text-2); margin: 0 0 32px; }
@@ -702,3 +700,92 @@ kbd {
 .crop-zoom input { flex: 1; accent-color: var(--accent); }
 @media (max-width: 760px) { .profile-card { flex-direction: column; text-align: center; } .profile-actions { justify-content: center; } }
 .modal-body { padding: 20px 24px 24px; overflow-y: auto; }
+
+/* ================= login animations ================= */
+
+/* artwork: rings draw themselves, dots orbit, light runs along the guides */
+.rings .r-dotted { transform-origin: 50% 50%; animation: fade 1.6s ease .2s both, turn 140s linear infinite; }
+.rings .r-solid, .rings .r-lines { opacity: .75; }
+.rings .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawIn 2.4s var(--ease) .15s forwards; }
+.rings .draw.d2 { animation-delay: .45s; }
+.rings .draw.d3, .rings .draw.d4 { opacity: .45; animation-duration: 1.8s; animation-delay: .9s; }
+.rings .draw.d4 { animation-delay: 1.05s; }
+@keyframes drawIn { to { stroke-dashoffset: 0; } }
+.rings .pulse { stroke-dasharray: .07 .93; stroke-dashoffset: 1; opacity: 0; animation: run 7s linear 2.2s infinite; }
+.rings .pulse.p2 { animation-duration: 9s; animation-delay: 4.5s; }
+.rings .pulse.p3 { stroke-dasharray: .05 .95; animation-duration: 11s; animation-delay: 3s; }
+@keyframes run { 0% { stroke-dashoffset: 1; opacity: 0; } 8% { opacity: 1; } 70% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.rings .orbit { transform-origin: 50% 50%; animation: fade 1s ease both, turn linear infinite; }
+.rings .o1 { animation-duration: 1s, 46s; animation-delay: 1.6s, 0s; }
+.rings .o2 { animation-duration: 1s, 30s; animation-delay: 1.9s, 0s; animation-direction: normal, reverse; }
+.rings .o3 { animation-duration: 1s, 18s; animation-delay: 2.2s, 0s; }
+.rings .planet { filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 10px currentColor); }
+.rings .core { transform-origin: 50% 50%; transform-box: fill-box; animation: fade 1s ease 1.2s both, beat 2.8s ease-in-out 1.2s infinite; filter: drop-shadow(0 0 6px currentColor); }
+@keyframes beat { 50% { transform: scale(2.2); opacity: .5; } }
+@keyframes fade { from { opacity: 0; } }
+
+.login-art .stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; animation: fade 2s ease .4s both; }
+.login-art .brand { position: relative; animation: rise .8s var(--ease) both; }
+.login-art .foot { animation: fade 1s ease 1.4s both; }
+
+/* "refined." gets a light sheen sweeping across it */
+.stagger .sheen {
+    padding-right: .12em; margin-right: -.12em; color: transparent; -webkit-background-clip: text; background-clip: text;
+    background-image: linear-gradient(100deg, var(--accent-ink) 0%, var(--accent-ink) 42%, #fff 50%, var(--accent-ink) 58%, var(--accent-ink) 100%);
+    background-size: 260% 100%; background-position: 100% 0;
+    animation: wordUp 1s var(--ease) .18s both, sheen 5.5s ease-in-out 1.6s infinite;
+}
+:root[data-theme='light'] .stagger .sheen { background-image: linear-gradient(100deg, var(--accent-ink) 0%, var(--accent-ink) 42%, color-mix(in srgb, var(--accent) 35%, #fff) 50%, var(--accent-ink) 58%, var(--accent-ink) 100%); }
+@keyframes sheen { 0%, 55% { background-position: 100% 0; } 100% { background-position: -60% 0; } }
+
+/* form rows arrive one after another */
+.login-form > * { animation: rowUp .8s var(--ease) both; animation-delay: calc(var(--i, 0) * 70ms + 120ms); }
+@keyframes rowUp { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
+.field > span { transition: color .2s; }
+.field:focus-within > span { color: var(--accent-ink); }
+.login-form .input { transition: box-shadow .25s var(--ease), background .25s, transform .25s var(--ease); }
+.login-form .input:focus { transform: translateY(-1px); }
+
+/* caps lock hint */
+.field > .caps { display: block; height: 0; margin: 0; overflow: hidden; font-size: 12px; font-weight: 500; color: var(--warn); opacity: 0; transition: height .25s var(--ease), opacity .2s, margin .25s var(--ease); }
+.field > .caps.on { height: 16px; margin-top: 7px; opacity: 1; }
+
+/* sign-in button breathes, and reacts to its states */
+.submit-wrap { position: relative; }
+.submit-wrap::before {
+    content: ''; position: absolute; inset: 6px 10% -4px; border-radius: 14px; background: var(--accent); filter: blur(18px); opacity: .35; z-index: 0;
+    animation: breathe 3.6s ease-in-out infinite; pointer-events: none;
+}
+.submit-wrap:hover::before { opacity: .6; }
+@keyframes breathe { 50% { opacity: .55; transform: scaleX(1.04); } }
+.submit-wrap .btn-primary { position: relative; z-index: 1; transition: transform .2s var(--ease), background .3s, box-shadow .3s; }
+.submit-wrap .btn-primary:hover { transform: translateY(-1px); }
+.submit-wrap .btn-primary.busy { background-image: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .22) 50%, transparent 70%); background-size: 200% 100%; animation: busy 1.1s linear infinite; }
+@keyframes busy { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.submit-wrap .btn-primary.done { background: var(--success); color: #fff; }
+.submit-wrap .btn-primary.done .i { animation: pop .35s var(--ease); }
+
+/* wrong password: inputs flash red */
+.login-form.error .input { animation: errFlash 1s var(--ease); }
+@keyframes errFlash { 0%, 40% { box-shadow: inset 0 0 0 1px var(--danger), 0 0 0 4px color-mix(in srgb, var(--danger) 22%, transparent); } }
+.form-error { animation: rowUp .4s var(--ease) both; }
+
+/* success: a circle grows from the button into the app */
+.login-form.leaving { opacity: 0; transform: translateY(-12px) scale(.98); filter: blur(4px); }
+.warp {
+    position: fixed; z-index: 200; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle closest-side, var(--bg) 78%, color-mix(in srgb, var(--accent) 35%, var(--bg)) 95%, var(--accent) 99%, transparent 100%);
+    transform: scale(0);
+}
+.warp.go { animation: warp .9s cubic-bezier(.65, 0, .35, 1) forwards; }
+@keyframes warp { to { transform: scale(var(--s, 60)); } }
+
+/* phones: no artwork panel, so give the form its own glow */
+@media (max-width: 900px) {
+    .login-main { position: relative; overflow: hidden; }
+    .login-main::before {
+        content: ''; position: absolute; width: 140vw; height: 140vw; left: -20vw; top: -90vw; border-radius: 50%; pointer-events: none;
+        background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%); animation: float 18s ease-in-out infinite alternate;
+    }
+    .login-form .brand-mark { animation: markIn .9s var(--ease) both; }
+}
