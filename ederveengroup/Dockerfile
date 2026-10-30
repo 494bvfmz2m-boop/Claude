@@ -1,3 +1,5 @@
+# Builds EderveenGroup when this folder is the build context (Base Directory /ederveengroup).
+# The Dockerfile at the repository root does the same from "/"; keep them in sync.
 FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./

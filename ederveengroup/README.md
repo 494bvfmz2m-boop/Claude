@@ -57,7 +57,7 @@ Cookies are marked `Secure` automatically behind HTTPS.
 
 1. Point your domain's DNS `A` record at the server, and open ports 80 and 443.
 2. In Coolify: **+ New → Application**, then pick this GitHub repository and branch.
-3. **Build Pack:** Dockerfile · **Base Directory:** `/ederveengroup` · **Ports Exposes:** `3000` · **Domains:** `https://mydomain.net`
+3. **Build Pack:** Dockerfile · **Base Directory:** `/` (the default; `/ederveengroup` works too) · **Ports Exposes:** `3000` · **Domains:** `https://mydomain.net`
 4. **Persistent Storage → Volume** mounted at **`/data`** (keeps sign-ins, settings, photos and 2FA across deploys).
 5. Deploy. No environment variables are needed: the image runs as a non-root user, trusts Coolify's proxy (`TRUST_PROXY=1`) and has a health check.
 
