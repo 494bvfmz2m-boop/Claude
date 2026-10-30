@@ -789,3 +789,52 @@ kbd {
     }
     .login-form .brand-mark { animation: markIn .9s var(--ease) both; }
 }
+
+/* ================= two-step check ================= */
+.login-form.hidden { display: none; }
+.tf-badge { position: relative; width: 64px; height: 64px; display: grid; place-items: center; margin-bottom: 22px; color: var(--accent-ink); }
+.tf-badge .i { width: 24px; height: 24px; animation: pop .6s var(--ease) .3s both; }
+.tf-badge::before { content: ''; position: absolute; inset: 8px; border-radius: 50%; background: var(--accent-soft); box-shadow: 0 0 40px -6px var(--accent); }
+.tf-timer { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 2.5; }
+.tf-timer .track { stroke: var(--line-2); }
+.tf-timer .left { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset .25s linear; filter: drop-shadow(0 0 3px var(--accent)); }
+.login-form.twofa .sub b { color: var(--text); font-weight: 500; }
+
+.otp { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.otp input {
+    width: 0; flex: 1; min-width: 0; height: 58px; text-align: center; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; caret-color: var(--accent);
+    border: 0; border-radius: 12px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); outline: none;
+    transition: box-shadow .2s var(--ease), transform .25s var(--ease), background .2s;
+    animation: rowUp .6s var(--ease) both;
+}
+.otp input:nth-child(1) { animation-delay: .35s; } .otp input:nth-child(2) { animation-delay: .4s; } .otp input:nth-child(3) { animation-delay: .45s; }
+.otp input:nth-child(5) { animation-delay: .5s; } .otp input:nth-child(6) { animation-delay: .55s; } .otp input:nth-child(7) { animation-delay: .6s; }
+.otp input:focus { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 4px var(--accent-soft); transform: translateY(-2px); }
+.otp input.filled { box-shadow: inset 0 0 0 1px var(--accent-line); animation: digit .28s var(--ease); }
+@keyframes digit { 40% { transform: scale(1.08); } }
+.otp-gap { width: 10px; height: 2px; border-radius: 2px; background: var(--line-2); flex: none; }
+.otp.ok input { box-shadow: inset 0 0 0 1.5px var(--success); color: var(--success); transition-delay: calc(var(--d, 0) * 1ms); }
+.login-form.error .otp input { animation: errFlash 1s var(--ease); }
+.tf-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.tf-links button { color: var(--text-3); font-size: 13px; transition: color .2s; }
+.tf-links button:hover { color: var(--accent-ink); }
+
+/* settings: security tab */
+.tf-status { display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 16px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); margin-bottom: 18px; }
+.tf-status .shield { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--surface-3); color: var(--text-3); }
+.tf-status.on .shield { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); box-shadow: 0 0 30px -8px var(--success); }
+.tf-status .meta { flex: 1; min-width: 0; }
+.tf-status .meta b { display: block; font-weight: 600; }
+.tf-status .meta small { color: var(--text-3); }
+.tf-setup { display: grid; grid-template-columns: 180px 1fr; gap: 22px; align-items: start; animation: rise .4s var(--ease) both; }
+.tf-qr { width: 180px; height: 180px; padding: 10px; border-radius: 14px; background: #fff; box-shadow: 0 10px 30px -14px rgba(0, 0, 0, .5); }
+.tf-qr svg { width: 100%; height: 100%; display: block; }
+.tf-steps { margin: 0 0 14px; padding-left: 18px; color: var(--text-2); line-height: 1.7; font-size: 13.5px; }
+.tf-secret { display: flex; align-items: center; gap: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; letter-spacing: .06em; padding: 8px 6px 8px 12px; border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); margin-bottom: 14px; word-break: normal; }
+.tf-secret span { flex: 1; }
+.tf-confirm { display: flex; gap: 8px; }
+.tf-confirm .input { max-width: 160px; letter-spacing: .3em; font-variant-numeric: tabular-nums; text-align: center; font-size: 16px; }
+.tf-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 14px 0; }
+.tf-codes code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; letter-spacing: .08em; text-align: center; padding: 10px; border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); animation: pop .3s var(--ease) both; }
+.tf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 760px) { .tf-setup { grid-template-columns: 1fr; justify-items: center; } }

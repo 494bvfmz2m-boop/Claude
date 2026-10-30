@@ -9,6 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 const COOKIE = 'eg_session';
+const TRUST_COOKIE = 'eg_trust';
+const TRUST_TTL = 30 * 24 * 60 * 60 * 1000;
 const LONG_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days ("remember me")
 const SHORT_TTL = 12 * 60 * 60 * 1000; // 12 hours otherwise
 const RENEW_AFTER = 24 * 60 * 60 * 1000; // slide the 30-day window once a day
@@ -73,6 +75,24 @@ function createSessions({ dataDir, secureCookies }) {
     }
 
     return {
+        // Short-lived sealed blobs, e.g. the "password OK, now enter your code" ticket.
+        seal: payload => seal(key, payload),
+        open(token, purpose) {
+            const data = token ? unseal(key, String(token)) : null;
+            return data && data.purpose === purpose && data.exp > Date.now() ? data : null;
+        },
+
+        // "Trust this device": skip the 2FA code on this browser for 30 days.
+        trustDevice(res, email, twofaSince) {
+            const token = seal(key, { purpose: 'trust', email, since: twofaSince, exp: Date.now() + TRUST_TTL });
+            res.append('Set-Cookie', `${TRUST_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${TRUST_TTL / 1000}${secureCookies ? '; Secure' : ''}`);
+        },
+        isTrusted(req, email, twofaSince) {
+            const t = unseal(key, parseCookies(req.headers.cookie)[TRUST_COOKIE] || '');
+            // tokens issued before 2FA was (re)enabled don't count
+            return !!(t && t.purpose === 'trust' && t.email === email && t.since === twofaSince && t.exp > Date.now());
+        },
+
         start(res, { email, password, remember }) {
             const now = Date.now();
             const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL) };

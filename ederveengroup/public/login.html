@@ -57,6 +57,23 @@
                 <div class="submit-wrap"><button class="btn btn-primary" id="submit" type="submit"><span>Sign in</span></button></div>
                 <div class="login-note"><span data-icon="lock"></span><span>Your session is encrypted on this device. For extra safety, sign in with a Purelymail app password.</span></div>
             </form>
+            <form class="login-form twofa hidden" id="twofa" novalidate autocomplete="off">
+                <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+                <div class="tf-badge">
+                    <svg class="tf-timer" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" class="track"/><circle cx="32" cy="32" r="29" class="left" pathLength="1"/></svg>
+                    <span data-icon="lock"></span>
+                </div>
+                <h2>Two-step check</h2>
+                <p class="sub">Enter the 6-digit code from your authenticator app for <b id="tf-email"></b>.</p>
+                <div class="form-error hidden" id="tf-err" role="alert"></div>
+                <div class="otp" id="otp" role="group" aria-label="6-digit code">
+                    <input inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1"><input inputmode="numeric" maxlength="1" aria-label="Digit 2"><input inputmode="numeric" maxlength="1" aria-label="Digit 3"><span class="otp-gap"></span><input inputmode="numeric" maxlength="1" aria-label="Digit 4"><input inputmode="numeric" maxlength="1" aria-label="Digit 5"><input inputmode="numeric" maxlength="1" aria-label="Digit 6">
+                </div>
+                <label class="field hidden" id="recovery-wrap"><span>Recovery code</span><input class="input" id="recovery" placeholder="XXXX-XXXX" autocomplete="off" spellcheck="false"></label>
+                <label class="check"><input type="checkbox" id="trust"> Trust this device for 30 days</label>
+                <div class="submit-wrap"><button class="btn btn-primary" id="tf-submit" type="submit"><span>Verify</span></button></div>
+                <div class="tf-links"><button type="button" id="tf-back">← Use a different account</button><button type="button" id="use-recovery">Use a recovery code</button></div>
+            </form>
         </main>
     </div>
 </body>

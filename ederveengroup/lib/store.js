@@ -39,7 +39,7 @@ function createStore(dataDir) {
         }
         const saved = data.settings || {};
         if (saved.accent === '#c9a66b' || saved.accent === '#7c5cff') delete saved.accent; // retired defaults
-        const user = { settings: { ...DEFAULTS, ...saved }, contacts: data.contacts || {}, snoozes: data.snoozes || [] };
+        const user = { settings: { ...DEFAULTS, ...saved }, contacts: data.contacts || {}, snoozes: data.snoozes || [], twofa: data.twofa || null };
         cache.set(email, user);
         return user;
     }
@@ -95,6 +95,13 @@ function createStore(dataDir) {
         },
 
         listSnoozes: email => load(email).snoozes,
+
+        // two-factor: { secret, since, recovery: [sha256 hashes], pending? }
+        getTwofa: email => load(email).twofa,
+        setTwofa(email, value) {
+            load(email).twofa = value;
+            save(email);
+        },
 
         takeDueSnoozes(email, now = Date.now()) {
             const user = load(email);

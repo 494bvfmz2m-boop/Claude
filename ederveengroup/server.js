@@ -15,6 +15,9 @@ const { htmlToText } = require('html-to-text');
 const { createSessions } = require('./lib/session');
 const { createStore } = require('./lib/store');
 const { createAvatars } = require('./lib/avatars');
+const totp = require('./lib/totp');
+const QRCode = require('qrcode');
+const crypto = require('crypto');
 const { sanitizeComposeHtml } = require('./lib/sanitize');
 const mail = require('./lib/mail');
 
@@ -97,10 +100,62 @@ app.post('/api/login', loginThrottle, wrap(async (req, res) => {
         return res.status(502).json({ error: 'Could not reach Purelymail. Try again in a moment.' });
     }
     if (!ok) return res.status(401).json({ error: 'That email and password combo didn’t work.' });
+    const remember = req.body.remember !== false;
+    const tf = store.getTwofa(email);
+    if (tf && tf.secret && !sessions.isTrusted(req, email, tf.since)) {
+        // password is right; hand back a sealed 5-minute ticket for the code step
+        const ticket = sessions.seal({ purpose: '2fa', email, password, remember, exp: Date.now() + 5 * 60 * 1000 });
+        return res.json({ twofa: true, ticket, email });
+    }
     attempts.delete(req.ip);
-    sessions.start(res, { email, password, remember: req.body.remember !== false });
+    sessions.start(res, { email, password, remember });
     res.json({ ok: true });
 }));
+
+/* ---------- two-factor ---------- */
+
+const hashCode = c => crypto.createHash('sha256').update(c).digest('hex');
+const normRecovery = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const lastStep = new Map(); // email -> last accepted TOTP step (blocks replaying a code)
+
+function newRecoveryCodes() {
+    const codes = Array.from({ length: 10 }, () => {
+        const raw = totp.base32Encode(crypto.randomBytes(5)).slice(0, 8);
+        return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+    });
+    return { codes, hashes: codes.map(c => hashCode(normRecovery(c))) };
+}
+
+// Checks a 6-digit code or a recovery code (recovery codes are single use).
+function checkSecondFactor(email, tf, input) {
+    const code = String(input || '').trim();
+    if (/^\d{3}\s?\d{3}$/.test(code)) {
+        const step = totp.verify(tf.secret, code);
+        if (step === null || step <= (lastStep.get(email) || 0)) return { ok: false };
+        lastStep.set(email, step);
+        return { ok: true };
+    }
+    const idx = tf.recovery.indexOf(hashCode(normRecovery(code)));
+    if (idx < 0 || !normRecovery(code)) return { ok: false };
+    tf.recovery.splice(idx, 1);
+    store.setTwofa(email, tf);
+    return { ok: true, usedRecovery: true, recoveryLeft: tf.recovery.length };
+}
+
+app.post('/api/login/2fa', loginThrottle, (req, res) => {
+    const t = sessions.open(req.body.ticket, '2fa');
+    if (!t) return res.status(401).json({ error: 'That sign-in took too long. Please start again.', restart: true });
+    const tf = store.getTwofa(t.email);
+    let result = { ok: true };
+    if (tf && tf.secret) {
+        result = checkSecondFactor(t.email, tf, req.body.code);
+        if (!result.ok) return res.status(401).json({ error: 'That code didn\u2019t work. Check your authenticator and try again.' });
+        if (req.body.trust) sessions.trustDevice(res, t.email, tf.since);
+    }
+    attempts.delete(req.ip);
+    sessions.start(res, { email: t.email, password: t.password, remember: t.remember });
+    res.json(result);
+});
 
 app.post('/api/logout', wrap(async (req, res) => {
     if (req.session) await mail.closeClient(req.session);
@@ -156,6 +211,47 @@ app.put('/api/settings', (req, res) => {
     if ('displayName' in patch) patch.displayName = String(patch.displayName || '').slice(0, 120);
     if ('accent' in patch && !/^#[0-9a-f]{6}$/i.test(patch.accent)) delete patch.accent;
     res.json(store.updateSettings(req.session.email, patch));
+});
+
+app.get('/api/2fa', (req, res) => {
+    const tf = store.getTwofa(req.session.email);
+    res.json({ enabled: !!(tf && tf.secret), since: tf && tf.since, recoveryLeft: tf && tf.recovery ? tf.recovery.length : 0 });
+});
+
+app.post('/api/2fa/setup', wrap(async (req, res) => {
+    const tf = store.getTwofa(req.session.email);
+    if (tf && tf.secret) return res.status(400).json({ error: 'Two-factor is already on' });
+    const secret = totp.generateSecret();
+    store.setTwofa(req.session.email, { pending: secret });
+    const uri = totp.otpauthUri(secret, req.session.email);
+    const qr = await QRCode.toString(uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b0d12', light: '#ffffff' } });
+    res.json({ secret: secret.match(/.{1,4}/g).join(' '), uri, qr });
+}));
+
+app.post('/api/2fa/enable', (req, res) => {
+    const tf = store.getTwofa(req.session.email);
+    if (!tf || !tf.pending) return res.status(400).json({ error: 'Start setup first' });
+    if (totp.verify(tf.pending, req.body.code) === null) return res.status(400).json({ error: 'That code didn\u2019t match. Make sure your phone\u2019s clock is right and try the newest code.' });
+    const { codes, hashes } = newRecoveryCodes();
+    store.setTwofa(req.session.email, { secret: tf.pending, since: Date.now(), recovery: hashes });
+    res.json({ ok: true, recovery: codes });
+});
+
+app.post('/api/2fa/disable', (req, res) => {
+    const tf = store.getTwofa(req.session.email);
+    if (!tf || !tf.secret) return res.json({ ok: true });
+    if (!checkSecondFactor(req.session.email, tf, req.body.code).ok) return res.status(400).json({ error: 'That code didn\u2019t work' });
+    store.setTwofa(req.session.email, null);
+    res.json({ ok: true });
+});
+
+app.post('/api/2fa/recovery', (req, res) => {
+    const tf = store.getTwofa(req.session.email);
+    if (!tf || !tf.secret) return res.status(400).json({ error: 'Two-factor is off' });
+    if (!checkSecondFactor(req.session.email, tf, req.body.code).ok) return res.status(400).json({ error: 'That code didn\u2019t work' });
+    const { codes, hashes } = newRecoveryCodes();
+    store.setTwofa(req.session.email, { ...store.getTwofa(req.session.email), recovery: hashes });
+    res.json({ recovery: codes });
 });
 
 app.get('/api/contacts', (req, res) => res.json(store.searchContacts(req.session.email, req.query.q)));

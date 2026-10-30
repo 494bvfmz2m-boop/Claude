@@ -1817,7 +1817,8 @@
                     <button data-tab="look">${icon('palette')} Appearance</button>
                     <button data-tab="sigs">${icon('signature')} Signatures</button>
                     <button data-tab="keys">${icon('keyboard')} Shortcuts</button>
-                    <button data-tab="account">${icon('lock')} Account</button>
+                    <button data-tab="security">${icon('lock')} Security</button>
+                    <button data-tab="account">${icon('user')} Account</button>
                 </nav>
                 <section></section>
             </div></div></div>`);
@@ -2017,6 +2018,109 @@
                     });
                 };
                 draw();
+            },
+            async security() {
+                const here = section;
+                here.innerHTML = `<h3>Security</h3><p class="hint">Two-step verification asks for a code from your phone after your password, so a leaked password alone can’t get in.</p><div class="spinner"></div>`;
+                let st;
+                try {
+                    st = await api('/api/2fa');
+                } catch (e) {
+                    return toast(e.message, { error: true });
+                }
+                if (section !== here) return;
+                const codesBlock = codes => `<p class="hint" style="margin:0">Save these recovery codes somewhere safe. Each one works once if you lose your phone. They won’t be shown again.</p>
+                    <div class="tf-codes">${codes.map((c, i) => `<code style="animation-delay:${i * 30}ms">${esc(c)}</code>`).join('')}</div>
+                    <div class="tf-actions"><button class="btn" data-copy-codes>${icon('copy')} Copy</button><button class="btn" data-dl-codes>${icon('download')} Download .txt</button><button class="btn btn-primary" data-done>I’ve saved them</button></div>`;
+                const wireCodes = codes => {
+                    const text = `EderveenGroup recovery codes for ${state.me.email}\n\n${codes.join('\n')}\n`;
+                    $('[data-copy-codes]', here).onclick = async () => {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            toast('Recovery codes copied');
+                        } catch {
+                            toast('Couldn’t copy. Select them instead.', { error: true });
+                        }
+                    };
+                    $('[data-dl-codes]', here).onclick = () => {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+                        a.download = 'ederveengroup-recovery-codes.txt';
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                    };
+                    $('[data-done]', here).onclick = () => tabs.security();
+                };
+                const confirmRow = (label, cls = 'btn-primary') => `<div class="tf-confirm"><input class="input" inputmode="numeric" placeholder="123456" maxlength="9" autocomplete="one-time-code" data-code><button class="btn ${cls}" data-confirm>${label}</button></div>`;
+
+                const status = `<div class="tf-status ${st.enabled ? 'on' : ''}"><div class="shield">${icon(st.enabled ? 'check' : 'lock')}</div>
+                    <div class="meta"><b>Two-step verification is ${st.enabled ? 'on' : 'off'}</b><small>${st.enabled ? `Since ${esc(fmtDate(new Date(st.since).toISOString(), true))} · ${st.recoveryLeft} recovery code${st.recoveryLeft === 1 ? '' : 's'} left` : 'Add an authenticator app such as Google Authenticator, 1Password or Authy.'}</small></div>
+                    ${st.enabled ? '' : `<button class="btn btn-primary" data-setup>${icon('lock')} Turn on</button>`}</div>`;
+                here.innerHTML = `<h3>Security</h3><p class="hint">Two-step verification asks for a code from your phone after your password, so a leaked password alone can’t get in.</p>${status}<div data-area></div>
+                    <p class="hint" style="margin-top:18px">Turned on 2FA in Purelymail too? Mail apps can’t ask for Purelymail’s code, so sign in here with a <b>Purelymail app password</b>.</p>`;
+                const area = $('[data-area]', here);
+
+                if (!st.enabled) {
+                    $('[data-setup]', here).onclick = async e => {
+                        e.target.closest('button').disabled = true;
+                        let setup;
+                        try {
+                            setup = await api('/api/2fa/setup', { method: 'POST' });
+                        } catch (err) {
+                            e.target.closest('button').disabled = false;
+                            return toast(err.message, { error: true });
+                        }
+                        area.innerHTML = `<div class="tf-setup"><div class="tf-qr">${setup.qr}</div><div>
+                            <ol class="tf-steps"><li>Open your authenticator app and add an account.</li><li>Scan the QR code, or enter this key:</li></ol>
+                            <div class="tf-secret"><span>${esc(setup.secret)}</span><button class="icon-btn" data-copy-secret title="Copy key">${icon('copy')}</button></div>
+                            <ol class="tf-steps" start="3"><li>Enter the 6-digit code it shows.</li></ol>${confirmRow('Verify &amp; turn on')}</div></div>`;
+                        $('[data-copy-secret]', area).onclick = () => navigator.clipboard.writeText(setup.secret.replace(/\s/g, '')).then(() => toast('Key copied'), () => {});
+                        const input = $('[data-code]', area);
+                        input.focus();
+                        const go = async () => {
+                            try {
+                                const r = await api('/api/2fa/enable', { method: 'POST', body: { code: input.value.replace(/\s/g, '') } });
+                                toast('Two-step verification is on');
+                                here.querySelector('.tf-status').outerHTML = `<div class="tf-status on"><div class="shield">${icon('check')}</div><div class="meta"><b>Two-step verification is on</b><small>You’ll be asked for a code when you sign in on a new device.</small></div></div>`;
+                                area.innerHTML = codesBlock(r.recovery);
+                                wireCodes(r.recovery);
+                            } catch (err) {
+                                toast(err.message, { error: true });
+                                input.select();
+                            }
+                        };
+                        $('[data-confirm]', area).onclick = go;
+                        input.addEventListener('keydown', ev => ev.key === 'Enter' && go());
+                    };
+                    return;
+                }
+
+                area.innerHTML = `<div class="row"><div class="lbl"><b>New recovery codes</b><small>Replaces your old ones. Confirm with a code from your app.</small></div><button class="btn" data-regen>Generate</button></div>
+                    <div class="row"><div class="lbl"><b>Turn off two-step verification</b><small>Confirm with a code from your app or a recovery code.</small></div><button class="btn btn-danger" data-off>Turn off</button></div>`;
+                const ask = (btn, label, cls, run) => {
+                    const row = btn.closest('.row');
+                    btn.outerHTML = confirmRow(label, cls);
+                    const input = $('[data-code]', row);
+                    input.focus();
+                    const go = () => run(input.value.trim()).catch(err => {
+                        toast(err.message, { error: true });
+                        input.select();
+                    });
+                    $('[data-confirm]', row).onclick = go;
+                    input.addEventListener('keydown', ev => ev.key === 'Enter' && go());
+                };
+                $('[data-regen]', area).onclick = e =>
+                    ask(e.target.closest('button'), 'Confirm', 'btn-primary', async code => {
+                        const r = await api('/api/2fa/recovery', { method: 'POST', body: { code } });
+                        area.innerHTML = codesBlock(r.recovery);
+                        wireCodes(r.recovery);
+                    });
+                $('[data-off]', area).onclick = e =>
+                    ask(e.target.closest('button'), 'Turn off', 'btn-danger', async code => {
+                        await api('/api/2fa/disable', { method: 'POST', body: { code } });
+                        toast('Two-step verification is off');
+                        tabs.security();
+                    });
             },
             keys() {
                 section.innerHTML = `<h3>Keyboard shortcuts</h3><p class="hint">Fly through your inbox.</p><div class="shortcuts">${SHORTCUTS.map(([k, d]) => `<div><span>${d}</span><span>${k.split(' ').map(x => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')}</div>`;
@@ -2322,6 +2426,15 @@
         }
         applyLook();
         refreshMe();
+        try {
+            const left = sessionStorage.getItem('eg.recoveryLeft');
+            if (left !== null) {
+                sessionStorage.removeItem('eg.recoveryLeft');
+                setTimeout(() => toast(`You used a recovery code. ${left} left.`, { action: 'Get new ones', onAction: () => openSettings('security'), duration: 9000 }), 1200);
+            }
+        } catch {
+            // storage unavailable
+        }
         showEmptyReader();
         await loadFolders();
         await loadMessages();

@@ -12,6 +12,8 @@ A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It 
 - **Rich composer** with formatting, recipient chips with contact autocomplete, Cc/Bcc, drag-and-drop attachments, reply / reply all / forward (forwarded attachments included), a "you forgot the attachment" check, and **undo send**.
 - **Drafts** auto-save to your Purelymail Drafts folder. Close the composer and it's saved; open a draft to keep going.
 - **Signatures.** Create as many as you want with the rich editor or raw HTML, start from templates, set separate defaults for new mail and for replies, and switch while composing.
+- **Two-step verification:** turn it on in Settings, then Security. Scan the QR code with any authenticator app (Google Authenticator, 1Password, Authy…). After your password, sign-in asks for the 6-digit code; you can paste it, and it submits itself. You also get 10 single-use recovery codes and an optional "trust this device for 30 days". Codes can't be replayed, and recovery codes can be regenerated.
+- **Animated login:** the line artwork draws itself in, with orbiting lights, a star field that reacts to your cursor, staggered form rows, and a ring that expands from the button into the app when you sign in.
 - **Profile pictures:** upload your own photo with a drag-and-zoom cropper (Settings, then Profile, or click your name in the sidebar). Colleagues who use the same EderveenGroup server see each other's photos. Other senders get their Gravatar or their company's logo, fetched and cached by your server so senders never see your IP address. You can turn sender photos off in Settings.
 - **Snooze:** hide a conversation until later today, tomorrow, the weekend, next week or any time you pick, and it comes back to the Inbox as unread. Snoozes wake whenever you have EderveenGroup open (the server only holds your password inside your session cookie, so it can't act while you're away).
 - **Fast triage:** quick actions appear when you hover a row (archive, snooze, read, delete), swipe right to archive and left to delete on phones, and messages are grouped by date with sticky headers.
@@ -50,6 +52,10 @@ docker run -d -p 3000:3000 -v ederveengroup-data:/data -e SESSION_SECRET="$(open
 - Behind a reverse proxy, set `TRUST_PROXY=1` so login rate limiting sees real client IPs.
 - Settings, signatures and contacts live in `DATA_DIR` (one JSON file per account). Back it up or mount it as a volume.
 
+## Two-step verification and Purelymail
+
+IMAP and SMTP have no way to ask for a second factor, so no mail app can show Purelymail's own 2FA prompt. If you enable 2FA in your Purelymail account, sign in here with a **Purelymail app password**, and enable EderveenGroup's two-step verification to protect this web login with your authenticator app.
+
 ## How sessions work
 
 IMAP and SMTP need your password for every connection, so the session cookie carries your email and password **encrypted with the server's secret key**. The browser can't read it (HttpOnly), and without the key it's useless. The server keeps no session table, so restarts don't sign anyone out. If your Purelymail password changes, the next request fails auth and you're sent back to the login page. Using a Purelymail app password lets you revoke access at any time.
@@ -63,5 +69,6 @@ lib/mail.js        IMAP pool (imapflow), message parsing, SMTP send, drafts, IDL
 lib/sanitize.js    HTML sanitizing for incoming mail and composed mail
 lib/store.js       Per-user settings, signatures, snoozes and contacts (JSON files)
 lib/avatars.js     Uploaded profile photos plus cached Gravatar / company-logo lookups
+lib/totp.js        Authenticator codes (RFC 6238) for two-step verification
 public/            Login page and the single-page app (vanilla JS, no build step)
 ```
