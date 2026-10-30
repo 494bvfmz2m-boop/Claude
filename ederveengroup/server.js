@@ -14,6 +14,7 @@ const addressparser = require('nodemailer/lib/addressparser');
 const { htmlToText } = require('html-to-text');
 const { createSessions } = require('./lib/session');
 const { createStore } = require('./lib/store');
+const { createAvatars } = require('./lib/avatars');
 const { sanitizeComposeHtml } = require('./lib/sanitize');
 const mail = require('./lib/mail');
 
@@ -27,6 +28,7 @@ if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY);
 
 const sessions = createSessions({ dataDir: DATA_DIR, secureCookies: process.env.SECURE_COOKIES === 'true' || process.env.NODE_ENV === 'production' });
 const store = createStore(DATA_DIR);
+const avatars = createAvatars(DATA_DIR);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } });
 
 app.use((req, res, next) => {
@@ -35,7 +37,7 @@ app.use((req, res, next) => {
         'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'no-referrer',
         'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'"
     });
     next();
 });
@@ -109,8 +111,35 @@ app.post('/api/logout', wrap(async (req, res) => {
 app.use('/api', requireAuth);
 
 app.get('/api/me', (req, res) => {
-    res.json({ email: req.session.email, sessionExpires: new Date(req.session.exp).toISOString(), settings: store.getSettings(req.session.email) });
+    res.json({
+        email: req.session.email,
+        sessionExpires: new Date(req.session.exp).toISOString(),
+        photo: avatars.photoVersion(req.session.email),
+        settings: store.getSettings(req.session.email)
+    });
 });
+
+/* ---------- profile pictures ---------- */
+
+app.put('/api/profile/photo', (req, res) => {
+    res.json({ photo: avatars.savePhoto(req.session.email, req.body.dataUrl) });
+});
+
+app.delete('/api/profile/photo', (req, res) => {
+    avatars.removePhoto(req.session.email);
+    res.json({ photo: null });
+});
+
+// Photo for any address: an uploaded EderveenGroup photo first, then Gravatar or company logo.
+app.get('/api/avatar', wrap(async (req, res) => {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    res.set({ 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'same-origin' });
+    if (!/^[^\s@]+@[^\s@]+$/.test(email)) return res.status(400).end();
+    const remote = store.getSettings(req.session.email).senderPhotos !== false;
+    const hit = await avatars.lookup(email, { remote });
+    if (!hit) return res.set('Cache-Control', 'private, max-age=3600').status(404).end();
+    res.set({ 'Content-Type': hit.type, 'Cache-Control': 'private, max-age=86400' }).send(hit.buf);
+}));
 
 /* ---------- settings & contacts ---------- */
 

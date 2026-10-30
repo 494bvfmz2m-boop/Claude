@@ -9,7 +9,8 @@ const path = require('path');
 const DEFAULTS = {
     displayName: '',
     theme: 'dark',
-    accent: '#c9a66b',
+    accent: '#4c8dff',
+    senderPhotos: true,
     density: 'comfortable',
     loadRemoteImages: false,
     undoSendSeconds: 5,
@@ -36,7 +37,9 @@ function createStore(dataDir) {
         } catch {
             // new user
         }
-        const user = { settings: { ...DEFAULTS, ...(data.settings || {}) }, contacts: data.contacts || {}, snoozes: data.snoozes || [] };
+        const saved = data.settings || {};
+        if (saved.accent === '#c9a66b' || saved.accent === '#7c5cff') delete saved.accent; // retired defaults
+        const user = { settings: { ...DEFAULTS, ...saved }, contacts: data.contacts || {}, snoozes: data.snoozes || [] };
         cache.set(email, user);
         return user;
     }

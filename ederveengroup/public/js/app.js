@@ -81,8 +81,21 @@
         const parts = label.replace(/["'<>]/g, '').split(/[\s._@-]+/).filter(Boolean);
         const initials = ((parts[0] || '?')[0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
         const hh = hue((person && person.address) || label);
-        return `<div class="avatar ${size}" style="--h:${hh}">${esc(initials)}</div>`;
+        const addr = ((person && person.address) || '').trim().toLowerCase();
+        const mine = state.me && addr === state.me.email;
+        // photos: your own upload, colleagues' uploads, then Gravatar / company logo (if enabled)
+        const wantImg = addr.includes('@') && !missingPhotos.has(addr) && (mine ? state.me.photo || state.settings.senderPhotos !== false : state.settings && state.settings.senderPhotos !== false);
+        const img = wantImg ? `<img class="av-img" alt="" loading="lazy" decoding="async" data-email="${esc(addr)}" src="/api/avatar?${qs({ email: addr, v: mine ? state.me.photo || 0 : undefined })}">` : '';
+        return `<div class="avatar ${size}" style="--h:${hh}">${esc(initials)}${img}</div>`;
     }
+    const missingPhotos = new Set();
+    document.addEventListener('load', e => e.target.classList && e.target.classList.contains('av-img') && e.target.classList.add('ok'), true);
+    document.addEventListener('error', e => {
+        const t = e.target;
+        if (!t.classList || !t.classList.contains('av-img')) return;
+        missingPhotos.add(t.dataset.email);
+        t.remove();
+    }, true);
     const personName = p => (p ? p.name || p.address : '');
     const fmtAddr = p => (p.name ? `${p.name} <${p.address}>` : p.address);
     const fmtAddrList = list => list.map(fmtAddr).join(', ');
@@ -122,7 +135,7 @@
         root.dataset.theme = theme;
         root.dataset.density = s.density;
         window.egApplyAccent(s.accent);
-        $('meta[name=theme-color]').content = theme === 'light' ? '#f1efea' : '#09090b';
+        $('meta[name=theme-color]').content = theme === 'light' ? '#eef1f6' : '#0b0d12';
         $('#theme-btn').innerHTML = icon(theme === 'light' ? 'moon' : 'sun');
         try {
             localStorage.setItem('eg.look', JSON.stringify({ theme: s.theme, accent: s.accent, density: s.density }));
@@ -776,8 +789,8 @@
         c.height = innerHeight * dpr;
         const ctx = c.getContext('2d');
         ctx.scale(dpr, dpr);
-        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c9a66b';
-        const colors = [accent, '#ffffff', '#f3e3c3', accent];
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4c8dff';
+        const colors = [accent, '#ffffff', '#a5c8ff', '#22c3ee'];
         const box = $('#messages').getBoundingClientRect();
         const ox = box.left + box.width / 2, oy = box.top + box.height / 2.4;
         const parts = Array.from({ length: 110 }, () => {
@@ -1042,7 +1055,7 @@
         const csp = `default-src 'none'; img-src data: cid:${remoteOk ? ' https: http:' : ''}; style-src 'unsafe-inline'; font-src data:${remoteOk ? ' https:' : ''}`;
         const doc = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank">
             <style>html,body{margin:0}body{padding:20px;font:14.5px/1.55 -apple-system,'Segoe UI',Roboto,Inter,sans-serif;color:#1d1d2b;background:#fff;word-wrap:break-word;overflow-wrap:anywhere}
-            img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ccc;margin:8px 0;padding-left:12px;color:#555}a{color:#7a5a1f}${remoteOk ? '' : 'img[src^="http:"],img[src^="https:"]{visibility:hidden}'}</style></head><body>${m.html}</body></html>`;
+            img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ccc;margin:8px 0;padding-left:12px;color:#555}a{color:#2563eb}${remoteOk ? '' : 'img[src^="http:"],img[src^="https:"]{visibility:hidden}'}</style></head><body>${m.html}</body></html>`;
         const frame = h('<iframe class="body-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="Message body"></iframe>');
         frame.srcdoc = doc;
         host.replaceChildren(frame);
@@ -1688,6 +1701,101 @@
         };
     }
 
+    /* ================= profile photo cropper ================= */
+
+    function cropPhoto(file, done) {
+        if (!/^image\//.test(file.type)) return toast('Pick an image file', { error: true });
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            toast('Couldn’t read that image. Try a JPG or PNG.', { error: true });
+        };
+        img.onload = () => {
+            const V = 280;
+            const base = Math.max(V / img.naturalWidth, V / img.naturalHeight);
+            let zoom = 1, s = base, ox = (V - img.naturalWidth * s) / 2, oy = (V - img.naturalHeight * s) / 2;
+            const back = h(`<div class="modal-back" style="z-index:65"><div class="modal cropper">
+                <div class="modal-head"><h2>Position your photo</h2><button class="icon-btn" data-close>${icon('x')}</button></div>
+                <div class="modal-body">
+                    <div class="crop-stage"><canvas width="${V * 2}" height="${V * 2}"></canvas><div class="crop-ring"></div></div>
+                    <div class="crop-zoom">${icon('image')}<input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom">${icon('image')}</div>
+                    <p class="hint" style="text-align:center;margin:6px 0 0">Drag to reposition · scroll or slide to zoom</p>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>${icon('check')} Save photo</button></div>
+                </div></div></div>`);
+            document.body.append(back);
+            const canvas = $('canvas', back);
+            const ctx = canvas.getContext('2d');
+            const clamp = () => {
+                const w = img.naturalWidth * s, hh = img.naturalHeight * s;
+                ox = Math.min(0, Math.max(V - w, ox));
+                oy = Math.min(0, Math.max(V - hh, oy));
+            };
+            const paint = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, ox * 2, oy * 2, img.naturalWidth * s * 2, img.naturalHeight * s * 2);
+            };
+            const setZoom = z => {
+                zoom = Math.max(1, Math.min(4, z));
+                const cx = (V / 2 - ox) / s, cy = (V / 2 - oy) / s;
+                s = base * zoom;
+                ox = V / 2 - cx * s;
+                oy = V / 2 - cy * s;
+                clamp();
+                paint();
+                $('input[type=range]', back).value = zoom;
+            };
+            paint();
+            let drag = null;
+            canvas.addEventListener('pointerdown', e => {
+                drag = { x: e.clientX, y: e.clientY, ox, oy };
+                canvas.setPointerCapture(e.pointerId);
+            });
+            canvas.addEventListener('pointermove', e => {
+                if (!drag) return;
+                const scale = V / canvas.getBoundingClientRect().width;
+                ox = drag.ox + (e.clientX - drag.x) * scale;
+                oy = drag.oy + (e.clientY - drag.y) * scale;
+                clamp();
+                paint();
+            });
+            canvas.addEventListener('pointerup', () => (drag = null));
+            canvas.addEventListener('wheel', e => {
+                e.preventDefault();
+                setZoom(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08));
+            }, { passive: false });
+            $('input[type=range]', back).addEventListener('input', e => setZoom(Number(e.target.value)));
+            const close = () => {
+                back.remove();
+                URL.revokeObjectURL(url);
+            };
+            back.addEventListener('click', async e => {
+                if (e.target === back || e.target.closest('[data-close]')) return close();
+                if (!e.target.closest('[data-save]')) return;
+                const out = document.createElement('canvas');
+                out.width = out.height = 320;
+                out.getContext('2d').drawImage(img, -ox / s, -oy / s, V / s, V / s, 0, 0, 320, 320);
+                const btn = e.target.closest('[data-save]');
+                btn.disabled = true;
+                try {
+                    const r = await api('/api/profile/photo', { method: 'PUT', body: { dataUrl: out.toDataURL('image/jpeg', 0.9) } });
+                    state.me.photo = r.photo;
+                    missingPhotos.delete(state.me.email);
+                    close();
+                    refreshMe();
+                    renderList();
+                    if (state.current) renderReader();
+                    done && done();
+                    toast('Looking good. Photo updated.');
+                } catch (err) {
+                    btn.disabled = false;
+                    toast(err.message, { error: true });
+                }
+            });
+        };
+        img.src = url;
+    }
+
     /* ================= settings ================= */
 
     const SIG_TEMPLATES = {
@@ -1704,11 +1812,12 @@
             <div class="modal-head"><h2>Settings</h2><button class="icon-btn" data-close>${icon('x')}</button></div>
             <div class="settings">
                 <nav>
+                    <button data-tab="profile">${icon('user')} Profile</button>
                     <button data-tab="general">${icon('settings')} General</button>
                     <button data-tab="look">${icon('palette')} Appearance</button>
                     <button data-tab="sigs">${icon('signature')} Signatures</button>
                     <button data-tab="keys">${icon('keyboard')} Shortcuts</button>
-                    <button data-tab="account">${icon('user')} Account</button>
+                    <button data-tab="account">${icon('lock')} Account</button>
                 </nav>
                 <section></section>
             </div></div></div>`);
@@ -1730,14 +1839,21 @@
         const tabs = {
             general() {
                 section.innerHTML = `<h3>General</h3><p class="hint">How your inbox behaves.</p>
-                    <div class="row"><div class="lbl"><b>Display name</b><small>Shown to people you email</small></div><input class="input" data-s="displayName" value="${esc(s.displayName)}" placeholder="Your name"></div>
                     <div class="row"><div class="lbl"><b>Undo send</b><small>Grace period before mail actually leaves</small></div>
                         <div class="seg" data-seg="undoSendSeconds">${[0, 5, 10, 20].map(n => `<button data-v="${n}" class="${s.undoSendSeconds === n ? 'on' : ''}">${n ? n + 's' : 'Off'}</button>`).join('')}</div></div>
                     <div class="row"><div class="lbl"><b>Load remote images</b><small>Off blocks tracking pixels until you allow them</small></div><label class="switch"><input type="checkbox" data-s="loadRemoteImages" ${s.loadRemoteImages ? 'checked' : ''}><span></span></label></div>
+                    <div class="row"><div class="lbl"><b>Sender photos</b><small>Show Gravatars and company logos. Fetched by your server, so senders never see your IP.</small></div><label class="switch"><input type="checkbox" data-s="senderPhotos" ${s.senderPhotos !== false ? 'checked' : ''}><span></span></label></div>
                     <div class="row"><div class="lbl"><b>Save a copy to Sent</b><small>Turn off if Purelymail already saves outgoing mail for you</small></div><label class="switch"><input type="checkbox" data-s="saveSentCopy" ${s.saveSentCopy ? 'checked' : ''}><span></span></label></div>
                     <div class="row"><div class="lbl"><b>Desktop notifications</b><small>Get pinged when new mail lands</small></div><button class="btn" data-notify>${'Notification' in window && Notification.permission === 'granted' ? icon('check') + ' Enabled' : icon('bell') + ' Enable'}</button></div>`;
-                $('[data-s=displayName]', section).addEventListener('change', e => saveSettings({ displayName: e.target.value.trim() }));
-                $$('input[type=checkbox][data-s]', section).forEach(i => i.addEventListener('change', () => saveSettings({ [i.dataset.s]: i.checked })));
+                $$('input[type=checkbox][data-s]', section).forEach(i =>
+                    i.addEventListener('change', async () => {
+                        await saveSettings({ [i.dataset.s]: i.checked });
+                        if (i.dataset.s === 'senderPhotos') {
+                            missingPhotos.clear();
+                            renderList();
+                        }
+                    })
+                );
                 $('[data-notify]', section).onclick = async e => {
                     if (!('Notification' in window)) return toast('Notifications aren’t supported here', { error: true });
                     const p = await Notification.requestPermission();
@@ -1745,7 +1861,7 @@
                 };
             },
             look() {
-                const accents = ['#c9a66b', '#d0784a', '#e26d8f', '#8b7cf6', '#5b7cfa', '#3fae8c', '#a3a3ad', '#e5484d'];
+                const accents = ['#4c8dff', '#22c3ee', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#e5484d', '#94a3b8'];
                 section.innerHTML = `<h3>Appearance</h3><p class="hint">Make it yours.</p>
                     <div class="row"><div class="lbl"><b>Theme</b></div><div class="seg" data-seg="theme">${['dark', 'light', 'system'].map(t => `<button data-v="${t}" class="${s.theme === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
                     <div class="row"><div class="lbl"><b>Accent color</b></div><div class="swatches">${accents.map(a => `<button class="swatch${s.accent === a ? ' on' : ''}" data-accent="${a}" style="background:${a}" aria-label="${a}"></button>`).join('')}<label class="swatch swatch-custom${accents.includes(s.accent) ? '' : ' on'}" title="Custom"><input type="color" value="${esc(s.accent)}"></label></div></div>
@@ -1846,6 +1962,59 @@
                         sigs = state.settings.signatures.map(x => ({ ...x }));
                         draw();
                     };
+                };
+                draw();
+            },
+            profile() {
+                const draw = () => {
+                    section.innerHTML = `<h3>Profile</h3><p class="hint">How you appear across EderveenGroup.</p>
+                        <div class="profile-card">
+                            <label class="profile-photo" title="Change photo">${avatar({ address: state.me.email, name: s.displayName }, 'xl')}
+                                <span class="profile-photo-edit">${icon('image')}</span><input type="file" accept="image/*" hidden data-photo-input></label>
+                            <div class="profile-meta">
+                                <b>${esc(s.displayName || state.me.email.split('@')[0])}</b><small>${esc(state.me.email)}</small>
+                                <div class="profile-actions">
+                                    <button class="btn btn-primary" data-photo-pick>${icon('image')} ${state.me.photo ? 'Change photo' : 'Upload photo'}</button>
+                                    ${state.me.photo ? `<button class="btn" data-photo-remove>Remove</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row"><div class="lbl"><b>Display name</b><small>Shown to people you email</small></div><input class="input" data-s="displayName" value="${esc(s.displayName)}" placeholder="Your name"></div>
+                        <p class="hint" style="margin-top:14px">Your photo shows everywhere in EderveenGroup, including for colleagues who use it. Email has no universal profile picture, so people on Gmail or Outlook see it if you also add it at <a href="https://gravatar.com" target="_blank" rel="noopener">gravatar.com</a>.</p>`;
+                    const input = $('[data-photo-input]', section);
+                    $('[data-photo-pick]', section).onclick = () => input.click();
+                    input.onchange = () => input.files[0] && cropPhoto(input.files[0], draw);
+                    const card = $('.profile-photo', section);
+                    card.addEventListener('dragover', e => {
+                        e.preventDefault();
+                        card.classList.add('drag');
+                    });
+                    card.addEventListener('dragleave', () => card.classList.remove('drag'));
+                    card.addEventListener('drop', e => {
+                        e.preventDefault();
+                        card.classList.remove('drag');
+                        const f = e.dataTransfer.files[0];
+                        if (f) cropPhoto(f, draw);
+                    });
+                    const rm = $('[data-photo-remove]', section);
+                    if (rm)
+                        rm.onclick = async () => {
+                            try {
+                                state.me.photo = (await api('/api/profile/photo', { method: 'DELETE' })).photo;
+                                missingPhotos.delete(state.me.email);
+                                refreshMe();
+                                renderList();
+                                draw();
+                                toast('Photo removed');
+                            } catch (err) {
+                                toast(err.message, { error: true });
+                            }
+                        };
+                    $('[data-s=displayName]', section).addEventListener('change', async e => {
+                        await saveSettings({ displayName: e.target.value.trim() });
+                        refreshMe();
+                        draw();
+                    });
                 };
                 draw();
             },
@@ -2127,6 +2296,15 @@
     });
     matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => state.settings && state.settings.theme === 'system' && applyLook());
 
+    function refreshMe() {
+        $('#me-email').textContent = state.settings.displayName || state.me.email;
+        const el = $('#me-avatar');
+        const fresh = h(avatar({ address: state.me.email, name: state.settings.displayName }, 'sm'));
+        fresh.id = 'me-avatar';
+        el.replaceWith(fresh);
+    }
+    $('.me').addEventListener('click', () => openSettings('profile'));
+
     /* ================= boot ================= */
 
     (async function init() {
@@ -2143,8 +2321,7 @@
             // ignore
         }
         applyLook();
-        $('#me-email').textContent = state.settings.displayName || state.me.email;
-        $('#me-avatar').outerHTML = avatar({ address: state.me.email, name: state.settings.displayName }, 'sm');
+        refreshMe();
         showEmptyReader();
         await loadFolders();
         await loadMessages();

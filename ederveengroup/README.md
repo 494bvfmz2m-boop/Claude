@@ -12,13 +12,14 @@ A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It 
 - **Rich composer** with formatting, recipient chips with contact autocomplete, Cc/Bcc, drag-and-drop attachments, reply / reply all / forward (forwarded attachments included), a "you forgot the attachment" check, and **undo send**.
 - **Drafts** auto-save to your Purelymail Drafts folder. Close the composer and it's saved; open a draft to keep going.
 - **Signatures.** Create as many as you want with the rich editor or raw HTML, start from templates, set separate defaults for new mail and for replies, and switch while composing.
+- **Profile pictures:** upload your own photo with a drag-and-zoom cropper (Settings, then Profile, or click your name in the sidebar). Colleagues who use the same EderveenGroup server see each other's photos. Other senders get their Gravatar or their company's logo, fetched and cached by your server so senders never see your IP address. You can turn sender photos off in Settings.
 - **Snooze:** hide a conversation until later today, tomorrow, the weekend, next week or any time you pick, and it comes back to the Inbox as unread. Snoozes wake whenever you have EderveenGroup open (the server only holds your password inside your session cookie, so it can't act while you're away).
 - **Fast triage:** quick actions appear when you hover a row (archive, snooze, read, delete), swipe right to archive and left to delete on phones, and messages are grouped by date with sticky headers.
 - **Little moments:** a splash where the logo assembles itself, a welcome panel with a live clock and your counts, a time-of-day greeting, a circular reveal when switching theme, the composer flying off when you send, and gold confetti when you hit Inbox Zero.
 - **Organize:** star, read/unread, archive, spam, delete (with undo), move, drag messages onto folders, multi-select (shift-click ranges), create/delete folders, empty Trash/Junk, and right-click menus.
 - **Keyboard first:** `c` `/` `j` `k` `r` `a` `f` `e` `b` `#` `s` `u` `x`, a `Ctrl K` command palette, and `?` for the full list.
 - **Feels instant:** messages are prefetched on hover, and folders you've visited render from cache while refreshing in the background.
-- **Make it yours:** dark/light/system theme (warm black and paper-white), champagne-gold accent or any colour you pick, comfortable/compact density.
+- **Make it yours:** dark/light/system theme, graphite with an electric-blue accent, or any colour you pick, comfortable/compact density.
 - **Mobile friendly** with a slide-out folder drawer and a full-screen composer.
 - View original source, download `.eml`, print, and one-click unsubscribe.
 
@@ -60,6 +61,7 @@ server.js          Express app and JSON API
 lib/session.js     Encrypted 30-day cookie sessions
 lib/mail.js        IMAP pool (imapflow), message parsing, SMTP send, drafts, IDLE
 lib/sanitize.js    HTML sanitizing for incoming mail and composed mail
-lib/store.js       Per-user settings, signatures and contacts (JSON files)
+lib/store.js       Per-user settings, signatures, snoozes and contacts (JSON files)
+lib/avatars.js     Uploaded profile photos plus cached Gravatar / company-logo lookups
 public/            Login page and the single-page app (vanilla JS, no build step)
 ```

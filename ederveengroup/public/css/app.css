@@ -1,52 +1,52 @@
 /* ================= EderveenGroup ================= */
 :root {
-    --accent: #c9a66b;
-    --on-accent: #1a1409;
-    --bg: #09090b;
-    --surface: #111113;
-    --surface-2: #17171a;
-    --surface-3: #1e1e22;
-    --hover: rgba(255, 255, 255, 0.035);
-    --active: rgba(255, 255, 255, 0.065);
-    --line: rgba(255, 255, 255, 0.07);
-    --line-2: rgba(255, 255, 255, 0.12);
-    --text: #f2f2f3;
-    --text-2: #a7a7b0;
-    --text-3: #6f6f79;
-    --danger: #f2767b;
-    --success: #5fd49a;
-    --warn: #e8b85c;
-    --accent-ink: var(--accent);
-    --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
-    --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
-    --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--line);
-    --shadow-md: 0 12px 32px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line);
+    --accent: #4c8dff;
+    --on-accent: #ffffff;
+    --bg: #0b0d12;
+    --surface: #12151c;
+    --surface-2: #181c25;
+    --surface-3: #1f2430;
+    --hover: rgba(150, 175, 230, 0.045);
+    --active: rgba(150, 175, 230, 0.085);
+    --line: rgba(160, 185, 235, 0.08);
+    --line-2: rgba(160, 185, 235, 0.14);
+    --text: #f1f4f9;
+    --text-2: #a3acbd;
+    --text-3: #6b7487;
+    --danger: #ff6b7a;
+    --success: #34d399;
+    --warn: #fbbf24;
+    --accent-ink: color-mix(in srgb, var(--accent) 82%, #fff);
+    --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+    --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--line);
+    --shadow-md: 0 12px 32px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--line);
     --ease: cubic-bezier(0.22, 1, 0.36, 1);
     --ui: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
     --row-pad: 12px;
-    --grain-opacity: 0.045;
+    --grain-opacity: 0.035;
     color-scheme: dark;
 }
 :root[data-theme='light'] {
-    --bg: #f1efea;
-    --surface: #fbfaf8;
-    --surface-2: #f4f2ee;
-    --surface-3: #ebe8e2;
-    --hover: rgba(30, 26, 20, 0.035);
-    --active: rgba(30, 26, 20, 0.065);
-    --line: rgba(30, 26, 20, 0.08);
-    --line-2: rgba(30, 26, 20, 0.14);
-    --text: #1a1916;
-    --text-2: #57544d;
-    --text-3: #8f8b82;
-    --danger: #d4444b;
-    --success: #23935e;
-    --warn: #b7791f;
-    --shadow-lg: 0 30px 80px -24px rgba(60, 45, 20, 0.28), 0 0 0 1px var(--line);
-    --shadow-md: 0 12px 30px -14px rgba(60, 45, 20, 0.25), 0 0 0 1px var(--line);
-    --grain-opacity: 0.06;
-    --accent-ink: color-mix(in srgb, var(--accent) 68%, #000);
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --surface-3: #eaeef4;
+    --hover: rgba(15, 23, 42, 0.035);
+    --active: rgba(15, 23, 42, 0.06);
+    --line: rgba(15, 23, 42, 0.08);
+    --line-2: rgba(15, 23, 42, 0.14);
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #8a94a6;
+    --danger: #e5394d;
+    --success: #059669;
+    --warn: #d97706;
+    --shadow-lg: 0 30px 80px -24px rgba(15, 23, 42, 0.25), 0 0 0 1px var(--line);
+    --shadow-md: 0 12px 30px -14px rgba(15, 23, 42, 0.2), 0 0 0 1px var(--line);
+    --grain-opacity: 0.03;
+    --accent-ink: color-mix(in srgb, var(--accent) 85%, #000);
     color-scheme: light;
 }
 :root[data-density='compact'] { --row-pad: 7px; }
@@ -671,3 +671,34 @@ kbd {
 .w-stats span { color: var(--text-3); font-size: 12.5px; }
 .w-tip { margin-top: 28px; color: var(--text-3); font-size: 13px; animation: rise .8s var(--ease) .32s both; }
 .w-tip kbd { margin: 0 1px; }
+
+/* ================= profile photos ================= */
+.avatar { position: relative; overflow: hidden; }
+.av-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; background: #fff; opacity: 0; transition: opacity .3s var(--ease); }
+.av-img.ok { opacity: 1; }
+.avatar.xl { width: 96px; height: 96px; font-size: 30px; }
+.me { cursor: pointer; border-radius: 10px; transition: background .18s; }
+.me:hover { background: var(--hover); }
+
+.profile-card { display: flex; align-items: center; gap: 22px; padding: 20px; margin-bottom: 8px; border-radius: 16px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.profile-photo { position: relative; cursor: pointer; border-radius: 50%; flex: none; }
+.profile-photo .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent-line); }
+.profile-photo-edit { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, .45); opacity: 0; transition: opacity .2s; }
+.profile-photo:hover .profile-photo-edit, .profile-photo.drag .profile-photo-edit { opacity: 1; }
+.profile-photo.drag .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent); }
+.profile-meta { min-width: 0; }
+.profile-meta b { display: block; font-family: var(--display); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.profile-meta small { color: var(--text-3); }
+.profile-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+.cropper { max-width: 420px; }
+.crop-stage { position: relative; width: 280px; height: 280px; margin: 4px auto 0; border-radius: 16px; overflow: hidden; background: var(--surface-3); touch-action: none; }
+.crop-stage canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.crop-stage canvas:active { cursor: grabbing; }
+.crop-ring { position: absolute; inset: 0; pointer-events: none; border-radius: 16px; background: radial-gradient(circle at center, transparent 139px, rgba(0, 0, 0, .55) 140px); }
+.crop-ring::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
+.crop-zoom { display: flex; align-items: center; gap: 12px; margin: 18px auto 0; max-width: 280px; color: var(--text-3); }
+.crop-zoom .i:first-child { width: 14px; height: 14px; }
+.crop-zoom input { flex: 1; accent-color: var(--accent); }
+@media (max-width: 760px) { .profile-card { flex-direction: column; text-align: center; } .profile-actions { justify-content: center; } }
+.modal-body { padding: 20px 24px 24px; overflow-y: auto; }
