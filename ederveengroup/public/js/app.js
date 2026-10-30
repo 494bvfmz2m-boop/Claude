@@ -107,7 +107,7 @@
         allowImagesFor: new Set()
     };
 
-    const FOLDER_ICONS = { '\\Inbox': 'inbox', '\\Sent': 'send', '\\Drafts': 'draft', '\\Trash': 'trash', '\\Junk': 'junk', '\\Archive': 'archive', '\\Flagged': 'star', '\\All': 'mail' };
+    const FOLDER_ICONS = { '\\Snoozed': 'clock', '\\Inbox': 'inbox', '\\Sent': 'send', '\\Drafts': 'draft', '\\Trash': 'trash', '\\Junk': 'junk', '\\Archive': 'archive', '\\Flagged': 'star', '\\All': 'mail' };
     const folderInfo = path => state.folders.find(f => f.path === path) || { path, name: path };
     const specialPath = use => (state.folders.find(f => f.specialUse === use) || {}).path;
     const isDrafts = () => folderInfo(state.folder).specialUse === '\\Drafts';
@@ -156,12 +156,12 @@
         const special = state.folders.filter(f => f.specialUse);
         const custom = state.folders.filter(f => !f.specialUse);
         const row = f => {
-            const unread = f.specialUse === '\\Drafts' ? f.messages : f.unseen;
+            const unread = ['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? f.messages : f.unseen;
             const showUnread = unread && !['\\Sent', '\\Trash', '\\Archive'].includes(f.specialUse);
             const depth = f.delimiter ? f.path.split(f.delimiter).length - 1 : 0;
             return `<button class="folder${f.path === state.folder ? ' active' : ''}" data-path="${esc(f.path)}" style="${depth ? `padding-left:${12 + depth * 16}px` : ''}">
                 ${icon(FOLDER_ICONS[f.specialUse] || 'folder')}<span class="name">${esc(f.name)}</span>
-                ${showUnread ? `<span class="count${f.specialUse === '\\Drafts' ? '' : ' unread'}">${unread}</span>` : ''}</button>`;
+                ${showUnread ? `<span class="count${['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? '' : ' unread'}">${unread}</span>` : ''}</button>`;
         };
         $('#folders').innerHTML =
             special.map(row).join('') +
@@ -169,6 +169,10 @@
             custom.map(row).join('');
         const inbox = state.folders.find(f => f.path === 'INBOX');
         const n = inbox ? inbox.unseen : 0;
+        if (state.me) {
+            renderGreeting();
+            if (!state.openUid && $('.welcome')) renderWelcome();
+        }
         document.title = `${n ? `(${n}) ` : ''}${folderInfo(state.folder).name} · EderveenGroup`;
     }
 
@@ -283,6 +287,7 @@
         const token = ++listToken;
         const info = folderInfo(state.folder);
         $('#folder-title').innerHTML = esc(state.query ? `Search` : info.name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
+        if (info.specialUse === '\\Snoozed') await loadSnoozeIndex();
         const cached = listCache.get(listKey());
         if (cached && !quiet) {
             state.messages = cached.messages;
@@ -306,13 +311,47 @@
         }
     }
 
+    function greetingFor() {
+        const hr = new Date().getHours();
+        const part = hr < 5 ? 'Up late' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+        const name = (state.settings.displayName || state.me.email.split('@')[0]).split(/\s+/)[0];
+        return `${part}, ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+    }
+    function renderGreeting() {
+        const el = $('#greet');
+        const inbox = state.folder === 'INBOX' && !state.query;
+        el.classList.toggle('hidden', !inbox);
+        if (!inbox) return;
+        const unread = (folderInfo('INBOX') || {}).unseen || 0;
+        el.innerHTML = `<span>${esc(greetingFor())}</span><span class="dot"></span><span>${unread ? `<b>${unread}</b> unread` : 'all read'}</span>`;
+    }
+
+    function groupLabel(iso) {
+        const d = new Date(iso);
+        const now = new Date();
+        const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+        const diff = Math.round((day(now) - day(d)) / 864e5);
+        if (diff <= 0) return 'Today';
+        if (diff === 1) return 'Yesterday';
+        if (diff < 7) return 'This week';
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return 'Earlier this month';
+        return d.toLocaleDateString(undefined, { month: 'long', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+    }
+
+    let snoozeIndex = new Map();
     function renderList(animate = false) {
         const list = $('#messages');
         listCache.set(listKey(), { messages: state.messages, total: state.total });
+        renderGreeting();
         const start = state.page * state.pageSize;
         $('#range').textContent = state.total ? `${start + 1}–${Math.min(start + state.messages.length, state.total)} of ${state.total.toLocaleString()}` : '';
         $('#prev-page').disabled = state.page === 0;
         $('#next-page').disabled = start + state.messages.length >= state.total;
+        if (!state.messages.length && state.folder === 'INBOX' && !state.query && !state.filter && state.page === 0) {
+            list.innerHTML = inboxZero();
+            updateBulk();
+            return;
+        }
         if (!state.messages.length) {
             const zero = state.query || state.filter
                 ? ['search', 'Nothing matches', 'Try a different search or filter.']
@@ -322,18 +361,34 @@
             return;
         }
         const showTo = isSentLike();
+        const inSnoozed = folderInfo(state.folder).specialUse === '\\Snoozed';
+        const grouped = !state.query && !inSnoozed;
+        let lastGroup = null;
         list.innerHTML = state.messages
             .map((m, i) => {
+                let header = '';
+                if (grouped) {
+                    const g = groupLabel(m.date);
+                    if (g !== lastGroup) header = `<div class="group-label">${esc(g)}</div>`;
+                    lastGroup = g;
+                }
+                const snooze = inSnoozed && m.messageId ? snoozeIndex.get(m.messageId) : null;
                 const unread = !m.flags.includes('\\Seen');
                 const starred = m.flags.includes('\\Flagged');
                 const who = showTo ? m.to[0] : m.from[0];
                 const whoText = showTo ? `To: ${m.to.map(personName).join(', ') || '(no recipients)'}` : personName(who) || '(unknown)';
-                return `<div class="msg${animate ? ' enter' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
+                return `${header}<div class="msg${animate ? ' enter' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${state.checked.has(m.uid) ? ' checked' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
                     <div class="sel-toggle" title="Select">${state.checked.has(m.uid) ? `<div class="avatar check">${icon('check')}</div>` : avatar(who)}</div>
                     <div class="msg-body">
                         <div class="msg-top"><span class="msg-from">${esc(whoText)}</span>
                             <span class="msg-meta">${m.flags.includes('\\Answered') ? icon('reply') : ''}${m.hasAttachments ? icon('clip') : ''}</span>
-                            <span class="msg-date">${fmtDate(m.date)}</span></div>
+                            ${snooze ? `<span class="msg-date until">${icon('clock')}${esc(fmtUntil(snooze.until))}</span>` : `<span class="msg-date">${fmtDate(m.date)}</span>`}
+                            <span class="row-actions">
+                                <button data-row="archive" title="Archive (E)">${icon('archive')}</button>
+                                <button data-row="snooze" title="Snooze (B)">${icon('clock')}</button>
+                                <button data-row="read" title="${unread ? 'Mark read' : 'Mark unread'}">${icon(unread ? 'mailOpen' : 'mail')}</button>
+                                <button data-row="delete" title="Delete (#)">${icon('trash')}</button>
+                            </span></div>
                         <div class="msg-top"><div class="msg-subject" style="flex:1">${esc(m.subject || '(no subject)')}</div>
                             <button class="star-btn${starred ? ' on' : ''}" title="Star (S)">${icon('star')}</button></div>
                         <div class="msg-preview">${esc(m.preview)}</div>
@@ -348,6 +403,18 @@
         if (!row) return;
         const uid = Number(row.dataset.uid);
         if (e.target.closest('.star-btn')) return toggleStar([uid]);
+        const act = e.target.closest('[data-row]');
+        if (act) {
+            const a = act.dataset.row;
+            if (a === 'archive') archive([uid]);
+            if (a === 'delete') remove([uid]);
+            if (a === 'read') setSeen([uid], !state.messages.find(m => m.uid === uid).flags.includes('\\Seen'));
+            if (a === 'snooze') {
+                const r = act.getBoundingClientRect();
+                snoozeMenu(r.left - 180, r.bottom + 4, [uid]);
+            }
+            return;
+        }
         if (e.target.closest('.sel-toggle') || e.metaKey || e.ctrlKey || e.shiftKey) return toggleCheck(uid, e.shiftKey);
         openMessage(uid);
     });
@@ -378,12 +445,70 @@
             { icon: read ? 'mail' : 'mailOpen', label: read ? 'Mark unread' : 'Mark read', run: () => setSeen(uids, !read) },
             { icon: 'star', label: m.flags.includes('\\Flagged') ? 'Unstar' : 'Star', run: () => toggleStar(uids) },
             { icon: 'archive', label: 'Archive', run: () => archive(uids) },
+            { icon: 'clock', label: 'Snooze…', run: () => snoozeMenu(e.clientX, e.clientY, uids) },
             { icon: 'folder', label: 'Move to…', run: () => pickFolder(e.clientX, e.clientY, uids) },
             { icon: 'junk', label: 'Report spam', run: () => moveTo(uids, '\\Junk') },
             '-',
             { icon: 'trash', label: 'Delete', danger: true, run: () => remove(uids) }
         ]);
     });
+
+    // cursor spotlight on rows
+    $('#messages').addEventListener('mousemove', e => {
+        const row = e.target.closest('.msg');
+        if (!row) return;
+        const r = row.getBoundingClientRect();
+        row.style.setProperty('--mx', `${e.clientX - r.left}px`);
+        row.style.setProperty('--my', `${e.clientY - r.top}px`);
+    });
+
+    // touch: swipe right to archive, left to delete
+    (function swipe() {
+        let row = null, bg = null, x0 = 0, y0 = 0, dx = 0, active = false;
+        const list = $('#messages');
+        list.addEventListener('touchstart', e => {
+            row = e.target.closest('.msg');
+            if (!row) return;
+            x0 = e.touches[0].clientX;
+            y0 = e.touches[0].clientY;
+            dx = 0;
+            active = false;
+        }, { passive: true });
+        list.addEventListener('touchmove', e => {
+            if (!row) return;
+            const t = e.touches[0];
+            const mx = t.clientX - x0;
+            if (!active) {
+                if (Math.abs(mx) < 12 || Math.abs(mx) < Math.abs(t.clientY - y0)) {
+                    if (Math.abs(t.clientY - y0) > 12) row = null;
+                    return;
+                }
+                active = true;
+                bg = h(`<div class="swipe-bg"><span class="l">${icon('archive')} Archive</span><span class="r">Delete ${icon('trash')}</span></div>`);
+                bg.style.top = row.offsetTop + 'px';
+                bg.style.height = row.offsetHeight + 'px';
+                list.append(bg);
+                row.classList.add('swiping');
+            }
+            dx = mx;
+            row.style.transform = `translateX(${dx}px)`;
+            bg.dataset.dir = dx > 0 ? 'right' : 'left';
+            bg.classList.toggle('armed', Math.abs(dx) > 90);
+        }, { passive: true });
+        list.addEventListener('touchend', () => {
+            if (!row || !active) return (row = null);
+            const r = row, b = bg, uid = Number(r.dataset.uid), go = Math.abs(dx) > 90;
+            r.classList.remove('swiping');
+            r.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
+            r.style.transform = go ? `translateX(${dx > 0 ? '110%' : '-110%'})` : '';
+            setTimeout(() => {
+                b.remove();
+                r.style.transition = '';
+                if (go) (dx > 0 ? archive : remove)([uid]);
+            }, 280);
+            row = null;
+        });
+    })();
 
     function toggleCheck(uid, range) {
         if (range && state.lastChecked != null) {
@@ -490,6 +615,7 @@
         state.messages = state.messages.filter(m => !uids.includes(m.uid));
         state.total = Math.max(0, state.total - uids.length);
         uids.forEach(u => state.checked.delete(u));
+        if (!state.messages.length && state.folder === 'INBOX' && !state.query && !state.filter && state.page === 0 && state.total === 0) setTimeout(confetti, 120);
         if (state.openUid && uids.includes(state.openUid)) {
             const next = state.messages[Math.min(idx, state.messages.length - 1)];
             if (next && matchMedia('(min-width: 761px)').matches) openMessage(next.uid);
@@ -550,6 +676,130 @@
         showMenu(x, y, targets.map(f => ({ icon: FOLDER_ICONS[f.specialUse] || 'folder', label: f.name, run: () => moveTo(uids, f.path) })));
     }
 
+    /* ================= snooze ================= */
+
+    function fmtUntil(ts) {
+        const d = new Date(ts);
+        const now = new Date();
+        const t = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        if (d.toDateString() === now.toDateString()) return t;
+        const tm = new Date(now);
+        tm.setDate(now.getDate() + 1);
+        if (d.toDateString() === tm.toDateString()) return `Tomorrow ${t}`;
+        return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} ${t}`;
+    }
+    function snoozeOptions() {
+        const at = (days, hour) => {
+            const d = new Date();
+            d.setDate(d.getDate() + days);
+            d.setHours(hour, 0, 0, 0);
+            return d;
+        };
+        const now = new Date();
+        const later = new Date(now.getTime() + 3 * 36e5);
+        later.setMinutes(0, 0, 0);
+        const sat = at((6 - now.getDay() + 7) % 7 || 7, 9);
+        const mon = at((8 - now.getDay()) % 7 || 7, 8);
+        const opts = [];
+        if (now.getHours() < 18) opts.push({ icon: 'coffee', label: 'Later today', when: later });
+        opts.push({ icon: 'sunrise', label: 'Tomorrow', when: at(1, 8) });
+        if (now.getDay() >= 1 && now.getDay() <= 4) opts.push({ icon: 'sparkle', label: 'This weekend', when: sat });
+        opts.push({ icon: 'calendar', label: 'Next week', when: mon });
+        return opts;
+    }
+    function snoozeMenu(x, y, uids) {
+        const items = snoozeOptions().map(o => ({ icon: o.icon, label: o.label, hint: fmtUntil(o.when), run: () => snooze(uids, o.when) }));
+        items.push('-', { icon: 'clock', label: 'Pick date & time…', run: () => pickSnoozeTime(uids) });
+        showMenu(x, y, items);
+    }
+    function pickSnoozeTime(uids) {
+        const d = new Date(Date.now() + 864e5);
+        d.setHours(9, 0, 0, 0);
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+        const back = h(`<div class="modal-back"><div class="modal snooze-pick"><div class="modal-head"><h2>Snooze until</h2><button class="icon-btn" data-close>${icon('x')}</button></div>
+            <div class="modal-body"><input class="input" type="datetime-local" value="${local}"><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-ok>${icon('clock')} Snooze</button></div></div></div></div>`);
+        document.body.append(back);
+        back.addEventListener('click', e => {
+            if (e.target === back || e.target.closest('[data-close]')) back.remove();
+            if (e.target.closest('[data-ok]')) {
+                const when = new Date($('input', back).value);
+                if (!(when > new Date())) return toast('Pick a time in the future', { error: true });
+                back.remove();
+                snooze(uids, when);
+            }
+        });
+        $('input', back).focus();
+    }
+    async function snooze(uids, when) {
+        const from = state.folder;
+        dropFromList(uids);
+        try {
+            await api('/api/messages/snooze', { method: 'POST', body: { folder: from, uids, until: when.toISOString() } });
+            toast(`Snoozed until ${fmtUntil(when)}`);
+            loadFolders();
+        } catch (e) {
+            toast(e.message, { error: true });
+            loadMessages({ quiet: true });
+        }
+    }
+    async function loadSnoozeIndex() {
+        try {
+            snoozeIndex = new Map((await api('/api/snoozes')).map(s => [s.messageId, s]));
+        } catch {
+            // labels are optional
+        }
+    }
+
+    /* ================= inbox zero ================= */
+
+    const ZERO_LINES = ['Nothing left. Go do something great.', 'Clean slate. Enjoy it.', 'Every thread tied up.', 'Inbox handled. Coffee earned.'];
+    function inboxZero() {
+        return `<div class="empty zero"><div>
+            <svg class="zero-art" viewBox="0 0 200 140" fill="none" aria-hidden="true">
+                <defs><linearGradient id="zg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>
+                <circle class="sun" cx="100" cy="92" r="34" fill="url(#zg)"/>
+                <g class="rays" stroke="currentColor" stroke-width="1" stroke-linecap="round">${Array.from({ length: 9 }, (_, i) => {
+                    const a = Math.PI + (i * Math.PI) / 8;
+                    return `<line x1="${100 + Math.cos(a) * 46}" y1="${92 + Math.sin(a) * 46}" x2="${100 + Math.cos(a) * 58}" y2="${92 + Math.sin(a) * 58}" style="animation-delay:${i * 60}ms"/>`;
+                }).join('')}</g>
+                <path d="M20 92h160" stroke="currentColor" stroke-width="1" opacity=".5"/><path d="M50 104h100M75 116h50" stroke="currentColor" stroke-width="1" opacity=".25"/>
+            </svg>
+            <h3>Inbox zero.</h3><p>${ZERO_LINES[Math.floor(Math.random() * ZERO_LINES.length)]}</p></div></div>`;
+    }
+
+    function confetti() {
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const c = h('<canvas class="confetti"></canvas>');
+        document.body.append(c);
+        const dpr = devicePixelRatio || 1;
+        c.width = innerWidth * dpr;
+        c.height = innerHeight * dpr;
+        const ctx = c.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c9a66b';
+        const colors = [accent, '#ffffff', '#f3e3c3', accent];
+        const box = $('#messages').getBoundingClientRect();
+        const ox = box.left + box.width / 2, oy = box.top + box.height / 2.4;
+        const parts = Array.from({ length: 110 }, () => {
+            const a = Math.random() * Math.PI * 2, v = 4 + Math.random() * 7;
+            return { x: ox, y: oy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, r: 2 + Math.random() * 4, rot: Math.random() * 6, vr: (Math.random() - .5) * .4, c: colors[(Math.random() * colors.length) | 0], life: 1 };
+        });
+        const tick = () => {
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            let alive = 0;
+            for (const p of parts) {
+                p.vy += 0.22; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 0.009;
+                if (p.life <= 0) continue;
+                alive++;
+                ctx.save(); ctx.globalAlpha = Math.min(1, p.life * 1.6); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+                ctx.fillStyle = p.c; ctx.fillRect(-p.r, -p.r / 2.5, p.r * 2, p.r / 1.25); ctx.restore();
+            }
+            if (alive) requestAnimationFrame(tick);
+            else c.remove();
+        };
+        requestAnimationFrame(tick);
+    }
+
     /* ================= menus ================= */
 
     function showMenu(x, y, items) {
@@ -557,7 +807,7 @@
         const menu = h('<div class="menu" id="menu"></div>');
         items.forEach(it => {
             if (it === '-') return menu.append(document.createElement('hr'));
-            const b = h(`<button class="${it.danger ? 'danger' : ''}">${icon(it.icon)}<span>${esc(it.label)}</span></button>`);
+            const b = h(`<button class="${it.danger ? 'danger' : ''}">${icon(it.icon)}<span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
             b.onclick = () => {
                 closeMenu();
                 it.run();
@@ -577,12 +827,66 @@
 
     /* ================= reader ================= */
 
+    const TIPS = [
+        ['B', 'snoozes a conversation until you actually need it.'],
+        ['E', 'archives. Swipe right does the same on your phone.'],
+        ['Ctrl K', 'opens the command palette from anywhere.'],
+        ['J K', 'fly through conversations without the mouse.'],
+        ['Shift', '+ click selects a whole range of messages.'],
+        ['Ctrl Enter', 'sends. You still get a few seconds to undo.']
+    ];
+    let tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+
     function showEmptyReader() {
         state.openUid = null;
         state.current = null;
-        $('#reader').innerHTML = `<div class="empty"><div><div class="big">${icon('mail')}</div><h3>Nothing selected</h3><p>Select a conversation to read it here.<br>Press <kbd>C</kbd> to write, <kbd>?</kbd> for shortcuts.</p></div></div>`;
         $$('.msg.selected').forEach(x => x.classList.remove('selected'));
+        renderWelcome();
     }
+
+    function renderWelcome() {
+        if (state.openUid || !state.me) return;
+        const now = new Date();
+        const count = use => {
+            const f = state.folders.find(x => x.specialUse === use);
+            return f ? (use === '\\Inbox' ? f.unseen : f.messages) : 0;
+        };
+        const stats = [
+            ['\\Inbox', 'Unread', 'inbox'],
+            ['\\Snoozed', 'Snoozed', 'clock'],
+            ['\\Drafts', 'Drafts', 'draft']
+        ];
+        const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const existing = $('.welcome');
+        if (existing) {
+            // refresh in place so the entrance animation doesn't replay
+            $('.w-time', existing).textContent = time;
+            $$('.w-stats button', existing).forEach((btn, i) => {
+                const path = stats[i][0] === '\\Inbox' ? 'INBOX' : specialPath(stats[i][0]);
+                btn.dataset.go = path || '';
+                btn.disabled = !path;
+                $('b', btn).textContent = count(stats[i][0]);
+            });
+            return;
+        }
+        $('#reader').innerHTML = `<div class="welcome"><div class="welcome-inner">
+            <div class="w-time">${time}</div>
+            <div class="w-date">${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
+            <h3 class="w-hi">${esc(greetingFor())}.</h3>
+            <div class="w-stats">${stats
+                .map(([use, label, ic]) => {
+                    const path = use === '\\Inbox' ? 'INBOX' : specialPath(use);
+                    return `<button data-go="${esc(path || '')}" ${path ? '' : 'disabled'}>${icon(ic)}<b>${count(use)}</b><span>${label}</span></button>`;
+                })
+                .join('')}</div>
+            <div class="w-tip">${tip[0].split(' ').map(k => `<kbd>${k}</kbd>`).join(' ')} ${esc(tip[1])}</div>
+        </div></div>`;
+    }
+    setInterval(() => !state.openUid && $('.welcome') && renderWelcome(), 30000);
+    $('#reader').addEventListener('click', e => {
+        const go = e.target.closest('[data-go]');
+        if (go && go.dataset.go) openFolder(go.dataset.go);
+    });
 
     // Full messages are fetched with peek=1 (never marks read) so hovering can prefetch them.
     const msgCache = new Map();
@@ -680,6 +984,7 @@
                 <button class="icon-btn" data-act="delete" data-tip="Delete (#)">${icon('trash')}</button>
                 <span class="sep"></span>
                 <button class="icon-btn" data-act="unread" data-tip="Mark unread (U)">${icon('mail')}</button>
+                <button class="icon-btn" data-act="snooze" data-tip="Snooze (B)">${icon('clock')}</button>
                 <button class="icon-btn" data-act="star" data-tip="Star (S)">${icon('star')}</button>
                 <button class="icon-btn" data-act="move" data-tip="Move to…">${icon('folder')}</button>
                 <span class="spacer"></span>
@@ -785,6 +1090,11 @@
             case 'star':
                 toggleStar([uid]);
                 break;
+            case 'snooze': {
+                const r = b.getBoundingClientRect();
+                snoozeMenu(r.left, r.bottom + 4, [uid]);
+                break;
+            }
             case 'move': {
                 const r = b.getBoundingClientRect();
                 pickFolder(r.left, r.bottom + 4, [uid]);
@@ -1144,7 +1454,11 @@
 
             const fd = formData();
             c.sending = true;
-            el.classList.add('hidden');
+            el.classList.add('fly-out');
+            setTimeout(() => {
+                if (c.sending) el.classList.add('hidden');
+                el.classList.remove('fly-out');
+            }, 520);
             $('.composer-backdrop')?.remove();
             const delay = (state.settings.undoSendSeconds || 0) * 1000;
             let cancelled = false;
@@ -1581,6 +1895,7 @@
         ['A', 'Reply all'],
         ['F', 'Forward'],
         ['E', 'Archive'],
+        ['B', 'Snooze'],
         ['#', 'Delete'],
         ['S', 'Star / unstar'],
         ['U', 'Mark unread'],
@@ -1600,7 +1915,8 @@
             { icon: 'search', label: 'Search mail', key: '/', run: () => $('#search').focus() },
             { icon: 'refresh', label: 'Refresh', run: () => $('#refresh-btn').click() },
             ...state.folders.map(f => ({ icon: FOLDER_ICONS[f.specialUse] || 'folder', label: `Go to ${f.name}`, run: () => openFolder(f.path) })),
-            { icon: 'moon', label: 'Toggle dark / light', run: toggleTheme },
+            { icon: 'moon', label: 'Toggle dark / light', run: () => toggleTheme() },
+            ...(state.openUid ? [{ icon: 'clock', label: 'Snooze this conversation', key: 'B', run: () => snoozeMenu(innerWidth / 2 - 120, innerHeight / 3, [state.openUid]) }] : []),
             { icon: 'signature', label: 'Edit signatures', run: () => openSettings('sigs') },
             { icon: 'palette', label: 'Appearance', run: () => openSettings('look') },
             { icon: 'settings', label: 'Settings', run: () => openSettings('general') },
@@ -1688,6 +2004,11 @@
             a: () => state.current && openComposer('replyAll', state.current),
             f: () => state.current && openComposer('forward', state.current),
             e: () => targets.length && archive(targets),
+            b: () => {
+                if (!targets.length) return;
+                const r = ($(`.msg[data-uid="${targets[0]}"]`) || $('#messages')).getBoundingClientRect();
+                snoozeMenu(Math.max(16, r.right - 300), r.top + 20, targets);
+            },
             '#': () => targets.length && remove(targets),
             Delete: () => targets.length && remove(targets),
             s: () => targets.length && toggleStar(targets),
@@ -1739,6 +2060,12 @@
             dot.classList.remove('on');
             text.textContent = 'Reconnecting…';
         };
+        es.addEventListener('snooze', e => {
+            const { woke } = JSON.parse(e.data || '{}');
+            toast(`${woke} snoozed conversation${woke > 1 ? 's are' : ' is'} back`, { action: 'View', onAction: () => openFolder('INBOX') });
+            loadFolders();
+            if (state.folder === 'INBOX') loadMessages({ quiet: true });
+        });
         es.addEventListener('mailbox', debounce(async e => {
             const evt = JSON.parse(e.data || '{}');
             const before = (folderInfo('INBOX') || {}).unseen || 0;
@@ -1756,9 +2083,23 @@
 
     /* ================= chrome ================= */
 
-    function toggleTheme() {
+    function toggleTheme(e) {
         const cur = document.documentElement.dataset.theme;
-        saveSettings({ theme: cur === 'light' ? 'dark' : 'light' });
+        const apply = () => saveSettings({ theme: cur === 'light' ? 'dark' : 'light' });
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
+        const x = e && e.clientX ? e.clientX : innerWidth - 40;
+        const y = e && e.clientY ? e.clientY : 40;
+        const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        document.documentElement.classList.add('theme-swap');
+        const t = document.startViewTransition(() => {
+            Object.assign(state.settings, { theme: cur === 'light' ? 'dark' : 'light' });
+            applyLook();
+        });
+        t.ready.then(() =>
+            document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] }, { duration: 650, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)' })
+        );
+        t.finished.finally(() => document.documentElement.classList.remove('theme-swap'));
+        apply();
     }
     async function logout() {
         try {
@@ -1770,7 +2111,7 @@
 
     $('#compose-btn').onclick = () => openComposer('new');
     $('#fab').onclick = () => openComposer('new');
-    $('#theme-btn').onclick = toggleTheme;
+    $('#theme-btn').onclick = e => toggleTheme(e);
     $('#settings-btn').onclick = () => openSettings('general');
     $('#palette-btn').onclick = openPalette;
     $('#logout-btn').onclick = logout;
@@ -1806,7 +2147,12 @@
         $('#me-avatar').outerHTML = avatar({ address: state.me.email, name: state.settings.displayName }, 'sm');
         showEmptyReader();
         await loadFolders();
-        loadMessages();
+        await loadMessages();
+        const splash = $('#splash');
+        if (splash) {
+            splash.classList.add('out');
+            setTimeout(() => splash.remove(), 700);
+        }
         connectLive();
         setInterval(loadFolders, 120000);
     })();

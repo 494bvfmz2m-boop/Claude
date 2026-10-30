@@ -12,8 +12,11 @@ A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It 
 - **Rich composer** with formatting, recipient chips with contact autocomplete, Cc/Bcc, drag-and-drop attachments, reply / reply all / forward (forwarded attachments included), a "you forgot the attachment" check, and **undo send**.
 - **Drafts** auto-save to your Purelymail Drafts folder. Close the composer and it's saved; open a draft to keep going.
 - **Signatures.** Create as many as you want with the rich editor or raw HTML, start from templates, set separate defaults for new mail and for replies, and switch while composing.
+- **Snooze:** hide a conversation until later today, tomorrow, the weekend, next week or any time you pick, and it comes back to the Inbox as unread. Snoozes wake whenever you have EderveenGroup open (the server only holds your password inside your session cookie, so it can't act while you're away).
+- **Fast triage:** quick actions appear when you hover a row (archive, snooze, read, delete), swipe right to archive and left to delete on phones, and messages are grouped by date with sticky headers.
+- **Little moments:** a splash where the logo assembles itself, a welcome panel with a live clock and your counts, a time-of-day greeting, a circular reveal when switching theme, the composer flying off when you send, and gold confetti when you hit Inbox Zero.
 - **Organize:** star, read/unread, archive, spam, delete (with undo), move, drag messages onto folders, multi-select (shift-click ranges), create/delete folders, empty Trash/Junk, and right-click menus.
-- **Keyboard first:** `c` `/` `j` `k` `r` `a` `f` `e` `#` `s` `u` `x`, a `Ctrl K` command palette, and `?` for the full list.
+- **Keyboard first:** `c` `/` `j` `k` `r` `a` `f` `e` `b` `#` `s` `u` `x`, a `Ctrl K` command palette, and `?` for the full list.
 - **Feels instant:** messages are prefetched on hover, and folders you've visited render from cache while refreshing in the background.
 - **Make it yours:** dark/light/system theme (warm black and paper-white), champagne-gold accent or any colour you pick, comfortable/compact density.
 - **Mobile friendly** with a slide-out folder drawer and a full-screen composer.

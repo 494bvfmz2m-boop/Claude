@@ -15,6 +15,8 @@
     <script src="/js/app.js" defer></script>
 </head>
 <body>
+    <div class="splash" id="splash"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+    <div class="ambient" aria-hidden="true"><span></span><span></span></div>
     <div class="app" id="app">
         <aside class="sidebar">
             <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
@@ -42,6 +44,7 @@
                         <h2 id="folder-title">Inbox</h2>
                         <button class="icon-btn" id="refresh-btn" data-icon="refresh" data-tip="Refresh"></button>
                     </div>
+                    <div class="greet hidden" id="greet"></div>
                     <div class="search">
                         <span data-icon="search"></span>
                         <input class="input" id="search" type="search" placeholder="Search mail" autocomplete="off">

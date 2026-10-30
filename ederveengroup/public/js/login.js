@@ -4,6 +4,21 @@
     const btn = document.getElementById('submit');
     const pw = document.getElementById('password');
 
+    // gentle parallax on the artwork
+    const rings = document.getElementById('rings');
+    if (rings && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        let raf = 0;
+        addEventListener('mousemove', e => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+                const x = e.clientX / innerWidth - 0.5;
+                const y = e.clientY / innerHeight - 0.5;
+                rings.style.setProperty('--px', `${x * -28}px`);
+                rings.style.setProperty('--py', `${y * -28}px`);
+            });
+        });
+    }
+
     document.getElementById('peek').addEventListener('click', () => {
         pw.type = pw.type === 'password' ? 'text' : 'password';
         pw.focus();

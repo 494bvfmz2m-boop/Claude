@@ -133,7 +133,31 @@ app.get('/api/contacts', (req, res) => res.json(store.searchContacts(req.session
 
 /* ---------- folders ---------- */
 
-app.get('/api/folders', wrap(async (req, res) => res.json(await mail.listFolders(req.session))));
+// Snoozes wake lazily: whenever the user is online (folder refreshes and the live stream).
+const lastWake = new Map();
+async function wakeDue(session, force) {
+    const now = Date.now();
+    if (!force && now - (lastWake.get(session.email) || 0) < 20000) return 0;
+    lastWake.set(session.email, now);
+    const due = store.takeDueSnoozes(session.email, now);
+    return due.length ? mail.wakeSnoozes(session, due) : 0;
+}
+
+app.get('/api/folders', wrap(async (req, res) => {
+    await wakeDue(req.session).catch(() => {});
+    res.json(await mail.listFolders(req.session));
+}));
+
+app.get('/api/snoozes', (req, res) => res.json(store.listSnoozes(req.session.email)));
+
+app.post('/api/messages/snooze', wrap(async (req, res) => {
+    const until = Number(new Date(req.body.until));
+    if (!until || until < Date.now() - 60000) return res.status(400).json({ error: 'Pick a time in the future' });
+    const from = folderOf(req);
+    const ids = await mail.snoozeMessages(req.session, from, uidList(req.body.uids));
+    store.addSnoozes(req.session.email, ids.map(messageId => ({ messageId, until, from: from === 'Snoozed' ? 'INBOX' : from })));
+    res.json({ ok: true, until });
+}));
 
 app.post('/api/folders', wrap(async (req, res) => {
     const name = String(req.body.name || '').trim();
@@ -252,9 +276,14 @@ app.get('/api/events', wrap(async (req, res) => {
     let stop = null;
     let closed = false;
     const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+    const waker = setInterval(async () => {
+        const woke = await wakeDue(req.session, true).catch(() => 0);
+        if (woke) send('snooze', { woke });
+    }, 30000);
     req.on('close', () => {
         closed = true;
         clearInterval(ping);
+        clearInterval(waker);
         if (stop) stop();
     });
     try {

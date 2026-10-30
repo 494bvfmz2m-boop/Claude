@@ -36,7 +36,7 @@ function createStore(dataDir) {
         } catch {
             // new user
         }
-        const user = { settings: { ...DEFAULTS, ...(data.settings || {}) }, contacts: data.contacts || {} };
+        const user = { settings: { ...DEFAULTS, ...(data.settings || {}) }, contacts: data.contacts || {}, snoozes: data.snoozes || [] };
         cache.set(email, user);
         return user;
     }
@@ -81,6 +81,25 @@ function createStore(dataDir) {
                 user.contacts = Object.fromEntries(entries.slice(0, MAX_CONTACTS));
             }
             save(email);
+        },
+
+        // Snoozes are keyed by Message-ID because UIDs change when a message moves.
+        addSnoozes(email, entries) {
+            const user = load(email);
+            const ids = new Set(entries.map(e => e.messageId));
+            user.snoozes = user.snoozes.filter(s => !ids.has(s.messageId)).concat(entries);
+            save(email);
+        },
+
+        listSnoozes: email => load(email).snoozes,
+
+        takeDueSnoozes(email, now = Date.now()) {
+            const user = load(email);
+            const due = user.snoozes.filter(s => s.until <= now);
+            if (!due.length) return [];
+            user.snoozes = user.snoozes.filter(s => s.until > now);
+            save(email);
+            return due;
         },
 
         searchContacts(email, q) {

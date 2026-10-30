@@ -88,7 +88,8 @@ async function withMailbox(session, folder, fn) {
 
 /* ---------- folders ---------- */
 
-const SPECIAL_ORDER = ['\\Inbox', '\\Flagged', '\\Drafts', '\\Sent', '\\Archive', '\\Junk', '\\Trash'];
+const SPECIAL_ORDER = ['\\Inbox', '\\Flagged', '\\Snoozed', '\\Drafts', '\\Sent', '\\Archive', '\\Junk', '\\Trash'];
+const SNOOZED = 'Snoozed';
 
 async function listFolders(session) {
     const client = await getClient(session);
@@ -99,7 +100,7 @@ async function listFolders(session) {
             path: f.path,
             name: f.path === 'INBOX' ? 'Inbox' : f.name,
             delimiter: f.delimiter,
-            specialUse: f.specialUse || (f.path === 'INBOX' ? '\\Inbox' : null),
+            specialUse: f.specialUse || (f.path === 'INBOX' ? '\\Inbox' : f.path === SNOOZED ? '\\Snoozed' : null),
             messages: f.status ? f.status.messages : 0,
             unseen: f.status ? f.status.unseen : 0
         }))
@@ -199,6 +200,7 @@ function summarize(msg) {
         flags: [...(msg.flags || [])],
         size: msg.size,
         hasAttachments: false,
+        messageId: env.messageId || null,
         preview: ''
     };
 }
@@ -404,6 +406,38 @@ async function deleteFolder(session, folderPath) {
     return client.mailboxDelete(folderPath);
 }
 
+/* ---------- snooze ---------- */
+
+// Moves messages into the Snoozed folder and returns their Message-IDs so they can be found again.
+async function snoozeMessages(session, folder, uids) {
+    const client = await getClient(session);
+    const list = await client.list();
+    if (!list.some(f => f.path === SNOOZED)) await client.mailboxCreate(SNOOZED).catch(() => {});
+    return withMailbox(session, folder, async c => {
+        const ids = [];
+        for await (const msg of c.fetch(uids.join(','), { uid: true, envelope: true }, { uid: true })) {
+            if (msg.envelope && msg.envelope.messageId) ids.push(msg.envelope.messageId);
+        }
+        await c.messageMove(uids.join(','), SNOOZED, { uid: true });
+        return ids;
+    });
+}
+
+// Moves due snoozed messages back where they came from, marked unread so they resurface.
+async function wakeSnoozes(session, due) {
+    let woke = 0;
+    for (const s of due) {
+        await withMailbox(session, SNOOZED, async c => {
+            const uids = await c.search({ header: { 'message-id': s.messageId } }, { uid: true });
+            if (!uids || !uids.length) return;
+            await c.messageFlagsRemove(uids.join(','), ['\\Seen'], { uid: true });
+            await c.messageMove(uids.join(','), s.from || 'INBOX', { uid: true });
+            woke += uids.length;
+        }).catch(() => {});
+    }
+    return woke;
+}
+
 /* ---------- compose / send / drafts ---------- */
 
 async function buildMessage(session, input) {
@@ -519,5 +553,7 @@ module.exports = {
     saveDraft,
     removeDraft,
     watchInbox,
-    findSpecial
+    findSpecial,
+    snoozeMessages,
+    wakeSnoozes
 };
