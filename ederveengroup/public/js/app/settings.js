@@ -7,7 +7,7 @@ import { renderList } from './list.js';
 import { saveSettings } from './look.js';
 import { SHORTCUTS } from './palette.js';
 import { state } from './state.js';
-import { $, $$, api, avatar, debounce, esc, fmtDate, glide, h, missingPhotos, toast } from './util.js';
+import { $, $$, api, avatar, debounce, esc, fmtDate, glide, h, resetPhotos, toast } from './util.js';
 
 const SIG_TEMPLATES = {
     Minimal: name => `<div>— ${esc(name)}</div>`,
@@ -51,6 +51,11 @@ function openSettings(tab = 'general') {
     const tabs = {
         general() {
             section.innerHTML = `<h3>General</h3><p class="hint">How your inbox behaves.</p>
+                <div class="row"><div class="lbl"><b>Conversation view</b><small>Group replies into one conversation, with your sent replies in line</small></div><label class="switch"><input type="checkbox" data-s="conversations" ${s.conversations !== false ? 'checked' : ''}><span></span></label></div>
+                <div class="row"><div class="lbl"><b>Reading pane</b><small>Show messages next to the list, or open them full size</small></div>
+                    <div class="seg" data-seg="readingPane">${[['right', 'Right'], ['off', 'Off']].map(([v, l]) => `<button data-v="${v}" class="${s.readingPane === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+                <div class="row"><div class="lbl"><b>After archiving or deleting</b><small>What the reader shows next</small></div>
+                    <div class="seg" data-seg="afterAction">${[['next', 'Next message'], ['list', 'Back to list']].map(([v, l]) => `<button data-v="${v}" class="${s.afterAction === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
                 <div class="row"><div class="lbl"><b>Undo send</b><small>Grace period before mail actually leaves</small></div>
                     <div class="seg" data-seg="undoSendSeconds">${[0, 5, 10, 20].map(n => `<button data-v="${n}" class="${s.undoSendSeconds === n ? 'on' : ''}">${n ? n + 's' : 'Off'}</button>`).join('')}</div></div>
                 <div class="row"><div class="lbl"><b>Load remote images</b><small>Off blocks tracking pixels until you allow them</small></div><label class="switch"><input type="checkbox" data-s="loadRemoteImages" ${s.loadRemoteImages ? 'checked' : ''}><span></span></label></div>
@@ -60,8 +65,9 @@ function openSettings(tab = 'general') {
             $$('input[type=checkbox][data-s]', section).forEach(i =>
                 i.addEventListener('change', async () => {
                     await saveSettings({ [i.dataset.s]: i.checked });
+                    if (i.dataset.s === 'conversations') renderList();
                     if (i.dataset.s === 'senderPhotos') {
-                        missingPhotos.clear();
+                        resetPhotos();
                         renderList();
                     }
                 })
@@ -218,7 +224,7 @@ function openSettings(tab = 'general') {
                     rm.onclick = async () => {
                         try {
                             state.me.photo = (await api('api/profile/photo', { method: 'DELETE' })).photo;
-                            missingPhotos.delete(state.me.email);
+                            resetPhotos(state.me.email);
                             refreshMe();
                             renderList();
                             draw();

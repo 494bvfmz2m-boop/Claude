@@ -138,13 +138,16 @@ async function markAllRead(path) {
     }
 }
 
-function openFolder(path) {
+function openFolder(path, { keepSearch = false } = {}) {
     const order = state.folders.map(f => f.path);
     $('#messages').style.setProperty('--dir', order.indexOf(path) < order.indexOf(state.folder) ? '-1' : '1');
     state.folder = path;
     state.page = 0;
-    state.query = '';
-    $('#search').value = '';
+    state.focusUid = null;
+    if (!keepSearch) {
+        state.query = '';
+        $('#search').value = '';
+    }
     state.checked.clear();
     $('#app').classList.remove('nav-open');
     $('#app').dataset.view = 'list';

@@ -8,6 +8,7 @@ function applyLook() {
     const theme = s.theme === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : s.theme;
     root.dataset.theme = theme;
     root.dataset.density = s.density;
+    $('#app').classList.toggle('pane-off', s.readingPane === 'off');
     window.egApplyAccent(s.accent);
     $('meta[name=theme-color]').content = theme === 'light' ? '#eef1f6' : '#0b0d12';
     $('#theme-btn').innerHTML = icon(theme === 'light' ? 'moon' : 'sun');

@@ -3,12 +3,12 @@ import { archive, remove, setSeen, toggleStar } from './actions.js';
 import { logout, toggleTheme } from './chrome.js';
 import { composer, openComposer } from './composer.js';
 import { openFolder } from './folders.js';
-import { loadMessages, renderList, toggleCheck } from './list.js';
-import { openMessage, showEmptyReader } from './reader.js';
+import { expandUids, loadMessages, renderList, threads, toggleCheck } from './list.js';
+import { openMessage, showEmptyReader, startReply } from './reader.js';
 import { openSettings } from './settings.js';
 import { snoozeMenu } from './snooze.js';
 import { FOLDER_ICONS, state } from './state.js';
-import { $, esc, glide, h } from './util.js';
+import { $, $$, esc, glide, h } from './util.js';
 
 const SHORTCUTS = [
     ['C', 'Compose'],
@@ -88,11 +88,17 @@ function openPalette() {
     input.focus();
 }
 
+// j/k move through conversations; with the reading pane on (or a message open) they open as you go
 function moveFocus(delta) {
-    if (!state.messages.length) return;
-    let i = state.messages.findIndex(m => m.uid === state.openUid);
-    i = i < 0 ? 0 : Math.max(0, Math.min(state.messages.length - 1, i + delta));
-    openMessage(state.messages[i].uid);
+    const rows = threads.map(t => t.uid);
+    if (!rows.length) return;
+    let i = rows.indexOf(state.focusUid || state.openUid);
+    i = i < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, i + delta));
+    state.focusUid = rows[i];
+    $$('.msg').forEach(x => x.classList.toggle('focused', Number(x.dataset.uid) === rows[i]));
+    $(`.msg[data-uid="${rows[i]}"]`)?.scrollIntoView({ block: 'nearest' });
+    const paneOpen = state.settings.readingPane !== 'off' && matchMedia('(min-width: 761px)').matches;
+    if (paneOpen || $('#app').dataset.view === 'reader') openMessage(rows[i]);
 }
 
 function onKey(e) {
@@ -116,8 +122,9 @@ function onKey(e) {
         return;
     }
     if ($('.modal-back')) return;
-    const cur = state.openUid;
-    const targets = state.checked.size ? [...state.checked] : cur ? [cur] : [];
+    const cur = state.openUid || state.focusUid;
+    // keyboard actions apply to whole conversations
+    const targets = expandUids(state.checked.size ? [...state.checked] : cur ? [cur] : []);
     const map = {
         c: () => openComposer('new'),
         '/': () => $('#search').focus(),
@@ -125,9 +132,11 @@ function onKey(e) {
         k: () => moveFocus(-1),
         ArrowDown: () => moveFocus(1),
         ArrowUp: () => moveFocus(-1),
-        r: () => state.current && openComposer('reply', state.current),
-        a: () => state.current && openComposer('replyAll', state.current),
-        f: () => state.current && openComposer('forward', state.current),
+        r: () => state.current && startReply('reply'),
+        a: () => state.current && startReply('replyAll'),
+        f: () => state.current && startReply('forward'),
+        Enter: () => state.focusUid && openMessage(state.focusUid),
+        o: () => state.focusUid && openMessage(state.focusUid),
         e: () => targets.length && archive(targets),
         b: () => {
             if (!targets.length) return;
@@ -143,7 +152,7 @@ function onKey(e) {
             if (cur && targets.includes(cur)) showEmptyReader();
         },
         I: () => targets.length && setSeen(targets, true),
-        x: () => cur && toggleCheck(cur),
+        x: () => cur && toggleCheck(state.focusUid || cur),
         '?': () => openSettings('keys'),
         Escape: () => {
             if (composer && !composer.el.classList.contains('minimized')) return composer.el.classList.add('minimized');

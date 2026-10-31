@@ -10,6 +10,7 @@ const { simpleParser } = require('mailparser');
 const libqp = require('libqp');
 const iconv = require('iconv-lite');
 const { sanitizeEmailHtml } = require('./sanitize');
+const { parseQuery } = require('./query');
 
 const IMAP = { host: process.env.IMAP_HOST || 'imap.purelymail.com', port: Number(process.env.IMAP_PORT) || 993, secure: true };
 const SMTP = { host: process.env.SMTP_HOST || 'smtp.purelymail.com', port: Number(process.env.SMTP_PORT) || 465, secure: true };
@@ -239,9 +240,20 @@ function summarize(msg) {
         size: msg.size,
         hasAttachments: false,
         messageId: env.messageId || null,
+        inReplyTo: env.inReplyTo || null,
+        references: parseReferences(msg.headers),
         preview: ''
     };
 }
+
+// "References: <a@x> <b@y>" from a raw header buffer (the reply chain, oldest first)
+function parseReferences(headers) {
+    if (!headers) return [];
+    const raw = headers.toString('utf8').replace(/\r?\n[ \t]+/g, ' ');
+    const m = /^references:\s*(.*)$/im.exec(raw);
+    return m ? (m[1].match(/<[^<>\s]+>/g) || []).slice(-20) : [];
+}
+const LIST_FIELDS = { uid: true, envelope: true, flags: true, internalDate: true, size: true, bodyStructure: true, headers: ['references'] };
 
 async function listMessages(session, folder, { page = 0, query = '', filter = '' }) {
     return readMailbox(session, folder, async client => {
@@ -250,10 +262,7 @@ async function listMessages(session, folder, { page = 0, query = '', filter = ''
         let count = total;
         let uids = null;
 
-        const criteria = {};
-        if (query) {
-            criteria.or = [{ subject: query }, { from: query }, { to: query }, { body: query }];
-        }
+        const criteria = query ? parseQuery(query).criteria : {};
         if (filter === 'unread') criteria.seen = false;
         if (filter === 'flagged') criteria.flagged = true;
         if (filter === 'attachments') criteria.header = { 'content-type': 'multipart/mixed' };
@@ -272,11 +281,7 @@ async function listMessages(session, folder, { page = 0, query = '', filter = ''
         }
 
         const items = [];
-        for await (const msg of client.fetch(
-            range,
-            { uid: true, envelope: true, flags: true, internalDate: true, size: true, bodyStructure: true },
-            { uid: !!uids }
-        )) {
+        for await (const msg of client.fetch(range, LIST_FIELDS, { uid: !!uids })) {
             const item = summarize(msg);
             const s = inspectStructure(msg.bodyStructure);
             item.hasAttachments = s.attachments;
@@ -317,6 +322,62 @@ async function listMessages(session, folder, { page = 0, query = '', filter = ''
         items.sort((a, b) => (uids ? b.uid - a.uid : b.seq - a.seq));
         return { total: count, page, pageSize: PAGE_SIZE, messages: items };
     });
+}
+
+/* ---------- conversations ---------- */
+
+// Every message in the same conversation as `uid`, from this folder plus Inbox, Sent and
+// Archive, oldest first. Matching uses the reply headers (Message-ID / In-Reply-To /
+// References), so unrelated mail with the same subject never gets merged.
+async function getThread(session, folder, uid) {
+    const seed = await readMailbox(session, folder, async c => {
+        const msg = await c.fetchOne(String(uid), LIST_FIELDS, { uid: true });
+        return msg ? summarize(msg) : null;
+    });
+    if (!seed) throw Object.assign(new Error('Message not found'), { status: 404 });
+    const ids = [...new Set([seed.messageId, seed.inReplyTo, ...seed.references].filter(Boolean))].slice(-12);
+    const root = seed.references[0] || seed.inReplyTo || seed.messageId;
+    if (!root) return { messages: [{ ...seed, folder }] };
+
+    const list = await withClient(session, c => c.list(), READ);
+    const pick = use => (list.find(f => f.specialUse === use) || {}).path;
+    const folders = [...new Set([folder, 'INBOX', pick('\\Sent'), pick('\\Archive')].filter(Boolean))];
+    const ors = [{ header: { references: root } }, { header: { 'in-reply-to': root } }, ...ids.map(id => ({ header: { 'message-id': id } }))];
+
+    const found = new Map(); // messageId -> summary (the current folder's copy wins)
+    for (const path of folders) {
+        await readMailbox(session, path, async c => {
+            if (!c.mailbox.exists) return;
+            const uids = (await c.search({ or: ors }, { uid: true })) || [];
+            if (!uids.length) return;
+            for await (const msg of c.fetch(uids.slice(-50).join(','), LIST_FIELDS, { uid: true })) {
+                const item = { ...summarize(msg), folder: path, hasAttachments: inspectStructure(msg.bodyStructure).attachments };
+                const key = item.messageId || `${path}:${item.uid}`;
+                if (!found.has(key) || path === folder) found.set(key, item);
+            }
+        }).catch(() => {}); // a folder we can't open just doesn't contribute
+    }
+    if (!found.size) found.set(seed.messageId || 'seed', { ...seed, folder });
+    const messages = [...found.values()].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-50);
+    messages.forEach(m => delete m.seq);
+    return { messages };
+}
+
+// How many results a search would find in each other folder ("also in Archive: 4").
+async function searchCounts(session, query, exceptFolder) {
+    const { criteria } = parseQuery(query);
+    if (!Object.keys(criteria).length) return [];
+    const list = await withClient(session, c => c.list(), READ);
+    const out = [];
+    for (const f of list) {
+        if (f.path === exceptFolder || f.flags.has('\\Noselect') || ['\\Junk', '\\Trash'].includes(f.specialUse)) continue;
+        await readMailbox(session, f.path, async c => {
+            if (!c.mailbox.exists) return;
+            const uids = (await c.search(criteria, { uid: true })) || [];
+            if (uids.length) out.push({ path: f.path, name: f.path === 'INBOX' ? 'Inbox' : f.name, count: uids.length });
+        }).catch(() => {});
+    }
+    return out;
 }
 
 /* ---------- single message ---------- */
@@ -593,5 +654,7 @@ module.exports = {
     watchInbox,
     findSpecial,
     snoozeMessages,
-    wakeSnoozes
+    wakeSnoozes,
+    getThread,
+    searchCounts
 };

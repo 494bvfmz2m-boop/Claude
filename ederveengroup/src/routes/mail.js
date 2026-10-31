@@ -59,6 +59,14 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
         );
     }));
 
+    r.get('/thread', wrap(async (req, res) => {
+        res.json(await mail.getThread(req.session, folderOf(req), Number(req.query.uid)));
+    }));
+
+    r.get('/search/counts', wrap(async (req, res) => {
+        res.json(await mail.searchCounts(req.session, String(req.query.q || '').slice(0, 300), folderOf(req)));
+    }));
+
     r.get('/message', wrap(async (req, res) => {
         const msg = await mail.getMessage(req.session, folderOf(req), Number(req.query.uid), { markSeen: !req.query.peek });
         store.rememberContacts(req.session.email, msg.from);

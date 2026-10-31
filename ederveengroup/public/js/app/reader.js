@@ -1,8 +1,8 @@
 // EderveenGroup client: reader
-import { archive, moveTo, pickFolder, remove, setSeen, toggleStar } from './actions.js';
+import { addFlag, archive, moveTo, pickFolder, remove, setSeen, toggleStar } from './actions.js';
 import { openComposer } from './composer.js';
 import { openFolder, renderFolders } from './folders.js';
-import { greetingFor } from './list.js';
+import { greetingFor, threadOf } from './list.js';
 import { showMenu } from './menus.js';
 import { onKey } from './palette.js';
 import { snoozeMenu } from './snooze.js';
@@ -132,6 +132,32 @@ async function withMessage(uid, fn) {
     }
 }
 
+/* ---------------- conversations ---------------- */
+
+// The open conversation: every message in it (summaries, oldest first) and which are expanded.
+// state.current is the message actions such as reply apply to (the newest one).
+const convo = { messages: [], open: new Set(), full: new Map(), folder: null, showAll: false };
+const keyOf = m => `${m.folder}:${m.uid}`;
+const threadCache = new Map();
+const stripPrefix = s => String(s || '').replace(/^\s*((re|fwd?|aw|wg|antw)\s*:\s*)+/i, '');
+
+function fetchThread(folder, uid) {
+    const key = `${folder}\u0000${uid}`;
+    if (!threadCache.has(key)) {
+        const p = api('api/thread?' + qs({ folder, uid }));
+        p.catch(() => threadCache.delete(key));
+        threadCache.set(key, p);
+        if (threadCache.size > 40) threadCache.delete(threadCache.keys().next().value);
+    }
+    return threadCache.get(key);
+}
+
+// uids of the open conversation that live in the current folder (what folder actions apply to)
+function convoUids() {
+    const here = convo.messages.filter(m => m.folder === state.folder).map(m => m.uid);
+    return here.length ? here : state.current ? [state.current.uid] : [];
+}
+
 let readToken = 0;
 let activeMorph = null;
 async function openMessage(uid) {
@@ -155,30 +181,21 @@ async function openMessage(uid) {
     else row.classList.add('opening');
     const folder = state.folder;
     const slow = setTimeout(() => token === readToken && ($('#reader').innerHTML = `<div class="empty"><div class="spinner"></div></div>`), 160);
+    const wantThread = state.settings.conversations !== false;
+    const threadP = wantThread ? fetchThread(folder, uid).catch(() => null) : null;
     try {
         const msg = await fetchMessage(folder, uid);
         clearTimeout(slow);
         if (token !== readToken) return;
-        state.current = msg;
+        msg.folder = folder;
         const listed = state.messages.find(m => m.uid === uid);
         if (listed) msg.flags = [...listed.flags];
-        if (!msg.flags.includes('\\Seen')) {
-            msg.flags.push('\\Seen');
-            api('api/messages/flags', { method: 'POST', body: { folder, uids: [uid], add: ['\\Seen'] } }).catch(() => {});
-        }
-        if (listed && !listed.flags.includes('\\Seen')) {
-            listed.flags.push('\\Seen');
-            const r = $(`.msg[data-uid="${uid}"]`);
-            if (r) {
-                r.classList.add('reading');
-                setTimeout(() => r.classList.remove('unread', 'reading'), 380);
-            }
-            const f = folderInfo(state.folder);
-            if (f.unseen) {
-                f.unseen--;
-                renderFolders();
-            }
-        }
+        state.current = msg;
+        // start with what the list already knows about the conversation; the full thread
+        // (including your replies in Sent) is merged in when it arrives
+        const known = (wantThread && threadOf(uid)) || [listed || msg];
+        Object.assign(convo, { messages: known.map(m => ({ ...m, folder: m.folder || folder })).sort(byDate), open: new Set([keyOf(msg)]), full: new Map([[keyOf(msg), msg]]), folder, showAll: false });
+        markConversationRead();
         row?.classList.remove('opening');
         const show = () => {
             $('#app').dataset.view = 'reader';
@@ -205,6 +222,7 @@ async function openMessage(uid) {
                     $$('.reader-content [style*="view-transition-name"]').forEach(x => (x.style.viewTransitionName = ''));
                 });
         } else show();
+        if (threadP) mergeThread(await threadP, token);
     } catch (e) {
         row?.classList.remove('opening');
         if (morph) $('#app').dataset.view = 'reader';
@@ -214,20 +232,138 @@ async function openMessage(uid) {
     }
 }
 
+const byDate = (a, b) => new Date(a.date) - new Date(b.date);
+
+function mergeThread(thread, token) {
+    if (!thread || token !== readToken || !thread.messages || thread.messages.length < 2) return;
+    const before = new Set(convo.messages.map(keyOf));
+    const merged = new Map(convo.messages.map(m => [keyOf(m), m]));
+    for (const m of thread.messages) if (!merged.has(keyOf(m))) merged.set(keyOf(m), m);
+    convo.messages = [...merged.values()].sort(byDate);
+    const added = convo.messages.filter(m => !before.has(keyOf(m)));
+    if (!added.length) return;
+    markConversationRead();
+    renderConversation({ fresh: new Set(added.map(keyOf)) });
+}
+
+// Opening a conversation reads all of it (in this folder), like other mail apps.
+function markConversationRead() {
+    const unread = convo.messages.filter(m => m.folder === state.folder && m.flags && !m.flags.includes('\\Seen'));
+    const listedUnread = convo.messages
+        .filter(m => m.folder === state.folder)
+        .map(m => state.messages.find(x => x.uid === m.uid))
+        .filter(m => m && !m.flags.includes('\\Seen'));
+    const uids = [...new Set([...unread.map(m => m.uid), ...listedUnread.map(m => m.uid)])];
+    if (!uids.length) return;
+    unread.forEach(m => addFlag(m, '\\Seen'));
+    if (state.current && uids.includes(state.current.uid)) addFlag(state.current, '\\Seen');
+    api('api/messages/flags', { method: 'POST', body: { folder: state.folder, uids, add: ['\\Seen'] } }).catch(() => {});
+    let changed = 0;
+    for (const m of listedUnread) {
+        addFlag(m, '\\Seen');
+        changed++;
+    }
+    const r = $(`.msg[data-uid="${state.openUid}"]`);
+    if (r && r.classList.contains('unread')) {
+        r.classList.add('reading');
+        setTimeout(() => r.classList.remove('unread', 'reading'), 380);
+    }
+    const f = folderInfo(state.folder);
+    if (changed && f.unseen) {
+        f.unseen = Math.max(0, f.unseen - changed);
+        renderFolders();
+    }
+}
+
 function renderReaderBar() {
     const m = state.current;
     const bar = $('.reader-bar');
     if (!bar || !m) return;
-    const starred = m.flags.includes('\\Flagged');
+    const starred = convo.messages.some(x => x.folder === state.folder && (x.flags || []).includes('\\Flagged')) || m.flags.includes('\\Flagged');
     $('[data-act=star]', bar).classList.toggle('active', starred);
     $('[data-act=star]', bar).innerHTML = icon('star').replace('fill="none"', starred ? 'fill="currentColor"' : 'fill="none"');
 }
 
+const remoteOkFor = m => state.settings.loadRemoteImages || state.allowImagesFor.has(((m.from[0] || {}).address || '').toLowerCase()) || state.allowImagesFor.has(keyOf(m));
+const recipientsLine = m =>
+    [...(m.to || []), ...(m.cc || [])].map(p => (p.address.toLowerCase() === state.me.email ? 'me' : personName(p))).join(', ') || 'undisclosed recipients';
+
+function cardHtml(m, { morph = false, fresh = false } = {}) {
+    const key = keyOf(m);
+    const full = convo.full.get(key);
+    const open = convo.open.has(key) && full;
+    const from = m.from[0] || { address: '' };
+    const mine = (from.address || '').toLowerCase() === state.me.email;
+    const av = avatar(from, open ? 'lg' : '');
+    const cls = `mcard${open ? ' open' : ''}${fresh ? ' fresh' : ''}${mine ? ' mine' : ''}`;
+    if (!open) {
+        return `<article class="${cls}" data-key="${esc(key)}">
+            <header class="mc-head" data-act="toggle">${av}
+                <div class="mc-who"><b>${esc(mine ? 'me' : from.name || from.address)}</b><span class="mc-snip">${esc(m.preview || '')}</span></div>
+                <span class="mc-meta">${m.hasAttachments ? icon('clip') : ''}${m.folder !== convo.folder ? `<span class="mc-folder">${esc(folderInfo(m.folder).name || m.folder)}</span>` : ''}<span class="mc-date">${esc(fmtDate(m.date))}</span></span>
+            </header></article>`;
+    }
+    const f = full;
+    const remoteOk = remoteOkFor(f);
+    return `<article class="${cls}" data-key="${esc(key)}">
+        <header class="mc-head${convo.messages.length > 1 ? '' : ' solo'}" data-act="${convo.messages.length > 1 ? 'toggle' : ''}">
+            ${morph ? av.replace('style="', 'style="view-transition-name:eg-avatar;') : av}
+            <div class="info">
+                <div><span class="name">${esc(from.name || from.address)}</span>${from.name ? `<span class="addr">&lt;${esc(from.address)}&gt;</span>` : ''}</div>
+                <div class="to" data-act="details">to ${esc(recipientsLine(f))} ${icon('down')}</div>
+            </div>
+            <div class="mc-side"><span class="when">${esc(fmtDate(f.date, true))}</span>
+                <span class="mc-actions"><button class="icon-btn" data-act="reply" title="Reply">${icon('reply')}</button><button class="icon-btn" data-act="more" title="More">${icon('more')}</button></span></div>
+        </header>
+        <dl class="details hidden">
+            <dt>From</dt><dd>${esc(fmtAddrList(f.from))}</dd>
+            ${f.replyTo.length ? `<dt>Reply-To</dt><dd>${esc(fmtAddrList(f.replyTo))}</dd>` : ''}
+            <dt>To</dt><dd>${esc(fmtAddrList(f.to)) || '—'}</dd>
+            ${f.cc.length ? `<dt>Cc</dt><dd>${esc(fmtAddrList(f.cc))}</dd>` : ''}
+            ${f.bcc.length ? `<dt>Bcc</dt><dd>${esc(fmtAddrList(f.bcc))}</dd>` : ''}
+            <dt>Date</dt><dd>${esc(fmtDate(f.date, true))}</dd>
+        </dl>
+        ${f.hasRemoteImages && !remoteOk ? `<div class="banner">${icon('image')}<span>Remote images are hidden to protect your privacy.</span><button data-act="images">Show images</button><button data-act="images-always">Always from sender</button></div>` : ''}
+        ${f.unsubscribe ? `<div class="banner subtle">${icon('unsubscribe')}<span>This looks like a mailing list.</span><button data-act="unsubscribe">Unsubscribe</button></div>` : ''}
+        <div class="body-host"></div>
+        ${f.attachments.length ? `<div class="attachments">${f.attachments.map(a => attachmentCard(f, a)).join('')}</div>` : ''}
+    </article>`;
+}
+
+function renderConversation({ morph = false, fresh = new Set() } = {}) {
+    const host = $('#convo');
+    if (!host) return;
+    const list = convo.messages;
+    // long conversations: first message, "N more", then the last two (expanded ones always show)
+    let items = list.map(m => ({ m }));
+    if (!convo.showAll && list.length > 4) {
+        const keep = new Set([0, list.length - 2, list.length - 1]);
+        list.forEach((m, i) => convo.open.has(keyOf(m)) && keep.add(i));
+        items = [];
+        let hidden = 0;
+        list.forEach((m, i) => {
+            if (keep.has(i)) {
+                if (hidden) items.push({ more: hidden });
+                hidden = 0;
+                items.push({ m });
+            } else hidden++;
+        });
+    }
+    host.innerHTML = items.map(it => (it.more ? `<button class="mc-more" data-act="show-all"><span>${it.more} more message${it.more > 1 ? 's' : ''}</span></button>` : cardHtml(it.m, { morph: morph && it.m === state.current, fresh: fresh.has(keyOf(it.m)) }))).join('');
+    const count = $('.reader-content .convo-count');
+    if (count) count.textContent = list.length > 1 ? `${list.length} messages` : '';
+    for (const m of list) {
+        const full = convo.full.get(keyOf(m));
+        if (convo.open.has(keyOf(m)) && full) renderBody(full, remoteOkFor(full), $(`.mcard[data-key="${CSS.escape(keyOf(m))}"] .body-host`, host));
+    }
+    renderReaderBar();
+}
+
 function renderReader({ morph = false } = {}) {
     const m = state.current;
-    const from = m.from[0] || { address: '' };
-    const remoteOk = state.settings.loadRemoteImages || state.allowImagesFor.has(from.address.toLowerCase()) || state.allowImagesFor.has(`${m.folder}:${m.uid}`);
-    const recipients = [...m.to, ...m.cc];
+    if (!m) return;
+    const subject = stripPrefix(convo.messages[0]?.subject || m.subject) || m.subject;
+    const people = [...new Set(convo.messages.flatMap(x => [...(x.to || []), ...(x.cc || []), ...x.from]).map(p => p.address.toLowerCase()))];
     $('#reader').innerHTML = `
         <div class="reader-bar">
             <button class="icon-btn back-btn" data-act="back" data-tip="Back">${icon('left')}</button>
@@ -243,38 +379,67 @@ function renderReader({ morph = false } = {}) {
             <button class="icon-btn" data-act="reply" data-tip="Reply (R)">${icon('reply')}</button>
             <button class="icon-btn" data-act="replyAll" data-tip="Reply all (A)">${icon('replyAll')}</button>
             <button class="icon-btn" data-act="forward" data-tip="Forward (F)">${icon('forward')}</button>
-            <button class="icon-btn" data-act="more" data-tip="More">${icon('more')}</button>
         </div>
         <div class="reader-scroll"><div class="reader-content${morph ? ' vt' : ''}">
-            <h1${morph ? ' style="view-transition-name:eg-subject"' : ''}>${esc(m.subject || '(no subject)')}</h1>
-            <div class="sender">
-                ${morph ? avatar(from, 'lg').replace('style="', 'style="view-transition-name:eg-avatar;') : avatar(from, 'lg')}
-                <div class="info">
-                    <div><span class="name">${esc(from.name || from.address)}</span>${from.name ? `<span class="addr">&lt;${esc(from.address)}&gt;</span>` : ''}</div>
-                    <div class="to" data-act="details">to ${esc(recipients.map(p => (p.address.toLowerCase() === state.me.email ? 'me' : personName(p))).join(', ') || 'undisclosed recipients')} ${icon('down')}</div>
-                    <dl class="details hidden">
-                        <dt>From</dt><dd>${esc(fmtAddrList(m.from))}</dd>
-                        ${m.replyTo.length ? `<dt>Reply-To</dt><dd>${esc(fmtAddrList(m.replyTo))}</dd>` : ''}
-                        <dt>To</dt><dd>${esc(fmtAddrList(m.to)) || '—'}</dd>
-                        ${m.cc.length ? `<dt>Cc</dt><dd>${esc(fmtAddrList(m.cc))}</dd>` : ''}
-                        ${m.bcc.length ? `<dt>Bcc</dt><dd>${esc(fmtAddrList(m.bcc))}</dd>` : ''}
-                        <dt>Date</dt><dd>${esc(fmtDate(m.date, true))}</dd>
-                    </dl>
-                </div>
-                <div class="when">${esc(fmtDate(m.date, true))}</div>
-            </div>
-            ${m.hasRemoteImages && !remoteOk ? `<div class="banner">${icon('image')}<span>Remote images are hidden to protect your privacy.</span><button data-act="images">Show images</button><button data-act="images-always" style="margin-left:4px">Always from sender</button></div>` : ''}
-            ${m.unsubscribe ? `<div class="banner" style="background:var(--bg-2);border-color:var(--border)">${icon('unsubscribe')}<span>This looks like a mailing list.</span><button data-act="unsubscribe">Unsubscribe</button></div>` : ''}
-            <div id="body-host"></div>
-            ${m.attachments.length ? `<div class="attachments">${m.attachments.map(a => attachmentCard(m, a)).join('')}</div>` : ''}
-            <div class="quick-reply">
-                <button class="btn" data-act="reply">${icon('reply')} Reply</button>
-                ${recipients.length + m.from.length > 2 ? `<button class="btn" data-act="replyAll">${icon('replyAll')} Reply all</button>` : ''}
+            <div class="convo-head"><h1${morph ? ' style="view-transition-name:eg-subject"' : ''}>${esc(subject || '(no subject)')}</h1><span class="convo-count"></span></div>
+            <div class="convo" id="convo"></div>
+            <div class="inline-reply" id="inline-reply">
+                ${avatar({ address: state.me.email, name: state.settings.displayName }, 'sm')}
+                <button class="ir-box" data-act="reply">Reply to ${esc(personName((latestIncoming() || m).from[0]) || 'sender')}…</button>
+                ${people.length > 2 ? `<button class="btn" data-act="replyAll">${icon('replyAll')} Reply all</button>` : ''}
                 <button class="btn" data-act="forward">${icon('forward')} Forward</button>
             </div>
         </div></div>`;
-    renderReaderBar();
-    renderBody(m, remoteOk);
+    renderConversation({ morph });
+}
+
+// the newest message that isn't from you (what "Reply" answers), else the newest
+const latestIncoming = () => [...convo.messages].reverse().find(x => (x.from[0]?.address || '').toLowerCase() !== state.me.email);
+async function replyTarget() {
+    const last = convo.messages[convo.messages.length - 1];
+    if (!last || keyOf(last) === keyOf(state.current)) return state.current;
+    return convo.full.get(keyOf(last)) || Object.assign(await fetchMessage(last.folder, last.uid), { folder: last.folder });
+}
+
+// Reply / forward. From the inline box it opens right inside the conversation.
+async function startReply(mode, m, inline) {
+    const target = m || (await replyTarget());
+    const mount = inline && $('#inline-reply');
+    openComposer(mode, target, {}, mount ? { mount, onClose: () => mount.classList.remove('composing'), onSent: () => refreshConversation() } : {});
+    if (mount) mount.classList.add('composing');
+}
+
+// after sending from the conversation, pick up the reply from Sent
+function refreshConversation() {
+    const uid = state.openUid, folder = state.folder;
+    if (!uid) return;
+    threadCache.delete(`${folder}\u0000${uid}`);
+    const token = readToken;
+    setTimeout(() => fetchThread(folder, uid).then(t => mergeThread(t, token)).catch(() => {}), 1200);
+}
+
+async function toggleCard(card) {
+    const m = convo.messages.find(x => keyOf(x) === card.dataset.key);
+    if (!m) return;
+    const key = keyOf(m);
+    if (convo.open.has(key) && convo.full.has(key)) {
+        if (convo.messages.length < 2) return;
+        convo.open.delete(key);
+        return renderConversation();
+    }
+    convo.open.add(key);
+    card.classList.add('loading');
+    try {
+        const full = await fetchMessage(m.folder, m.uid);
+        full.folder = m.folder;
+        convo.full.set(key, full);
+        renderConversation();
+        $(`.mcard[data-key="${CSS.escape(key)}"]`)?.classList.add('opened');
+    } catch (e) {
+        convo.open.delete(key);
+        card.classList.remove('loading');
+        toast(e.message, { error: true });
+    }
 }
 
 function attachmentCard(m, a) {
@@ -284,8 +449,8 @@ function attachmentCard(m, a) {
         <span class="icon-btn" data-download="${esc(href + '&download=1')}" title="Download">${icon('download')}</span></a>`;
 }
 
-function renderBody(m, remoteOk) {
-    const host = $('#body-host');
+function renderBody(m, remoteOk, host = $('.mcard.open .body-host')) {
+    if (!host) return;
     if (!m.html) {
         const linked = esc(m.text).replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
         host.innerHTML = `<div class="body-text">${linked || '<span style="color:var(--text-3)">(empty message)</span>'}</div>`;
@@ -319,55 +484,66 @@ $('#reader').addEventListener('click', e => {
     }
     const b = e.target.closest('[data-act]');
     if (!b || !state.current) return;
-    const m = state.current;
-    const uid = m.uid;
-    switch (b.dataset.act) {
+    const card = b.closest('.mcard');
+    const m = (card && convo.full.get(card.dataset.key)) || state.current;
+    const uids = convoUids();
+    const act = b.dataset.act;
+    if (act === 'toggle') {
+        if (e.target.closest('.mc-actions, [data-act="details"]')) return;
+        return toggleCard(card);
+    }
+    switch (act) {
         case 'back':
             $('#app').dataset.view = 'list';
             break;
         case 'archive':
-            archive([uid]);
+            archive(uids);
             break;
         case 'junk':
-            moveTo([uid], '\\Junk', 'Spam');
+            moveTo(uids, '\\Junk', 'Spam');
             break;
         case 'delete':
-            remove([uid]);
+            remove(uids);
             break;
         case 'unread':
-            setSeen([uid], false);
+            setSeen(uids, false);
             showEmptyReader();
             $('#app').dataset.view = 'list';
             break;
         case 'star':
-            toggleStar([uid]);
+            toggleStar(uids);
             break;
         case 'snooze': {
             const r = b.getBoundingClientRect();
-            snoozeMenu(r.left, r.bottom + 4, [uid]);
+            snoozeMenu(r.left, r.bottom + 4, uids);
             break;
         }
         case 'move': {
             const r = b.getBoundingClientRect();
-            pickFolder(r.left, r.bottom + 4, [uid]);
+            pickFolder(r.left, r.bottom + 4, uids);
             break;
         }
         case 'reply':
         case 'replyAll':
         case 'forward':
-            openComposer(b.dataset.act, m);
+            // a card's own button answers that message; the bar and inline box answer the newest
+            startReply(act, card ? m : null, !!b.closest('#inline-reply') || !!card);
+            break;
+        case 'show-all':
+            convo.showAll = true;
+            renderConversation();
             break;
         case 'details':
-            $('.details').classList.toggle('hidden');
+            (card || $('#reader')).querySelector('.details')?.classList.toggle('hidden');
             break;
         case 'images':
-            state.allowImagesFor.add(`${m.folder}:${m.uid}`);
-            renderReader();
+            state.allowImagesFor.add(keyOf(m));
+            renderConversation();
             break;
         case 'images-always':
             state.allowImagesFor.add((m.from[0] || {}).address.toLowerCase());
             saveTrustedSenders();
-            renderReader();
+            renderConversation();
             break;
         case 'unsubscribe':
             if (/^https?:/i.test(m.unsubscribe)) window.open(m.unsubscribe, '_blank', 'noopener');
@@ -378,10 +554,13 @@ $('#reader').addEventListener('click', e => {
             break;
         case 'more': {
             const r = b.getBoundingClientRect();
-            showMenu(r.left - 160, r.bottom + 4, [
-                { icon: 'code', label: 'View original', run: () => window.open('api/message/raw?' + qs({ folder: m.folder, uid }), '_blank', 'noopener') },
-                { icon: 'download', label: 'Download .eml', run: () => (location.href = 'api/message/raw?' + qs({ folder: m.folder, uid, download: 1 })) },
-                { icon: 'image', label: 'Print', run: () => printMessage(m) }
+            showMenu(r.left - 170, r.bottom + 4, [
+                { icon: 'replyAll', label: 'Reply all', run: () => startReply('replyAll', m, true) },
+                { icon: 'forward', label: 'Forward', run: () => startReply('forward', m, true) },
+                '-',
+                { icon: 'code', label: 'View original', run: () => window.open('api/message/raw?' + qs({ folder: m.folder, uid: m.uid }), '_blank', 'noopener') },
+                { icon: 'download', label: 'Download .eml', run: () => (location.href = 'api/message/raw?' + qs({ folder: m.folder, uid: m.uid, download: 1 })) },
+                { icon: 'image', label: 'Print', run: () => printMessage(card) }
             ]);
             break;
         }
@@ -396,10 +575,10 @@ function saveTrustedSenders() {
     }
 }
 
-function printMessage(m) {
-    const frame = $('.body-frame');
+function printMessage(card) {
+    const frame = (card || document).querySelector('.body-frame');
     if (frame && frame.contentWindow) return frame.contentWindow.print();
     window.print();
 }
 
-export { TIPS, activeMorph, attachmentCard, fetchMessage, hoverTimer, msgCache, openMessage, printMessage, readToken, renderBody, renderReader, renderReaderBar, renderWelcome, saveTrustedSenders, showEmptyReader, tiltEvent, tiltRaf, tip, withMessage };
+export { TIPS, attachmentCard, convo, convoUids, fetchMessage, fetchThread, msgCache, openMessage, printMessage, renderBody, renderConversation, renderReader, renderReaderBar, renderWelcome, saveTrustedSenders, showEmptyReader, startReply, threadCache, tip, withMessage };

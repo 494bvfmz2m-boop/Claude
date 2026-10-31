@@ -4,7 +4,7 @@ import { askConfirm, askText, restoreSelection, saveSelection } from './dialogs.
 import { loadFolders } from './folders.js';
 import { loadMessages, renderList } from './list.js';
 import { isDrafts, isSentLike, specialPath, state } from './state.js';
-import { $, $$, api, avatar, catchIn, debounce, esc, fmtAddr, fmtAddrList, fmtDate, fmtSize, h, morphFrom, morphTo, qs, recentPress, toast, visibleRect } from './util.js';
+import { $, $$, api, avatar, calm, catchIn, debounce, esc, fmtAddr, fmtAddrList, fmtDate, fmtSize, h, morphFrom, morphTo, qs, recentPress, toast, visibleRect } from './util.js';
 
 let composer = null;
 
@@ -24,7 +24,8 @@ function quotedBody(m) {
     return m.html ? cleanQuoted(m.html) : esc(m.text).replace(/\n/g, '<br>');
 }
 
-function openComposer(mode, m, preset = {}) {
+// opts.mount: render inline inside that element (replying from a conversation) instead of floating
+function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSent = null } = {}) {
     // only one composer at a time: park the current one in Drafts
     if (composer && !composer.sending) composer.close({ save: true });
     const me = state.me.email.toLowerCase();
@@ -110,8 +111,14 @@ function openComposer(mode, m, preset = {}) {
             <span class="spacer"></span>
             <button class="icon-btn" data-c="discard" title="Discard">${icon('trash')}</button>
         </div></div>`);
-    document.body.append(el);
-    morphFrom(el, recentPress() || visibleRect($('#compose-btn')) || visibleRect($('#fab')));
+    if (mount) {
+        el.classList.add('inline');
+        mount.append(el);
+        requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' }));
+    } else {
+        document.body.append(el);
+        morphFrom(el, recentPress() || visibleRect($('#compose-btn')) || visibleRect($('#fab')));
+    }
 
     const editor = $('.editor', el);
     const files = [];
@@ -295,10 +302,11 @@ function openComposer(mode, m, preset = {}) {
         const keep = save && c.dirty && !c.sending;
         // shrink into Drafts when it's being saved, back into the compose button otherwise
         const drafts = $(`#folders .folder[data-path="${CSS.escape(specialPath('\\Drafts') || 'Drafts')}"]`);
-        const target = discard ? null : keep ? visibleRect(drafts) || visibleRect($('#compose-btn')) : visibleRect($('#compose-btn')) || visibleRect($('#fab'));
+        const target = discard || mount ? null : keep ? visibleRect(drafts) || visibleRect($('#compose-btn')) : visibleRect($('#compose-btn')) || visibleRect($('#fab'));
         morphTo(el, target).then(() => {
             el.remove();
-            if (keep) catchIn(drafts);
+            if (keep && !mount) catchIn(drafts);
+            if (onClose) onClose();
         });
         // detached nodes are still readable, so the draft can be saved after removal
         if (keep) saveDraft(false).then(ok => ok && toast('Saved to Drafts'));
@@ -337,6 +345,8 @@ function openComposer(mode, m, preset = {}) {
                 toast('Message sent', { duration: 3000 });
                 if (composer === c) composer = null;
                 el.remove();
+                if (onSent) onSent();
+                if (onClose) onClose();
                 loadFolders();
                 if (isSentLike()) loadMessages({ quiet: true });
                 if (c.meta.answeredUid) {

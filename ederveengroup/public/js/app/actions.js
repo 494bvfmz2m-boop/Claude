@@ -1,7 +1,7 @@
 // EderveenGroup client: actions
 import { askConfirm } from './dialogs.js';
 import { loadFolders } from './folders.js';
-import { loadMessages, renderList } from './list.js';
+import { loadMessages, renderList, threads } from './list.js';
 import { showMenu } from './menus.js';
 import { openMessage, renderReaderBar, showEmptyReader } from './reader.js';
 import { FOLDER_ICONS, folderInfo, specialPath, state } from './state.js';
@@ -43,14 +43,19 @@ async function toggleStar(uids) {
 
 function dropFromList(uids, toPath) {
     flyToFolder(uids.map(u => $(`.msg[data-uid="${u}"]`)).filter(Boolean), toPath);
-    const idx = state.messages.findIndex(m => uids.includes(m.uid));
+    // rows (conversations) before the change, to know which one comes next
+    const order = threads.map(t => t.uid);
+    const removedRows = new Set(threads.filter(t => t.messages.every(m => uids.includes(m.uid))).map(t => t.uid));
+    const idx = order.findIndex(u => removedRows.has(u));
     state.messages = state.messages.filter(m => !uids.includes(m.uid));
     state.total = Math.max(0, state.total - uids.length);
     uids.forEach(u => state.checked.delete(u));
     if (!state.messages.length && state.folder === 'INBOX' && !state.query && !state.filter && state.page === 0 && state.total === 0) setTimeout(confetti, 120);
     if (state.openUid && uids.includes(state.openUid)) {
-        const next = state.messages[Math.min(idx, state.messages.length - 1)];
-        if (next && matchMedia('(min-width: 761px)').matches) openMessage(next.uid);
+        const remaining = order.filter(u => !removedRows.has(u));
+        const next = remaining[Math.min(Math.max(idx, 0), remaining.length - 1)];
+        const wide = matchMedia('(min-width: 761px)').matches;
+        if (next && state.settings.afterAction !== 'list' && (wide || state.settings.readingPane === 'off')) openMessage(next);
         else {
             showEmptyReader();
             $('#app').dataset.view = 'list';

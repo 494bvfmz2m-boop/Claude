@@ -135,3 +135,28 @@ test('sessions: sealed tickets expire and are bound to their purpose', () => {
     assert.equal(sessions.open(t, 'trust'), null);
     assert.equal(sessions.open(sessions.seal({ purpose: '2fa', exp: Date.now() - 1 }), '2fa'), null);
 });
+
+test('search box operators turn into IMAP criteria', () => {
+    const { parseQuery } = require('../../lib/query');
+    const q = parseQuery('from:marcus subject:"friday plans" is:unread has:attachment larger:2M before:2026-10-01 tacos');
+    assert.equal(q.criteria.from, 'marcus');
+    assert.equal(q.criteria.subject, 'friday plans');
+    assert.equal(q.criteria.seen, false);
+    assert.equal(q.criteria.larger, 2 * 1024 * 1024);
+    assert.equal(q.criteria.before.getFullYear(), 2026);
+    assert.deepEqual(q.criteria.header, { 'content-type': 'multipart/mixed' });
+    assert.equal(q.text, 'tacos');
+    assert.deepEqual(q.criteria.or, [{ subject: 'tacos' }, { from: 'tacos' }, { to: 'tacos' }, { body: 'tacos' }]);
+    assert.deepEqual(q.used, ['from', 'subject', 'is', 'has', 'larger', 'before']);
+});
+
+test('unknown or malformed operators fall back to plain text search', () => {
+    const { parseQuery } = require('../../lib/query');
+    const q = parseQuery('is:purple after:yesterday http://x.com "exact phrase"');
+    assert.equal(q.criteria.seen, undefined);
+    assert.equal(q.criteria.since, undefined);
+    assert.equal(q.text, 'is:purple after:yesterday http://x.com exact phrase');
+    assert.deepEqual(parseQuery('').criteria, {});
+    assert.equal(parseQuery('is:starred').criteria.flagged, true);
+    assert.equal(parseQuery('smaller:200k').criteria.smaller, 200 * 1024);
+});

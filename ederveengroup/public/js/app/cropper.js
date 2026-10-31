@@ -3,7 +3,7 @@ import { refreshMe } from './chrome.js';
 import { renderList } from './list.js';
 import { renderReader } from './reader.js';
 import { state } from './state.js';
-import { $, api, h, missingPhotos, toast } from './util.js';
+import { $, api, h, resetPhotos, toast } from './util.js';
 
 function cropPhoto(file, done) {
     if (!/^image\//.test(file.type)) return toast('Pick an image file', { error: true });
@@ -82,7 +82,7 @@ function cropPhoto(file, done) {
             try {
                 const r = await api('api/profile/photo', { method: 'PUT', body: { dataUrl: out.toDataURL('image/jpeg', 0.9) } });
                 state.me.photo = r.photo;
-                missingPhotos.delete(state.me.email);
+                resetPhotos(state.me.email);
                 close();
                 refreshMe();
                 renderList();

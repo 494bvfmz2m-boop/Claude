@@ -11,6 +11,7 @@ const state = {
     filter: '',
     messages: [],
     openUid: null,
+    focusUid: null, // keyboard focus in the list (j/k)
     current: null, // full message open in reader
     checked: new Set(),
     lastChecked: null,

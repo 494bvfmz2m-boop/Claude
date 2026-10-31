@@ -197,19 +197,62 @@ function avatar(person, size = '') {
     const mine = state.me && addr === state.me.email;
     // photos: your own upload, colleagues' uploads, then Gravatar / company logo (if enabled)
     const wantImg = addr.includes('@') && !missingPhotos.has(addr) && (mine ? state.me.photo || state.settings.senderPhotos !== false : state.settings && state.settings.senderPhotos !== false);
-    const img = wantImg ? `<img class="av-img" alt="" loading="lazy" decoding="async" data-email="${esc(addr)}" src="api/avatar?${qs({ email: addr, v: mine ? state.me.photo || 0 : undefined })}">` : '';
-    return `<div class="avatar ${size}" style="--h:${hh}">${esc(initials)}${img}</div>`;
+    let img = '';
+    if (wantImg && (mine && state.me.photo ? true : knownPhotos.has(addr))) img = photoImg(addr, mine ? state.me.photo : knownPhotos.get(addr));
+    else if (wantImg) askPhoto(addr);
+    return `<div class="avatar ${size}" style="--h:${hh}"${addr ? ` data-av="${esc(addr)}"` : ''}>${esc(initials)}${img}</div>`;
 }
+const photoImg = (addr, v) => `<img class="av-img" alt="" decoding="async" data-email="${esc(addr)}" src="api/avatar?${qs({ email: addr, v: v || undefined })}">`;
+
+// Photo lookups are batched: one request answers "who has a photo?" for everything on screen,
+// then the matching avatars get their image. Addresses without one never hit the network again.
 const missingPhotos = new Set();
+const knownPhotos = new Map();
+const askedPhotos = new Set();
+let pendingPhotos = new Set();
+let photoTimer = null;
+function askPhoto(addr) {
+    if (askedPhotos.has(addr)) return;
+    askedPhotos.add(addr);
+    pendingPhotos.add(addr);
+    clearTimeout(photoTimer);
+    photoTimer = setTimeout(flushPhotos, 60);
+}
+async function flushPhotos() {
+    const emails = [...pendingPhotos].slice(0, 80);
+    if (!emails.length) return;
+    emails.forEach(a => pendingPhotos.delete(a));
+    let photos = {};
+    try {
+        photos = (await api('api/avatars', { method: 'POST', body: { emails } })).photos || {};
+    } catch {
+        emails.forEach(a => askedPhotos.delete(a)); // try again on the next render
+        return;
+    }
+    for (const a of emails) {
+        if (photos[a]) knownPhotos.set(a, photos[a]);
+        else missingPhotos.add(a);
+    }
+    for (const el of document.querySelectorAll('.avatar[data-av]')) {
+        const a = el.dataset.av;
+        if (knownPhotos.has(a) && !el.querySelector('.av-img')) el.insertAdjacentHTML('beforeend', photoImg(a, knownPhotos.get(a)));
+    }
+    if (pendingPhotos.size) flushPhotos();
+}
+// forget what we know (sender photos turned on/off, or your own photo changed)
+function resetPhotos(addr) {
+    for (const set of [missingPhotos, knownPhotos, askedPhotos, pendingPhotos]) addr ? set.delete(addr) : set.clear();
+}
 document.addEventListener('load', e => e.target.classList && e.target.classList.contains('av-img') && e.target.classList.add('ok'), true);
 document.addEventListener('error', e => {
     const t = e.target;
     if (!t.classList || !t.classList.contains('av-img')) return;
     missingPhotos.add(t.dataset.email);
+    knownPhotos.delete(t.dataset.email);
     t.remove();
 }, true);
 const personName = p => (p ? p.name || p.address : '');
 const fmtAddr = p => (p.name ? `${p.name} <${p.address}>` : p.address);
 const fmtAddrList = list => list.map(fmtAddr).join(', ');
 
-export { $, $$, api, avatar, calm, catchIn, caught, debounce, esc, flyToFolder, fmtAddr, fmtAddrList, fmtDate, fmtSize, glide, h, hue, lastPress, missingPhotos, morphFrom, morphTo, nextFrame, personName, qs, recentPress, toast, visibleRect };
+export { $, $$, api, avatar, calm, catchIn, caught, debounce, esc, flyToFolder, fmtAddr, fmtAddrList, fmtDate, fmtSize, glide, h, hue, lastPress, knownPhotos, missingPhotos, morphFrom, resetPhotos, morphTo, nextFrame, personName, qs, recentPress, toast, visibleRect };

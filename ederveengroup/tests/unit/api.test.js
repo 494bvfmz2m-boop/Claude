@@ -160,3 +160,16 @@ test('pages, redirects and security headers', async () => {
     assert.equal((await d('GET', '/mail/api/me')).status, 401);
     app.close();
 });
+
+test('one batched call says which senders have a photo', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    await d('PUT', '/mail/api/settings', { senderPhotos: false }); // no Gravatar lookups from tests
+    const png = 'data:image/png;base64,' + Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex').toString('base64');
+    assert.equal((await d('PUT', '/mail/api/profile/photo', { dataUrl: png })).status, 200);
+    const r = await d('POST', '/mail/api/avatars', { emails: [USER.toUpperCase(), 'nobody@example.com', 'not an email', 42] });
+    assert.deepEqual(Object.keys(r.body.photos), [USER]);
+    assert.equal((await d('POST', '/mail/api/avatars', { emails: 'x' })).body.photos && true, true);
+    app.close();
+});
