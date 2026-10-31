@@ -9,7 +9,7 @@ const { createSessions } = require('../lib/session');
 const { createStore } = require('../lib/store');
 const { createAvatars } = require('../lib/avatars');
 const defaultMail = require('../lib/mail');
-const { securityHeaders, csrfGuard } = require('./security');
+const { createSecurityHeaders, csrfGuard } = require('./security');
 const { requireAuth } = require('./http');
 const { assetVersion, createPages } = require('./pages');
 const { createSecondFactor } = require('./twofa');
@@ -26,7 +26,7 @@ function createApp(config, { mail = defaultMail } = {}) {
         upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } }),
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
-        pages: createPages({ viewsDir: config.viewsDir, baseUrl: config.baseUrl, version: assetVersion(config.publicDir) })
+        pages: createPages({ viewsDir: config.viewsDir, publicDir: config.publicDir, baseUrl: config.baseUrl, version: assetVersion(config.publicDir) })
     };
 
     const site = express();
@@ -34,7 +34,7 @@ function createApp(config, { mail = defaultMail } = {}) {
     site.set('trust proxy', config.trustProxy);
     // gzip/brotli text responses, except the live event stream (it must not be buffered)
     site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && compression.filter(req, res) }));
-    site.use(securityHeaders);
+    site.use(createSecurityHeaders({ scriptHashes: ctx.pages.scriptHashes }));
 
     /* ---------- the webmail ---------- */
     const app = express.Router();

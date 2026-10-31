@@ -19,14 +19,26 @@ function assetVersion(publicDir) {
     return hash.digest('hex').slice(0, 10);
 }
 
-// HTML pages with <!--include:name--> partials and %BASE% / %V% / %ORIGIN% placeholders.
-function createPages({ viewsDir, baseUrl, version }) {
+// The app's ES modules import each other by plain path; an import map pins every one of
+// them to this deploy's version so they can all be cached for a year. It's an inline
+// script, so the CSP allows it by hash.
+function moduleImportMap({ publicDir, baseUrl, version }) {
+    const dir = path.join(publicDir, 'js', 'app');
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort() : [];
+    const json = JSON.stringify({ imports: Object.fromEntries(files.map(f => [`${baseUrl}js/app/${f}`, `${baseUrl}js/app/${f}?v=${version}`])) });
+    return { json, hash: `'sha256-${crypto.createHash('sha256').update(json).digest('base64')}'` };
+}
+
+// HTML pages with <!--include:name--> partials and %BASE% / %V% / %IMPORTMAP% / %ORIGIN% placeholders.
+function createPages({ viewsDir, publicDir, baseUrl, version }) {
+    const importMap = moduleImportMap({ publicDir, baseUrl, version });
     const cache = {};
     function render(name) {
         if (!cache[name]) {
             cache[name] = fs
                 .readFileSync(path.join(viewsDir, name), 'utf8')
                 .replace(/<!--include:([a-z-]+)-->/g, (_, part) => fs.readFileSync(path.join(viewsDir, 'partials', part + '.html'), 'utf8'))
+                .replace('%IMPORTMAP%', `<script type="importmap">${importMap.json}</script>`)
                 .replaceAll('%BASE%', baseUrl)
                 .replaceAll('%V%', version);
         }
@@ -34,6 +46,7 @@ function createPages({ viewsDir, baseUrl, version }) {
     }
     const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
     return {
+        scriptHashes: [importMap.hash],
         send: (res, name, status = 200) =>
             res.status(status).type('html').set('Cache-Control', 'no-cache').send(render(name).replaceAll('%ORIGIN%', originOf(res.req)))
     };

@@ -1,8 +1,8 @@
 'use strict';
 
-const CSP = [
+const cspFor = (scriptHashes = []) => [
     "default-src 'self'",
-    "script-src 'self'",
+    ["script-src 'self'", ...scriptHashes].join(' '),
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https: http:",
@@ -15,19 +15,23 @@ const CSP = [
     "frame-ancestors 'none'"
 ].join('; ');
 
-function securityHeaders(req, res, next) {
-    if (req.secure) res.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
-    res.set({
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'Referrer-Policy': 'no-referrer',
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Resource-Policy': 'same-origin',
-        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
-        'Content-Security-Policy': CSP
-    });
-    next();
+function createSecurityHeaders({ scriptHashes } = {}) {
+    const csp = cspFor(scriptHashes);
+    return function securityHeaders(req, res, next) {
+        if (req.secure) res.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+        res.set({
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'Referrer-Policy': 'no-referrer',
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Cross-Origin-Resource-Policy': 'same-origin',
+            'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+            'Content-Security-Policy': csp
+        });
+        next();
+    };
 }
+const securityHeaders = createSecurityHeaders();
 
 // Every state-changing API call must carry X-EG: browsers won't send a custom header
 // cross-site without a CORS preflight, which we never approve. A browser-sent Origin must
@@ -67,4 +71,4 @@ function createLimiter({ max, windowMs }) {
     };
 }
 
-module.exports = { securityHeaders, csrfGuard, createLimiter, CSP };
+module.exports = { securityHeaders, createSecurityHeaders, csrfGuard, createLimiter };

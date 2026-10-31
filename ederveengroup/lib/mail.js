@@ -93,15 +93,38 @@ async function closeClient({ email, password }) {
     await entry.client.logout().catch(() => {});
 }
 
-async function withMailbox(session, folder, fn) {
-    const client = await getClient(session);
-    const lock = await client.getMailboxLock(folder);
+// A pooled connection can be closed by the server at any moment (idle timeouts, restarts).
+// Reads and flag changes are safe to repeat, so those retry once on a fresh connection;
+// moves and appends never retry, because the first attempt may already have happened.
+const isDeadConnection = err => !!err && (['NoConnection', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT'].includes(err.code) || /connection not available|connection closed/i.test(err.message || ''));
+const dropClient = session => pool.delete(poolKey(session.email, session.password));
+
+async function withClient(session, fn, { retry = false } = {}) {
     try {
-        return await fn(client);
-    } finally {
-        lock.release();
+        return await fn(await getClient(session));
+    } catch (err) {
+        if (!retry || !isDeadConnection(err)) throw err;
+        dropClient(session);
+        return fn(await getClient(session));
     }
 }
+
+async function withMailbox(session, folder, fn, opts) {
+    return withClient(
+        session,
+        async client => {
+            const lock = await client.getMailboxLock(folder);
+            try {
+                return await fn(client);
+            } finally {
+                lock.release();
+            }
+        },
+        opts
+    );
+}
+const READ = { retry: true };
+const readMailbox = (session, folder, fn) => withMailbox(session, folder, fn, READ);
 
 /* ---------- folders ---------- */
 
@@ -109,8 +132,7 @@ const SPECIAL_ORDER = ['\\Inbox', '\\Flagged', '\\Snoozed', '\\Drafts', '\\Sent'
 const SNOOZED = 'Snoozed';
 
 async function listFolders(session) {
-    const client = await getClient(session);
-    const list = await client.list({ statusQuery: { messages: true, unseen: true } });
+    const list = await withClient(session, c => c.list({ statusQuery: { messages: true, unseen: true } }), READ);
     return list
         .filter(f => !f.flags.has('\\Noselect') && !f.flags.has('\\NonExistent'))
         .map(f => ({
@@ -130,8 +152,7 @@ async function listFolders(session) {
 }
 
 async function findSpecial(session, use, fallbackNames) {
-    const client = await getClient(session);
-    const list = await client.list();
+    const list = await withClient(session, c => c.list(), READ);
     const hit = list.find(f => f.specialUse === use) || list.find(f => fallbackNames.includes(f.path.toLowerCase()));
     return hit ? hit.path : null;
 }
@@ -223,7 +244,7 @@ function summarize(msg) {
 }
 
 async function listMessages(session, folder, { page = 0, query = '', filter = '' }) {
-    return withMailbox(session, folder, async client => {
+    return readMailbox(session, folder, async client => {
         const total = client.mailbox.exists;
         let range;
         let count = total;
@@ -301,7 +322,7 @@ async function listMessages(session, folder, { page = 0, query = '', filter = ''
 /* ---------- single message ---------- */
 
 async function fetchParsed(session, folder, uid) {
-    return withMailbox(session, folder, async client => {
+    return readMailbox(session, folder, async client => {
         const msg = await client.fetchOne(String(uid), { uid: true, source: true, flags: true }, { uid: true });
         if (!msg || !msg.source) {
             const err = new Error('Message not found');
@@ -388,7 +409,7 @@ async function getRaw(session, folder, uid) {
 /* ---------- flags / move / delete ---------- */
 
 async function setFlags(session, folder, uids, { add = [], remove = [] }) {
-    return withMailbox(session, folder, async client => {
+    return readMailbox(session, folder, async client => {
         const range = uids.join(',');
         if (add.length) await client.messageFlagsAdd(range, add, { uid: true });
         if (remove.length) await client.messageFlagsRemove(range, remove, { uid: true });
