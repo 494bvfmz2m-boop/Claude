@@ -9,24 +9,25 @@ const { cleanSettingsPatch } = require('../settings');
 module.exports = function accountRoutes({ store, avatars, isAdmin }) {
     const r = express.Router();
 
-    r.get('/me', (req, res) => {
+    r.get('/me', wrap(async (req, res) => {
         res.json({
             email: req.session.email,
             sessionExpires: new Date(req.session.exp).toISOString(),
-            photo: avatars.photoVersion(req.session.email),
+            photo: await avatars.photoVersion(req.session.email),
+            username: store.usernameOf(req.session.email),
             settings: store.getSettings(req.session.email),
             // admins see the server requests waiting for them
             ...(isAdmin && isAdmin(req.session.email) ? { admin: true, pendingRequests: store.servers.listRequests().filter(r => r.status === 'pending').length } : {})
         });
-    });
+    }));
 
     r.put('/settings', (req, res) => res.json(store.updateSettings(req.session.email, cleanSettingsPatch(req.body))));
 
-    r.put('/profile/photo', (req, res) => res.json({ photo: avatars.savePhoto(req.session.email, req.body.dataUrl) }));
-    r.delete('/profile/photo', (req, res) => {
-        avatars.removePhoto(req.session.email);
+    r.put('/profile/photo', wrap(async (req, res) => res.json({ photo: await avatars.savePhoto(req.session.email, req.body.dataUrl) })));
+    r.delete('/profile/photo', wrap(async (req, res) => {
+        await avatars.removePhoto(req.session.email);
         res.json({ photo: null });
-    });
+    }));
 
     // Photo for any address: an uploaded EderveenGroup photo first, then Gravatar or company logo.
     r.get('/avatar', wrap(async (req, res) => {
@@ -47,7 +48,8 @@ module.exports = function accountRoutes({ store, avatars, isAdmin }) {
         const found = {};
         for (let i = 0; i < emails.length; i += 8) {
             await Promise.all(emails.slice(i, i + 8).map(async e => {
-                if (await avatars.lookup(e, { remote })) found[e] = avatars.photoVersion(e) || 1;
+                const hit = await avatars.lookup(e, { remote });
+                if (hit) found[e] = hit.version || 1;
             }));
         }
         res.json({ photos: found });

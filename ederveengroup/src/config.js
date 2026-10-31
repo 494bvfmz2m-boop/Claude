@@ -31,7 +31,11 @@ function loadConfig(env = process.env) {
         // who can accept or reject requests to add other mail servers (comma-separated addresses)
         adminEmails: String(env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
         // testing only: let requests point at mail servers on private networks
-        allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1'
+        allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',
+        // MySQL / MariaDB; without DB_HOST everything is kept in files in the data folder
+        db: env.DB_HOST
+            ? { host: env.DB_HOST, port: Number(env.DB_PORT) || 3306, database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASSWORD || '', ssl: env.DB_SSL === '1' ? 'verify' : env.DB_SSL === 'insecure' ? 'insecure' : '' }
+            : null
     };
 }
 

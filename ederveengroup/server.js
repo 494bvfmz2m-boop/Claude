@@ -17,7 +17,15 @@ const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 
 const config = loadConfig();
-const { site } = createApp(config);
+const { site, close } = createApp(config);
+
+// redeploys stop the app with SIGTERM: finish writing to the database first
+for (const sig of ['SIGTERM', 'SIGINT']) {
+    process.once(sig, () => {
+        const done = () => process.exit(0);
+        Promise.race([close(), new Promise(r => setTimeout(r, 5000))]).then(done, done);
+    });
+}
 
 site.listen(config.port, () => {
     const url = `http://localhost:${config.port}${config.baseUrl}`;

@@ -5,7 +5,9 @@
 const express = require('express');
 const compression = require('compression');
 const multer = require('multer');
-const { createSessions } = require('../lib/session');
+const crypto = require('crypto');
+const { createSessions, loadKey } = require('../lib/session');
+const { createBackend } = require('../lib/db');
 const { createStore } = require('../lib/store');
 const { createAvatars } = require('../lib/avatars');
 const defaultMail = require('../lib/mail');
@@ -19,13 +21,16 @@ const { APP_ROUTE } = require('./routes-app');
 const { adminRoutes, requestRoutes } = require('./routes/servers');
 
 function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
-    const store = createStore(config.dataDir);
+    // private account data in the database is encrypted with a key derived from the server secret
+    const dataKey = crypto.createHmac('sha256', loadKey(config.dataDir)).update('derive\0data').digest();
+    const backend = createBackend(config, { key: dataKey });
+    const store = createStore(config.dataDir, { backend });
     const ctx = {
         config,
         store,
         mail,
-        avatars: createAvatars(config.dataDir),
-        sessions: createSessions({ dataDir: config.dataDir, cookiePath: config.baseUrl, secureCookies: config.secureCookies, registry: store.sessions }),
+        avatars: createAvatars(config.dataDir, { backend, store }),
+        sessions: createSessions({ dataDir: config.dataDir, cookiePath: config.baseUrl, secureCookies: config.secureCookies, registry: store.sessions, ready: store.ready }),
         upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 50 } }),
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
@@ -40,9 +45,32 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     const admin = adminRoutes(ctx);
     ctx.isAdmin = admin.isAdmin;
 
+    // start-up: create the tables and load the mail-server list; if the database can't be
+    // reached, say so on every page and keep retrying
+    const boot = { ok: false, error: null };
+    const start = () =>
+        (boot.promise = backend
+            .init()
+            .then(() => store.init())
+            .then(() => {
+                boot.ok = true;
+                boot.error = null;
+            })
+            .catch(err => {
+                boot.error = err;
+                console.error(`Can't open the ${backend.kind === 'mysql' ? 'database' : 'data folder'}: ${err.message}. Retrying in 10 seconds.`);
+                setTimeout(start, 10000);
+            }));
+    start();
+
     const site = express();
     site.disable('x-powered-by');
     site.set('trust proxy', config.trustProxy);
+    site.use(async (req, res, next) => {
+        if (!boot.ok) await boot.promise;
+        if (boot.ok) return next();
+        res.status(503).set('Retry-After', '10').type('text/plain').send('EderveenGroup can’t reach its database right now. It keeps retrying; refresh in a moment.');
+    });
     // gzip/brotli text responses, except the live event stream (it must not be buffered)
     site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && compression.filter(req, res) }));
     site.use(createSecurityHeaders({ scriptHashes: ctx.pages.scriptHashes }));
@@ -120,7 +148,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         site.use((req, res) => ctx.pages.send(res, 'landing.html', 404));
     }
 
-    return { site, ctx };
+    return { site, ctx, ready: boot.promise, store, close: async () => (await store.flush(), await backend.close()) };
 }
 
 module.exports = { createApp };

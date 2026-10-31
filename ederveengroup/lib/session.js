@@ -73,7 +73,7 @@ const newSid = () => crypto.randomBytes(12).toString('base64url');
  *   isActive(email, sid) -> bool, add(email, sid, info), touch(email, sid, info)
  * info: { ip, ua } of the request.
  */
-function createSessions({ dataDir, secureCookies, cookiePath = '/', registry }) {
+function createSessions({ dataDir, secureCookies, cookiePath = '/', registry, ready = async () => {} }) {
     const key = loadKey(dataDir);
     // HTTPS directly, or via a trusted reverse proxy (X-Forwarded-Proto), marks cookies Secure
     const secure = res => secureCookies || !!(res.req && res.req.secure);
@@ -124,10 +124,17 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', registry }) 
         // Express middleware: attaches req.session (or null), checks it hasn't been signed out
         // from another device, and slides long sessions forward.
         middleware() {
-            return (req, res, next) => {
+            return async (req, res, next) => {
                 const token = parseCookies(req.headers.cookie)[COOKIE];
                 let session = token ? unseal(key, token) : null;
                 if (session && (!session.exp || session.exp < Date.now() || !session.email)) session = null;
+                if (session) {
+                    try {
+                        await ready(session.email); // the account's devices list lives in the store
+                    } catch (err) {
+                        return next(err);
+                    }
+                }
                 if (session && !session.sid) {
                     // cookie from before sessions were tracked: register it once
                     session.sid = newSid();
@@ -153,4 +160,4 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', registry }) 
     return api;
 }
 
-module.exports = { createSessions, parseCookies };
+module.exports = { createSessions, loadKey, parseCookies };

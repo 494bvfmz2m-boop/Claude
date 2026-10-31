@@ -1,11 +1,11 @@
 'use strict';
 
-// Tiny per-user JSON store: settings, signatures, templates, contacts, snoozes,
-// two-factor, signed-in devices and recent sign-in activity. One file per account.
+// Per-account data: settings, signatures, templates, contacts, snoozes, two-factor, signed-in
+// devices, sign-in activity, username and public profile; plus the mail-server registry.
+// Stored in MySQL or in files, see lib/db.js.
 
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const { createFileBackend } = require('./db');
 
 const DEFAULTS = {
     displayName: '',
@@ -33,51 +33,96 @@ const MAX_ACTIVITY = 40;
 const SESSION_IDLE_MAX = 31 * 24 * 60 * 60 * 1000; // matches the longest cookie lifetime
 const TOUCH_PERSIST_EVERY = 5 * 60 * 1000;
 
-function createStore(dataDir) {
-    const dir = path.join(dataDir, 'users');
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    try {
-        fs.chmodSync(dataDir, 0o700);
-    } catch {
-        // best effort (e.g. Windows)
-    }
+// Accounts are loaded from the backend (lib/db.js) once and kept in memory; changes are written
+// back in the background, one write per account at a time (later changes ride along). Anything
+// that reads an account first awaits ready(email): the session middleware and sign-in do that.
+function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
     const cache = new Map();
+    const loading = new Map();
     const lastPersist = new Map();
-
+    const writes = new Map();
     const norm = email => String(email).trim().toLowerCase();
-    const fileFor = email => path.join(dir, crypto.createHash('sha256').update(norm(email)).digest('hex') + '.json');
 
-    function load(email) {
-        email = norm(email);
-        if (cache.has(email)) return cache.get(email);
-        let data = {};
-        try {
-            data = JSON.parse(fs.readFileSync(fileFor(email), 'utf8'));
-        } catch {
-            // new user
-        }
-        const saved = data.settings || {};
+    function blank() {
+        return { settings: { ...DEFAULTS }, contacts: {}, snoozes: [], twofa: null, sessions: {}, activity: [], photo: null };
+    }
+    function hydrate(row) {
+        const data = (row && row.data) || {};
+        const saved = { ...(data.settings || {}) };
         if (saved.accent === '#c9a66b' || saved.accent === '#7c5cff') delete saved.accent; // retired defaults
-        const user = {
+        return {
             settings: { ...DEFAULTS, ...saved },
             contacts: data.contacts || {},
             snoozes: data.snoozes || [],
             twofa: data.twofa || null,
             sessions: data.sessions || {},
-            activity: data.activity || []
+            activity: data.activity || [],
+            photo: data.photo || null,
+            username: (row && row.username) || null,
+            profile: (row && row.profile) || null,
+            persisted: !!row
         };
-        cache.set(email, user);
-        return user;
     }
 
+    /** loads an account into memory (once); resolves to whether it existed before */
+    function ready(email) {
+        email = norm(email);
+        if (cache.has(email)) return Promise.resolve(cache.get(email).persisted);
+        if (!loading.has(email)) {
+            loading.set(email, backend.loadUser(email).then(row => {
+                if (!cache.has(email)) {
+                    cache.set(email, hydrate(row));
+                    if (row && row.migrated) save(email); // copied over from the old files
+                }
+                loading.delete(email);
+                return cache.get(email).persisted;
+            }, err => {
+                loading.delete(email);
+                throw err;
+            }));
+        }
+        return loading.get(email);
+    }
+
+    function load(email) {
+        email = norm(email);
+        const user = cache.get(email);
+        if (user) return user;
+        // files can be read on the spot; a database must be awaited (ready) first
+        if (!backend.loadUserSync) throw new Error(`account ${email} used before it was loaded`);
+        cache.set(email, hydrate(backend.loadUserSync(email)));
+        return cache.get(email);
+    }
+
+    function snapshot(user) {
+        const { settings, contacts, snoozes, twofa, sessions, activity, photo } = user;
+        return { data: { settings, contacts, snoozes, twofa, sessions, activity, photo }, username: user.username, profile: user.profile };
+    }
+
+    // one write at a time per account; changes made meanwhile go out in the next write
     function save(email) {
         email = norm(email);
-        const file = fileFor(email);
-        const tmp = file + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(load(email), null, 2), { mode: 0o600 });
-        fs.renameSync(tmp, file);
+        const user = load(email);
+        user.persisted = true;
         lastPersist.set(email, Date.now());
+        const w = writes.get(email);
+        if (w) return void (w.again = true);
+        const job = { again: false };
+        job.done = (async () => {
+            do {
+                job.again = false;
+                try {
+                    await backend.saveUser(email, snapshot(user));
+                } catch (err) {
+                    console.error(`Couldn’t save ${email}:`, err.message);
+                }
+            } while (job.again);
+            writes.delete(email);
+        })();
+        writes.set(email, job);
     }
+
+    const registry = createServerRegistry(backend);
 
     function pruneSessions(user) {
         const now = Date.now();
@@ -94,7 +139,18 @@ function createStore(dataDir) {
 
     return {
         DEFAULTS,
-        exists: email => cache.has(norm(email)) || fs.existsSync(fileFor(email)),
+        backend,
+        ready,
+        /** waits for every pending write (tests, shutdown) */
+        flush: async () => {
+            while (writes.size) await Promise.all([...writes.values()].map(w => w.done));
+            await registry.flush();
+        },
+        init: () => registry.init(),
+        exists: email => {
+            const u = cache.get(norm(email));
+            return !!(u && u.persisted);
+        },
 
         /* ---------- settings ---------- */
         getSettings: email => load(email).settings,
@@ -209,8 +265,39 @@ function createStore(dataDir) {
         },
         listActivity: email => load(email).activity,
 
+        /* ---------- profile photo version (the photo itself lives in the backend) ---------- */
+        photoVersion: email => load(email).photo,
+        setPhotoVersion(email, version) {
+            load(email).photo = version || null;
+            save(email);
+        },
+
+        /* ---------- username and public profile ---------- */
+        usernameOf: email => load(email).username,
+        async claimUsername(email, username) {
+            const user = load(email);
+            if (user.username === username) return true;
+            if (!user.persisted) {
+                save(email);
+                await writes.get(norm(email))?.done; // the row has to exist before it can take a name
+            }
+            const ok = await backend.claimUsername(norm(email), username, user.username);
+            if (ok) user.username = username;
+            return ok;
+        },
+        async isUsernameFree(username, email) {
+            const owner = await backend.emailForUsername(username);
+            return !owner || owner === norm(email || '');
+        },
+        emailForUsername: username => backend.emailForUsername(username),
+        getProfile: email => load(email).profile,
+        setProfile(email, profile) {
+            load(email).profile = profile;
+            save(email);
+        },
+
         /* ---------- other mail servers (requests and accepted accounts) ---------- */
-        servers: createServerRegistry(dataDir)
+        servers: registry
     };
 }
 
@@ -218,23 +305,33 @@ function createStore(dataDir) {
 // whole domains (written "@example.com") have been accepted, with their server settings.
 const MAX_REQUESTS = 300;
 const MAX_PENDING = 100;
-function createServerRegistry(dataDir) {
-    const file = path.join(dataDir, 'servers.json');
-    let data;
-    try {
-        data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    } catch {
-        data = {};
-    }
-    data.requests = data.requests || [];
-    data.accounts = data.accounts || {};
+function createServerRegistry(backend) {
+    let data = { requests: [], accounts: {} };
+    let writing = null;
+    let again = false;
     const save = () => {
-        const tmp = file + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
-        fs.renameSync(tmp, file);
+        if (writing) return void (again = true);
+        writing = (async () => {
+            do {
+                again = false;
+                try {
+                    await backend.saveRegistry(data);
+                } catch (err) {
+                    console.error('Couldn’t save the mail server list:', err.message);
+                }
+            } while (again);
+            writing = null;
+        })();
     };
     const keyFor = (email, scope) => (scope === 'domain' ? '@' + email.split('@')[1] : email);
     return {
+        async init() {
+            const doc = await backend.loadRegistry();
+            data = { requests: (doc && doc.requests) || [], accounts: (doc && doc.accounts) || {} };
+        },
+        flush: async () => {
+            while (writing) await writing;
+        },
         /** server settings for an address: its own entry, then its domain's, else null (default server) */
         profileFor(email) {
             const e = String(email || '').toLowerCase();

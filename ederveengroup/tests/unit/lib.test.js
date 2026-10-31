@@ -104,7 +104,7 @@ function fakeRes(req) {
     return { req, append: (k, v) => headers.push(v), headers };
 }
 
-test('sessions: sealed cookie round-trips, tampering and revocation are rejected', () => {
+test('sessions: sealed cookie round-trips, tampering and revocation are rejected', async () => {
     const dir = tmp();
     const store = createStore(dir);
     const sessions = createSessions({ dataDir: dir, cookiePath: '/mail/', registry: store.sessions });
@@ -116,15 +116,15 @@ test('sessions: sealed cookie round-trips, tampering and revocation are rejected
     assert.match(res.headers[0], /Path=\/mail\//);
 
     const mw = sessions.middleware();
-    const run = c => {
+    const run = async c => {
         const r = { ip: '1.2.3.4', get: () => 'UA', headers: { cookie: c } };
-        mw(r, fakeRes(r), () => {});
+        await mw(r, fakeRes(r), () => {});
         return r.session;
     };
-    assert.equal(run(cookie).email, 'a@x.com');
-    assert.equal(run(cookie.slice(0, -3) + 'AAA'), null);
+    assert.equal((await run(cookie)).email, 'a@x.com');
+    assert.equal(await run(cookie.slice(0, -3) + 'AAA'), null);
     store.sessions.revoke('a@x.com', s.sid);
-    assert.equal(run(cookie), null);
+    assert.equal(await run(cookie), null);
 });
 
 test('sessions: sealed tickets expire and are bound to their purpose', () => {

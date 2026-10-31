@@ -54,13 +54,12 @@ async function fetchImage(url) {
     }
 }
 
-function createAvatars(dataDir) {
-    const photos = path.join(dataDir, 'avatars');
+// Uploaded photos live in the store's backend (database or files); the Gravatar / logo cache
+// stays on local disk because it's only a cache.
+function createAvatars(dataDir, { backend, store }) {
     const cache = path.join(dataDir, 'avatar-cache');
-    fs.mkdirSync(photos, { recursive: true });
     fs.mkdirSync(cache, { recursive: true });
     const keyOf = email => crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');
-    const photoFile = email => path.join(photos, keyOf(email));
     const inflight = new Map();
 
     function readFresh(file, ttl) {
@@ -96,42 +95,49 @@ function createAvatars(dataDir) {
     }
 
     return {
-        photoVersion(email) {
-            try {
-                return Math.floor(fs.statSync(photoFile(email)).mtimeMs);
-            } catch {
-                return null;
+        /** your own photo's version (for cache-busting), or null; the account must be loaded */
+        async photoVersion(email) {
+            let v = store.photoVersion(email);
+            if (v === undefined) {
+                // accounts from before versions were stored: look once, then remember
+                const p = await backend.getPhoto(email);
+                v = p ? p.version : null;
+                store.setPhotoVersion(email, v);
             }
+            return v;
         },
 
-        savePhoto(email, dataUrl) {
+        async savePhoto(email, dataUrl) {
             const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
             if (!m) throw Object.assign(new Error('Upload a PNG, JPEG or WebP image'), { status: 400 });
             const buf = Buffer.from(m[2], 'base64');
             if (buf.length > MAX_PHOTO_BYTES) throw Object.assign(new Error('That photo is too large (max 1 MB after cropping)'), { status: 413 });
             if (!sniffType(buf)) throw Object.assign(new Error('That file is not a valid image'), { status: 400 });
-            fs.writeFileSync(photoFile(email), buf, { mode: 0o600 });
-            return this.photoVersion(email);
+            const version = await backend.setPhoto(email, buf);
+            store.setPhotoVersion(email, version);
+            return version;
         },
 
-        removePhoto(email) {
-            fs.rmSync(photoFile(email), { force: true });
+        async removePhoto(email) {
+            await backend.removePhoto(email);
+            store.setPhotoVersion(email, null);
         },
 
-        // Returns { buf, type } or null. Uploaded photos win; then Gravatar / company logo.
+        /** only the photo someone uploaded here (used on public profiles) */
+        async uploaded(email) {
+            const p = await backend.getPhoto(email);
+            return p ? { buf: p.buf, type: sniffType(p.buf), version: p.version } : null;
+        },
+
+        // Returns { buf, type, version } or null. Uploaded photos win; then Gravatar / company logo.
         async lookup(email, { remote = true } = {}) {
-            let buf = null;
-            try {
-                buf = fs.readFileSync(photoFile(email));
-            } catch {
-                // no uploaded photo
-            }
-            if (!buf && remote) {
-                const key = keyOf(email);
-                if (!inflight.has(key)) inflight.set(key, remoteLookup(email).finally(() => inflight.delete(key)));
-                buf = await inflight.get(key);
-            }
-            return buf ? { buf, type: sniffType(buf) } : null;
+            const own = await this.uploaded(email);
+            if (own) return own;
+            if (!remote) return null;
+            const key = keyOf(email);
+            if (!inflight.has(key)) inflight.set(key, remoteLookup(email).finally(() => inflight.delete(key)));
+            const buf = await inflight.get(key);
+            return buf ? { buf, type: sniffType(buf), version: 1 } : null;
         }
     };
 }

@@ -29,6 +29,7 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         const email = String(req.body.email || '').trim().toLowerCase();
         const password = String(req.body.password || '');
         if (!isEmail(email) || !password || password.length > 1024) return res.status(400).json({ error: 'Enter your full email address and password.' });
+        await store.ready(email);
         if (perAccount.blocked(email)) {
             store.logActivity(email, { ok: false, method: 'password', reason: 'locked', ...who(req) });
             return res.status(429).json({ error: 'Too many failed attempts for this account. Try again in 15 minutes.' });
@@ -61,9 +62,10 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         res.json({ ok: true });
     }));
 
-    r.post('/login/2fa', throttle, (req, res) => {
+    r.post('/login/2fa', throttle, wrap(async (req, res) => {
         const t = sessions.open(req.body.ticket, '2fa');
         if (!t) return res.status(401).json({ error: 'That sign-in took too long. Please start again.', restart: true });
+        await store.ready(t.email);
         const tf = store.getTwofa(t.email);
         let result = { ok: true, method: 'password' };
         if (tf && tf.secret) {
@@ -81,7 +83,7 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         sessions.start(res, { email: t.email, password: t.password, remember: t.remember });
         store.logActivity(t.email, { ok: true, method: result.method, ...who(req) });
         res.json(result);
-    });
+    }));
 
     r.post('/logout', wrap(async (req, res) => {
         if (req.session) {
