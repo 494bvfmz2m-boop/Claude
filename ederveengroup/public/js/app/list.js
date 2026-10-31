@@ -1,6 +1,7 @@
 // EderveenGroup client: list
 import { archive, moveTo, pickFolder, remove, setSeen, toggleStar } from './actions.js';
 import { openComposer } from './composer.js';
+import { sync } from './router.js';
 import { loadFolders, openFolder } from './folders.js';
 import { showMenu } from './menus.js';
 import { openMessage, withMessage } from './reader.js';
@@ -446,8 +447,10 @@ $('#chips').addEventListener('click', e => {
     loadMessages();
 });
 const runSearch = debounce(value => {
+    const was = state.query;
     state.query = value.trim();
     loadMessages();
+    sync({ replace: !!was || !state.query });
 }, 350);
 $('#search').addEventListener('input', e => {
     runSearch(e.target.value);

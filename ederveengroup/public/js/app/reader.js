@@ -7,6 +7,7 @@ import { showMenu } from './menus.js';
 import { onKey } from './palette.js';
 import { snoozeMenu } from './snooze.js';
 import { folderInfo, isDrafts, specialPath, state } from './state.js';
+import { back, sync } from './router.js';
 import { $, $$, api, avatar, calm, esc, fmtAddrList, fmtDate, fmtSize, h, personName, qs, toast } from './util.js';
 
 const TIPS = [
@@ -19,11 +20,21 @@ const TIPS = [
 ];
 let tip = TIPS[Math.floor(Math.random() * TIPS.length)];
 
-function showEmptyReader() {
+function showEmptyReader({ quiet = false } = {}) {
+    const was = state.openUid;
     state.openUid = null;
     state.current = null;
     $$('.msg.selected').forEach(x => x.classList.remove('selected'));
     renderWelcome();
+    if (was && !quiet) sync({ replace: true });
+}
+
+// back from a conversation to its folder (really "back" when we came from there)
+function closeReader() {
+    back(() => {
+        $('#app').dataset.view = 'list';
+        showEmptyReader();
+    });
 }
 
 function renderWelcome() {
@@ -164,6 +175,7 @@ let activeMorph = null;
 async function openMessage(uid, { quick = false } = {}) {
     const token = ++readToken;
     state.openUid = uid;
+    sync({ replace: quick });
     $$('.msg').forEach(x => {
         const on = Number(x.dataset.uid) === uid;
         x.classList.toggle('selected', on);
@@ -502,7 +514,7 @@ $('#reader').addEventListener('click', e => {
     }
     switch (act) {
         case 'back':
-            $('#app').dataset.view = 'list';
+            closeReader();
             break;
         case 'archive':
             archive(uids);
@@ -589,4 +601,4 @@ function printMessage(card) {
     window.print();
 }
 
-export { TIPS, attachmentCard, convo, convoUids, fetchMessage, fetchThread, msgCache, openMessage, printMessage, renderBody, renderConversation, renderReader, renderReaderBar, renderWelcome, saveTrustedSenders, showEmptyReader, startReply, threadCache, tip, withMessage };
+export { attachmentCard, closeReader, convo, convoUids, fetchMessage, fetchThread, msgCache, openMessage, printMessage, renderBody, renderConversation, renderReader, renderReaderBar, renderWelcome, saveTrustedSenders, showEmptyReader, startReply, threadCache, tip, TIPS, withMessage };

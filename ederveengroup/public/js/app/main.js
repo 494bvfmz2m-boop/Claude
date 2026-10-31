@@ -1,14 +1,15 @@
 // EderveenGroup client: main
 import { refreshMe } from './chrome.js';
-import { loadFolders } from './folders.js';
+import { loadFolders, openFolder, renderFolders } from './folders.js';
 import { loadMessages } from './list.js';
 import { connectLive } from './live.js';
 import { applyLook } from './look.js';
-import { showEmptyReader } from './reader.js';
-import { openSettings } from './settings.js';
+import { openMessage, showEmptyReader } from './reader.js';
+import { folderOf, parse, queryOf, remember, start as startRouter, sync, titleFor } from './router.js';
+import { closeSettings, openSettings } from './settings.js';
 import { state } from './state.js';
 import { startTour } from './tour.js';
-import { $, api, glide, toast } from './util.js';
+import { $, api, glide, qs, toast } from './util.js';
 
 (async function init() {
     try {
@@ -35,11 +36,22 @@ import { $, api, glide, toast } from './util.js';
     } catch {
         // storage unavailable
     }
-    showEmptyReader();
+    showEmptyReader({ quiet: true });
     const started = performance.now();
-    // folders and the inbox load side by side; the inbox needs nothing from the folder list
+    // the address says what to show; the inbox can load alongside the folder list, anything
+    // else needs the folder list first (to turn the address into a folder)
+    const route = parse();
     const folders = loadFolders();
-    const messages = loadMessages();
+    const plainInbox = !route.search && !route.folderId && (!route.slug || route.slug === 'inbox');
+    const messages = plainInbox
+        ? loadMessages()
+        : folders.then(() => {
+              state.folder = folderOf(route) || 'INBOX';
+              state.query = queryOf(route) || '';
+              $('#search').value = state.query;
+              renderFolders();
+              return loadMessages();
+          });
     $('#folders').classList.add('intro');
     // leave the splash as soon as folders arrive (or after 1.4 s at most), once the logo has drawn
     await Promise.race([folders, new Promise(r => setTimeout(r, 1400))]);
@@ -51,11 +63,46 @@ import { $, api, glide, toast } from './util.js';
     }
     setTimeout(() => $('#folders').classList.remove('intro'), 1800);
     await Promise.allSettled([folders, messages]);
+    startRouter({
+        async folder(path, query) {
+            if (query) {
+                state.folder = path;
+                state.query = query;
+                $('#search').value = query;
+                renderFolders();
+                await loadMessages();
+            } else openFolder(path);
+        },
+        message: openLink,
+        closeMessage() {
+            $('#app').dataset.view = 'list';
+            showEmptyReader();
+        },
+        settings: openSettings,
+        closeSettings
+    });
+    if (route.settings) openSettings(route.settings);
+    else if (route.link) openLink(route.link);
+    document.title = titleFor();
     connectLive();
     setInterval(loadFolders, 120000);
     if (!state.settings.tourDone) setTimeout(() => startTour(), 700);
     registerWorker();
 })();
+
+// a conversation from its address: in the loaded list, or asked from the server
+async function openLink(link) {
+    const listed = state.messages.find(m => m.link === link);
+    if (listed) return listed.uid === state.openUid ? null : openMessage(listed.uid);
+    try {
+        const { uid } = await api('api/link?' + qs({ folder: state.folder, t: link }));
+        remember(uid, link);
+        if (uid !== state.openUid) await openMessage(uid);
+    } catch {
+        toast('That conversation isn’t here any more', { error: true });
+        sync({ replace: true });
+    }
+}
 
 // lost connection: say so once, and catch up as soon as it's back
 let offlineToast = null;

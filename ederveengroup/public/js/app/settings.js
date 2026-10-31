@@ -6,6 +6,7 @@ import { askConfirm, askText, restoreSelection, saveSelection } from './dialogs.
 import { renderList } from './list.js';
 import { saveSettings } from './look.js';
 import { SHORTCUTS } from './palette.js';
+import { back as leave, sync } from './router.js';
 import { state } from './state.js';
 import { $, $$, api, avatar, debounce, esc, fmtDate, glide, h, resetPhotos, toast } from './util.js';
 
@@ -44,7 +45,14 @@ const activityRow = (a, i) => `<li class="${a.ok ? 'ok' : 'bad'}" style="animati
         <small>${esc(a.device ? a.device.label : 'Unknown device')}${a.ip ? ` · ${esc(a.ip)}` : ''}</small></div>
     <time title="${esc(fmtDate(new Date(a.t).toISOString(), true))}">${esc(ago(a.t))}</time></li>`;
 
+// the open settings window (one at a time); closing it from the address bar skips the URL update
+let openOne = null;
+function closeSettings() {
+    if (openOne) openOne.close({ fromRouter: true });
+}
+
 function openSettings(tab = 'general') {
+    if (openOne) return openOne.show(tab);
     const s = state.settings;
     const back = h(`<div class="modal-back"><div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
         <div class="modal-head"><h2>Settings</h2><button class="icon-btn" data-close aria-label="Close settings">${icon('x')}</button></div>
@@ -64,9 +72,13 @@ function openSettings(tab = 'general') {
         </div></div></div>`);
     document.body.append(back);
     let section = $('section', back);
-    const close = () => {
-        back.remove();
+    const close = ({ fromRouter = false } = {}) => {
+        if (openOne !== api) return;
+        openOne = null;
+        back.classList.add('closing');
+        setTimeout(() => back.remove(), 260);
         document.removeEventListener('keydown', onEsc, true);
+        if (!fromRouter) leave(() => sync({ replace: true }));
     };
     const onEsc = e => {
         if (e.key === 'Escape' && !$('.dlg-back')) {
@@ -500,10 +512,13 @@ function openSettings(tab = 'general') {
         if (b) show(b.dataset.tab);
     });
     function show(name) {
+        if (!tabs[name]) name = 'general';
+        sync({ settings: name, replace: !!section.dataset.tab });
         $$('nav button', back).forEach(b => b.classList.toggle('active', b.dataset.tab === name));
         glide($('nav', back), $(`nav [data-tab="${name}"]`, back));
         // fresh element per tab so listeners from the previous tab don't pile up
         const fresh = section.cloneNode(false);
+        fresh.dataset.tab = name;
         section.replaceWith(fresh);
         section = fresh;
         section.addEventListener('click', e => {
@@ -516,7 +531,9 @@ function openSettings(tab = 'general') {
         });
         tabs[name]();
     }
+    const api = { close, show };
+    openOne = api;
     show(tab);
 }
 
-export { SIG_TEMPLATES, openSettings };
+export { SIG_TEMPLATES, closeSettings, openSettings };

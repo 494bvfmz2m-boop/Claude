@@ -165,6 +165,8 @@ test('pages, redirects and security headers', async () => {
     assert.equal(landing.headers.get('x-frame-options'), 'DENY');
     assert.equal((await d('GET', '/mail')).status, 301);
     assert.equal((await d('GET', '/mail/')).headers.get('location'), '/mail/login');
+    // deep links survive signing in
+    assert.equal((await d('GET', '/mail/inbox/x7Kq2pW9aZc')).headers.get('location'), '/mail/login?next=inbox%2Fx7Kq2pW9aZc');
     assert.equal((await d('GET', '/nope')).status, 404);
     assert.equal((await d('GET', '/mail/api/me')).status, 401);
     app.close();
@@ -229,5 +231,25 @@ test('service worker is rendered per deploy and only precaches versioned app fil
     assert.ok(assets.every(a => a.startsWith('/mail/') && /\?v=\w+$/.test(a) && !a.includes('/api/')));
     assert.ok(assets.includes(assets.find(a => a.includes('js/app/main.js'))));
     for (const a of assets.slice(0, 3)) assert.equal((await d('GET', a)).status, 200);
+    app.close();
+});
+
+test('every page has its own address; message links resolve only for their owner and folder', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    assert.equal((await d('GET', '/mail/')).headers.get('location'), '/mail/inbox');
+    assert.equal((await d('GET', '/mail/login?next=search%2Fk7Qp2Xa9')).headers.get('location'), '/mail/search/k7Qp2Xa9');
+    assert.equal((await d('GET', '/mail/login?next=%2F%2Fevil.com')).headers.get('location'), '/mail/inbox'); // no open redirect
+    for (const page of ['/mail/inbox', '/mail/settings/devices', '/mail/f/AbCdEf12'])
+        assert.match((await d('GET', page)).body, /<base href="\/mail\/">/, page);
+    const folders = (await d('GET', '/mail/api/folders')).body;
+    assert.match(folders[0].id, /^[A-Za-z0-9_-]{8}$/);
+    const msg = (await d('GET', '/mail/api/messages')).body.messages[0];
+    assert.match(msg.link, /^[A-Za-z0-9_-]{11}$/);
+    assert.equal((await d('GET', `/mail/api/link?folder=INBOX&t=${msg.link}`)).body.uid, msg.uid);
+    assert.equal((await d('GET', `/mail/api/link?folder=Archive&t=${msg.link}`)).status, 404);
+    assert.equal((await d('GET', '/mail/api/link?folder=INBOX&t=AAAAAAAAAAA')).status, 404);
+    assert.equal((await app.device()('GET', `/mail/api/link?folder=INBOX&t=${msg.link}`)).status, 401);
     app.close();
 });

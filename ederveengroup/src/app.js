@@ -14,6 +14,8 @@ const { requireAuth } = require('./http');
 const { assetVersion, createPages } = require('./pages');
 const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
+const { createLinks } = require('../lib/links');
+const { APP_ROUTE } = require('./routes-app');
 
 function createApp(config, { mail = defaultMail } = {}) {
     const store = createStore(config.dataDir);
@@ -26,8 +28,11 @@ function createApp(config, { mail = defaultMail } = {}) {
         upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 50 } }),
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
+        links: null,
         pages: createPages({ viewsDir: config.viewsDir, publicDir: config.publicDir, baseUrl: config.baseUrl, version: assetVersion(config.publicDir) })
     };
+
+    ctx.links = createLinks(ctx.sessions.deriveKey('links'));
 
     const site = express();
     site.disable('x-powered-by');
@@ -41,8 +46,15 @@ function createApp(config, { mail = defaultMail } = {}) {
     app.use(ctx.sessions.middleware());
     app.use(express.json({ limit: '2mb' }));
 
-    app.get('/', (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : res.redirect(config.baseUrl + 'login')));
-    app.get('/login', (req, res) => (req.session ? res.redirect(config.baseUrl) : ctx.pages.send(res, 'login.html')));
+    // every screen has its own address (/inbox, /inbox/<link>, /f/<id>, /search/<code>, /settings/<tab>);
+    // they all load the app, which then shows the right thing. Signed out: back here after login.
+    app.get('/', (req, res) => (req.session ? res.redirect(config.baseUrl + 'inbox') : res.redirect(config.baseUrl + 'login')));
+    app.get(APP_ROUTE, (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : res.redirect(`${config.baseUrl}login?next=${encodeURIComponent(req.path.slice(1))}`)));
+    app.get('/login', (req, res) => {
+        if (!req.session) return ctx.pages.send(res, 'login.html');
+        const next = String(req.query.next || '');
+        res.redirect(config.baseUrl + (APP_ROUTE.test('/' + next) ? next : 'inbox'));
+    });
     // the service worker is rendered per deploy, so a new version installs itself
     app.get('/sw.js', (req, res) => {
         if (!ctx.pages.serviceWorker) return res.status(404).end();

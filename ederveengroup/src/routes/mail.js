@@ -7,14 +7,14 @@ const { htmlToText } = require('html-to-text');
 const { wrap, folderOf, uidList, parseAddresses } = require('../http');
 const { sanitizeComposeHtml } = require('../../lib/sanitize');
 
-module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
+module.exports = function mailRoutes({ store, mail, upload, wakeDue, links }) {
     const r = express.Router();
 
     /* ---------- folders ---------- */
 
     r.get('/folders', wrap(async (req, res) => {
         await wakeDue(req.session).catch(() => {});
-        res.json(await mail.listFolders(req.session));
+        res.json((await mail.listFolders(req.session)).map(f => ({ ...f, id: links.folderId(req.session.email, f.path) })));
     }));
 
     r.post('/folders', wrap(async (req, res) => {
@@ -49,19 +49,31 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
 
     /* ---------- messages ---------- */
 
+    // every message carries its opaque link (see lib/links.js)
+    const withLinks = (req, list, folder) => list.map(m => ({ ...m, link: links.encode(req.session.email, m.folder || folder, m.uid) }));
+
     r.get('/messages', wrap(async (req, res) => {
-        res.json(
-            await mail.listMessages(req.session, folderOf(req), {
-                page: Math.max(0, Number(req.query.page) || 0),
-                query: String(req.query.q || '').slice(0, 300),
-                filter: String(req.query.filter || '')
-            })
-        );
+        const folder = folderOf(req);
+        const out = await mail.listMessages(req.session, folder, {
+            page: Math.max(0, Number(req.query.page) || 0),
+            query: String(req.query.q || '').slice(0, 300),
+            filter: String(req.query.filter || '')
+        });
+        res.json({ ...out, messages: withLinks(req, out.messages, folder) });
     }));
 
     r.get('/thread', wrap(async (req, res) => {
-        res.json(await mail.getThread(req.session, folderOf(req), Number(req.query.uid)));
+        const folder = folderOf(req);
+        const out = await mail.getThread(req.session, folder, Number(req.query.uid));
+        res.json(Array.isArray(out) ? withLinks(req, out, folder) : { ...out, messages: withLinks(req, out.messages || [], folder) });
     }));
+
+    // a link from the address bar back to the message it stands for
+    r.get('/link', (req, res) => {
+        const uid = links.decode(req.session.email, folderOf(req), req.query.t);
+        if (!uid) return res.status(404).json({ error: 'That link doesn’t point to anything here' });
+        res.json({ uid });
+    });
 
     r.get('/search/counts', wrap(async (req, res) => {
         res.json(await mail.searchCounts(req.session, String(req.query.q || '').slice(0, 300), folderOf(req)));

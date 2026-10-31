@@ -15,11 +15,15 @@
     window.egFx.magnetic(document.querySelectorAll('[data-magnetic]'));
     window.egFx.cursorGlow();
 
+    // where to go after signing in: the page you asked for (only pages inside the app)
+    const nextParam = new URLSearchParams(location.search).get('next') || '';
+    const next = /^(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred|f\/[\w-]{8}|search\/[\w-]{6,16}|settings)(?:\/[\w-]{2,20}){0,2}$/.test(nextParam) ? nextParam : 'inbox';
+
     // sent here because this device was signed out from somewhere else
     if (new URLSearchParams(location.search).has('signedout')) {
         err.textContent = 'You were signed out from another device. Sign in again to continue.';
         err.classList.remove('hidden');
-        history.replaceState(null, '', location.pathname);
+        history.replaceState(null, '', location.pathname + (nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''));
     }
 
     // caps lock hint
@@ -74,7 +78,7 @@
             btn.classList.remove('busy');
             btn.classList.add('done');
             btn.innerHTML = window.icon('check') + '<span>Welcome</span>';
-            setTimeout(() => warpTo('./'), 280);
+            setTimeout(() => warpTo(next), 280);
         } catch (ex) {
             err.textContent = ex.message;
             err.classList.remove('hidden');
@@ -196,7 +200,7 @@
             tf.querySelector('.otp').classList.add('ok');
             clearInterval(timer);
             if (data.usedRecovery) sessionStorage.setItem('eg.recoveryLeft', String(data.recoveryLeft));
-            setTimeout(() => warpTo('./', tfBtn, tf), 380);
+            setTimeout(() => warpTo(next, tfBtn, tf), 380);
         } catch (ex) {
             tfBtn.disabled = false;
             tfBtn.classList.remove('busy');

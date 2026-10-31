@@ -169,3 +169,36 @@ test('embedded images are not counted as attachments', () => {
     assert.equal(inspectStructure(mixed).attachments, true);
     assert.equal(inspectStructure({ childNodes: [{ type: 'image/png', dispositionParameters: { filename: 'photo.png' } }] }).attachments, true);
 });
+
+test('conversation links are short, opaque, per account and folder-bound', () => {
+    const { createLinks } = require('../../lib/links');
+    const links = createLinks(Buffer.alloc(32, 7));
+    const t = links.encode('jo@example.com', 'INBOX', 4242);
+    assert.match(t, /^[A-Za-z0-9_-]{11}$/);
+    assert.equal(links.decode('jo@example.com', 'INBOX', t), 4242);
+    assert.equal(links.decode('JO@example.com', 'INBOX', t), 4242); // case-insensitive account
+    assert.equal(links.decode('jo@example.com', 'Archive', t), null); // wrong folder
+    assert.equal(links.decode('ava@example.com', 'INBOX', t), null); // someone else's link
+    assert.notEqual(links.encode('ava@example.com', 'INBOX', 4242), t);
+    assert.notEqual(links.encode('jo@example.com', 'INBOX', 4243).slice(0, 4), t.slice(0, 4)); // neighbours look unrelated
+    const flipped = (t[0] === 'A' ? 'B' : 'A') + t.slice(1);
+    assert.equal(links.decode('jo@example.com', 'INBOX', flipped), null); // tampering breaks it
+    assert.equal(links.decode('jo@example.com', 'INBOX', '../../etc'), null);
+    assert.match(links.folderId('jo@example.com', 'Projects/2026'), /^[A-Za-z0-9_-]{8}$/);
+    // a few thousand uids never collide and always round-trip
+    const seen = new Set();
+    for (let uid = 1; uid < 3000; uid++) {
+        const x = links.encode('jo@example.com', 'INBOX', uid);
+        assert.equal(seen.has(x), false);
+        seen.add(x);
+        assert.equal(links.decode('jo@example.com', 'INBOX', x), uid);
+    }
+});
+
+test('only real app pages count as in-app addresses', () => {
+    const { APP_ROUTE } = require('../../src/routes-app');
+    for (const ok of ['/inbox', '/inbox/', '/inbox/x7Kq2pW9aZc', '/f/AbCdEf12', '/f/AbCdEf12/x7Kq2pW9aZc', '/search/k7Qp2Xa9', '/settings', '/settings/devices', '/archive/x7Kq2pW9aZc'])
+        assert.equal(APP_ROUTE.test(ok), true, ok);
+    for (const bad of ['/', '/api/me', '//evil.com', '/inbox/../api', '/inbox/short', '/f/x', '/login', '/settings/../../x', '/inbox/x7Kq2pW9aZc/more', 'https://evil.com/inbox'])
+        assert.equal(APP_ROUTE.test(bad), false, bad);
+});

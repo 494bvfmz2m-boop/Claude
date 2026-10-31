@@ -5,6 +5,7 @@ import { loadMessages, renderGreeting, renderList, renderTitle } from './list.js
 import { showMenu } from './menus.js';
 import { renderWelcome, showEmptyReader } from './reader.js';
 import { FOLDER_ICONS, folderInfo, state } from './state.js';
+import { sync } from './router.js';
 import { $, $$, api, caught, esc, glide, qs, toast } from './util.js';
 
 async function loadFolders() {
@@ -154,7 +155,8 @@ function openFolder(path, { keepSearch = false } = {}) {
     $('#app').dataset.view = 'list';
     renderFolders();
     loadMessages();
-    showEmptyReader();
+    showEmptyReader({ quiet: true });
+    sync();
 }
 
 export { deleteFolder, emptyFolder, lastCounts, loadFolders, markAllRead, newFolder, openFolder, renderFolders };

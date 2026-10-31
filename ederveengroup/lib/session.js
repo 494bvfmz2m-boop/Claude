@@ -89,6 +89,8 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', registry }) 
     }
 
     const api = {
+        // a separate key for another purpose (e.g. link tokens), derived from the session key
+        deriveKey: label => crypto.createHmac('sha256', key).update(`derive\0${label}`).digest(),
         // Short-lived sealed blobs, e.g. the "password OK, now enter your code" ticket.
         seal: payload => seal(key, payload),
         open(token, purpose) {
