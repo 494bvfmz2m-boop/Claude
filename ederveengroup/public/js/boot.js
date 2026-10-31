@@ -14,13 +14,16 @@
         root.style.setProperty('--accent', '#' + m[1]);
         root.style.setProperty('--on-accent', L > 0.36 ? '#17130b' : '#ffffff');
     };
+    // phones get the Apple-style look (light unless chosen otherwise); computers Midnight aurora
+    var phone = matchMedia('(max-width: 760px)').matches;
+    root.dataset.device = phone ? 'phone' : 'desk';
     try {
         var t = JSON.parse(localStorage.getItem('eg.look') || '{}');
-        if (t.theme === 'light' || t.theme === 'dark') root.dataset.theme = t.theme;
-        else root.dataset.theme = t.theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        var chosen = phone ? t.phoneTheme || 'light' : t.theme || 'dark';
+        root.dataset.theme = chosen === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : chosen;
         if (t.accent) window.egApplyAccent(t.accent);
         if (t.density) root.dataset.density = t.density;
     } catch (e) {
-        root.dataset.theme = 'dark';
+        root.dataset.theme = phone ? 'light' : 'dark';
     }
 })();

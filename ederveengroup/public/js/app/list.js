@@ -142,7 +142,16 @@ async function loadMore() {
 }
 
 // load the next page when the end of the list scrolls into view
-const endWatcher = new IntersectionObserver(entries => entries.some(e => e.isIntersecting) && loadMore(), { root: $('#messages'), rootMargin: '600px 0px' });
+let endWatcher = null;
+const phoneLayout = matchMedia('(max-width: 760px)');
+function watchEnd() {
+    endWatcher?.disconnect();
+    endWatcher = new IntersectionObserver(entries => entries.some(e => e.isIntersecting) && loadMore(), { root: phoneLayout.matches ? $('.list-pane') : $('#messages'), rootMargin: '600px 0px' });
+    const end = $('#messages .list-end:not(.done)');
+    if (end) endWatcher.observe(end);
+}
+watchEnd();
+phoneLayout.addEventListener('change', watchEnd);
 
 // searching: how many results other folders have ("also in Archive · 4")
 async function loadSearchCounts(token) {
@@ -352,6 +361,7 @@ $('#messages').addEventListener('mousemove', e => {
     const list = $('#messages');
     list.addEventListener('touchstart', e => {
         row = e.target.closest('.msg');
+        if (!row || e.touches[0].clientX < 24) return (row = null); // the left edge swipes back
         if (!row) return;
         x0 = e.touches[0].clientX;
         y0 = e.touches[0].clientY;

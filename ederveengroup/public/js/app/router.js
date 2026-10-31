@@ -54,7 +54,7 @@ function parse(pathname = location.pathname) {
     const parts = (pathname.startsWith(BASE) ? pathname.slice(BASE.length) : '').split('/').filter(Boolean);
     const route = { slug: 'inbox', folderId: null, link: null, search: null, settings: null };
     if (!parts.length) return route;
-    if (parts[0] === 'settings') return { ...route, settings: TABS.includes(parts[1]) ? parts[1] : 'general' };
+    if (parts[0] === 'settings') return { ...route, settings: !parts[1] ? 'index' : TABS.includes(parts[1]) ? parts[1] : 'general' };
     if (parts[0] === 'search') return { ...route, slug: null, search: parts[1] || null, link: parts[2] || null };
     if (parts[0] === 'f') return { ...route, slug: null, folderId: parts[1] || null, link: parts[2] || null };
     return { ...route, slug: SLUGS[parts[0]] ? parts[0] : 'inbox', link: parts[1] || null };
@@ -78,7 +78,7 @@ const linkFor = uid => (state.messages.find(m => m.uid === uid) || {}).link || e
 
 /** the address for what's on screen right now */
 function currentUrl({ settings = null } = {}) {
-    if (settings) return `${BASE}settings/${settings}`;
+    if (settings) return settings === 'index' ? `${BASE}settings` : `${BASE}settings/${settings}`;
     const base = state.query ? `search/${codeForSearch(state.query, state.folder)}` : folderSlug(state.folder);
     const link = state.openUid ? linkFor(state.openUid) : null;
     return BASE + base + (link ? `/${link}` : '');

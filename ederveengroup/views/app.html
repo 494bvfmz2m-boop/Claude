@@ -27,6 +27,7 @@
     <div class="app" id="app">
         <aside class="sidebar">
             <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+            <h1 class="phone-title">Mailboxes</h1>
             <button class="btn btn-primary compose-btn" id="compose-btn" data-icon="pen"><span>New message</span><kbd>C</kbd></button>
             <nav class="folders" id="folders" aria-label="Folders"></nav>
             <div class="side-foot">
@@ -84,6 +85,12 @@
     </div>
 
     <button class="fab" id="fab" data-icon="pen" aria-label="New message"></button>
+    <nav class="tabbar" id="tabbar" aria-label="Sections">
+        <button data-tab="mail" class="on" data-icon="inbox"><span>Mail</span></button>
+        <button data-tab="search" data-icon="search"><span>Search</span></button>
+        <button data-tab="write" data-icon="pen"><span>Write</span></button>
+        <button data-tab="settings" data-icon="settings"><span>Settings</span></button>
+    </nav>
     <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </body>
 </html>

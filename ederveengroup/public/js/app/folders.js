@@ -27,7 +27,7 @@ function renderFolders() {
         const depth = f.delimiter ? f.path.split(f.delimiter).length - 1 : 0;
         return `<button class="folder${f.path === state.folder ? ' active' : ''}"${f.path === state.folder ? ' aria-current="page"' : ''} data-path="${esc(f.path)}" style="${depth ? `padding-left:${12 + depth * 16}px` : ''}">
             ${icon(FOLDER_ICONS[f.specialUse] || 'folder')}<span class="name">${esc(f.name)}</span>
-            ${showUnread ? `<span class="count${['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? '' : ' unread'}">${unread}</span>` : ''}</button>`;
+            ${showUnread ? `<span class="count${['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? '' : ' unread'}">${unread}</span>` : ''}${icon('right', 'chev')}</button>`;
     };
     $('#folders').innerHTML =
         special.map(row).join('') +

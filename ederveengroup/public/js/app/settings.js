@@ -123,7 +123,8 @@ function openSettings(tab = 'general') {
         look() {
             const accents = ['#4c8dff', '#22c3ee', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#e5484d', '#94a3b8'];
             section.innerHTML = `<h3>Appearance</h3><p class="hint">Make it yours.</p>
-                <div class="row"><div class="lbl"><b>Theme</b></div><div class="seg" data-seg="theme">${['dark', 'light', 'system'].map(t => `<button data-v="${t}" class="${s.theme === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
+                <div class="row"><div class="lbl"><b>Theme on computers</b><small>Midnight aurora, or its daytime version</small></div><div class="seg" data-seg="theme">${['dark', 'light', 'system'].map(t => `<button data-v="${t}" class="${s.theme === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
+                <div class="row"><div class="lbl"><b>Theme on phones</b><small>The Apple-style app: light, dark, or follow the phone</small></div><div class="seg" data-seg="phoneTheme">${['light', 'dark', 'system'].map(t => `<button data-v="${t}" class="${(s.phoneTheme || 'light') === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
                 <div class="row"><div class="lbl"><b>Accent color</b></div><div class="swatches">${accents.map(a => `<button class="swatch${s.accent === a ? ' on' : ''}" data-accent="${a}" style="background:${a}" aria-label="${a}"></button>`).join('')}<label class="swatch swatch-custom${accents.includes(s.accent) ? '' : ' on'}" title="Custom"><input type="color" value="${esc(s.accent)}"></label></div></div>
                 <div class="row"><div class="lbl"><b>Density</b><small>Compact hides previews</small></div><div class="seg" data-seg="density">${['comfortable', 'compact'].map(t => `<button data-v="${t}" class="${s.density === t ? 'on' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>`;
             section.addEventListener('click', e => {
@@ -595,8 +596,28 @@ function openSettings(tab = 'general') {
         const b = e.target.closest('[data-tab]');
         if (b) show(b.dataset.tab);
     });
+    const phone = () => matchMedia('(max-width: 760px)').matches;
+    const holder = $('.settings', back);
     function show(name) {
+        // phones start at the list of sections (/settings); computers go straight to General
+        if (name === 'index' && phone()) {
+            holder.dataset.level = 'root';
+            $$('nav button', back).forEach(b => b.classList.remove('active'));
+            $('.modal-head h2', back).textContent = 'Settings';
+            $('.set-back', back)?.remove();
+            sync({ settings: 'index', replace: !!section.dataset.tab });
+            return;
+        }
         if (!tabs[name]) name = 'general';
+        holder.dataset.level = 'tab';
+        if (phone()) {
+            $('.modal-head h2', back).textContent = $(`nav [data-tab="${name}"]`, back)?.textContent.trim() || 'Settings';
+            if (!$('.set-back', back)) {
+                const b = h(`<button class="set-back">${icon('left')}Settings</button>`);
+                b.onclick = () => show('index');
+                $('.modal-head', back).prepend(b);
+            }
+        }
         sync({ settings: name, replace: !!section.dataset.tab });
         $$('nav button', back).forEach(b => b.classList.toggle('active', b.dataset.tab === name));
         glide($('nav', back), $(`nav [data-tab="${name}"]`, back));

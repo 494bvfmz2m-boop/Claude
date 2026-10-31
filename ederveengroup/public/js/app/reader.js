@@ -4,7 +4,7 @@ import { openComposer } from './composer.js';
 import { openFolder, renderFolders } from './folders.js';
 import { greetingFor, threadOf } from './list.js';
 import { showMenu } from './menus.js';
-import { onKey } from './palette.js';
+import { moveFocus, onKey } from './palette.js';
 import { snoozeMenu } from './snooze.js';
 import { folderInfo, isDrafts, specialPath, state } from './state.js';
 import { back, sync } from './router.js';
@@ -382,6 +382,8 @@ function renderReader({ morph = false } = {}) {
     const subject = stripPrefix(convo.messages[0]?.subject || m.subject) || m.subject;
     const people = [...new Set(convo.messages.flatMap(x => [...(x.to || []), ...(x.cc || []), ...x.from]).map(p => p.address.toLowerCase()))];
     $('#reader').innerHTML = `
+        <div class="reader-nav"><button class="rn-back" data-act="back" aria-label="Back">${icon('left')}</button><span class="spacer"></span>
+            <button class="icon-btn" data-act="newer" aria-label="Newer conversation">${icon('up')}</button><button class="icon-btn" data-act="older" aria-label="Older conversation">${icon('down')}</button></div>
         <div class="reader-bar">
             <button class="icon-btn back-btn" data-act="back" data-tip="Back" aria-label="Back">${icon('left')}</button>
             <button class="icon-btn" data-act="archive" data-tip="Archive (E)" aria-label="Archive">${icon('archive')}</button>
@@ -421,7 +423,7 @@ async function replyTarget() {
 // Reply / forward. From the inline box it opens right inside the conversation.
 async function startReply(mode, m, inline) {
     const target = m || (await replyTarget());
-    const mount = inline && $('#inline-reply');
+    const mount = inline && !matchMedia('(max-width: 760px)').matches && $('#inline-reply');
     // "Send & archive" files the conversation that was open when you hit reply
     const folder = state.folder, uids = convoUids();
     const onSent = ({ archive: andArchive } = {}) => (andArchive && state.folder === folder && uids.length ? archive(uids) : refreshConversation());
@@ -515,6 +517,10 @@ $('#reader').addEventListener('click', e => {
     switch (act) {
         case 'back':
             closeReader();
+            break;
+        case 'newer':
+        case 'older':
+            moveFocus(act === 'newer' ? -1 : 1);
             break;
         case 'archive':
             archive(uids);

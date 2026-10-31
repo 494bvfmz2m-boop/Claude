@@ -1,6 +1,6 @@
 // EderveenGroup client: chrome
 import { composer, openComposer } from './composer.js';
-import { applyLook, saveSettings } from './look.js';
+import { applyLook, saveSettings, themeKey } from './look.js';
 import { openPalette } from './palette.js';
 import { openSettings } from './settings.js';
 import { state } from './state.js';
@@ -8,14 +8,14 @@ import { $, api, avatar, h } from './util.js';
 
 function toggleTheme(e) {
     const cur = document.documentElement.dataset.theme;
-    const apply = () => saveSettings({ theme: cur === 'light' ? 'dark' : 'light' });
+    const apply = () => saveSettings({ [themeKey()]: cur === 'light' ? 'dark' : 'light' });
     if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
     const x = e && e.clientX ? e.clientX : innerWidth - 40;
     const y = e && e.clientY ? e.clientY : 40;
     const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
     document.documentElement.classList.add('theme-swap');
     const t = document.startViewTransition(() => {
-        Object.assign(state.settings, { theme: cur === 'light' ? 'dark' : 'light' });
+        Object.assign(state.settings, { [themeKey()]: cur === 'light' ? 'dark' : 'light' });
         applyLook();
     });
     t.ready.catch(() => {});
@@ -49,7 +49,7 @@ window.addEventListener('beforeunload', e => {
         e.returnValue = '';
     }
 });
-matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => state.settings && state.settings.theme === 'system' && applyLook());
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => state.settings && state.settings[themeKey()] === 'system' && applyLook());
 
 function refreshMe() {
     $('#me-email').textContent = state.settings.displayName || state.me.email;

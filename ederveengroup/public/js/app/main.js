@@ -4,6 +4,7 @@ import { loadFolders, openFolder, renderFolders } from './folders.js';
 import { loadMessages } from './list.js';
 import { connectLive } from './live.js';
 import { applyLook } from './look.js';
+import './phone.js';
 import { openMessage, showEmptyReader } from './reader.js';
 import { folderOf, parse, queryOf, remember, start as startRouter, sync, titleFor } from './router.js';
 import { closeSettings, openSettings } from './settings.js';

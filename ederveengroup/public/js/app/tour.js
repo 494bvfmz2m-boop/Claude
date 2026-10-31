@@ -6,13 +6,12 @@ import { $, calm, esc, h, visibleRect } from './util.js';
 
 const STEPS = [
     { title: 'Welcome to EderveenGroup', text: 'Your Purelymail inbox, faster and nicer. Here’s a 20-second tour. You can skip any time with Esc.' },
-    { target: '#folders', title: 'Your folders', text: 'Inbox, Sent, Archive and your own folders. Drag a message onto a folder to move it.' },
-    { target: '#menu-btn', title: 'Folders & settings', text: 'Tap here for your folders, settings, theme and sign-out.' },
+    { target: '#folders, .navbar .nav-back', title: 'Your folders', text: 'Inbox, Sent, Archive and your own folders. Drag a message onto a folder to move it, or tap Mailboxes on a phone.' },
     { target: '#messages', title: 'Conversations', text: 'Replies are grouped into one row. Swipe a row to archive or delete it, or on a keyboard press J and K to move, E to archive, S to star.' },
     { target: '.search', title: 'Search like a pro', text: 'Try from:ava, has:attachment, is:unread or before:2026-01-01. Matches in other folders show up too.' },
-    { target: '#compose-btn, #fab', title: 'Write', text: 'Press C anywhere. Paste images straight in, pick a signature, or start from a template.' },
+    { target: '#compose-btn, #tabbar [data-tab=write]', title: 'Write', text: 'Press C anywhere. Paste images straight in, pick a signature, or start from a template.' },
     { target: '#palette-btn', title: 'Everything, one shortcut', text: 'Ctrl K opens the command palette: jump to folders, change the theme, find any setting.' },
-    { target: '#settings-btn', title: 'Make it yours', text: 'Signatures, templates, your photo, accent colour, two-step verification and signed-in devices all live in Settings.' }
+    { target: '#settings-btn, #tabbar [data-tab=settings]', title: 'Make it yours', text: 'Signatures, templates, your photo, accent colour, two-step verification and signed-in devices all live in Settings.' }
 ];
 
 let running = null;
