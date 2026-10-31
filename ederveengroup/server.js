@@ -28,8 +28,8 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
 }
 
 site.listen(config.port, () => {
-    const url = `http://localhost:${config.port}${config.baseUrl}`;
-    console.log(`EderveenGroup is running.\n  Mail:    ${url}${config.base ? `\n  Website: http://localhost:${config.port}/` : ''}`);
+    const url = `http://localhost:${config.port}/`;
+    console.log(`EderveenGroup is running at ${url}\n  Mail:    ${url}${config.baseUrl.slice(1)}\n  Profile: ${url}profile/\n  Storage: ${config.db ? `database ${config.db.database} on ${config.db.host}` : 'files in the data folder (set DB_HOST to use a database)'}`);
     if (config.openBrowser) openBrowser(url);
 });
 
