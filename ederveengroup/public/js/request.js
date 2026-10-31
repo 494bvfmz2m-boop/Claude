@@ -51,7 +51,7 @@
         try {
             const { settings } = await call(`api/requests/autodetect?email=${encodeURIComponent(email)}`);
             if (settings && settings.purelymail) {
-                note.innerHTML = 'Your mail is on Purelymail: no request needed. <a href="login">Sign in now</a>';
+                note.innerHTML = 'Your mail is on Purelymail: no request needed. <a href="/login">Sign in now</a>';
             } else if (settings) {
                 setServer('imap', settings.imap);
                 setServer('smtp', settings.smtp);
@@ -107,7 +107,7 @@
             form.classList.add('sent');
             form.innerHTML = `<div class="sent-card"><div class="sent-check"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" pathLength="1"/><path d="M15 27l7 7 15-16" pathLength="1"/></svg></div>
                 <h2>Request sent</h2><p class="sub">Your settings worked. An admin will review your request, and you’ll get an email at <b></b> when it’s decided.</p>
-                <a class="btn btn-primary" href="login"><span>Back to sign in</span></a></div>`;
+                <a class="btn btn-primary" href="/login"><span>Back to sign in</span></a></div>`;
             form.querySelector('b').textContent = sentTo;
         } catch (e2) {
             show(err, e2.message);

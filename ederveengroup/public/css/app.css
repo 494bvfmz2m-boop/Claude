@@ -1311,3 +1311,46 @@ textarea.input { height: auto; padding: 10px 13px; resize: vertical; line-height
 /* phone-only pieces (styled in phone.css, which computers don't load) */
 .phone-title, .tabbar, .navbar, .ptr, .folder > .chev, .reader-nav { display: none; }
 @media (max-width: 760px) { .phone-title, .navbar, .ptr { display: block; } .tabbar, .reader-nav { display: flex; } .folder > .chev { display: block; } }
+
+/* ================= the hub: sign in at "/", then your apps ================= */
+.hub-body { overflow: auto; }
+.hub { position: relative; z-index: 1; max-width: 1080px; min-height: 100%; margin: 0 auto; padding: 28px 32px 40px; display: flex; flex-direction: column; }
+.hub-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; animation: rise .8s var(--ease) both; }
+.hub-top .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; }
+.hub-top .brand-mark { width: 36px; height: 36px; }
+.hub-me { display: flex; align-items: center; gap: 6px; }
+.hub-user { display: flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 99px; color: var(--text); text-decoration: none; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .25s; }
+.hub-user:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+.hub-user .who b { display: block; font-size: 13px; font-weight: 600; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-user .who small { color: var(--text-3); font-size: 12px; }
+.hub-hero { margin: 9vh 0 44px; }
+.hub-date { margin: 0; color: var(--accent-ink); font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; animation: rise .8s var(--ease) .05s both; }
+.hub-hero h1 { margin: 12px 0 12px; font-family: var(--display); font-weight: 400; font-size: clamp(48px, 7vw, 92px); line-height: 1; letter-spacing: -.02em; animation: rise .9s var(--ease) .1s both; }
+.hub-sub { margin: 0; color: var(--text-2); font-size: 16px; animation: rise .9s var(--ease) .16s both; }
+.hub-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.hub-app {
+    position: relative; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; align-items: center; gap: 6px 16px;
+    padding: 22px; border-radius: 22px; color: var(--text); text-decoration: none; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+    transition: transform .5s var(--ease), box-shadow .4s var(--ease); animation: rise .9s var(--ease) both; animation-delay: calc(var(--i, 0) * 90ms + 220ms);
+}
+.hub-icon { grid-row: 1 / span 2; width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; color: #fff; box-shadow: 0 14px 30px -12px rgba(76, 141, 255, .6), inset 0 1px 0 rgba(255, 255, 255, .3); transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.hub-icon .i { width: 28px; height: 28px; stroke-width: 1.8; }
+.hub-text b { display: block; font-size: 18px; font-weight: 600; }
+.hub-text small { display: block; margin-top: 2px; color: var(--text-2); font-size: 13.5px; line-height: 1.45; }
+.hub-stat { grid-column: 2; font-size: 12.5px; color: var(--text-3); min-height: 1em; }
+.hub-stat i { font-style: normal; font-weight: 700; color: var(--accent-ink); }
+.hub-go { grid-column: 3; grid-row: 1 / span 2; color: var(--text-3); transition: transform .4s var(--ease), color .3s; }
+.hub-app:hover { transform: translateY(-4px); }
+.hub-app:hover .hub-go { transform: translateX(4px); color: var(--accent-ink); }
+.hub-app:hover .hub-icon { transform: scale(1.06) rotate(-3deg); }
+.hub-app.soon { background: transparent; box-shadow: none; border: 1px dashed var(--line-2); }
+.hub-app.soon:hover { transform: none; }
+.hub-app.soon .hub-icon { background: var(--surface-3); color: var(--text-3); box-shadow: none; }
+.hub-foot { margin: auto 0 0; padding-top: 44px; display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 12.5px; }
+.hub-foot .i { width: 14px; height: 14px; }
+.notfound { position: relative; z-index: 1; min-height: 100%; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; }
+.notfound .brand-mark { width: 64px; height: 64px; margin-bottom: 8px; animation: markIn .9s var(--ease) both; }
+.notfound h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 52px; }
+.notfound p { margin: 0 0 14px; color: var(--text-2); }
+.notfound .btn { text-decoration: none; }
+@media (prefers-reduced-motion: reduce) { .hub-top, .hub-date, .hub-hero h1, .hub-sub, .hub-app { animation: none; } }

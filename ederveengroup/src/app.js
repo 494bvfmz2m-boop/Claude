@@ -17,7 +17,7 @@ const { assetVersion, createPages } = require('./pages');
 const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
 const { createLinks } = require('../lib/links');
-const { APP_ROUTE } = require('./routes-app');
+const { APP_ROUTE, safeNext } = require('./routes-app');
 const { adminRoutes, requestRoutes } = require('./routes/servers');
 
 function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
@@ -30,7 +30,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         store,
         mail,
         avatars: createAvatars(config.dataDir, { backend, store }),
-        sessions: createSessions({ dataDir: config.dataDir, cookiePath: config.baseUrl, secureCookies: config.secureCookies, registry: store.sessions, ready: store.ready }),
+        // one sign-in for the whole site (hub, Mail, Profile…); older cookies were scoped to /mail/
+        sessions: createSessions({ dataDir: config.dataDir, cookiePath: '/', legacyPaths: [config.baseUrl], secureCookies: config.secureCookies, registry: store.sessions, ready: store.ready }),
         upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 50 } }),
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
@@ -75,27 +76,38 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && compression.filter(req, res) }));
     site.use(createSecurityHeaders({ scriptHashes: ctx.pages.scriptHashes }));
 
+    site.use(ctx.sessions.middleware());
+    const toLogin = (res, next) => res.redirect(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`);
+
+    /* ---------- the hub: sign in at "/", then your apps ---------- */
+    site.get('/', (req, res) => (req.session ? ctx.pages.send(res, 'hub.html') : ctx.pages.send(res, 'login.html')));
+    site.get('/login', (req, res) => (req.session ? res.redirect(safeNext(req.query.next, config.baseUrl)) : ctx.pages.send(res, 'login.html')));
+    // installable as an app (Windows, Mac, Android, iPhone): it opens the hub
+    site.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').set('Cache-Control', 'no-cache').send(ctx.pages.manifest));
+    site.get('/sw.js', (req, res) => {
+        if (!ctx.pages.serviceWorker) return res.status(404).end();
+        res.type('application/javascript').set('Cache-Control', 'no-cache').send(ctx.pages.serviceWorker);
+    });
+
     /* ---------- the webmail ---------- */
     const app = express.Router();
-    app.use(ctx.sessions.middleware());
     app.use(express.json({ limit: '2mb' }));
 
     // every screen has its own address (/inbox, /inbox/<link>, /f/<id>, /search/<code>, /settings/<tab>);
     // they all load the app, which then shows the right thing. Signed out: back here after login.
-    app.get('/', (req, res) => (req.session ? res.redirect(config.baseUrl + 'inbox') : res.redirect(config.baseUrl + 'login')));
-    app.get(APP_ROUTE, (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : res.redirect(`${config.baseUrl}login?next=${encodeURIComponent(req.path.slice(1))}`)));
+    app.get('/', (req, res) => (req.session ? res.redirect(config.baseUrl + 'inbox') : toLogin(res, config.baseUrl + 'inbox')));
+    app.get(APP_ROUTE, (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : toLogin(res, config.baseUrl + req.path.slice(1))));
     // the form for bringing your own mail server (open to everyone)
     app.get('/request', (req, res) => ctx.pages.send(res, 'request.html'));
+    // the sign-in page moved to the hub
     app.get('/login', (req, res) => {
-        if (!req.session) return ctx.pages.send(res, 'login.html');
         const next = String(req.query.next || '');
-        res.redirect(config.baseUrl + (APP_ROUTE.test('/' + next) ? next : 'inbox'));
+        toLogin(res, next && APP_ROUTE.test('/' + next) ? config.baseUrl + next : '');
     });
-    // the service worker is rendered per deploy, so a new version installs itself
-    app.get('/sw.js', (req, res) => {
-        if (!ctx.pages.serviceWorker) return res.status(404).end();
-        res.type('application/javascript').set({ 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': config.baseUrl }).send(ctx.pages.serviceWorker);
-    });
+    // the old /mail/ service worker removes itself (the app is installed from "/" now)
+    app.get('/sw.js', (req, res) =>
+        res.type('application/javascript').set('Cache-Control', 'no-cache')
+            .send("self.addEventListener('install', () => self.skipWaiting());\nself.addEventListener('activate', e => e.waitUntil(self.registration.unregister()));\n"));
     app.use(
         express.static(config.publicDir, {
             index: false,
@@ -142,11 +154,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
             res.redirect(301, config.baseUrl + q);
         });
     }
-    site.use(config.base || '/', app);
-    if (config.base) {
-        site.get('/', (req, res) => ctx.pages.send(res, 'landing.html'));
-        site.use((req, res) => ctx.pages.send(res, 'landing.html', 404));
-    }
+    site.use(config.base, app);
+    site.use((req, res) => ctx.pages.send(res, 'notfound.html', 404));
 
     return { site, ctx, ready: boot.promise, store, close: async () => (await store.flush(), await backend.close()) };
 }

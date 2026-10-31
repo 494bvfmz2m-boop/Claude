@@ -164,13 +164,14 @@ test('pages, redirects and security headers', async () => {
     const d = app.device();
     const landing = await d('GET', '/');
     assert.equal(landing.status, 200);
-    assert.match(landing.body, /Work in/);
+    assert.match(landing.body, /Welcome back/); // signed out, the root is the sign-in page
     assert.match(landing.headers.get('content-security-policy'), /frame-ancestors 'none'/);
     assert.equal(landing.headers.get('x-frame-options'), 'DENY');
     assert.equal((await d('GET', '/mail')).status, 301);
-    assert.equal((await d('GET', '/mail/')).headers.get('location'), '/mail/login');
+    assert.equal((await d('GET', '/mail/')).headers.get('location'), '/login?next=%2Fmail%2Finbox');
+    assert.equal((await d('GET', '/mail/login')).headers.get('location'), '/login');
     // deep links survive signing in
-    assert.equal((await d('GET', '/mail/inbox/x7Kq2pW9aZc')).headers.get('location'), '/mail/login?next=inbox%2Fx7Kq2pW9aZc');
+    assert.equal((await d('GET', '/mail/inbox/x7Kq2pW9aZc')).headers.get('location'), '/login?next=%2Fmail%2Finbox%2Fx7Kq2pW9aZc');
     assert.equal((await d('GET', '/nope')).status, 404);
     assert.equal((await d('GET', '/mail/api/me')).status, 401);
     app.close();
@@ -225,7 +226,7 @@ test('oversized signatures are refused instead of being cut in half', async () =
 test('service worker is rendered per deploy and only precaches versioned app files', async () => {
     const app = await start();
     const d = app.device();
-    const sw = await d('GET', '/mail/sw.js');
+    const sw = await d('GET', '/sw.js');
     assert.equal(sw.status, 200);
     assert.match(sw.headers.get('content-type'), /javascript/);
     assert.equal(sw.headers.get('cache-control'), 'no-cache');
@@ -243,8 +244,10 @@ test('every page has its own address; message links resolve only for their owner
     const d = app.device();
     await d('POST', '/mail/api/login', { email: USER, password: PASS });
     assert.equal((await d('GET', '/mail/')).headers.get('location'), '/mail/inbox');
-    assert.equal((await d('GET', '/mail/login?next=search%2Fk7Qp2Xa9')).headers.get('location'), '/mail/search/k7Qp2Xa9');
-    assert.equal((await d('GET', '/mail/login?next=%2F%2Fevil.com')).headers.get('location'), '/mail/inbox'); // no open redirect
+    assert.equal((await d('GET', '/login?next=%2Fmail%2Fsearch%2Fk7Qp2Xa9')).headers.get('location'), '/mail/search/k7Qp2Xa9');
+    assert.equal((await d('GET', '/login?next=%2F%2Fevil.com')).headers.get('location'), '/'); // no open redirect
+    assert.equal((await d('GET', '/login?next=https%3A%2F%2Fevil.com')).headers.get('location'), '/');
+    assert.match((await d('GET', '/')).body, /hub-apps/); // signed in, the root is the hub
     for (const page of ['/mail/inbox', '/mail/settings/devices', '/mail/f/AbCdEf12'])
         assert.match((await d('GET', page)).body, /<base href="\/mail\/">/, page);
     const folders = (await d('GET', '/mail/api/folders')).body;
@@ -323,5 +326,18 @@ test('request form refuses bad servers and floods', async () => {
     // the bad request above counted too: 5 tries an hour per address
     for (let i = 0; i < 4; i++) await g('POST', '/mail/api/requests', { ...ok, email: `u${i}@b.io` });
     assert.equal((await g('POST', '/mail/api/requests', { ...ok, email: 'late@b.io' })).status, 429);
+    app.close();
+});
+
+test('the whole site installs as one app that opens the hub', async () => {
+    const app = await start();
+    const d = app.device();
+    const m = await d('GET', '/manifest.webmanifest');
+    assert.match(m.headers.get('content-type'), /manifest\+json/);
+    const manifest = JSON.parse(typeof m.body === 'string' ? m.body : JSON.stringify(m.body));
+    assert.equal(manifest.start_url, '/');
+    assert.equal(manifest.scope, '/');
+    assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Profile']);
+    assert.match((await d('GET', '/mail/sw.js')).body, /unregister/); // the old /mail/ worker retires itself
     app.close();
 });

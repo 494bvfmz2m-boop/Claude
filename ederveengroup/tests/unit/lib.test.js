@@ -259,3 +259,9 @@ test('accepted addresses connect to their own servers by checked address, others
     await assert.rejects(mail.imapConfig('ava@studio.io', 'pw'), /isn’t a public mail server/);
     mail.useServers(() => null);
 });
+
+test('after signing in you only ever continue to our own pages', () => {
+    const { safeNext } = require('../../src/routes-app');
+    for (const ok of ['/', '/welcome', '/profile/', '/mail/inbox', '/mail/inbox/x7Kq2pW9aZc', '/mail/settings/devices']) assert.equal(safeNext(ok), ok, ok);
+    for (const bad of ['', '//evil.com', 'https://evil.com', '/mail/../api', '/admin', '/mail/inbox/short', 'javascript:alert(1)']) assert.equal(safeNext(bad), '/', bad);
+});

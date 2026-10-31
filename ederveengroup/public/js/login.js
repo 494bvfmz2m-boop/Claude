@@ -16,8 +16,9 @@
     window.egFx.cursorGlow();
 
     // where to go after signing in: the page you asked for (only pages inside the app)
+    // (the server checks it again; anything else goes to the hub)
     const nextParam = new URLSearchParams(location.search).get('next') || '';
-    const next = /^(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred|f\/[\w-]{8}|search\/[\w-]{6,16}|settings)(?:\/[\w-]{2,20}){0,2}$/.test(nextParam) ? nextParam : 'inbox';
+    const next = /^\/(?:|welcome|profile\/?|mail\/(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred|f\/[\w-]{8}|search\/[\w-]{6,16}|settings)(?:\/[\w-]{2,20}){0,2})$/.test(nextParam) ? nextParam : '/';
 
     // sent here because this device was signed out from somewhere else
     if (new URLSearchParams(location.search).has('signedout')) {

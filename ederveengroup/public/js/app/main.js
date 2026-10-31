@@ -130,8 +130,10 @@ function registerWorker() {
         if (hadController) toast('EderveenGroup was updated', { action: 'Reload', onAction: () => location.reload(), duration: 0 });
         hadController = true;
     });
+    // the app is installed from "/" now; the old /mail/ worker is retired
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => new URL(r.scope).pathname !== '/' && r.unregister())).catch(() => {});
     navigator.serviceWorker
-        .register('sw.js', { scope: './' })
+        .register('/sw.js', { scope: '/' })
         .then(reg => setInterval(() => reg.update().catch(() => {}), 3600e3))
         .catch(() => {});
 }

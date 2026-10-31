@@ -4,4 +4,13 @@
 // the tests agree on what a valid in-app address is. Codes are short base64url strings.
 const APP_ROUTE = /^\/(?:(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred)(?:\/[A-Za-z0-9_-]{11})?|f\/[A-Za-z0-9_-]{8}(?:\/[A-Za-z0-9_-]{11})?|search\/[A-Za-z0-9_-]{6,16}(?:\/[A-Za-z0-9_-]{11})?|settings(?:\/[a-z]{2,20})?)\/?$/;
 
-module.exports = { APP_ROUTE };
+// Pages a sign-in may continue to (?next=): the hub, the username step, Profile, or a mail
+// page. Anything else (other sites, //host, odd paths) falls back to the hub.
+function safeNext(next, baseUrl = '/mail/') {
+    const n = String(next || '');
+    if (n === '/' || n === '/welcome' || /^\/profile\/?$/.test(n)) return n;
+    if (n.startsWith(baseUrl) && APP_ROUTE.test('/' + n.slice(baseUrl.length))) return n;
+    return '/';
+}
+
+module.exports = { APP_ROUTE, safeNext };

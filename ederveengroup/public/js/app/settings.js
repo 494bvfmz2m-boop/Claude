@@ -586,7 +586,7 @@ function openSettings(tab = 'general') {
                 try {
                     await api('api/logout/everywhere', { method: 'POST' });
                 } finally {
-                    location.replace('login');
+                    location.replace('/login');
                 }
             };
         }

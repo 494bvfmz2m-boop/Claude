@@ -349,3 +349,31 @@
 @media (max-width: 760px) and (prefers-reduced-motion: reduce) {
     .msg.enter, .login-form > *, .reader-content > #convo { animation: none; }
 }
+
+/* ---------- the hub on a phone: a home screen of app icons ---------- */
+@media (max-width: 760px) {
+    .hub { padding: calc(var(--safe-t) + 12px) 22px calc(var(--safe-b) + 22px); }
+    .hub-top .wordmark { display: none; }
+    .hub-user { background: var(--cell); box-shadow: none; padding: 4px 12px 4px 4px; }
+    .hub-hero { margin: 22px 2px 28px; }
+    .hub-date { color: var(--text-2); letter-spacing: .02em; font-size: 15px; font-weight: 600; text-transform: none; }
+    .hub-hero h1 { font: 700 34px/1.15 var(--display); letter-spacing: .01em; margin: 2px 0 6px; }
+    .hub-sub { font-size: 15px; }
+    .hub-apps { grid-template-columns: repeat(4, 1fr); gap: 24px 8px; }
+    .hub-app, .hub-app.soon { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; animation: iconIn .55s var(--ios) both; animation-delay: calc(var(--i, 0) * 60ms + 120ms); }
+    @keyframes iconIn { from { opacity: 0; transform: scale(.7); } }
+    .hub-app:hover { transform: none; }
+    .hub-icon { width: 62px; height: 62px; border-radius: 15px; box-shadow: 0 8px 18px -8px rgba(0, 0, 0, .35); }
+    .hub-icon .i { width: 30px; height: 30px; }
+    .hub-app:active .hub-icon { transform: scale(.9); }
+    .hub-app:hover .hub-icon { transform: none; }
+    .hub-text b { font-size: 12px; font-weight: 500; text-align: center; }
+    .hub-text small, .hub-stat, .hub-go { display: none; }
+    .hub-app.soon .hub-icon { background: var(--fill); }
+    .hub-app[data-count]::after {
+        content: attr(data-count); position: absolute; top: -6px; left: calc(50% + 20px); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+        background: #ff3b30; color: #fff; font-size: 13px; font-weight: 600; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg);
+    }
+    .hub-foot { justify-content: center; text-align: center; }
+    .notfound h1 { font: 700 30px var(--display); }
+}

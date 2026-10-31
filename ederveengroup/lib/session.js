@@ -73,7 +73,8 @@ const newSid = () => crypto.randomBytes(12).toString('base64url');
  *   isActive(email, sid) -> bool, add(email, sid, info), touch(email, sid, info)
  * info: { ip, ua } of the request.
  */
-function createSessions({ dataDir, secureCookies, cookiePath = '/', registry, ready = async () => {} }) {
+// legacyPaths: where older versions put the cookie (it was scoped to /mail/), cleared on sign-in/out
+function createSessions({ dataDir, secureCookies, cookiePath = '/', legacyPaths = [], registry, ready = async () => {} }) {
     const key = loadKey(dataDir);
     // HTTPS directly, or via a trusted reverse proxy (X-Forwarded-Proto), marks cookies Secure
     const secure = res => secureCookies || !!(res.req && res.req.secure);
@@ -113,12 +114,13 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', registry, re
             const now = Date.now();
             const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), sid: newSid() };
             registry.add(email, session.sid, { ...infoOf(res.req), remember: !!remember, ...extra });
+            for (const p of legacyPaths) if (p !== cookiePath) res.append('Set-Cookie', `${COOKIE}=; Path=${p}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
             write(res, session);
             return session;
         },
 
         clear(res) {
-            res.append('Set-Cookie', `${COOKIE}=; Path=${cookiePath}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
+            for (const p of new Set([cookiePath, ...legacyPaths])) res.append('Set-Cookie', `${COOKIE}=; Path=${p}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
         },
 
         // Express middleware: attaches req.session (or null), checks it hasn't been signed out

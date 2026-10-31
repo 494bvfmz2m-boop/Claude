@@ -29,7 +29,7 @@ async function logout() {
     try {
         await api('api/logout', { method: 'POST' });
     } finally {
-        location.replace('login');
+        location.replace('/login');
     }
 }
 

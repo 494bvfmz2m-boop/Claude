@@ -26,8 +26,7 @@ async function api(path, opts = {}) {
     }
     const res = await fetch(path, init);
     if (res.status === 401) {
-        const here = location.pathname.slice(new URL(document.baseURI).pathname.length);
-        location.replace(here ? `login?next=${encodeURIComponent(here)}` : 'login');
+        location.replace(`/login?next=${encodeURIComponent(location.pathname)}`);
         throw new Error('Signed out');
     }
     const data = await res.json().catch(() => ({}));

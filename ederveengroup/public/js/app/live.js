@@ -22,7 +22,7 @@ function connectLive() {
     });
     es.addEventListener('signedout', () => {
         es.close();
-        location.replace('login?signedout=1');
+        location.replace(`/login?signedout=1&next=${encodeURIComponent(location.pathname)}`);
     });
     es.onerror = () => {
         dot.classList.remove('on');

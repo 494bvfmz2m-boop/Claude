@@ -52,10 +52,32 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
     const serviceWorker = fs.existsSync(path.join(viewsDir, 'sw.js'))
         ? fs.readFileSync(path.join(viewsDir, 'sw.js'), 'utf8').replace('%ASSETS%', JSON.stringify(assets)).replaceAll('%BASE%', baseUrl).replaceAll('%V%', version)
         : null;
+    // the installable app: the whole site, opening on the hub, with shortcuts into each app
+    const manifest = JSON.stringify({
+        id: '/',
+        name: 'EderveenGroup',
+        short_name: 'EderveenGroup',
+        description: 'Mail, your profile and more, in one place.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#04050b',
+        theme_color: '#04050b',
+        icons: [
+            { src: `${baseUrl}icons/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: `${baseUrl}icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: `${baseUrl}favicon.svg`, sizes: 'any', type: 'image/svg+xml' }
+        ],
+        shortcuts: [
+            { name: 'Mail', url: `${baseUrl}inbox`, icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] },
+            { name: 'Profile', url: '/profile/', icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] }
+        ]
+    });
     const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
     return {
         scriptHashes: [importMap.hash],
         serviceWorker,
+        manifest,
         send: (res, name, status = 200) =>
             res.status(status).type('html').set('Cache-Control', 'no-cache').send(render(name).replaceAll('%ORIGIN%', originOf(res.req)))
     };

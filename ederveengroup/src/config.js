@@ -16,7 +16,8 @@ function trustSetting(v) {
 
 function loadConfig(env = process.env) {
     // Where the webmail lives: /mail by default; BASE_PATH=/ serves it at the root instead.
-    const base = ('/' + (env.BASE_PATH ?? '/mail')).replace(/\/+/g, '/').replace(/\/$/, '');
+    // The hub (sign-in and your apps) lives at "/", Mail at BASE_PATH (default /mail).
+    const base = ('/' + (env.BASE_PATH ?? '/mail')).replace(/\/+/g, '/').replace(/\/$/, '') || '/mail';
     return {
         port: Number(env.PORT) || 3000,
         dataDir: env.DATA_DIR || path.join(ROOT, 'data'),

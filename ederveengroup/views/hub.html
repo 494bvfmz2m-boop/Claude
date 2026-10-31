@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <base href="%BASE%">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>EderveenGroup</title>
+    <meta name="theme-color" content="#0b0d12">
+    <link rel="icon" href="favicon.svg?v=%V%" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=%V%">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css?v=%V%">
+    <link rel="stylesheet" href="css/desk.css?v=%V%" media="(min-width: 761px)">
+    <link rel="stylesheet" href="css/phone.css?v=%V%" media="(max-width: 760px)">
+    <script src="js/boot.js?v=%V%"></script>
+    <script src="js/icons.js?v=%V%"></script>
+        <script src="js/hub.js?v=%V%" defer></script>
+</head>
+<body class="hub-body">
+    <div class="ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <main class="hub" id="hub">
+        <header class="hub-top">
+            <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+            <div class="hub-me">
+                <a class="hub-user" id="hub-user" href="/profile/"><span class="avatar sm" id="hub-avatar"></span><span class="who"><b id="hub-name"></b><small id="hub-handle"></small></span></a>
+                <button class="icon-btn" id="hub-logout" data-icon="logout" aria-label="Sign out" data-tip="Sign out"></button>
+            </div>
+        </header>
+        <section class="hub-hero">
+            <p class="hub-date" id="hub-date"></p>
+            <h1 id="hub-greet">Welcome</h1>
+            <p class="hub-sub">Everything EderveenGroup, in one place.</p>
+        </section>
+        <nav class="hub-apps" id="hub-apps" aria-label="Apps"></nav>
+        <p class="hub-foot"><span data-icon="lock"></span><span>Signed in as <b id="hub-email"></b></span></p>
+    </main>
+</body>
+</html>

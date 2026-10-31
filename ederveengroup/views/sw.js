@@ -3,7 +3,7 @@
 // It never stores mail or anything else from /api/: that only ever lives on the server.
 const VERSION = '%V%';
 const CACHE = `eg-shell-${VERSION}`;
-const BASE = '%BASE%';
+const MAIL = '%BASE%'; // the mail app; the worker itself covers the whole site ("/")
 const ASSETS = %ASSETS%;
 
 self.addEventListener('install', event => {
@@ -28,7 +28,7 @@ self.addEventListener('fetch', event => {
     const req = event.request;
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
-    if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE) || url.pathname.startsWith(`${BASE}api/`)) return;
+    if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith(`${MAIL}api/`)) return;
     // pages always come from the network (they depend on your session); offline gets a notice
     if (req.mode === 'navigate') {
         event.respondWith(fetch(req).catch(offlinePage));
@@ -57,8 +57,8 @@ self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-            const open = list.find(c => new URL(c.url).pathname.startsWith(BASE));
-            return open ? open.focus() : self.clients.openWindow(BASE);
+            const open = list.find(c => new URL(c.url).pathname.startsWith(MAIL));
+            return open ? open.focus() : self.clients.openWindow(`${MAIL}inbox`);
         })
     );
 });
@@ -77,6 +77,6 @@ p { color: #9aa4b8; margin: 0 0 24px; }
 a { display: inline-block; padding: 10px 18px; border-radius: 11px; background: #4c8dff; color: #fff; text-decoration: none; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { main { animation: none; } }
 </style></head><body><main><div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.9a10 10 0 0 1 14 0M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M3 3l18 18"/></svg></div>
-<h1>You're offline</h1><p>EderveenGroup will reconnect as soon as your connection is back. This page retries on its own.</p><a href="${BASE}">Try again</a></main></body></html>`;
+<h1>You're offline</h1><p>EderveenGroup will reconnect as soon as your connection is back. This page retries on its own.</p><a href="/">Try again</a></main></body></html>`;
     return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:" } });
 }
