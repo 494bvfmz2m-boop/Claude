@@ -280,3 +280,16 @@ body::after {
 }
 .hub-app:not(.soon):hover { transform: translateY(-6px); box-shadow: 0 40px 100px -40px rgba(0, 0, 0, .95), 0 0 70px -24px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .06); }
 :root[data-theme='light'] .hub-app:not(.soon) { box-shadow: 0 30px 70px -40px rgba(30, 40, 90, .35), inset 0 1px 0 #fff; }
+
+/* ---------- Profile on a computer: the card on glass in the aurora ---------- */
+.pf-card { isolation: isolate; background: var(--glass); box-shadow: 0 60px 140px -40px rgba(0, 0, 0, .9), inset 0 1px 0 rgba(255, 255, 255, .05), 0 0 100px -50px color-mix(in srgb, var(--accent) 60%, transparent); }
+.pf-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 2;
+    background: var(--edge); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.pf-avatar { box-shadow: 0 0 0 4px #0c1020, 0 18px 40px -16px rgba(0, 0, 0, .7); }
+:root[data-theme='light'] .pf-avatar { box-shadow: 0 0 0 4px #fff, 0 18px 40px -16px rgba(30, 40, 90, .35); }
+.pf-act, .pf-link { background: var(--glass-2); }
+.pf-group { background: var(--glass); }
+.pf-save { background: var(--surface-3); box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .9), 0 0 0 1px var(--line); }
+.pf-name, .pf-form h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }

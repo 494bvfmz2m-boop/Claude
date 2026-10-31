@@ -38,7 +38,7 @@ function cleanSettingsPatch(body = {}) {
     if ('density' in p) p.density = oneOf(p.density, ['comfortable', 'compact'], 'comfortable');
     if ('readingPane' in p) p.readingPane = oneOf(p.readingPane, ['right', 'off'], 'right');
     if ('afterAction' in p) p.afterAction = oneOf(p.afterAction, ['next', 'list'], 'next');
-    for (const k of ['senderPhotos', 'loadRemoteImages', 'saveSentCopy', 'conversations', 'tourDone']) if (k in p) p[k] = !!p[k];
+    for (const k of ['senderPhotos', 'loadRemoteImages', 'saveSentCopy', 'conversations', 'tourDone', 'newMailSound']) if (k in p) p[k] = !!p[k];
     return p;
 }
 

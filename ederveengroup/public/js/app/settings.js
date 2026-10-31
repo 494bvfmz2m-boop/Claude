@@ -7,6 +7,7 @@ import { renderList } from './list.js';
 import { saveSettings } from './look.js';
 import { SHORTCUTS } from './palette.js';
 import { back as leave, sync } from './router.js';
+import { chime } from './sound.js';
 import { state } from './state.js';
 import { $, $$, api, avatar, debounce, esc, fmtDate, glide, h, resetPhotos, toast } from './util.js';
 
@@ -103,11 +104,13 @@ function openSettings(tab = 'general') {
                 <div class="row"><div class="lbl"><b>Load remote images</b><small>Off blocks tracking pixels until you allow them</small></div><label class="switch"><input type="checkbox" data-s="loadRemoteImages" ${s.loadRemoteImages ? 'checked' : ''}><span></span></label></div>
                 <div class="row"><div class="lbl"><b>Sender photos</b><small>Show Gravatars and company logos. Fetched by your server, so senders never see your IP.</small></div><label class="switch"><input type="checkbox" data-s="senderPhotos" ${s.senderPhotos !== false ? 'checked' : ''}><span></span></label></div>
                 <div class="row"><div class="lbl"><b>Save a copy to Sent</b><small>Turn off if Purelymail already saves outgoing mail for you</small></div><label class="switch"><input type="checkbox" data-s="saveSentCopy" ${s.saveSentCopy ? 'checked' : ''}><span></span></label></div>
+                <div class="row"><div class="lbl"><b>Sound for new mail</b><small>A soft chime while EderveenGroup is open</small></div><label class="switch"><input type="checkbox" data-s="newMailSound" ${s.newMailSound !== false ? 'checked' : ''}><span></span></label></div>
                 <div class="row"><div class="lbl"><b>Notifications</b><small>Get pinged when new mail lands while EderveenGroup is open</small></div><button class="btn" data-notify>${'Notification' in window && Notification.permission === 'granted' ? icon('check') + ' Enabled' : icon('bell') + ' Enable'}</button></div>`;
             $$('input[type=checkbox][data-s]', section).forEach(i =>
                 i.addEventListener('change', async () => {
                     await saveSettings({ [i.dataset.s]: i.checked });
                     if (i.dataset.s === 'conversations') renderList();
+                    if (i.dataset.s === 'newMailSound' && i.checked) chime(); // a sample
                     if (i.dataset.s === 'senderPhotos') {
                         resetPhotos();
                         renderList();

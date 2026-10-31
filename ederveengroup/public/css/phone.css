@@ -387,3 +387,21 @@
     .uname-hint, .uname-url { text-align: center; }
     .uname-suggest { justify-content: center; }
 }
+
+/* ---------- Profile on a phone ---------- */
+@media (max-width: 760px) {
+    .pf-top { padding: calc(var(--safe-t) + 8px) 12px 4px; }
+    .pf-top .wordmark { display: none; }
+    .pf-nav .btn { color: var(--accent); font-size: 17px; padding: 0 8px; }
+    .pf { padding: 4px 16px calc(var(--safe-b) + 32px); }
+    .pf-card { margin-top: 8px; border-radius: 22px; background: var(--cell); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+    .pf-avatar { box-shadow: 0 0 0 4px var(--cell), 0 10px 26px -12px rgba(0, 0, 0, .35); }
+    .pf-name { font: 700 28px/1.15 var(--display); }
+    .pf-act, .pf-link { background: var(--fill); color: var(--accent); }
+    .pf-cta .btn { height: 48px; }
+    .pf-form h1 { font: 700 32px/1.15 var(--display); }
+    .pf-group { background: var(--cell); box-shadow: none; border-radius: 14px; }
+    .pf-group h2 { color: var(--text-2); font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+    .pf-save { bottom: calc(var(--safe-b) + 10px); background: var(--chrome); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0, 0, 0, .15); }
+    .pf-toast { bottom: calc(var(--safe-b) + 90px); }
+}

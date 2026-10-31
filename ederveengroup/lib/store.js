@@ -24,7 +24,8 @@ const DEFAULTS = {
     readingPane: 'right', // 'right' | 'off' (full-width list, messages open full size)
     afterAction: 'next', // after archive/delete in the reader: 'next' message or back to the 'list'
     tourDone: false,
-    phoneTheme: 'light' // phones get their own (Apple-style) look: 'light' | 'dark' | 'system'
+    phoneTheme: 'light', // phones get their own (Apple-style) look: 'light' | 'dark' | 'system'
+    newMailSound: true // a soft chime when mail arrives while the app is open
 };
 
 const MAX_CONTACTS = 500;

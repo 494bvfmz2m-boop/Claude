@@ -370,3 +370,52 @@ test('first sign-in asks for a username; it must be free and valid; then the app
     assert.equal((await app.device()('GET', '/api/username/check?u=x')).status, 401);
     app.close();
 });
+
+test('Profile: edit your card, share it at /profile/#/username, save as contact', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    await d('POST', '/api/username', { username: 'jo.smith' });
+    const first = (await d('GET', '/api/profile')).body;
+    assert.equal(first.created, false);
+    assert.equal(first.profile.email, USER);
+    assert.match(first.url, /\/profile\/#\/jo\.smith$/);
+    // nothing public until it's saved
+    const guest = app.device();
+    assert.equal((await guest('GET', '/api/profiles/jo.smith')).status, 404);
+    assert.equal((await d('PUT', '/api/profile', { name: 'Jo', website: 'javascript:alert(1)' })).status, 400);
+    assert.equal((await d('PUT', '/api/profile', { name: 'Jo', links: { linkedin: 'https://evil.example/jo' } })).status, 400);
+    assert.equal((await d('PUT', '/api/profile', { name: 'Jo', phone: '<script>' })).status, 400);
+    const saved = (await d('PUT', '/api/profile', { name: 'Jo Smith', headline: 'Designer', company: 'Ederveen, Group', bio: 'Hi;\nthere', email: 'jo@work.example', phone: '+31 6 1234 5678', website: 'jo.example', links: { x: '@jo', github: 'https://github.com/jo' } })).body.profile;
+    assert.equal(saved.website, 'https://jo.example/');
+    assert.equal(saved.links.x, 'https://x.com/jo');
+    const card = (await guest('GET', '/api/profiles/JO.SMITH')).body;
+    assert.equal(card.name, 'Jo Smith');
+    assert.equal(card.email, 'jo@work.example');
+    assert.equal('visible' in card, false);
+    assert.equal(JSON.stringify(card).includes(USER), false); // the sign-in address never shows
+    const vcf = await guest('GET', '/api/profiles/jo.smith/vcard');
+    assert.match(vcf.headers.get('content-type'), /text\/vcard/);
+    assert.match(vcf.headers.get('content-disposition'), /jo\.smith\.vcf/);
+    assert.match(vcf.body, /FN:Jo Smith/);
+    assert.match(vcf.body, /ORG:Ederveen\\, Group/);
+    assert.match(vcf.body, /NOTE:Hi\\;\\nthere/);
+    assert.match(vcf.body, /TEL;TYPE=CELL:\+31 6 1234 5678/);
+    assert.match((await guest('GET', '/api/profiles/jo.smith/qr.svg')).body, /<svg/);
+    assert.match((await guest('GET', '/profile/')).body, /js\/profile\.js/);
+    assert.equal((await guest('GET', '/profile')).headers.get('location'), '/profile/');
+    // hide the email, then hide the whole profile
+    await d('PUT', '/api/profile', { ...saved, showEmail: false });
+    assert.equal((await guest('GET', '/api/profiles/jo.smith')).body.email, '');
+    assert.doesNotMatch((await guest('GET', '/api/profiles/jo.smith/vcard')).body, /EMAIL/);
+    await d('PUT', '/api/profile', { ...saved, visible: false });
+    assert.equal((await guest('GET', '/api/profiles/jo.smith')).status, 404);
+    // renaming moves the card
+    await d('PUT', '/api/profile', { ...saved, visible: true });
+    await d('POST', '/api/username', { username: 'jo.s' });
+    assert.equal((await guest('GET', '/api/profiles/jo.smith')).status, 404);
+    assert.equal((await guest('GET', '/api/profiles/jo.s')).body.name, 'Jo Smith');
+    assert.equal((await guest('GET', '/api/profiles/..%2F..%2Fetc')).status, 404);
+    assert.equal((await guest('PUT', '/api/profile', { name: 'x' })).status, 401);
+    app.close();
+});

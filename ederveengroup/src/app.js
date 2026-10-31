@@ -91,6 +91,9 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         ctx.pages.send(res, 'welcome.html');
     });
     site.use('/api', require('./routes/hub')(ctx));
+    // Profile: the editor and everyone's public cards (/profile/#/username) are one page
+    // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
+    site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));
     site.get('/login', (req, res) => (req.session ? res.redirect(safeNext(req.query.next, config.baseUrl)) : ctx.pages.send(res, 'login.html')));
     // installable as an app (Windows, Mac, Android, iPhone): it opens the hub
     site.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').set('Cache-Control', 'no-cache').send(ctx.pages.manifest));

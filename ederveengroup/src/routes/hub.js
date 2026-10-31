@@ -7,6 +7,10 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const { csrfGuard, createLimiter } = require('../security');
 const usernames = require('../../lib/usernames');
+const QRCode = require('qrcode');
+const { cleanProfile, publicView, vcard } = require('../profile');
+
+const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
 
 module.exports = function hubRoutes(ctx) {
     const { store } = ctx;
@@ -40,6 +44,56 @@ module.exports = function hubRoutes(ctx) {
         const first = usernames.fromEmail(req.session.email);
         const isFree = n => store.isUsernameFree(n, req.session.email);
         res.json({ username: !usernames.problem(first) && (await isFree(first)) ? first : (await usernames.alternatives(first, isFree, 1))[0] || '' });
+    }));
+
+    /* ---------- Profile: your card (signed in) ---------- */
+    r.get('/profile', requireAuth, wrap(async (req, res) => {
+        const email = req.session.email;
+        const username = store.usernameOf(email);
+        const saved = store.getProfile(email);
+        // a first visit starts from what we already know
+        const profile = saved || { visible: true, name: store.getSettings(email).displayName || '', email, showEmail: true, links: {} };
+        res.json({ profile, username, account: email, created: !!saved, photo: await ctx.avatars.photoVersion(email), url: username ? `${originOf(req)}/profile/#/${username}` : null });
+    }));
+
+    r.put('/profile', requireAuth, wrap(async (req, res) => {
+        const profile = cleanProfile(req.body);
+        store.setProfile(req.session.email, profile);
+        res.json({ ok: true, profile });
+    }));
+
+    /* ---------- Profile: public cards (anyone with the link) ---------- */
+    const lookups = createLimiter({ max: 240, windowMs: 60 * 1000 });
+    async function cardFor(req) {
+        if (lookups.blocked(req.ip)) throw httpError(429, 'Too many requests, try again in a minute');
+        lookups.hit(req.ip);
+        const name = usernames.clean(req.params.username);
+        const email = /^[a-z][a-z0-9._-]{2,29}$/.test(name) ? await store.emailForUsername(name) : null;
+        if (!email) throw httpError(404, 'There’s no profile here');
+        await store.ready(email);
+        const profile = store.getProfile(email);
+        if (!profile || profile.visible === false) throw httpError(404, 'There’s no profile here');
+        return { email, view: publicView(profile, { username: name, photo: await ctx.avatars.photoVersion(email) }), url: `${originOf(req)}/profile/#/${name}` };
+    }
+    r.get('/profiles/:username', wrap(async (req, res) => {
+        const { view, url } = await cardFor(req);
+        res.set('Cache-Control', 'no-cache').json({ ...view, url });
+    }));
+    r.get('/profiles/:username/photo', wrap(async (req, res) => {
+        const { email } = await cardFor(req);
+        const photo = await ctx.avatars.uploaded(email);
+        if (!photo) return res.status(404).end();
+        res.set({ 'Content-Type': photo.type, 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'same-origin' }).send(photo.buf);
+    }));
+    r.get('/profiles/:username/vcard', wrap(async (req, res) => {
+        const { email, view, url } = await cardFor(req);
+        const photo = view.photo ? await ctx.avatars.uploaded(email) : null;
+        res.set({ 'Content-Type': 'text/vcard; charset=utf-8', 'Content-Disposition': `attachment; filename="${view.username}.vcf"`, 'Cache-Control': 'no-cache' }).send(vcard(view, { url, photo }));
+    }));
+    r.get('/profiles/:username/qr.svg', wrap(async (req, res) => {
+        const { url } = await cardFor(req);
+        const svg = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b0d18', light: '#ffffff' } });
+        res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" }).send(svg);
     }));
 
     r.use((req, res) => res.status(404).json({ error: 'Not found' }));
