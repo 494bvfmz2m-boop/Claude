@@ -1,11 +1,20 @@
 # EderveenGroup
 
-A fast, refined webmail client for **[Purelymail](https://purelymail.com)** and any other mail server you approve. It runs on your own server and talks IMAP and SMTP over SSL/TLS.
+Your own **hub of apps** on your own domain. Sign in once at `https://yourdomain/` and your apps are there:
+
+- **Mail**: a fast, refined webmail client for **[Purelymail](https://purelymail.com)** and any other mail server you approve, over IMAP and SMTP with SSL/TLS.
+- **Profile**: a contact card people can open at `https://yourdomain/profile/#/yourname` and save straight into their phone.
+
+More apps can be added to the hub over time. Everything is stored in your MySQL/MariaDB database.
 
 On a computer it wears **Midnight aurora**: a near-black sky with slow aurora light behind glass panels and cinematic transitions. On a phone it becomes an **Apple-style app** with a tab bar, large titles, swipe-back and sheets.
 
 ## Features
 
+- **The hub.** `/` is the sign-in page; once you're in, it shows your apps (Mail with its unread count, Profile, and room for more). It installs as an app on Windows, Mac, Android and iPhone and opens straight on the hub, with shortcuts into Mail and Profile.
+- **A username for everyone.** The first time someone signs in (Purelymail or an added mail server), they choose a username, checked live as they type, with free alternatives when a name is taken. Names are unique, and a few are reserved for the site.
+- **Profile.** Write your card once (name, what you do, company, location, bio, email with a show/hide switch, phone, website, and LinkedIn, X, Instagram, GitHub, TikTok or YouTube), with a live preview. Anyone with your link gets Email/Call/Website buttons, **Save contact** (a vCard with your photo), Share and a QR code. Nothing is public until you save it, and you can make it private again at any time.
+- **New-mail chime** while the app is open (Settings, then General). On iPhone it starts working after your first tap, as Safari requires.
 - **Two looks, one app.** Computers get Midnight aurora (or its daytime version); phones get an iPhone-style app that's light by default, with dark or follow-the-phone in Settings, then Appearance. The aurora holds still while you scroll or type, so it never costs you smoothness.
 - **A link for every screen.** Folders, conversations, searches and settings pages each have their own address, so back, forward, refresh and bookmarks work. Conversation links are opaque codes (`/mail/inbox/x7Kq2pW9aZc`), tied to your account and folder, that can't be guessed. Searches get a random code, and the words stay on your device. Opening a link while signed out brings you straight back to it after you sign in.
 - **Bring your own mail server.** People whose mail isn't on Purelymail can ask for access at `/mail/request`. They fill in their IMAP and SMTP settings (auto-detected for well-known providers), and the server checks them once with their password, which is never stored. You review the request in Settings, then Admin, and accept it for that address or for their whole domain, or reject it with a reason. They get an email from your address either way, and accepted people can sign in straight away. See [Adding other mail servers](#adding-other-mail-servers).
@@ -50,11 +59,11 @@ The release zip includes everything, so you don't need `npm install` or a config
    - **Windows:** `Start EderveenGroup (Windows).bat`
    - **Mac:** `Start EderveenGroup (Mac).command` (the first time, right-click it and choose **Open**)
    - **Linux / a server:** `./start.sh`
-4. Your browser opens **http://localhost:3000/mail/**. Sign in with your Purelymail address.
+4. Your browser opens **http://localhost:3000/**. Sign in with your email address and choose a username.
 
-The domain root (`http://localhost:3000/`) shows the **Work in progress** page; the webmail lives at **`/mail`**. Set `BASE_PATH=/` in a `.env` file to put the mail at the root instead.
+The hub is at `/`, Mail at **`/mail`** and Profile at **`/profile`**. Without database settings, everything is kept in the `data/` folder, which is handy for trying it out. For real use, add your database (see [Database](#database)).
 
-A secret key for sessions is created automatically in `data/session.key` on first start. Keep the `data/` folder: it holds the key, settings, signatures, photos and 2FA setups.
+A secret key is created automatically in `data/session.key` on first start. **Keep the `data/` folder (or set `SESSION_SECRET`)**: the key signs everyone in, and it also encrypts the private account data in the database. Without it, nobody can sign in and that data can't be read.
 
 ### Putting it on mydomain.net
 
@@ -62,7 +71,7 @@ It needs a machine that can run Node.js (a VPS, a home server, or a host with No
 
 1. Copy the extracted folder to the server and start it with `./start.sh`. To keep it running after you log out, use a service manager such as systemd or pm2.
 2. Install [Caddy](https://caddyserver.com) for free automatic HTTPS. Rename `Caddyfile.example` to `Caddyfile`, put in your domain, and run `caddy run`.
-3. Point your domain's DNS at the server. Visitors get the Work in progress page at `https://mydomain.net/` and mail at `https://mydomain.net/mail/`.
+3. Point your domain's DNS at the server. Visitors get the sign-in and hub at `https://mydomain.net/`, mail at `https://mydomain.net/mail/` and profiles at `https://mydomain.net/profile/`.
 
 Cookies are marked `Secure` automatically behind HTTPS.
 
@@ -70,7 +79,17 @@ Cookies are marked `Secure` automatically behind HTTPS.
 
 ### Coolify
 
-To review requests from people who want to bring their own mail server, add an environment variable in Coolify (your application, then **Environment Variables**): `ADMIN_EMAILS` = your email address (several addresses are separated by commas). Redeploy, and **Settings → Admin** appears for you.
+Add these under your application → **Environment Variables**, then redeploy:
+
+| Variable | Value |
+| --- | --- |
+| `DB_HOST` | your database server, e.g. `162.0.217.46` |
+| `DB_NAME` | the database name |
+| `DB_USER` | the database user |
+| `DB_PASSWORD` | the database password |
+| `ADMIN_EMAILS` | your email address (more than one: separate with commas). Gives you **Settings → Admin** |
+
+Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypted connections.
 
 1. Point your domain's DNS `A` record at the server, and open ports 80 and 443.
 2. In Coolify: **+ New → Application**, then pick this GitHub repository and branch.
@@ -93,6 +112,16 @@ npm run release
 
 This packages the last commit with production dependencies into `ederveengroup.zip`.
 
+## Database
+
+EderveenGroup keeps everything in MySQL or MariaDB when `DB_HOST` is set: accounts and settings, usernames, profiles, profile photos, and the list of added mail servers. On first start it creates three tables (`eg_users`, `eg_photos`, `eg_registry`) in the database you give it; there's nothing to import by hand.
+
+- **Private data is encrypted** before it's stored (AES-256-GCM): settings, signatures, two-step verification, signed-in devices, sign-in history, contacts and snoozes. The database host only ever sees ciphertext for these. Usernames and public profiles are stored readable, because they are public anyway.
+- **Moving over is automatic.** If the app ran before with files in `data/`, each account, photo and the mail-server list is copied into the database the first time it's used.
+- **If the database can't be reached**, every page says so and the app keeps retrying every 10 seconds.
+
+**Shared hosting (cPanel, e.g. Namecheap):** the database only accepts connections from addresses you allow. In cPanel, open **Remote MySQL** (or "Remote Database Access"), add your VPS's public IP address as an access host, and save. Then fill in the `DB_*` variables above. Database names and users on cPanel usually carry your account prefix (`cpaneluser_name`).
+
 ## Adding other mail servers
 
 1. Set `ADMIN_EMAILS` to your address (see Coolify above, or put `ADMIN_EMAILS=you@yourdomain.com` in a `.env` file next to `server.js`).
@@ -110,7 +139,7 @@ IMAP and SMTP have no way to ask for a second factor, so no mail app can show Pu
 
 ## Security
 
-- Encrypted, HttpOnly, SameSite session cookies scoped to `/mail/`, marked Secure automatically when served over HTTPS
+- Encrypted, HttpOnly, SameSite session cookies for the whole site, marked Secure automatically when served over HTTPS
 - Every sign-in is tracked per device: sign out one device, all others, or everything (Settings, then Devices / Account). Turning on 2FA ends all other sessions too.
 - A log of recent sign-ins, including failed passwords and 2FA codes (only for accounts that have signed in here before, so random attempts can't create files)
 - Brute-force protection per IP and per account, plus a separate limit on 2FA code guesses
@@ -125,24 +154,26 @@ IMAP and SMTP have no way to ask for a second factor, so no mail app can show Pu
 
 ## How sessions work
 
-IMAP and SMTP need your password for every connection, so the session cookie carries your email and password **encrypted with the server's secret key**. The browser can't read it (HttpOnly), and without the key it's useless. The server separately keeps a small list of active sessions per account (a random id, the device and IP, and when it was last used; never the password), saved in the `data/` folder, so you can see and revoke devices and restarts don't sign anyone out. If your Purelymail password changes, the next request fails auth and you're sent back to the login page. Using a Purelymail app password lets you revoke access at any time.
+IMAP and SMTP need your password for every connection, so the session cookie carries your email and password **encrypted with the server's secret key**. The browser can't read it (HttpOnly), and without the key it's useless. The server separately keeps a small list of active sessions per account (a random id, the device and IP, and when it was last used; never the password), stored encrypted in the database, so you can see and revoke devices and restarts don't sign anyone out. If your Purelymail password changes, the next request fails auth and you're sent back to the login page. Using a Purelymail app password lets you revoke access at any time.
 
 ## Project layout
 
 ```
 server.js          Entry point: loads config and starts the app
-src/               The app: config, security, pages, settings validation, 2FA, devices,
-                   routes/ (auth, twofa, account, mail, events)
+src/               The app: config, security, pages, settings validation, 2FA, devices, profiles,
+                   routes/ (hub = site-wide API for usernames and Profile; auth, twofa, account, mail, events, servers)
 lib/session.js     Encrypted 30-day cookie sessions
 lib/mail.js        IMAP pool (imapflow), message parsing, conversations, SMTP send, drafts, IDLE
 lib/query.js       Search box operators (from:, has:attachment, before: …) to IMAP SEARCH
 lib/links.js       Opaque per-account conversation links
+lib/db.js          Storage: MySQL/MariaDB (or files without a database), encryption of private data, migration
+lib/usernames.js   Username rules, reserved names, suggestions
 lib/servers.js     Other mail servers: validation, public-address checks, one-time test, auto-detect
 lib/sanitize.js    HTML sanitizing for incoming mail and composed mail
 lib/store.js       Per-user settings, signatures, templates, snoozes, contacts, sessions and sign-in activity (JSON files)
 lib/avatars.js     Uploaded profile photos plus cached Gravatar / company-logo lookups
 lib/totp.js        Authenticator codes (RFC 6238) for two-step verification
-views/             Pages: the app, the login, and the Work in progress landing page (+ partials/),
+views/             Pages: hub, sign-in, username step, Profile, Mail app, request form, not-found (+ partials/),
                    and sw.js, the service worker template (rendered per deploy)
 brand/             Logo kit (generated by scripts/brand/make_logo.py)
 public/            Styles, icons and scripts (vanilla JS, no build step)
