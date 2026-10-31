@@ -79,7 +79,9 @@ Cookies are marked `Secure` automatically behind HTTPS.
 
 ### Coolify
 
-Add these under your application → **Environment Variables**, then redeploy:
+**Database (recommended): run it on the same server.** In Coolify: **+ New → Database → MariaDB**, start it, open its **General** settings and copy the **Internal URL** (`mysql://…`). In your EderveenGroup application → **Environment Variables**, add `DATABASE_URL` with that value, plus `ADMIN_EMAILS` with your address, and redeploy. Nothing is exposed to the internet and nothing has to be allowed in a hosting panel.
+
+**Or use a database somewhere else** (for example on shared hosting). That host must allow your server's IP (in cPanel: **Remote Database Access**, called **Remote MySQL** in older versions). Add these under your application → **Environment Variables**, then redeploy:
 
 | Variable | Value |
 | --- | --- |
