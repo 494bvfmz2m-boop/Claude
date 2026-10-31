@@ -419,3 +419,35 @@ test('Profile: edit your card, share it at /profile/#/username, save as contact'
     assert.equal((await guest('PUT', '/api/profile', { name: 'x' })).status, 401);
     app.close();
 });
+
+test('Profile: the card can have its own photo, or the mail photo, or none', async () => {
+    const app = await start();
+    const d = app.device();
+    const guest = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    await d('POST', '/api/username', { username: 'jo.smith' });
+    await d('PUT', '/mail/api/settings', { senderPhotos: false });
+    const png = hex => 'data:image/png;base64,' + Buffer.from('89504e470d0a1a0a0000000d49484452' + hex, 'hex').toString('base64');
+    await d('PUT', '/mail/api/profile/photo', { dataUrl: png('aa') }); // the mail photo
+    await d('PUT', '/api/profile', { name: 'Jo' });
+    const photo = async () => (await fetch(app.base + '/api/profiles/jo.smith/photo')).arrayBuffer().then(b => Buffer.from(b).toString('hex').slice(-2));
+    assert.equal(await photo(), 'aa'); // by default the card shows the mail photo
+    assert.equal((await d('PUT', '/api/profile/photo', { dataUrl: 'data:text/html;base64,PGI+' })).status, 400);
+    const up = (await d('PUT', '/api/profile/photo', { dataUrl: png('bb') })).body;
+    assert.equal(up.photoMode, 'card');
+    assert.equal(await photo(), 'bb'); // its own photo now
+    const me = (await d('GET', '/api/profile')).body;
+    assert.equal(me.profile.photoMode, 'card');
+    assert.ok(me.cardPhoto);
+    // a client can't point the card at a photo it never uploaded
+    await d('PUT', '/api/profile', { name: 'Jo', photoMode: 'account', cardPhoto: 123 });
+    assert.equal((await d('GET', '/api/profile')).body.cardPhoto, me.cardPhoto);
+    assert.equal(await photo(), 'aa');
+    await d('PUT', '/api/profile', { name: 'Jo', photoMode: 'none' });
+    assert.equal((await guest('GET', '/api/profiles/jo.smith')).body.photo, null);
+    assert.equal((await fetch(app.base + '/api/profiles/jo.smith/photo')).status, 404);
+    await d('DELETE', '/api/profile/photo');
+    await d('PUT', '/api/profile', { name: 'Jo', photoMode: 'card' });
+    assert.equal((await d('GET', '/api/profile')).body.profile.photoMode, 'account'); // no card photo left
+    app.close();
+});

@@ -54,6 +54,17 @@ async function fetchImage(url) {
     }
 }
 
+// a data: URL from the browser's cropper -> image bytes (PNG, JPEG or WebP, at most 1 MB)
+function decodePhoto(dataUrl) {
+    const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+    if (!m) throw Object.assign(new Error('Upload a PNG, JPEG or WebP image'), { status: 400 });
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > MAX_PHOTO_BYTES) throw Object.assign(new Error('That photo is too large (max 1 MB after cropping)'), { status: 413 });
+    if (!sniffType(buf)) throw Object.assign(new Error('That file is not a valid image'), { status: 400 });
+    return buf;
+}
+const cardKey = email => 'card:' + crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');
+
 // Uploaded photos live in the store's backend (database or files); the Gravatar / logo cache
 // stays on local disk because it's only a cache.
 function createAvatars(dataDir, { backend, store }) {
@@ -108,12 +119,7 @@ function createAvatars(dataDir, { backend, store }) {
         },
 
         async savePhoto(email, dataUrl) {
-            const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
-            if (!m) throw Object.assign(new Error('Upload a PNG, JPEG or WebP image'), { status: 400 });
-            const buf = Buffer.from(m[2], 'base64');
-            if (buf.length > MAX_PHOTO_BYTES) throw Object.assign(new Error('That photo is too large (max 1 MB after cropping)'), { status: 413 });
-            if (!sniffType(buf)) throw Object.assign(new Error('That file is not a valid image'), { status: 400 });
-            const version = await backend.setPhoto(email, buf);
+            const version = await backend.setPhoto(email, decodePhoto(dataUrl));
             store.setPhotoVersion(email, version);
             return version;
         },
@@ -121,6 +127,16 @@ function createAvatars(dataDir, { backend, store }) {
         async removePhoto(email) {
             await backend.removePhoto(email);
             store.setPhotoVersion(email, null);
+        },
+
+        /* the profile card can have its own photo, kept apart from the mail photo */
+        async saveCardPhoto(email, dataUrl) {
+            return backend.setPhoto(cardKey(email), decodePhoto(dataUrl));
+        },
+        removeCardPhoto: email => backend.removePhoto(cardKey(email)),
+        async cardPhoto(email) {
+            const p = await backend.getPhoto(cardKey(email));
+            return p ? { buf: p.buf, type: sniffType(p.buf), version: p.version } : null;
         },
 
         /** only the photo someone uploaded here (used on public profiles) */

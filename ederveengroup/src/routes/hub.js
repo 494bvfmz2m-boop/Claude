@@ -53,13 +53,34 @@ module.exports = function hubRoutes(ctx) {
         const saved = store.getProfile(email);
         // a first visit starts from what we already know
         const profile = saved || { visible: true, name: store.getSettings(email).displayName || '', email, showEmail: true, links: {} };
-        res.json({ profile, username, account: email, created: !!saved, photo: await ctx.avatars.photoVersion(email), url: username ? `${originOf(req)}/profile/#/${username}` : null });
+        res.json({ profile, username, account: email, created: !!saved, photo: await ctx.avatars.photoVersion(email), cardPhoto: (saved && saved.cardPhoto) || null, url: username ? `${originOf(req)}/profile/#/${username}` : null });
     }));
 
     r.put('/profile', requireAuth, wrap(async (req, res) => {
-        const profile = cleanProfile(req.body);
+        const before = store.getProfile(req.session.email) || {};
+        const profile = { ...cleanProfile(req.body), cardPhoto: before.cardPhoto || null }; // the card photo is only set by its own upload
+        if (profile.photoMode === 'card' && !profile.cardPhoto) profile.photoMode = 'account';
         store.setProfile(req.session.email, profile);
         res.json({ ok: true, profile });
+    }));
+
+    // a photo just for the profile card
+    r.put('/profile/photo', requireAuth, wrap(async (req, res) => {
+        const version = await ctx.avatars.saveCardPhoto(req.session.email, req.body.dataUrl);
+        const profile = { ...(store.getProfile(req.session.email) || cleanProfile({ email: req.session.email })), cardPhoto: version, photoMode: 'card' };
+        store.setProfile(req.session.email, profile);
+        res.json({ ok: true, cardPhoto: version, photoMode: 'card' });
+    }));
+    r.get('/profile/photo', requireAuth, wrap(async (req, res) => {
+        const photo = await ctx.avatars.cardPhoto(req.session.email);
+        if (!photo) return res.status(404).end();
+        res.set({ 'Content-Type': photo.type, 'Cache-Control': 'private, max-age=86400', 'Content-Security-Policy': "default-src 'none'" }).send(photo.buf);
+    }));
+    r.delete('/profile/photo', requireAuth, wrap(async (req, res) => {
+        await ctx.avatars.removeCardPhoto(req.session.email);
+        const p = store.getProfile(req.session.email);
+        if (p) store.setProfile(req.session.email, { ...p, cardPhoto: null, photoMode: p.photoMode === 'card' ? 'account' : p.photoMode });
+        res.json({ ok: true });
     }));
 
     /* ---------- Profile: public cards (anyone with the link) ---------- */
@@ -73,21 +94,25 @@ module.exports = function hubRoutes(ctx) {
         await store.ready(email);
         const profile = store.getProfile(email);
         if (!profile || profile.visible === false) throw httpError(404, 'There’s no profile here');
-        return { email, view: publicView(profile, { username: name, photo: await ctx.avatars.photoVersion(email) }), url: `${originOf(req)}/profile/#/${name}` };
+        const mode = profile.photoMode || 'account';
+        const photo = mode === 'none' ? null : mode === 'card' ? profile.cardPhoto : await ctx.avatars.photoVersion(email);
+        return { email, mode, view: publicView(profile, { username: name, photo }), url: `${originOf(req)}/profile/#/${name}` };
     }
+    // the photo the card shows: its own, or the mail photo
+    const photoFor = (email, mode) => (mode === 'none' ? null : mode === 'card' ? ctx.avatars.cardPhoto(email) : ctx.avatars.uploaded(email));
     r.get('/profiles/:username', wrap(async (req, res) => {
         const { view, url } = await cardFor(req);
         res.set('Cache-Control', 'no-cache').json({ ...view, url });
     }));
     r.get('/profiles/:username/photo', wrap(async (req, res) => {
-        const { email } = await cardFor(req);
-        const photo = await ctx.avatars.uploaded(email);
+        const { email, mode } = await cardFor(req);
+        const photo = await photoFor(email, mode);
         if (!photo) return res.status(404).end();
         res.set({ 'Content-Type': photo.type, 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'same-origin' }).send(photo.buf);
     }));
     r.get('/profiles/:username/vcard', wrap(async (req, res) => {
-        const { email, view, url } = await cardFor(req);
-        const photo = view.photo ? await ctx.avatars.uploaded(email) : null;
+        const { email, mode, view, url } = await cardFor(req);
+        const photo = view.photo ? await photoFor(email, mode) : null;
         res.set({ 'Content-Type': 'text/vcard; charset=utf-8', 'Content-Disposition': `attachment; filename="${view.username}.vcf"`, 'Cache-Control': 'no-cache' }).send(vcard(view, { url, photo }));
     }));
     r.get('/profiles/:username/qr.svg', wrap(async (req, res) => {

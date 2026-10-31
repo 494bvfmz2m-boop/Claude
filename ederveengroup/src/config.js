@@ -14,6 +14,28 @@ function trustSetting(v) {
     return v; // IPs / subnets / 'loopback', comma separated
 }
 
+// The database: either one connection URL (DATABASE_URL, e.g. Coolify's "Internal URL"
+// mysql://user:pass@host:3306/name), or DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD.
+function dbSetting(env) {
+    const ssl = env.DB_SSL === '1' ? 'verify' : env.DB_SSL === 'insecure' ? 'insecure' : '';
+    const url = env.DATABASE_URL || env.DB_URL;
+    if (url) {
+        // parsed by hand: passwords often contain characters (? # @ !) that break URL parsing
+        const m = /^(mysql|mariadb):\/\/([^:@/]*)(?::(.*))?@([^@/:]+)(?::(\d+))?\/([^?#]*)/.exec(String(url).trim());
+        if (!m) throw new Error('DATABASE_URL should look like mysql://user:password@host:3306/database');
+        const dec = s => {
+            try {
+                return decodeURIComponent(s || '');
+            } catch {
+                return s || '';
+            }
+        };
+        return { host: m[4], port: Number(m[5]) || 3306, database: dec(m[6]), user: dec(m[2]), password: dec(m[3]), ssl };
+    }
+    if (!env.DB_HOST) return null;
+    return { host: env.DB_HOST, port: Number(env.DB_PORT) || 3306, database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASSWORD || '', ssl };
+}
+
 function loadConfig(env = process.env) {
     // Where the webmail lives: /mail by default; BASE_PATH=/ serves it at the root instead.
     // The hub (sign-in and your apps) lives at "/", Mail at BASE_PATH (default /mail).
@@ -34,9 +56,7 @@ function loadConfig(env = process.env) {
         // testing only: let requests point at mail servers on private networks
         allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',
         // MySQL / MariaDB; without DB_HOST everything is kept in files in the data folder
-        db: env.DB_HOST
-            ? { host: env.DB_HOST, port: Number(env.DB_PORT) || 3306, database: env.DB_NAME, user: env.DB_USER, password: env.DB_PASSWORD || '', ssl: env.DB_SSL === '1' ? 'verify' : env.DB_SSL === 'insecure' ? 'insecure' : '' }
-            : null
+        db: dbSetting(env)
     };
 }
 

@@ -53,6 +53,7 @@ function cleanProfile(input = {}) {
     }
     return {
         visible: input.visible !== false,
+        photoMode: ['account', 'card', 'none'].includes(input.photoMode) ? input.photoMode : 'account',
         name: text(input.name, 80),
         headline: text(input.headline, 100),
         company: text(input.company, 100),

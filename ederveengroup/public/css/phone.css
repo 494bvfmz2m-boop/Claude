@@ -405,3 +405,8 @@
     .pf-save { bottom: calc(var(--safe-b) + 10px); background: var(--chrome); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0, 0, 0, .15); }
     .pf-toast { bottom: calc(var(--safe-b) + 90px); }
 }
+
+@media (max-width: 760px) {
+    .pf-public .pf { padding-top: calc(var(--safe-t) + 16px); }
+    .pf-crop { background: var(--cell); }
+}

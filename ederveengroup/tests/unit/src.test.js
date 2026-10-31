@@ -13,6 +13,9 @@ test('config normalises the base path', () => {
     assert.equal(loadConfig({ BASE_PATH: '/' }).baseUrl, '/mail/'); // the hub owns "/"
     assert.equal(loadConfig({}).db, null); // files unless a database is configured
     assert.equal(loadConfig({ DB_HOST: 'db.example', DB_NAME: 'eg', DB_USER: 'u', DB_PASSWORD: 'p!?' }).db.password, 'p!?');
+    // one URL (Coolify's Internal URL), even with awkward characters in the password
+    assert.deepEqual(loadConfig({ DATABASE_URL: 'mysql://eg_user:Pa55?w@rd!@k8x2q:3306/default' }).db, { host: 'k8x2q', port: 3306, database: 'default', user: 'eg_user', password: 'Pa55?w@rd!', ssl: '' });
+    assert.throws(() => loadConfig({ DATABASE_URL: 'postgres://x@y/z' }), /mysql:\/\//);
     assert.equal(loadConfig({ BASE_PATH: 'webmail//' }).baseUrl, '/webmail/');
     assert.equal(loadConfig({ TRUST_PROXY: '1' }).trustProxy, 1);
     assert.equal(loadConfig({}).trustProxy, 'loopback');

@@ -68,11 +68,11 @@
         } catch (e) {
             document.title = 'Profile · EderveenGroup';
             main.innerHTML = `<div class="pf-empty"><div class="pf-empty-icon">${ic('user')}</div><h1>${e.status === 404 ? 'No profile here' : 'Couldn’t load this profile'}</h1>
-                <p>${e.status === 404 ? `Nobody is using <b>@${esc(username)}</b> yet, or their profile is private.` : esc(e.message)}</p><a class="btn btn-primary" href="/profile/#/edit"><span>Make your own profile</span></a></div>`;
+                <p>${e.status === 404 ? `Nobody is using <b>@${esc(username)}</b> yet, or their profile is private.` : esc(e.message)}</p></div>`;
             return;
         }
         document.title = `${v.name || '@' + v.username} · EderveenGroup`;
-        main.innerHTML = card(v) + '<p class="pf-foot">An EderveenGroup profile · <a href="/profile/#/edit">Make your own</a></p>';
+        main.innerHTML = card(v) + `<a class="pf-mark" href="/" aria-label="EderveenGroup"><span class="brand-mark">${window.brandMark()}</span><span>EderveenGroup</span></a>`;
         const mineP = loadMe().then(m => m.username === v.username).catch(() => false);
         // (links are absolute: the page's <base> points at the mail app)
         mineP.then(mine => mine && $('.pf-cta', main).insertAdjacentHTML('beforeend', `<a class="btn" href="/profile/#/edit">${ic('pen')}<span>Edit</span></a>`));
@@ -99,6 +99,82 @@
         document.body.append(t);
         setTimeout(() => t.classList.add('out'), 1800);
         setTimeout(() => t.remove(), 2300);
+    }
+
+    /* ---------- crop a photo to a circle: drag to move, slide to zoom ---------- */
+    function cropPhoto(file) {
+        return new Promise(resolve => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                flash('That file isn’t an image');
+                resolve(null);
+            };
+            img.onload = () => {
+                const SIZE = 260;
+                const back = document.createElement('div');
+                back.className = 'pf-crop-back';
+                back.innerHTML = `<div class="pf-crop" role="dialog" aria-modal="true" aria-label="Crop photo"><h2>Position your photo</h2>
+                    <div class="pf-crop-view"><canvas width="${SIZE * 2}" height="${SIZE * 2}"></canvas></div>
+                    <input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
+                    <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Use photo</button></div></div>`;
+                document.body.append(back);
+                const cv = $('canvas', back);
+                const g = cv.getContext('2d');
+                const base = Math.max((SIZE * 2) / img.width, (SIZE * 2) / img.height);
+                let zoom = 1, x = 0, y = 0;
+                const clamp = () => {
+                    const w = img.width * base * zoom, h = img.height * base * zoom;
+                    x = Math.min(0, Math.max(SIZE * 2 - w, x));
+                    y = Math.min(0, Math.max(SIZE * 2 - h, y));
+                };
+                const draw = () => {
+                    clamp();
+                    g.clearRect(0, 0, cv.width, cv.height);
+                    g.drawImage(img, x, y, img.width * base * zoom, img.height * base * zoom);
+                };
+                x = (SIZE * 2 - img.width * base) / 2;
+                y = (SIZE * 2 - img.height * base) / 2;
+                draw();
+                let drag = null;
+                cv.addEventListener('pointerdown', e => {
+                    drag = { x: e.clientX, y: e.clientY, ox: x, oy: y };
+                    cv.setPointerCapture(e.pointerId);
+                });
+                cv.addEventListener('pointermove', e => {
+                    if (!drag) return;
+                    const k = cv.width / cv.getBoundingClientRect().width;
+                    x = drag.ox + (e.clientX - drag.x) * k;
+                    y = drag.oy + (e.clientY - drag.y) * k;
+                    draw();
+                });
+                cv.addEventListener('pointerup', () => (drag = null));
+                $('input', back).addEventListener('input', e => {
+                    // zoom around the middle
+                    const c = SIZE, z = Number(e.target.value);
+                    x = c - ((c - x) * z) / zoom;
+                    y = c - ((c - y) * z) / zoom;
+                    zoom = z;
+                    draw();
+                });
+                const done = value => {
+                    URL.revokeObjectURL(url);
+                    back.classList.add('out');
+                    setTimeout(() => back.remove(), 250);
+                    resolve(value);
+                };
+                $('[data-x]', back).onclick = () => done(null);
+                back.addEventListener('click', e => e.target === back && done(null));
+                $('[data-ok]', back).onclick = () => {
+                    const out = document.createElement('canvas');
+                    out.width = out.height = 512;
+                    out.getContext('2d').drawImage(cv, 0, 0, 512, 512);
+                    done(out.toDataURL('image/jpeg', 0.88));
+                };
+            };
+            img.src = url;
+        });
     }
 
     /* ---------- your editor ---------- */
@@ -128,7 +204,12 @@
                     ${field('company', 'Company', 'maxlength="100" autocomplete="organization"')}
                     ${field('location', 'Location', 'maxlength="100" placeholder="Amsterdam, NL"')}
                     <label class="pf-field"><span>Bio <i class="pf-count" id="bio-count"></i></span><textarea class="input" name="bio" rows="3" maxlength="500" placeholder="A line or two about you">${esc(p.bio || '')}</textarea></label>
-                    <div class="pf-photo"><span class="pf-photo-av">${data.photo ? `<img alt="" src="${MAIL}api/avatar?email=${encodeURIComponent(data.account)}&v=${data.photo}">` : esc(initials(p.name || data.username))}</span><div><b>Photo</b><small>Your EderveenGroup photo. <a href="${MAIL}settings/profile">Change it</a></small></div></div>
+                    <div class="pf-photo"><span class="pf-photo-av" id="pf-photo-av"></span>
+                        <div class="pf-photo-body"><b>Photo on your card</b>
+                            <div class="seg pf-photo-seg" id="pf-photo-mode">
+                                <button type="button" data-v="card">Own photo</button><button type="button" data-v="account">Mail photo</button><button type="button" data-v="none">None</button></div>
+                            <div class="pf-photo-acts"><label class="btn"><input type="file" accept="image/png,image/jpeg,image/webp" id="pf-photo-file" hidden>${ic('image')}<span>Upload a photo</span></label><button type="button" class="btn btn-ghost hidden" id="pf-photo-remove">Remove</button></div>
+                            <small id="pf-photo-hint"></small></div></div>
                 </section>
                 <section class="pf-group"><h2>How to reach you</h2>
                     ${field('email', 'Email', 'type="email" maxlength="254" autocomplete="email"')}
@@ -147,6 +228,60 @@
             <aside class="pf-preview" aria-label="Preview"><p class="pf-preview-label">Preview</p><div id="pf-live"></div></aside>
         </div>`;
         const form = $('#pf-form');
+        const accountPhoto = data.photo ? `${MAIL}api/avatar?email=${encodeURIComponent(data.account)}&v=${data.photo}` : '';
+        let cardPhoto = data.cardPhoto ? `/api/profile/photo?v=${data.cardPhoto}` : '';
+        let photoMode = p.photoMode || 'account';
+        const photoUrl = () => (photoMode === 'card' ? cardPhoto : photoMode === 'account' ? accountPhoto : '');
+        function drawPhoto() {
+            const url = photoUrl();
+            $('#pf-photo-av').innerHTML = url ? `<img alt="" src="${esc(url)}">` : esc(initials(form.name.value || data.username));
+            $$('#pf-photo-mode button').forEach(b => {
+                b.classList.toggle('on', b.dataset.v === photoMode);
+                b.disabled = b.dataset.v === 'card' && !cardPhoto;
+            });
+            $('#pf-photo-remove').classList.toggle('hidden', !cardPhoto);
+            $('#pf-photo-hint').innerHTML =
+                photoMode === 'card' ? 'Only on your card. Your mail photo stays as it is.'
+                : photoMode === 'account' ? (accountPhoto ? `The same photo as in Mail. <a href="${MAIL}settings/profile">Change it there</a>` : `You haven’t set a mail photo. <a href="${MAIL}settings/profile">Add one</a> or upload one just for your card.`)
+                : 'Your card shows your initials.';
+        }
+        $('#pf-photo-mode').addEventListener('click', e => {
+            const b = e.target.closest('button[data-v]');
+            if (!b || b.disabled) return;
+            photoMode = b.dataset.v;
+            drawPhoto();
+            live();
+        });
+        $('#pf-photo-file').addEventListener('change', async e => {
+            const file = e.target.files[0];
+            e.target.value = '';
+            if (!file) return;
+            const dataUrl = await cropPhoto(file);
+            if (!dataUrl) return;
+            try {
+                const r = await call('/api/profile/photo', { method: 'PUT', body: JSON.stringify({ dataUrl }) });
+                cardPhoto = `/api/profile/photo?v=${r.cardPhoto}`;
+                photoMode = 'card';
+                data.cardPhoto = r.cardPhoto;
+                drawPhoto();
+                live();
+                flash('Photo saved');
+            } catch (err) {
+                flash(err.message);
+            }
+        });
+        $('#pf-photo-remove').addEventListener('click', async () => {
+            try {
+                await call('/api/profile/photo', { method: 'DELETE' });
+                cardPhoto = '';
+                data.cardPhoto = null;
+                if (photoMode === 'card') photoMode = 'account';
+                drawPhoto();
+                live();
+            } catch (err) {
+                flash(err.message);
+            }
+        });
         const read = () => {
             const f = Object.fromEntries(new FormData(form));
             return {
@@ -154,6 +289,7 @@
                 name: f.name, headline: f.headline, company: f.company, location: f.location, bio: f.bio,
                 email: f.email, showEmail: !!form.showEmail.checked, phone: f.phone, website: f.website,
                 visible: !!form.visible.checked,
+                photoMode,
                 links: Object.fromEntries(LINKS.map(([k]) => [k, f[`link-${k}`]]).filter(([, x]) => x))
             };
         };
@@ -166,10 +302,11 @@
                 site = '';
             }
             const links = Object.fromEntries(Object.entries(v.links).map(([k, x]) => [k, /^https?:/i.test(x) ? x : 'https://example.com']));
-            $('#pf-live').innerHTML = card({ ...v, email: v.showEmail ? v.email : '', website: site, links, photoUrl: data.photo ? `${MAIL}api/avatar?email=${encodeURIComponent(data.account)}&v=${data.photo}` : '' }, { preview: true });
+            $('#pf-live').innerHTML = card({ ...v, email: v.showEmail ? v.email : '', website: site, links, photoUrl: photoUrl() }, { preview: true });
             $('#bio-count').textContent = `${(v.bio || '').length}/500`;
         };
         form.addEventListener('input', live);
+        drawPhoto();
         live();
 
         // username: same checks as the welcome step
@@ -249,7 +386,10 @@
     /* ---------- address: #/edit (or nothing) is your editor, #/name is someone's card ---------- */
     function route() {
         const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')).trim().toLowerCase().replace(/^@/, '');
-        nav.innerHTML = `<a class="btn btn-ghost" href="/">${ic('left')}<span>Apps</span></a>${h && h !== 'edit' ? `<a class="btn btn-ghost" href="/profile/#/edit">${ic('user')}<span>My profile</span></a>` : ''}`;
+        const editing = !h || h === 'edit';
+        // a public card stands on its own: no app navigation around it
+        document.body.classList.toggle('pf-public', !editing);
+        nav.innerHTML = editing ? `<a class="btn btn-ghost" href="/">${ic('left')}<span>Apps</span></a>` : '';
         main.classList.remove('enter');
         void main.offsetWidth;
         main.classList.add('enter');

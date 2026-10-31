@@ -1461,3 +1461,32 @@ textarea.input { height: auto; padding: 10px 13px; resize: vertical; line-height
     .pf-preview { position: static; order: -1; }
 }
 @media (prefers-reduced-motion: reduce) { .pf.enter > *, .pf-cover span, .pf-avatar { animation: none; } }
+
+/* ---------- Profile: a public card stands on its own ---------- */
+.pf-public .pf-top { display: none; }
+.pf-public .pf { padding-top: 5vh; }
+.pf-mark { display: flex; align-items: center; justify-content: center; gap: 8px; width: max-content; margin: 26px auto 0; color: var(--text-3); font-size: 13px; text-decoration: none; opacity: .75; transition: opacity .2s; }
+.pf-mark:hover { opacity: 1; }
+.pf-mark .brand-mark { width: 20px; height: 20px; display: inline-block; }
+.pf-mark .brand-mark svg { width: 100%; height: 100%; }
+
+/* the card photo picker and cropper */
+.pf-photo { align-items: flex-start; }
+.pf-photo-av { width: 64px; height: 64px; font-size: 20px; }
+.pf-photo-body { flex: 1; min-width: 0; }
+.pf-photo-seg { margin: 8px 0 10px; }
+.pf-photo-seg button:disabled { opacity: .4; cursor: default; }
+.pf-photo-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-photo-acts .btn { height: 34px; cursor: pointer; }
+.pf-photo-body small { display: block; margin-top: 8px; color: var(--text-3); font-size: 12.5px; }
+.pf-photo-body small a { color: var(--accent-ink); }
+.pf-crop-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(2, 3, 8, .7); animation: fade .25s; }
+.pf-crop-back.out { opacity: 0; transition: opacity .25s; }
+.pf-crop { width: 100%; max-width: 340px; padding: 22px; border-radius: 22px; text-align: center; background: var(--surface-2); box-shadow: var(--shadow-lg); animation: pfIn .4s var(--ease); }
+.pf-crop h2 { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+.pf-crop-view { width: 260px; height: 260px; max-width: 100%; aspect-ratio: 1; margin: 0 auto; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 3px var(--accent-line); touch-action: none; }
+.pf-crop-view canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.pf-crop-view canvas:active { cursor: grabbing; }
+.pf-crop input[type=range] { width: 100%; margin: 18px 0 16px; accent-color: var(--accent); }
+.pf-crop-acts { display: flex; gap: 8px; }
+.pf-crop-acts .btn { flex: 1; }
