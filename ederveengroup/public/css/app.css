@@ -1289,3 +1289,20 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
     .msg.selected, .msg.focused { outline: 2px solid Highlight; }
     .tour-spot { outline: 3px solid Highlight; }
 }
+
+/* ---------- installed on a phone (home screen app) ----------
+   viewport-fit=cover lets the app use the whole screen, so keep controls clear of the
+   notch, the status bar and the home indicator. env() is 0 everywhere else. */
+.app { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.toasts { bottom: calc(24px + env(safe-area-inset-bottom)); }
+.modal-back { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.login-main { padding-top: max(40px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+@media (max-width: 760px) {
+    .sidebar { padding-top: calc(20px + env(safe-area-inset-top)); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .list-head { padding-top: calc(18px + env(safe-area-inset-top)); }
+    .list-foot { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+    .reader-bar { height: calc(56px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); }
+    .reader-content { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+    .composer:not(.inline) .composer-head { height: calc(48px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); }
+    .composer:not(.inline) .composer-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+}

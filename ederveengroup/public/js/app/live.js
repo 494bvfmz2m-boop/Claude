@@ -42,11 +42,21 @@ function connectLive() {
         if (state.folder === 'INBOX' && state.page === 0 && !state.query) loadMessages({ quiet: true });
         if (evt.type === 'exists' && after > before) {
             toast(`${after - before} new message${after - before > 1 ? 's' : ''}`, { action: state.folder === 'INBOX' ? null : 'View', onAction: () => openFolder('INBOX') });
-            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-                new Notification('EderveenGroup', { body: `${after - before} new message${after - before > 1 ? 's' : ''}`, icon: 'favicon.svg' });
-            }
+            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) notify(`${after - before} new message${after - before > 1 ? 's' : ''}`);
         }
     }, 400));
+}
+
+// phones (and installed apps) only allow notifications through the service worker
+async function notify(body) {
+    const opts = { body, icon: 'icons/icon-192.png', tag: 'eg-new-mail', renotify: true };
+    try {
+        const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration());
+        if (reg) return await reg.showNotification('EderveenGroup', opts);
+        new Notification('EderveenGroup', opts);
+    } catch {
+        // notifications blocked or unsupported
+    }
 }
 
 export { connectLive, es };

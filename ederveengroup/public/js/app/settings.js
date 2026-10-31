@@ -90,7 +90,7 @@ function openSettings(tab = 'general') {
                 <div class="row"><div class="lbl"><b>Load remote images</b><small>Off blocks tracking pixels until you allow them</small></div><label class="switch"><input type="checkbox" data-s="loadRemoteImages" ${s.loadRemoteImages ? 'checked' : ''}><span></span></label></div>
                 <div class="row"><div class="lbl"><b>Sender photos</b><small>Show Gravatars and company logos. Fetched by your server, so senders never see your IP.</small></div><label class="switch"><input type="checkbox" data-s="senderPhotos" ${s.senderPhotos !== false ? 'checked' : ''}><span></span></label></div>
                 <div class="row"><div class="lbl"><b>Save a copy to Sent</b><small>Turn off if Purelymail already saves outgoing mail for you</small></div><label class="switch"><input type="checkbox" data-s="saveSentCopy" ${s.saveSentCopy ? 'checked' : ''}><span></span></label></div>
-                <div class="row"><div class="lbl"><b>Desktop notifications</b><small>Get pinged when new mail lands</small></div><button class="btn" data-notify>${'Notification' in window && Notification.permission === 'granted' ? icon('check') + ' Enabled' : icon('bell') + ' Enable'}</button></div>`;
+                <div class="row"><div class="lbl"><b>Notifications</b><small>Get pinged when new mail lands while EderveenGroup is open</small></div><button class="btn" data-notify>${'Notification' in window && Notification.permission === 'granted' ? icon('check') + ' Enabled' : icon('bell') + ' Enable'}</button></div>`;
             $$('input[type=checkbox][data-s]', section).forEach(i =>
                 i.addEventListener('change', async () => {
                     await saveSettings({ [i.dataset.s]: i.checked });
@@ -102,7 +102,7 @@ function openSettings(tab = 'general') {
                 })
             );
             $('[data-notify]', section).onclick = async e => {
-                if (!('Notification' in window)) return toast('Notifications aren’t supported here', { error: true });
+                if (!('Notification' in window)) return toast(/iPhone|iPad/.test(navigator.userAgent) ? 'On iPhone, add EderveenGroup to your Home Screen first (Share, then Add to Home Screen), then turn this on from there.' : 'Notifications aren’t supported here', { error: true, duration: 8000 });
                 const p = await Notification.requestPermission();
                 e.target.closest('button').innerHTML = p === 'granted' ? icon('check') + ' Enabled' : icon('bell') + ' Blocked';
             };

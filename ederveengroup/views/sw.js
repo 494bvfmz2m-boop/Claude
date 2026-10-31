@@ -52,6 +52,17 @@ self.addEventListener('fetch', event => {
     }
 });
 
+// tapping a new-mail notification brings the app forward (or opens it)
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+            const open = list.find(c => new URL(c.url).pathname.startsWith(BASE));
+            return open ? open.focus() : self.clients.openWindow(BASE);
+        })
+    );
+});
+
 function offlinePage() {
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="15"><title>Offline · EderveenGroup</title><style>
