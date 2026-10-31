@@ -4,7 +4,7 @@ import { logout, toggleTheme } from './chrome.js';
 import { composer, openComposer } from './composer.js';
 import { openFolder } from './folders.js';
 import { expandUids, loadMessages, renderList, threads, toggleCheck } from './list.js';
-import { openMessage, showEmptyReader, startReply } from './reader.js';
+import { fetchMessage, openMessage, showEmptyReader, startReply } from './reader.js';
 import { openSettings } from './settings.js';
 import { snoozeMenu } from './snooze.js';
 import { startTour } from './tour.js';
@@ -104,7 +104,12 @@ function moveFocus(delta) {
     $('#messages').setAttribute('aria-activedescendant', `row-${rows[i]}`);
     $(`.msg[data-uid="${rows[i]}"]`)?.scrollIntoView({ block: 'nearest' });
     const paneOpen = state.settings.readingPane !== 'off' && matchMedia('(min-width: 761px)').matches;
-    if (paneOpen || $('#app').dataset.view === 'reader') openMessage(rows[i]);
+    if (paneOpen || $('#app').dataset.view === 'reader') {
+        openMessage(rows[i], { quick: true });
+        // the next one in the same direction is probably wanted next
+        const ahead = rows[i + Math.sign(delta || 1)];
+        if (ahead) setTimeout(() => fetchMessage(state.folder, ahead).catch(() => {}), 250);
+    }
 }
 
 function onKey(e) {

@@ -160,7 +160,8 @@ function convoUids() {
 
 let readToken = 0;
 let activeMorph = null;
-async function openMessage(uid) {
+// { quick: true } skips the list-to-reader morph (stepping through mail with j/k)
+async function openMessage(uid, { quick = false } = {}) {
     const token = ++readToken;
     state.openUid = uid;
     $$('.msg').forEach(x => {
@@ -180,7 +181,7 @@ async function openMessage(uid) {
         return;
     }
     // the subject and avatar fly from the list into the reader (View Transitions, where supported)
-    const morph = !!(row && document.startViewTransition && !calm && !document.hidden);
+    const morph = !!(row && !quick && document.startViewTransition && !calm && !document.hidden);
     if (!morph) $('#app').dataset.view = 'reader';
     else row.classList.add('opening');
     const folder = state.folder;

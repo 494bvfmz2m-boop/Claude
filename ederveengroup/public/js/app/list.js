@@ -246,12 +246,13 @@ function renderList(animate = false, { appended = false } = {}) {
                 const whoText = showTo ? `To: ${m.to.map(personName).join(', ') || '(no recipients)'}` : n > 1 ? participants(t) : personName(who) || '(unknown)';
                 const subject = n > 1 ? stripPrefix(t.messages[n - 1].subject) || m.subject : m.subject;
                 const checked = state.checked.has(m.uid);
-                return `${header}<div class="msg${animate ? ' enter' : ''}${state.fresh && t.messages.some(x => state.fresh.has(x.uid)) ? ' fresh' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${checked ? ' checked' : ''}${m.uid === state.focusUid ? ' focused' : ''}" data-uid="${m.uid}" id="row-${m.uid}" role="option" aria-selected="${m.uid === state.openUid}" aria-label="${esc(`${unread ? 'Unread. ' : ''}${whoText}${n > 1 ? `, ${n} messages` : ''}. ${subject || '(no subject)'}. ${fmtDate(m.date)}`)}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
+                const when = fmtDate(m.date);
+                return `${header}<div class="msg${animate ? ' enter' : ''}${state.fresh && t.messages.some(x => state.fresh.has(x.uid)) ? ' fresh' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${checked ? ' checked' : ''}${m.uid === state.focusUid ? ' focused' : ''}" data-uid="${m.uid}" id="row-${m.uid}" role="option" aria-selected="${m.uid === state.openUid}" aria-label="${esc(`${unread ? 'Unread. ' : ''}${whoText}${n > 1 ? `, ${n} messages` : ''}. ${subject || '(no subject)'}. ${when}`)}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
                 <div class="sel-toggle" title="Select">${checked ? `<div class="avatar check">${icon('check')}</div>` : avatar(who)}</div>
                 <div class="msg-body">
                     <div class="msg-top"><span class="msg-from">${esc(whoText)}</span>${n > 1 ? `<span class="thread-count">${n}</span>` : ''}
                         <span class="msg-meta">${answered ? icon('reply') : ''}${attach ? icon('clip') : ''}</span>
-                        ${snooze ? `<span class="msg-date until">${icon('clock')}${esc(fmtUntil(snooze.until))}</span>` : `<span class="msg-date">${fmtDate(m.date)}</span>`}
+                        ${snooze ? `<span class="msg-date until">${icon('clock')}${esc(fmtUntil(snooze.until))}</span>` : `<span class="msg-date">${when}</span>`}
                         <span class="row-actions">
                             <button data-row="archive" title="Archive (E)">${icon('archive')}</button>
                             <button data-row="snooze" title="Snooze (B)">${icon('clock')}</button>

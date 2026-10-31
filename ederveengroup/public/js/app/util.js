@@ -54,17 +54,20 @@ function toast(text, { error = false, action, onAction, duration = 4000 } = {}) 
     return { el, close };
 }
 
+// Intl formatters are costly to create, and the list formats a date for every row
+const fmts = {};
+const fmt = (key, opts, kind = 'DateTimeFormat') => (fmts[key] ||= new Intl[kind](undefined, opts));
 function fmtDate(iso, long) {
     const d = new Date(iso);
     const now = new Date();
-    if (long) return d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    if (long) return fmt('long', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
+    if (d.toDateString() === now.toDateString()) return fmt('time', { hour: 'numeric', minute: '2-digit' }).format(d);
     const y = new Date(now);
     y.setDate(now.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return 'Yesterday';
-    if (now - d < 6 * 864e5) return d.toLocaleDateString(undefined, { weekday: 'short' });
-    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return d.toLocaleDateString(undefined, { year: '2-digit', month: 'numeric', day: 'numeric' });
+    if (now - d < 6 * 864e5) return fmt('weekday', { weekday: 'short' }).format(d);
+    if (d.getFullYear() === now.getFullYear()) return fmt('monthDay', { month: 'short', day: 'numeric' }).format(d);
+    return fmt('short', { year: '2-digit', month: 'numeric', day: 'numeric' }).format(d);
 }
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
