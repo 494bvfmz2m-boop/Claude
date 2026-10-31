@@ -34,6 +34,7 @@ function cleanSettingsPatch(body = {}) {
     if ('displayName' in p) p.displayName = String(p.displayName || '').replace(/[\r\n"<>]/g, '').slice(0, 120);
     if ('accent' in p && !/^#[0-9a-f]{6}$/i.test(p.accent)) delete p.accent;
     if ('theme' in p) p.theme = oneOf(p.theme, ['dark', 'light', 'system'], 'dark');
+    if ('phoneTheme' in p) p.phoneTheme = oneOf(p.phoneTheme, ['dark', 'light', 'system'], 'light');
     if ('density' in p) p.density = oneOf(p.density, ['comfortable', 'compact'], 'comfortable');
     if ('readingPane' in p) p.readingPane = oneOf(p.readingPane, ['right', 'off'], 'right');
     if ('afterAction' in p) p.afterAction = oneOf(p.afterAction, ['next', 'list'], 'next');

@@ -87,6 +87,8 @@ import { $, api, glide, qs, toast } from './util.js';
     connectLive();
     setInterval(loadFolders, 120000);
     if (!state.settings.tourDone) setTimeout(() => startTour(), 700);
+    else if (state.me.admin && state.me.pendingRequests && !route.settings)
+        setTimeout(() => toast(`${state.me.pendingRequests} ${state.me.pendingRequests === 1 ? 'person wants' : 'people want'} to add their mail`, { action: 'Review', onAction: () => openSettings('admin'), duration: 9000 }), 1500);
     registerWorker();
 })();
 

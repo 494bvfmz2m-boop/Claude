@@ -11,20 +11,43 @@ const libqp = require('libqp');
 const iconv = require('iconv-lite');
 const { sanitizeEmailHtml } = require('./sanitize');
 const { parseQuery } = require('./query');
+const servers = require('./servers');
 
 const IMAP = { host: process.env.IMAP_HOST || 'imap.purelymail.com', port: Number(process.env.IMAP_PORT) || 993, secure: true };
 const SMTP = { host: process.env.SMTP_HOST || 'smtp.purelymail.com', port: Number(process.env.SMTP_PORT) || 465, secure: true };
+
+// Which servers an address uses: accepted addresses/domains have their own (lib/servers.js),
+// everyone else uses the default (Purelymail). Own servers are reached on public addresses only.
+let profileFor = () => null;
+let allowPrivate = false;
+function useServers(fn, { allowPrivateHosts = false } = {}) {
+    profileFor = fn;
+    allowPrivate = allowPrivateHosts;
+}
+async function imapConfig(email, password) {
+    const p = profileFor(email);
+    if (!p) return { ...IMAP, auth: { user: email, pass: password }, logger: false, emitLogs: false };
+    return servers.imapOptions(p.imap, await servers.publicAddress(p.imap.host, { allowPrivate }), { user: servers.userFor(email, p.login), pass: password });
+}
+async function smtpConfig(email, password) {
+    const p = profileFor(email);
+    if (!p) return { ...SMTP, auth: { user: email, pass: password } };
+    return servers.smtpOptions(p.smtp, await servers.publicAddress(p.smtp.host, { allowPrivate }), { user: servers.userFor(email, p.login), pass: password });
+}
 const IDLE_CLOSE_MS = 5 * 60 * 1000;
 const PAGE_SIZE = 50;
 
 const pool = new Map();
+const creating = new Map();
 
 function poolKey(email, password) {
-    return crypto.createHash('sha256').update(email.toLowerCase() + '\0' + password).digest('hex');
+    const p = profileFor(email);
+    const where = p ? `${p.imap.host}:${p.imap.port}` : '';
+    return crypto.createHash('sha256').update(email.toLowerCase() + '\0' + password + '\0' + where).digest('hex');
 }
 
-function newClient(email, password) {
-    return new ImapFlow({ ...IMAP, auth: { user: email, pass: password }, logger: false, emitLogs: false });
+async function newClient(email, password) {
+    return new ImapFlow(await imapConfig(email, password));
 }
 
 // Verify credentials by opening (and closing) a throwaway IMAP connection.
@@ -39,7 +62,7 @@ function addToPool(key, client, ready) {
 // Checks credentials with a real IMAP login and keeps that connection for the
 // session that follows, so the first page load doesn't connect a second time.
 async function verifyLogin(email, password) {
-    const client = newClient(email, password);
+    const client = await newClient(email, password);
     try {
         await client.connect();
     } catch (err) {
@@ -68,8 +91,9 @@ async function getClient({ email, password }) {
         entry = null;
     }
     if (!entry) {
-        const client = newClient(email, password);
-        entry = addToPool(key, client, client.connect());
+        // creating a client can wait on DNS (own servers), so concurrent requests share one
+        if (!creating.has(key)) creating.set(key, newClient(email, password).then(client => addToPool(key, client, client.connect())).finally(() => creating.delete(key)));
+        entry = await creating.get(key);
     }
     try {
         await entry.ready;
@@ -583,7 +607,7 @@ async function sendMessage(session, input, { saveSentCopy = true } = {}) {
         err.status = 400;
         throw err;
     }
-    const transport = nodemailer.createTransport({ ...SMTP, auth: { user: session.email, pass: session.password } });
+    const transport = nodemailer.createTransport(await smtpConfig(session.email, session.password));
     try {
         await transport.sendMail({ envelope: { from: session.email, to: recipients }, raw });
     } finally {
@@ -625,7 +649,7 @@ async function saveDraft(session, input) {
 
 // Opens a dedicated IDLE connection on INBOX and calls onChange when mail arrives.
 async function watchInbox(session, onChange) {
-    const client = newClient(session.email, session.password);
+    const client = await newClient(session.email, session.password);
     await client.connect();
     await client.mailboxOpen('INBOX');
     client.on('exists', data => onChange({ type: 'exists', ...data }));
@@ -659,5 +683,8 @@ module.exports = {
     wakeSnoozes,
     getThread,
     searchCounts,
+    useServers,
+    imapConfig, // exported for tests
+    smtpConfig,
     inspectStructure // exported for tests
 };

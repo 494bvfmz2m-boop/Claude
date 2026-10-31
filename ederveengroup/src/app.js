@@ -16,8 +16,9 @@ const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
 const { createLinks } = require('../lib/links');
 const { APP_ROUTE } = require('./routes-app');
+const { adminRoutes, requestRoutes } = require('./routes/servers');
 
-function createApp(config, { mail = defaultMail } = {}) {
+function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     const store = createStore(config.dataDir);
     const ctx = {
         config,
@@ -29,10 +30,15 @@ function createApp(config, { mail = defaultMail } = {}) {
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
         links: null,
+        checkMailbox, // tests swap in a stub; normally lib/servers.js signs in once to check
         pages: createPages({ viewsDir: config.viewsDir, publicDir: config.publicDir, baseUrl: config.baseUrl, version: assetVersion(config.publicDir) })
     };
 
     ctx.links = createLinks(ctx.sessions.deriveKey('links'));
+    // accepted addresses / domains use their own mail servers
+    if (mail.useServers) mail.useServers(email => store.servers.profileFor(email), { allowPrivateHosts: config.allowPrivateMailHosts });
+    const admin = adminRoutes(ctx);
+    ctx.isAdmin = admin.isAdmin;
 
     const site = express();
     site.disable('x-powered-by');
@@ -50,6 +56,8 @@ function createApp(config, { mail = defaultMail } = {}) {
     // they all load the app, which then shows the right thing. Signed out: back here after login.
     app.get('/', (req, res) => (req.session ? res.redirect(config.baseUrl + 'inbox') : res.redirect(config.baseUrl + 'login')));
     app.get(APP_ROUTE, (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : res.redirect(`${config.baseUrl}login?next=${encodeURIComponent(req.path.slice(1))}`)));
+    // the form for bringing your own mail server (open to everyone)
+    app.get('/request', (req, res) => ctx.pages.send(res, 'request.html'));
     app.get('/login', (req, res) => {
         if (!req.session) return ctx.pages.send(res, 'login.html');
         const next = String(req.query.next || '');
@@ -73,7 +81,9 @@ function createApp(config, { mail = defaultMail } = {}) {
     const api = express.Router();
     api.use(csrfGuard);
     api.use(require('./routes/auth')(ctx));
+    api.use(requestRoutes(ctx));
     api.use(requireAuth);
+    api.use(admin.router);
     api.use(require('./routes/account')(ctx));
     api.use('/2fa', require('./routes/twofa')(ctx));
     api.use(require('./routes/mail')(ctx));

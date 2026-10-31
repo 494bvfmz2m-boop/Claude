@@ -202,3 +202,60 @@ test('only real app pages count as in-app addresses', () => {
     for (const bad of ['/', '/api/me', '//evil.com', '/inbox/../api', '/inbox/short', '/f/x', '/login', '/settings/../../x', '/inbox/x7Kq2pW9aZc/more', 'https://evil.com/inbox'])
         assert.equal(APP_ROUTE.test(bad), false, bad);
 });
+
+test('server requests only accept encrypted standard ports and real host names', () => {
+    const s = require('../../lib/servers');
+    const ok = s.cleanRequest({ name: 'Ava <x>', email: 'Ava@Studio.io', imap: { host: 'IMAP.studio.io', port: 993 }, smtp: { host: 'smtp.studio.io', port: '587' }, login: 'local' });
+    assert.deepEqual(ok.imap, { host: 'imap.studio.io', port: 993, security: 'tls' });
+    assert.deepEqual(ok.smtp, { host: 'smtp.studio.io', port: 587, security: 'starttls' });
+    assert.equal(ok.name, 'Ava x');
+    assert.equal(ok.email, 'ava@studio.io');
+    assert.equal(ok.login, 'local');
+    const base = { email: 'a@b.io', imap: { host: 'imap.b.io', port: 993 }, smtp: { host: 'smtp.b.io', port: 465 } };
+    assert.throws(() => s.cleanRequest({ ...base, imap: { host: 'imap.b.io', port: 22 } }), /993 \(SSL\/TLS\) or 143/);
+    assert.throws(() => s.cleanRequest({ ...base, smtp: { host: 'smtp.b.io', port: 25 } }), /465 \(SSL\/TLS\) or 587/);
+    assert.throws(() => s.cleanRequest({ ...base, imap: { host: '10.0.0.5', port: 993 } }), /host name/);
+    assert.throws(() => s.cleanRequest({ ...base, imap: { host: 'localhost', port: 993 } }), /host name/);
+    assert.throws(() => s.cleanRequest({ ...base, imap: { host: 'imap.b.io', port: 993, security: 'none' } }), /encrypted/);
+    assert.throws(() => s.cleanRequest({ ...base, email: 'nope' }), /full email/);
+});
+
+test('only public addresses count as mail servers', () => {
+    const { isPublicIp } = require('../../lib/servers');
+    for (const ip of ['127.0.0.1', '10.1.2.3', '172.20.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1', '224.0.0.1'])
+        assert.equal(isPublicIp(ip), false, ip);
+    for (const ip of ['1.1.1.1', '142.250.1.1', '2606:4700::1111', '::ffff:8.8.8.8']) assert.equal(isPublicIp(ip), true, ip);
+});
+
+test('provider settings are read from Thunderbird autoconfig, preferring SSL/TLS', () => {
+    const { parseAutoconfig } = require('../../lib/servers');
+    const xml = `<clientConfig><emailProvider id="example.com">
+      <incomingServer type="imap"><hostname>imap.example.com</hostname><port>143</port><socketType>STARTTLS</socketType><username>%EMAILADDRESS%</username></incomingServer>
+      <incomingServer type="imap"><hostname>imap.example.com</hostname><port>993</port><socketType>SSL</socketType><username>%EMAILADDRESS%</username></incomingServer>
+      <incomingServer type="pop3"><hostname>pop.example.com</hostname><port>995</port><socketType>SSL</socketType></incomingServer>
+      <outgoingServer type="smtp"><hostname>smtp.example.com</hostname><port>25</port><socketType>plain</socketType></outgoingServer>
+      <outgoingServer type="smtp"><hostname>smtp.example.com</hostname><port>587</port><socketType>STARTTLS</socketType><username>%EMAILLOCALPART%</username></outgoingServer>
+    </emailProvider></clientConfig>`;
+    assert.deepEqual(parseAutoconfig(xml), { imap: { host: 'imap.example.com', port: 993, security: 'tls' }, smtp: { host: 'smtp.example.com', port: 587, security: 'starttls' }, login: 'email' });
+    assert.equal(parseAutoconfig('<clientConfig/>'), null);
+});
+
+test('accepted addresses connect to their own servers by checked address, others to the default', async () => {
+    const mail = require('../../lib/mail');
+    const profile = { imap: { host: 'localhost', port: 993, security: 'tls' }, smtp: { host: 'localhost', port: 587, security: 'starttls' }, login: 'local' };
+    mail.useServers(email => (email.endsWith('@studio.io') ? profile : null), { allowPrivateHosts: true });
+    const own = await mail.imapConfig('ava@studio.io', 'pw');
+    assert.match(own.host, /^(127\.0\.0\.1|::1)$/); // connected by address...
+    assert.equal(own.servername, 'localhost'); // ...but the certificate must match the name
+    assert.deepEqual(own.auth, { user: 'ava', pass: 'pw' });
+    const smtp = await mail.smtpConfig('ava@studio.io', 'pw');
+    assert.equal(smtp.requireTLS, true);
+    assert.equal(smtp.tls.servername, 'localhost');
+    const def = await mail.imapConfig('jo@purely.example', 'pw');
+    assert.equal(def.auth.user, 'jo@purely.example');
+    assert.notEqual(def.host, own.host);
+    // without the testing switch, private addresses are refused
+    mail.useServers(() => profile);
+    await assert.rejects(mail.imapConfig('ava@studio.io', 'pw'), /isn’t a public mail server/);
+    mail.useServers(() => null);
+});

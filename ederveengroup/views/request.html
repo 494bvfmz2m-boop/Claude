@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <base href="%BASE%">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Request access · EderveenGroup</title>
+    <meta name="theme-color" content="#0b0d12">
+    <link rel="icon" href="favicon.svg?v=%V%" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=%V%">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css?v=%V%">
+    <script src="js/boot.js?v=%V%"></script>
+    <script src="js/icons.js?v=%V%"></script>
+    <script src="js/fx.js?v=%V%" defer></script>
+    <script src="js/request.js?v=%V%" defer></script>
+</head>
+<body>
+    <div class="login-split">
+        <section class="login-art" aria-hidden="true">
+            <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+            <canvas class="stars" id="stars"></canvas>
+            <!--include:orbit-art-->
+            <div>
+                <h1 class="stagger"><span class="split">Bring your</span><br><em><span class="sheen">own mail.</span></em></h1>
+                <p>Use EderveenGroup with the mailbox you already have. Tell us where it lives; once an admin accepts, you can sign in with your usual email and password.</p>
+            </div>
+            <div class="foot"><span data-icon="lock">SSL/TLS to Purelymail</span><span data-icon="sparkle">Live delivery</span></div>
+        </section>
+        <main class="login-main">
+            <form class="login-form request-form" id="request" novalidate>
+                <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+                <h2>Request access</h2>
+                <p class="sub">We check the settings once with your password, then an admin reviews your request. Your password is never stored.</p>
+                <div class="form-error hidden" id="err" role="alert"></div>
+                <div class="form-ok hidden" id="ok" role="status"></div>
+                <label class="field"><span>Your name</span><input class="input" id="name" autocomplete="name" placeholder="Ava Chen" maxlength="80"></label>
+                <label class="field"><span>Email address</span>
+                    <div class="pw-wrap"><input class="input" id="email" type="email" autocomplete="email" placeholder="you@yourdomain.com" required><button type="button" class="btn btn-ghost detect" id="detect" data-icon="sparkle">Detect</button></div>
+                    <span class="hint" id="detect-note" aria-live="polite"></span>
+                </label>
+                <fieldset class="srv">
+                    <legend>Incoming mail (IMAP)</legend>
+                    <div class="srv-row"><input class="input" id="imap-host" placeholder="imap.yourdomain.com" autocomplete="off" spellcheck="false" aria-label="IMAP server">
+                        <select class="input" id="imap-port" aria-label="IMAP port and security"><option value="993/tls">993 · SSL/TLS</option><option value="143/starttls">143 · STARTTLS</option></select></div>
+                </fieldset>
+                <fieldset class="srv">
+                    <legend>Outgoing mail (SMTP)</legend>
+                    <div class="srv-row"><input class="input" id="smtp-host" placeholder="smtp.yourdomain.com" autocomplete="off" spellcheck="false" aria-label="SMTP server">
+                        <select class="input" id="smtp-port" aria-label="SMTP port and security"><option value="465/tls">465 · SSL/TLS</option><option value="587/starttls">587 · STARTTLS</option></select></div>
+                </fieldset>
+                <label class="field"><span>Username</span>
+                    <select class="input" id="login"><option value="email">My full email address (most providers)</option><option value="local">Only the part before the @</option></select></label>
+                <label class="field"><span>Mailbox password</span>
+                    <div class="pw-wrap"><input class="input" id="password" type="password" autocomplete="current-password" placeholder="Password or app password" required><button type="button" class="icon-btn" id="peek" data-icon="eye" aria-label="Show password"></button></div>
+                    <span class="hint">Used once to test the connection. Gmail and iCloud need an app password.</span>
+                </label>
+                <label class="field"><span>Note for the admin <i>(optional)</i></span><textarea class="input" id="note" rows="2" maxlength="500" placeholder="Who you are, why you’d like access…"></textarea></label>
+                <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+                <div class="submit-wrap"><button class="btn btn-primary" id="submit" type="submit"><span>Check &amp; send request</span></button></div>
+                <a class="login-alt" href="login">Already accepted? <b>Sign in</b></a>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

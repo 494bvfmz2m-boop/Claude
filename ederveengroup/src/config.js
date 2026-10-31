@@ -27,7 +27,11 @@ function loadConfig(env = process.env) {
         trustProxy: trustSetting(env.TRUST_PROXY),
         // cookies are marked Secure whenever the request arrived over HTTPS; this forces it always
         secureCookies: env.SECURE_COOKIES === 'true',
-        openBrowser: !!env.OPEN_BROWSER
+        openBrowser: !!env.OPEN_BROWSER,
+        // who can accept or reject requests to add other mail servers (comma-separated addresses)
+        adminEmails: String(env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
+        // testing only: let requests point at mail servers on private networks
+        allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1'
     };
 }
 

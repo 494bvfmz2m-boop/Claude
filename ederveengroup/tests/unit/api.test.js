@@ -25,16 +25,20 @@ function fakeMail() {
             return { messageId: '<x@y>' };
         },
         wakeSnoozes: async () => 0,
+        useServers(fn) {
+            this.profileFor = fn;
+        },
         watchInbox: async () => () => {}
     };
 }
 
-async function start(env = {}) {
+async function start(env = {}, opts = {}) {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eg-api-'));
     const mail = fakeMail();
-    const { site } = createApp(loadConfig({ DATA_DIR: dataDir, ...env }), { mail });
+    const { site } = createApp(loadConfig({ DATA_DIR: dataDir, ...env }), { mail, ...opts });
     const server = await new Promise(r => {
         const s = site.listen(0, () => r(s));
+        s.unref(); // a failed assertion mustn't leave the test run hanging
     });
     const base = `http://127.0.0.1:${server.address().port}`;
     // a tiny browser: keeps cookies per "device"
@@ -56,7 +60,7 @@ async function start(env = {}) {
             return { status: res.status, headers: res.headers, body: type.includes('json') ? await res.json() : await res.text() };
         };
     };
-    return { base, device, mail, close: () => server.close() };
+    return { base, device, mail, dataDir, close: () => server.close() };
 }
 
 test('sign in, use the api, sign out', async () => {
@@ -251,5 +255,73 @@ test('every page has its own address; message links resolve only for their owner
     assert.equal((await d('GET', `/mail/api/link?folder=Archive&t=${msg.link}`)).status, 404);
     assert.equal((await d('GET', '/mail/api/link?folder=INBOX&t=AAAAAAAAAAA')).status, 404);
     assert.equal((await app.device()('GET', `/mail/api/link?folder=INBOX&t=${msg.link}`)).status, 401);
+    app.close();
+});
+
+test('bring your own server: request, admin accepts for the domain, requester is emailed', async () => {
+    const checked = [];
+    const app = await start({ ADMIN_EMAILS: USER }, { checkMailbox: async (req, pw) => checked.push([req.email, pw]) });
+    const guest = app.device();
+    const form = { name: 'Ava', email: 'ava@studio.io', imap: { host: 'imap.studio.io', port: 993 }, smtp: { host: 'smtp.studio.io', port: 465 }, password: 'secret', note: 'hi' };
+    assert.equal((await guest('POST', '/mail/api/requests', form)).status, 200);
+    assert.deepEqual(checked, [['ava@studio.io', 'secret']]);
+    assert.equal((await guest('POST', '/mail/api/requests', form)).status, 409); // already waiting
+    assert.equal((await guest('POST', '/mail/api/requests', { ...form, email: 'x@y.io' }, { 'X-EG': '' })).status, 403); // CSRF guard applies
+    assert.match((await guest('GET', '/mail/request')).body, /Request access/);
+    // the password never reaches disk
+    assert.doesNotMatch(fs.readFileSync(path.join(app.dataDir, 'servers.json'), 'utf8'), /secret/);
+    // a pending requester trying to sign in hears why
+    assert.match((await app.device()('POST', '/mail/api/login', { email: 'ava@studio.io', password: 'secret' })).body.error, /waiting for approval/);
+
+    const admin = app.device();
+    await admin('POST', '/mail/api/login', { email: USER, password: PASS });
+    const me = (await admin('GET', '/mail/api/me')).body;
+    assert.equal(me.admin, true);
+    assert.equal(me.pendingRequests, 1);
+    const [req] = (await admin('GET', '/mail/api/admin/requests')).body;
+    assert.equal(req.verified, true);
+    assert.equal('password' in req, false);
+    const done = (await admin('POST', `/mail/api/admin/requests/${req.id}/accept`, { scope: 'domain' })).body;
+    assert.equal(done.emailed, true);
+    assert.equal(app.mail.sent[0].to[0].address, 'ava@studio.io');
+    assert.match(app.mail.sent[0].subject, /ready/);
+    assert.match(app.mail.sent[0].html, /everyone at @studio\.io/);
+    // anyone @studio.io now uses that server; others keep the default
+    assert.equal(app.mail.profileFor('jo@studio.io').imap.host, 'imap.studio.io');
+    assert.equal(app.mail.profileFor('jo@elsewhere.io'), null);
+    assert.equal((await admin('POST', `/mail/api/admin/requests/${req.id}/reject`, {})).status, 404); // already decided
+    assert.equal((await admin('DELETE', `/mail/api/admin/servers/${encodeURIComponent('@studio.io')}`)).status, 200);
+    assert.equal(app.mail.profileFor('jo@studio.io'), null);
+    app.close();
+});
+
+test('only admins see requests; rejecting emails the reason', async () => {
+    const app = await start({ ADMIN_EMAILS: 'boss@example.com' }, { checkMailbox: async () => true });
+    await app.device()('POST', '/mail/api/requests', { email: 'mo@shop.io', imap: { host: 'imap.shop.io', port: 993 }, smtp: { host: 'smtp.shop.io', port: 587 }, password: 'x' });
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    assert.equal((await d('GET', '/mail/api/admin/requests')).status, 403);
+    assert.equal((await d('GET', '/mail/api/me')).body.admin, undefined);
+    app.close();
+    const app2 = await start({ ADMIN_EMAILS: USER }, { checkMailbox: async () => true });
+    await app2.device()('POST', '/mail/api/requests', { email: 'mo@shop.io', imap: { host: 'imap.shop.io', port: 993 }, smtp: { host: 'smtp.shop.io', port: 587 }, password: 'x' });
+    const a = app2.device();
+    await a('POST', '/mail/api/login', { email: USER, password: PASS });
+    const [req] = (await a('GET', '/mail/api/admin/requests')).body;
+    await a('POST', `/mail/api/admin/requests/${req.id}/reject`, { reason: 'Not <b>now</b>' });
+    assert.match(app2.mail.sent[0].html, /Not &lt;b&gt;now&lt;\/b&gt;/);
+    assert.equal(app2.mail.profileFor('mo@shop.io'), null);
+    app2.close();
+});
+
+test('request form refuses bad servers and floods', async () => {
+    const app = await start({}, { checkMailbox: async () => true });
+    const g = app.device();
+    const ok = { email: 'a@b.io', imap: { host: 'imap.b.io', port: 993 }, smtp: { host: 'smtp.b.io', port: 465 }, password: 'x' };
+    assert.equal((await g('POST', '/mail/api/requests', { ...ok, imap: { host: 'imap.b.io', port: 110 } })).status, 400);
+    assert.equal((await g('POST', '/mail/api/requests', { ...ok, website: 'spam' })).body.ok, true); // bots get a fake success
+    // the bad request above counted too: 5 tries an hour per address
+    for (let i = 0; i < 4; i++) await g('POST', '/mail/api/requests', { ...ok, email: `u${i}@b.io` });
+    assert.equal((await g('POST', '/mail/api/requests', { ...ok, email: 'late@b.io' })).status, 429);
     app.close();
 });

@@ -1,10 +1,9 @@
 // EderveenGroup client: dialogs
-import { onKey } from './palette.js';
 import { $, $$, esc, h } from './util.js';
 
 // In-site replacement for confirm()/prompt(): themed, animated and keyboard friendly.
 // Resolves to true/false, or to the entered text (null when cancelled) when `input` is given.
-function dialog({ title, message = '', icon: ic = 'sparkle', confirm = 'OK', cancel = 'Cancel', danger = false, input = null }) {
+function dialog({ title, message = '', icon: ic = 'sparkle', confirm = 'OK', cancel = 'Cancel', danger = false, input = null, allowEmpty = false }) {
     return new Promise(resolve => {
         const before = document.activeElement;
         const back = h(`<div class="modal-back dlg-back"><div class="dlg${danger ? ' danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title">
@@ -23,7 +22,7 @@ function dialog({ title, message = '', icon: ic = 'sparkle', confirm = 'OK', can
             let value = true;
             if (field) {
                 value = field.value.trim();
-                if (ok && (!value || value === (input.value || '').trim() && input.value === 'https://')) {
+                if (ok && ((!value && !allowEmpty) || (value === (input.value || '').trim() && input.value === 'https://'))) {
                     box.classList.remove('nudge');
                     void box.offsetWidth;
                     box.classList.add('nudge');

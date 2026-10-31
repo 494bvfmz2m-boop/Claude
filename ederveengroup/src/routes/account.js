@@ -6,7 +6,7 @@ const express = require('express');
 const { wrap, isEmail } = require('../http');
 const { cleanSettingsPatch } = require('../settings');
 
-module.exports = function accountRoutes({ store, avatars }) {
+module.exports = function accountRoutes({ store, avatars, isAdmin }) {
     const r = express.Router();
 
     r.get('/me', (req, res) => {
@@ -14,7 +14,9 @@ module.exports = function accountRoutes({ store, avatars }) {
             email: req.session.email,
             sessionExpires: new Date(req.session.exp).toISOString(),
             photo: avatars.photoVersion(req.session.email),
-            settings: store.getSettings(req.session.email)
+            settings: store.getSettings(req.session.email),
+            // admins see the server requests waiting for them
+            ...(isAdmin && isAdmin(req.session.email) ? { admin: true, pendingRequests: store.servers.listRequests().filter(r => r.status === 'pending').length } : {})
         });
     });
 

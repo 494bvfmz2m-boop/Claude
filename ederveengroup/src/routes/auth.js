@@ -37,11 +37,12 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         try {
             ok = await mail.verifyLogin(email, password);
         } catch {
-            return res.status(502).json({ error: 'Could not reach Purelymail. Try again in a moment.' });
+            return res.status(502).json({ error: 'Couldn’t reach your mail server. Try again in a moment.' });
         }
         if (!ok) {
             perAccount.hit(email);
             store.logActivity(email, { ok: false, method: 'password', reason: 'wrong-password', ...who(req) });
+            if (store.servers.pendingFor(email)) return res.status(401).json({ error: 'Your request to add this mailbox is still waiting for approval. You’ll get an email when it’s decided.' });
             return res.status(401).json({ error: 'That email and password combo didn’t work.' });
         }
         const remember = req.body.remember !== false;

@@ -10,7 +10,7 @@ import { state } from './state.js';
 const BASE = new URL(document.baseURI).pathname; // "/mail/"
 const SLUGS = { inbox: '\\Inbox', sent: '\\Sent', drafts: '\\Drafts', archive: '\\Archive', junk: '\\Junk', trash: '\\Trash', snoozed: '\\Snoozed', starred: '\\Flagged' };
 const USE_TO_SLUG = Object.fromEntries(Object.entries(SLUGS).map(([k, v]) => [v, k]));
-const TABS = ['profile', 'general', 'look', 'sigs', 'templates', 'keys', 'security', 'devices', 'account'];
+const TABS = ['profile', 'general', 'look', 'sigs', 'templates', 'keys', 'security', 'devices', 'account', 'admin'];
 
 let handlers = null; // { folder(path), message(link), closeMessage(), settings(tab), closeSettings(), search(query, folder) }
 let applying = false;

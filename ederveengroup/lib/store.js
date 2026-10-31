@@ -23,7 +23,8 @@ const DEFAULTS = {
     conversations: true, // group messages into threads
     readingPane: 'right', // 'right' | 'off' (full-width list, messages open full size)
     afterAction: 'next', // after archive/delete in the reader: 'next' message or back to the 'list'
-    tourDone: false
+    tourDone: false,
+    phoneTheme: 'light' // phones get their own (Apple-style) look: 'light' | 'dark' | 'system'
 };
 
 const MAX_CONTACTS = 500;
@@ -206,7 +207,69 @@ function createStore(dataDir) {
             user.activity.length = Math.min(user.activity.length, MAX_ACTIVITY);
             save(email);
         },
-        listActivity: email => load(email).activity
+        listActivity: email => load(email).activity,
+
+        /* ---------- other mail servers (requests and accepted accounts) ---------- */
+        servers: createServerRegistry(dataDir)
+    };
+}
+
+// One file for everyone: who asked to bring their own mail server, and which addresses or
+// whole domains (written "@example.com") have been accepted, with their server settings.
+const MAX_REQUESTS = 300;
+const MAX_PENDING = 100;
+function createServerRegistry(dataDir) {
+    const file = path.join(dataDir, 'servers.json');
+    let data;
+    try {
+        data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+        data = {};
+    }
+    data.requests = data.requests || [];
+    data.accounts = data.accounts || {};
+    const save = () => {
+        const tmp = file + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+        fs.renameSync(tmp, file);
+    };
+    const keyFor = (email, scope) => (scope === 'domain' ? '@' + email.split('@')[1] : email);
+    return {
+        /** server settings for an address: its own entry, then its domain's, else null (default server) */
+        profileFor(email) {
+            const e = String(email || '').toLowerCase();
+            return data.accounts[e] || data.accounts['@' + e.split('@')[1]] || null;
+        },
+        pendingFor: email => data.requests.find(r => r.status === 'pending' && r.email === String(email).toLowerCase()) || null,
+        addRequest(req) {
+            if (data.requests.filter(x => x.status === 'pending').length >= MAX_PENDING) throw Object.assign(new Error('There are a lot of open requests right now. Please try again later.'), { status: 429 });
+            const r = { id: crypto.randomBytes(9).toString('base64url'), status: 'pending', createdAt: Date.now(), ...req };
+            data.requests.unshift(r);
+            // decided requests are history: drop the oldest ones first
+            for (let i = data.requests.length - 1; data.requests.length > MAX_REQUESTS && i >= 0; i--) if (data.requests[i].status !== 'pending') data.requests.splice(i, 1);
+            save();
+            return r;
+        },
+        listRequests: () => data.requests,
+        getRequest: id => data.requests.find(r => r.id === id) || null,
+        decide(id, { status, scope = 'address', by, reason = '' }) {
+            const r = data.requests.find(x => x.id === id);
+            if (!r || r.status !== 'pending') return null;
+            Object.assign(r, { status, decidedAt: Date.now(), decidedBy: by, reason: String(reason).slice(0, 500) });
+            if (status === 'accepted') {
+                r.scope = scope === 'domain' ? 'domain' : 'address';
+                data.accounts[keyFor(r.email, r.scope)] = { imap: r.imap, smtp: r.smtp, login: r.login, addedAt: Date.now(), addedBy: by, requestId: r.id, name: r.name };
+            }
+            save();
+            return r;
+        },
+        listAccounts: () => Object.entries(data.accounts).map(([key, a]) => ({ key, ...a })),
+        removeAccount(key) {
+            const had = !!data.accounts[key];
+            delete data.accounts[key];
+            save();
+            return had;
+        }
     };
 }
 
