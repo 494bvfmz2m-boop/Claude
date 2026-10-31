@@ -1,9 +1,14 @@
 # EderveenGroup
 
-A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It runs on your own server and talks to Purelymail over IMAP and SMTP (SSL/TLS).
+A fast, refined webmail client for **[Purelymail](https://purelymail.com)** and any other mail server you approve. It runs on your own server and talks IMAP and SMTP over SSL/TLS.
+
+On a computer it wears **Midnight aurora**: a near-black sky with slow aurora light behind glass panels and cinematic transitions. On a phone it becomes an **Apple-style app** with a tab bar, large titles, swipe-back and sheets.
 
 ## Features
 
+- **Two looks, one app.** Computers get Midnight aurora (or its daytime version); phones get an iPhone-style app that's light by default, with dark or follow-the-phone in Settings, then Appearance. The aurora holds still while you scroll or type, so it never costs you smoothness.
+- **A link for every screen.** Folders, conversations, searches and settings pages each have their own address, so back, forward, refresh and bookmarks work. Conversation links are opaque codes (`/mail/inbox/x7Kq2pW9aZc`), tied to your account and folder, that can't be guessed. Searches get a random code, and the words stay on your device. Opening a link while signed out brings you straight back to it after you sign in.
+- **Bring your own mail server.** People whose mail isn't on Purelymail can ask for access at `/mail/request`. They fill in their IMAP and SMTP settings (auto-detected for well-known providers), and the server checks them once with their password, which is never stored. You review the request in Settings, then Admin, and accept it for that address or for their whole domain, or reject it with a reason. They get an email from your address either way, and accepted people can sign in straight away. See [Adding other mail servers](#adding-other-mail-servers).
 - **Login with your Purelymail account.** Credentials are checked live against `imap.purelymail.com`.
 - **Stay signed in for 30 days.** Sessions are encrypted client-side cookies (AES-256-GCM, HttpOnly, SameSite). The 30-day window slides while you keep using it. Untick "keep me signed in" for a browser-session-only login.
 - **Three-pane inbox** with folders, unread badges, sender avatars, message previews and filters (Unread / Starred / Attachments). The list loads more as you scroll; there are no pages to click through.
@@ -32,8 +37,7 @@ A fast, refined webmail client for **[Purelymail](https://purelymail.com)**. It 
 - **Organize:** star, read/unread, archive, spam, delete (with undo), move, drag messages onto folders, multi-select (shift-click ranges), create/delete folders, empty Trash/Junk, and right-click menus.
 - **Keyboard first:** `c` `/` `j` `k` `r` `a` `f` `e` `b` `#` `s` `u` `x`, a `Ctrl K` command palette, and `?` for the full list. `j` and `k` open conversations as you move when the reading pane is on; the pane can be turned off for a full-width list.
 - **Feels instant:** messages are prefetched on hover, and folders you've visited render from cache while refreshing in the background.
-- **Make it yours:** dark/light/system theme, graphite with an electric-blue accent, or any colour you pick, comfortable/compact density.
-- **Mobile friendly** with a slide-out folder drawer and a full-screen composer.
+- **Make it yours:** a theme for computers and one for phones (dark, light or system), an electric-blue accent or any colour you pick, and comfortable or compact density.
 - View original source, download `.eml`, print, and one-click unsubscribe.
 
 ## Run it (no commands needed)
@@ -66,6 +70,8 @@ Cookies are marked `Secure` automatically behind HTTPS.
 
 ### Coolify
 
+To review requests from people who want to bring their own mail server, add an environment variable in Coolify (your application, then **Environment Variables**): `ADMIN_EMAILS` = your email address (several addresses are separated by commas). Redeploy, and **Settings → Admin** appears for you.
+
 1. Point your domain's DNS `A` record at the server, and open ports 80 and 443.
 2. In Coolify: **+ New → Application**, then pick this GitHub repository and branch.
 3. **Build Pack:** Dockerfile · **Base Directory:** `/` (the default; `/ederveengroup` works too) · **Ports Exposes:** `3000` · **Domains:** `https://mydomain.net`
@@ -86,6 +92,17 @@ npm run release
 ```
 
 This packages the last commit with production dependencies into `ederveengroup.zip`.
+
+## Adding other mail servers
+
+1. Set `ADMIN_EMAILS` to your address (see Coolify above, or put `ADMIN_EMAILS=you@yourdomain.com` in a `.env` file next to `server.js`).
+2. Share `https://yourdomain/mail/request`. The sign-in page links to it too ("Mail somewhere else?").
+3. Requests appear in **Settings → Admin**, and admins get a notice when they sign in. Each shows the servers and whether the settings worked. Choose **Only this address** or **Everyone @theirdomain**, then **Accept** or **Reject**.
+4. The requester gets an email from your mailbox. Accepted addresses sign in at the normal sign-in page and use their own servers; everyone else keeps using Purelymail.
+
+To keep this safe, the request form only connects to public mail servers on the standard encrypted ports (IMAP 993/143, SMTP 465/587), never to your own network. It is rate-limited, and the password is used once and thrown away. Remove an added server in the same Admin page.
+
+Notes: Gmail and iCloud need an app password. Outlook.com and Microsoft 365 no longer allow password sign-in over IMAP, so they can't be added.
 
 ## Two-step verification and Purelymail
 
@@ -119,6 +136,8 @@ src/               The app: config, security, pages, settings validation, 2FA, d
 lib/session.js     Encrypted 30-day cookie sessions
 lib/mail.js        IMAP pool (imapflow), message parsing, conversations, SMTP send, drafts, IDLE
 lib/query.js       Search box operators (from:, has:attachment, before: …) to IMAP SEARCH
+lib/links.js       Opaque per-account conversation links
+lib/servers.js     Other mail servers: validation, public-address checks, one-time test, auto-detect
 lib/sanitize.js    HTML sanitizing for incoming mail and composed mail
 lib/store.js       Per-user settings, signatures, templates, snoozes, contacts, sessions and sign-in activity (JSON files)
 lib/avatars.js     Uploaded profile photos plus cached Gravatar / company-logo lookups
@@ -127,7 +146,8 @@ views/             Pages: the app, the login, and the Work in progress landing p
                    and sw.js, the service worker template (rendered per deploy)
 brand/             Logo kit (generated by scripts/brand/make_logo.py)
 public/            Styles, icons and scripts (vanilla JS, no build step)
-public/js/app/     The webmail client as ES modules (main.js boots it)
+public/css/        app.css (shared), desk.css (computers: Midnight aurora), phone.css (phones: Apple-style)
+public/js/app/     The webmail client as ES modules (main.js boots it; router.js = addresses, phone.js = phone app)
 tests/             npm test: unit + HTTP integration tests (no mail server needed)
 Start EderveenGroup (Windows).bat / (Mac).command / start.sh   Double-click launchers
 ```
