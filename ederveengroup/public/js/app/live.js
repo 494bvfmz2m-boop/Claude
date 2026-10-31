@@ -41,6 +41,8 @@ function connectLive() {
         const after = (folderInfo('INBOX') || {}).unseen || 0;
         if (state.folder === 'INBOX' && state.page === 0 && !state.query) loadMessages({ quiet: true });
         if (evt.type === 'exists' && after > before) {
+            document.documentElement.classList.add('flare');
+            setTimeout(() => document.documentElement.classList.remove('flare'), 2700);
             toast(`${after - before} new message${after - before > 1 ? 's' : ''}`, { action: state.folder === 'INBOX' ? null : 'View', onAction: () => openFolder('INBOX') });
             if ('Notification' in window && Notification.permission === 'granted' && document.hidden) notify(`${after - before} new message${after - before > 1 ? 's' : ''}`);
         }

@@ -75,8 +75,17 @@ const stripPrefix = s => String(s || '').replace(/^\s*((re|fwd?|aw|wg|antw)\s*:\
 /* ---------------- loading (with endless scrolling) ---------------- */
 
 // folders and messages load side by side, so this runs again once folder names arrive
+let lastTitle = '';
 function renderTitle() {
-    $('#folder-title').innerHTML = esc(state.query ? `Search` : folderInfo(state.folder).name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
+    const el = $('#folder-title');
+    const name = state.query ? 'Search' : folderInfo(state.folder).name;
+    el.innerHTML = esc(name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
+    if (name !== lastTitle && lastTitle) {
+        el.classList.remove('title-in');
+        void el.offsetWidth; // restart the animation
+        el.classList.add('title-in');
+    }
+    lastTitle = name;
 }
 
 let listToken = 0;

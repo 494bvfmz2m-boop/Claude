@@ -60,6 +60,37 @@ function refreshMe() {
 }
 $('.me').addEventListener('click', () => openSettings('profile'));
 
+// the aurora drifts slightly against the pointer: one CSS variable pair, updated once a frame
+(function parallax() {
+    const sky = $('.ambient');
+    if (!sky || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0, x = 0, y = 0;
+    addEventListener('pointermove', e => {
+        if (e.pointerType !== 'mouse') return;
+        x = e.clientX / innerWidth - 0.5;
+        y = e.clientY / innerHeight - 0.5;
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+            raf = 0;
+            sky.style.setProperty('--px', x.toFixed(3));
+            sky.style.setProperty('--py', y.toFixed(3));
+        });
+    }, { passive: true });
+})();
+
+// interaction budget: the drifting sky pauses while you're busy and resumes when you stop
+(function busy() {
+    const root = document.documentElement;
+    let timer = 0;
+    const mark = () => {
+        if (!root.classList.contains('busy')) root.classList.add('busy');
+        clearTimeout(timer);
+        timer = setTimeout(() => root.classList.remove('busy'), 1800);
+    };
+    for (const ev of ['wheel', 'keydown', 'pointerdown', 'touchstart']) addEventListener(ev, mark, { passive: true, capture: true });
+    addEventListener('scroll', mark, { passive: true, capture: true });
+})();
+
 // ink ripple on buttons, folders and chips
 document.addEventListener('pointerdown', e => {
     const el = e.target.closest('.btn, .folder, .chip, .w-stats button, .menu button, .palette li');

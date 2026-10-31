@@ -60,7 +60,9 @@ import { $, api, glide, qs, toast } from './util.js';
     const splash = $('#splash');
     if (splash) {
         splash.classList.add('out');
+        document.body.classList.add('app-in'); // the app comes into focus as the splash leaves
         setTimeout(() => splash.remove(), 600);
+        setTimeout(() => document.body.classList.remove('app-in'), 1400);
     }
     setTimeout(() => $('#folders').classList.remove('intro'), 1800);
     await Promise.allSettled([folders, messages]);
