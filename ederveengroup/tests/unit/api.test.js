@@ -243,6 +243,7 @@ test('every page has its own address; message links resolve only for their owner
     const app = await start();
     const d = app.device();
     await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    await d('POST', '/api/username', { username: 'jo.smith' });
     assert.equal((await d('GET', '/mail/')).headers.get('location'), '/mail/inbox');
     assert.equal((await d('GET', '/login?next=%2Fmail%2Fsearch%2Fk7Qp2Xa9')).headers.get('location'), '/mail/search/k7Qp2Xa9');
     assert.equal((await d('GET', '/login?next=%2F%2Fevil.com')).headers.get('location'), '/'); // no open redirect
@@ -339,5 +340,33 @@ test('the whole site installs as one app that opens the hub', async () => {
     assert.equal(manifest.scope, '/');
     assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Profile']);
     assert.match((await d('GET', '/mail/sw.js')).body, /unregister/); // the old /mail/ worker retires itself
+    app.close();
+});
+
+test('first sign-in asks for a username; it must be free and valid; then the apps open', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    assert.equal((await d('GET', '/')).headers.get('location'), '/welcome?next=%2F');
+    assert.equal((await d('GET', '/mail/inbox')).headers.get('location'), '/welcome?next=%2Fmail%2Finbox');
+    assert.match((await d('GET', '/welcome')).body, /Choose your username/);
+    assert.equal((await d('GET', '/api/username/suggest')).body.username, 'jouser'); // "jo" is too short
+    assert.equal((await d('GET', '/api/username/check?u=admin')).body.reason, 'That name is reserved');
+    assert.equal((await d('GET', '/api/username/check?u=Jo.Smith')).body.available, true);
+    assert.equal((await d('POST', '/api/username', { username: '1bad' })).status, 400);
+    assert.equal((await d('POST', '/api/username', { username: 'jo.smith' }, { 'X-EG': '' })).status, 403);
+    assert.equal((await d('POST', '/api/username', { username: '@Jo.Smith' })).body.username, 'jo.smith');
+    assert.equal((await d('GET', '/mail/api/me')).body.username, 'jo.smith');
+    assert.equal((await d('GET', '/')).status, 200); // the hub
+    assert.equal((await d('GET', '/welcome?next=%2Fmail%2Finbox')).headers.get('location'), '/mail/inbox');
+    // someone else can't take it
+    const other = app.device();
+    app.mail.verifyLogin = async () => true;
+    await other('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    const taken = (await other('GET', '/api/username/check?u=jo.smith')).body;
+    assert.equal(taken.available, false);
+    assert.ok(taken.suggestions.length > 0);
+    assert.equal((await other('POST', '/api/username', { username: 'jo.smith' })).status, 409);
+    assert.equal((await app.device()('GET', '/api/username/check?u=x')).status, 401);
     app.close();
 });

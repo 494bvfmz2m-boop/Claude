@@ -377,3 +377,13 @@
     .hub-foot { justify-content: center; text-align: center; }
     .notfound h1 { font: 700 30px var(--display); }
 }
+
+/* choose a username on a phone */
+@media (max-width: 760px) {
+    .welcome-form .step { color: var(--text-2); letter-spacing: .02em; text-transform: none; font-size: 15px; }
+    .welcome-form .field > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .uname .input { height: 54px; border-radius: 12px; background: var(--cell); box-shadow: none; font-size: 17px; }
+    .welcome-form { text-align: center; }
+    .uname-hint, .uname-url { text-align: center; }
+    .uname-suggest { justify-content: center; }
+}

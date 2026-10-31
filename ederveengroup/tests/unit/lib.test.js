@@ -265,3 +265,16 @@ test('after signing in you only ever continue to our own pages', () => {
     for (const ok of ['/', '/welcome', '/profile/', '/mail/inbox', '/mail/inbox/x7Kq2pW9aZc', '/mail/settings/devices']) assert.equal(safeNext(ok), ok, ok);
     for (const bad of ['', '//evil.com', 'https://evil.com', '/mail/../api', '/admin', '/mail/inbox/short', 'javascript:alert(1)']) assert.equal(safeNext(bad), '/', bad);
 });
+
+test('username rules, reserved names and suggestions', async () => {
+    const u = require('../../lib/usernames');
+    for (const ok of ['ava', 'ava.chen', 'ava_chen-2', 'a12']) assert.equal(u.problem(ok), null, ok);
+    for (const [bad, why] of [['ab', /3 characters/], ['1ava', /letter/], ['ava chen', /Only letters/], ['ava..chen', /double dots/], ['ava.', /dot at the end/], ['admin', /reserved/], ['mail', /reserved/], ['a'.repeat(31), /30/]])
+        assert.match(u.problem(bad), why, bad);
+    assert.equal(u.clean(' @Ava.Chen '), 'ava.chen');
+    assert.equal(u.fromEmail('Ava.Chen+news@x.com'), 'ava.chen');
+    assert.equal(u.fromEmail('42@x.com'), 'user');
+    const alts = await u.alternatives('ava', async n => n !== 'ava.eg');
+    assert.equal(alts.length, 3);
+    assert.ok(alts.every(a => /^ava\d+$/.test(a)));
+});

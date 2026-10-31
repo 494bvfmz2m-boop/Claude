@@ -27,8 +27,8 @@
         const name = (me.settings && me.settings.displayName) || '';
         $('hub-greet').textContent = greeting(name || (me.username ? me.username : ''));
         $('hub-date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-        $('hub-name').textContent = name || me.email;
-        $('hub-handle').textContent = me.username ? `@${me.username}` : me.email;
+        $('hub-name').textContent = name || (me.username ? `@${me.username}` : me.email);
+        $('hub-handle').textContent = name && me.username ? `@${me.username}` : me.email;
         $('hub-email').textContent = me.email;
         const initials = (name || me.email).replace(/[^A-Za-z ]/g, ' ').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
         $('hub-avatar').innerHTML = esc(initials) + (me.photo ? `<img class="av-img ok" alt="" src="api/avatar?email=${encodeURIComponent(me.email)}&v=${me.photo}">` : '');

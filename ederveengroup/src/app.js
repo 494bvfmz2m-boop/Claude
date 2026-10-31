@@ -79,8 +79,18 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.use(ctx.sessions.middleware());
     const toLogin = (res, next) => res.redirect(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`);
 
+    // the first time someone signs in they choose a username; every app page waits for that
+    const needsName = req => req.session && !ctx.store.usernameOf(req.session.email);
+    const toWelcome = (res, next) => res.redirect(`/welcome?next=${encodeURIComponent(next)}`);
+
     /* ---------- the hub: sign in at "/", then your apps ---------- */
-    site.get('/', (req, res) => (req.session ? ctx.pages.send(res, 'hub.html') : ctx.pages.send(res, 'login.html')));
+    site.get('/', (req, res) => (!req.session ? ctx.pages.send(res, 'login.html') : needsName(req) ? toWelcome(res, '/') : ctx.pages.send(res, 'hub.html')));
+    site.get('/welcome', (req, res) => {
+        if (!req.session) return toLogin(res, '/welcome');
+        if (!needsName(req)) return res.redirect(safeNext(req.query.next, config.baseUrl));
+        ctx.pages.send(res, 'welcome.html');
+    });
+    site.use('/api', require('./routes/hub')(ctx));
     site.get('/login', (req, res) => (req.session ? res.redirect(safeNext(req.query.next, config.baseUrl)) : ctx.pages.send(res, 'login.html')));
     // installable as an app (Windows, Mac, Android, iPhone): it opens the hub
     site.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').set('Cache-Control', 'no-cache').send(ctx.pages.manifest));
@@ -96,7 +106,12 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     // every screen has its own address (/inbox, /inbox/<link>, /f/<id>, /search/<code>, /settings/<tab>);
     // they all load the app, which then shows the right thing. Signed out: back here after login.
     app.get('/', (req, res) => (req.session ? res.redirect(config.baseUrl + 'inbox') : toLogin(res, config.baseUrl + 'inbox')));
-    app.get(APP_ROUTE, (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : toLogin(res, config.baseUrl + req.path.slice(1))));
+    app.get(APP_ROUTE, (req, res) => {
+        const here = config.baseUrl + req.path.slice(1);
+        if (!req.session) return toLogin(res, here);
+        if (needsName(req)) return toWelcome(res, here);
+        ctx.pages.send(res, 'app.html');
+    });
     // the form for bringing your own mail server (open to everyone)
     app.get('/request', (req, res) => ctx.pages.send(res, 'request.html'));
     // the sign-in page moved to the hub
