@@ -1,7 +1,7 @@
 // EderveenGroup client: folders
 import { moveTo } from './actions.js';
 import { askConfirm, askText } from './dialogs.js';
-import { loadMessages, renderGreeting, renderList } from './list.js';
+import { loadMessages, renderGreeting, renderList, renderTitle } from './list.js';
 import { showMenu } from './menus.js';
 import { renderWelcome, showEmptyReader } from './reader.js';
 import { FOLDER_ICONS, folderInfo, state } from './state.js';
@@ -24,7 +24,7 @@ function renderFolders() {
         const unread = ['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? f.messages : f.unseen;
         const showUnread = unread && !['\\Sent', '\\Trash', '\\Archive'].includes(f.specialUse);
         const depth = f.delimiter ? f.path.split(f.delimiter).length - 1 : 0;
-        return `<button class="folder${f.path === state.folder ? ' active' : ''}" data-path="${esc(f.path)}" style="${depth ? `padding-left:${12 + depth * 16}px` : ''}">
+        return `<button class="folder${f.path === state.folder ? ' active' : ''}"${f.path === state.folder ? ' aria-current="page"' : ''} data-path="${esc(f.path)}" style="${depth ? `padding-left:${12 + depth * 16}px` : ''}">
             ${icon(FOLDER_ICONS[f.specialUse] || 'folder')}<span class="name">${esc(f.name)}</span>
             ${showUnread ? `<span class="count${['\\Drafts', '\\Snoozed'].includes(f.specialUse) ? '' : ' unread'}">${unread}</span>` : ''}</button>`;
     };
@@ -33,6 +33,7 @@ function renderFolders() {
         `<div class="folder-section">Folders<button id="new-folder" title="New folder">${icon('plus')}</button></div>` +
         custom.map(row).join('');
     glide($('#folders'), $('#folders .folder.active'));
+    renderTitle();
     if (caught && performance.now() - caught.t < 600) $(`#folders .folder[data-path="${CSS.escape(caught.path)}"]`)?.classList.add('catch');
     // bump a badge when its unread count goes up
     $$('#folders .folder').forEach((el, i) => {

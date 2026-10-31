@@ -19,23 +19,24 @@
     <script type="module" src="js/app/main.js?v=%V%"></script>
 </head>
 <body>
+    <a class="skip-link" href="#messages">Skip to messages</a>
     <div class="splash" id="splash"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
     <div class="ambient" aria-hidden="true"><span></span><span></span></div>
     <div class="app" id="app">
         <aside class="sidebar">
             <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
             <button class="btn btn-primary compose-btn" id="compose-btn" data-icon="pen"><span>New message</span><kbd>C</kbd></button>
-            <nav class="folders" id="folders"></nav>
+            <nav class="folders" id="folders" aria-label="Folders"></nav>
             <div class="side-foot">
                 <div class="me">
                     <div class="avatar sm" id="me-avatar"></div>
                     <div class="who"><b id="me-email"></b><small><i class="live-dot" id="live-dot"></i><span id="live-text">Connecting…</span></small></div>
                 </div>
                 <div class="side-actions">
-                    <button class="icon-btn" id="theme-btn" data-tip="Theme"></button>
-                    <button class="icon-btn" id="palette-btn" data-icon="command" data-tip="Commands  Ctrl K"></button>
-                    <button class="icon-btn" id="settings-btn" data-icon="settings" data-tip="Settings"></button>
-                    <button class="icon-btn" id="logout-btn" data-icon="logout" data-tip="Sign out"></button>
+                    <button class="icon-btn" id="theme-btn" data-tip="Theme" aria-label="Theme"></button>
+                    <button class="icon-btn" id="palette-btn" data-icon="command" data-tip="Commands  Ctrl K" aria-label="Commands"></button>
+                    <button class="icon-btn" id="settings-btn" data-icon="settings" data-tip="Settings" aria-label="Settings"></button>
+                    <button class="icon-btn" id="logout-btn" data-icon="logout" data-tip="Sign out" aria-label="Sign out"></button>
                 </div>
             </div>
         </aside>
@@ -46,15 +47,15 @@
                     <div class="list-title">
                         <button class="icon-btn menu-btn" id="menu-btn" data-icon="menu" aria-label="Folders"></button>
                         <h2 id="folder-title">Inbox</h2>
-                        <button class="icon-btn" id="refresh-btn" data-icon="refresh" data-tip="Refresh"></button>
+                        <button class="icon-btn" id="refresh-btn" data-icon="refresh" data-tip="Refresh" aria-label="Refresh"></button>
                     </div>
                     <div class="greet hidden" id="greet"></div>
                     <div class="search">
                         <span data-icon="search"></span>
-                        <input class="input" id="search" type="search" placeholder="Search mail" autocomplete="off">
+                        <input class="input" id="search" type="search" placeholder="Search mail" aria-label="Search mail" autocomplete="off">
                         <kbd>/</kbd>
                     </div>
-                    <div class="chips" id="chips">
+                    <div class="chips" id="chips" role="group" aria-label="Show">
                         <button class="chip active" data-filter="">All</button>
                         <button class="chip" data-filter="unread">Unread</button>
                         <button class="chip" data-filter="flagged">Starred</button>
@@ -62,16 +63,16 @@
                     </div>
                 </div>
                 <div class="bulk hidden" id="bulk">
-                    <button class="icon-btn" id="bulk-clear" data-icon="x" data-tip="Clear"></button>
+                    <button class="icon-btn" id="bulk-clear" data-icon="x" data-tip="Clear" aria-label="Clear"></button>
                     <span class="count" id="bulk-count"></span>
-                    <button class="icon-btn" data-bulk="read" data-icon="mailOpen" data-tip="Mark read"></button>
-                    <button class="icon-btn" data-bulk="unread" data-icon="mail" data-tip="Mark unread"></button>
-                    <button class="icon-btn" data-bulk="star" data-icon="star" data-tip="Star"></button>
-                    <button class="icon-btn" data-bulk="archive" data-icon="archive" data-tip="Archive"></button>
-                    <button class="icon-btn" data-bulk="move" data-icon="folder" data-tip="Move to…"></button>
-                    <button class="icon-btn" data-bulk="delete" data-icon="trash" data-tip="Delete"></button>
+                    <button class="icon-btn" data-bulk="read" data-icon="mailOpen" data-tip="Mark read" aria-label="Mark read"></button>
+                    <button class="icon-btn" data-bulk="unread" data-icon="mail" data-tip="Mark unread" aria-label="Mark unread"></button>
+                    <button class="icon-btn" data-bulk="star" data-icon="star" data-tip="Star" aria-label="Star"></button>
+                    <button class="icon-btn" data-bulk="archive" data-icon="archive" data-tip="Archive" aria-label="Archive"></button>
+                    <button class="icon-btn" data-bulk="move" data-icon="folder" data-tip="Move to…" aria-label="Move to…"></button>
+                    <button class="icon-btn" data-bulk="delete" data-icon="trash" data-tip="Delete" aria-label="Delete"></button>
                 </div>
-                <div class="messages" id="messages"></div>
+                <div class="messages" id="messages" role="listbox" aria-label="Conversations" tabindex="0"></div>
                 <div class="list-foot">
                     <span id="range"></span>
                 </div>
@@ -81,6 +82,6 @@
     </div>
 
     <button class="fab" id="fab" data-icon="pen" aria-label="New message"></button>
-    <div class="toasts" id="toasts"></div>
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </body>
 </html>

@@ -44,9 +44,18 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
         }
         return cache[name];
     }
+    // the service worker precaches this deploy's own files (never anything from /api/)
+    const assets = [
+        'css/app.css', 'js/boot.js', 'js/icons.js', 'favicon.svg', 'icons/apple-touch-icon.png',
+        ...(fs.existsSync(path.join(publicDir, 'js', 'app')) ? fs.readdirSync(path.join(publicDir, 'js', 'app')).filter(f => f.endsWith('.js')).sort().map(f => `js/app/${f}`) : [])
+    ].filter(f => fs.existsSync(path.join(publicDir, f))).map(f => `${baseUrl}${f}?v=${version}`);
+    const serviceWorker = fs.existsSync(path.join(viewsDir, 'sw.js'))
+        ? fs.readFileSync(path.join(viewsDir, 'sw.js'), 'utf8').replace('%ASSETS%', JSON.stringify(assets)).replaceAll('%BASE%', baseUrl).replaceAll('%V%', version)
+        : null;
     const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
     return {
         scriptHashes: [importMap.hash],
+        serviceWorker,
         send: (res, name, status = 200) =>
             res.status(status).type('html').set('Cache-Control', 'no-cache').send(render(name).replaceAll('%ORIGIN%', originOf(res.req)))
     };

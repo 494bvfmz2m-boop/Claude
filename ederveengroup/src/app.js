@@ -43,12 +43,16 @@ function createApp(config, { mail = defaultMail } = {}) {
 
     app.get('/', (req, res) => (req.session ? ctx.pages.send(res, 'app.html') : res.redirect(config.baseUrl + 'login')));
     app.get('/login', (req, res) => (req.session ? res.redirect(config.baseUrl) : ctx.pages.send(res, 'login.html')));
+    // the service worker is rendered per deploy, so a new version installs itself
+    app.get('/sw.js', (req, res) => {
+        if (!ctx.pages.serviceWorker) return res.status(404).end();
+        res.type('application/javascript').set({ 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': config.baseUrl }).send(ctx.pages.serviceWorker);
+    });
     app.use(
         express.static(config.publicDir, {
             index: false,
-            setHeaders(res, file) {
-                // versioned URLs never change; the service worker must always be fresh
-                if (/sw\.js$/.test(file)) return res.set('Cache-Control', 'no-cache');
+            setHeaders(res) {
+                // versioned URLs never change, so they can be cached for a year
                 res.set('Cache-Control', res.req.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
             }
         })

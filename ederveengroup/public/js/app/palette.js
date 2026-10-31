@@ -7,6 +7,7 @@ import { expandUids, loadMessages, renderList, threads, toggleCheck } from './li
 import { openMessage, showEmptyReader, startReply } from './reader.js';
 import { openSettings } from './settings.js';
 import { snoozeMenu } from './snooze.js';
+import { startTour } from './tour.js';
 import { FOLDER_ICONS, state } from './state.js';
 import { $, $$, esc, glide, h } from './util.js';
 
@@ -48,6 +49,7 @@ function openPalette() {
         { icon: 'palette', label: 'Appearance', run: () => openSettings('look') },
         { icon: 'settings', label: 'Settings', run: () => openSettings('general') },
         { icon: 'keyboard', label: 'Keyboard shortcuts', key: '?', run: () => openSettings('keys') },
+        { icon: 'sparkle', label: 'Take the tour', run: () => startTour({ force: true }) },
         { icon: 'logout', label: 'Sign out', run: logout }
     ];
     const back = h(`<div class="modal-back"><div class="modal palette"><input placeholder="Type a command…" aria-label="Command"><ul></ul></div></div>`);
@@ -99,6 +101,7 @@ function moveFocus(delta) {
     i = i < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, i + delta));
     state.focusUid = rows[i];
     $$('.msg').forEach(x => x.classList.toggle('focused', Number(x.dataset.uid) === rows[i]));
+    $('#messages').setAttribute('aria-activedescendant', `row-${rows[i]}`);
     $(`.msg[data-uid="${rows[i]}"]`)?.scrollIntoView({ block: 'nearest' });
     const paneOpen = state.settings.readingPane !== 'off' && matchMedia('(min-width: 761px)').matches;
     if (paneOpen || $('#app').dataset.view === 'reader') openMessage(rows[i]);

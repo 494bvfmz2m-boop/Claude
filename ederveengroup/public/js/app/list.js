@@ -55,10 +55,15 @@ function buildThreads() {
         }
         groups.get(root).messages.push(m);
     }
+    // newest first, by date rather than arrival order (imported or delayed mail lands out of order)
+    const time = m => Date.parse(m.date) || 0;
+    const newest = (a, b) => time(b) - time(a) || b.uid - a.uid;
     for (const t of threads) {
-        t.uid = t.messages[0].uid; // the list is newest first
+        t.messages.sort(newest);
+        t.uid = t.messages[0].uid;
         t.messages.forEach(m => threadByUid.set(m.uid, t));
     }
+    threads.sort((a, b) => newest(a.messages[0], b.messages[0]));
 }
 // every message (in this folder) of the conversation a row stands for
 const uidsOf = uid => (threadByUid.get(uid) ? threadByUid.get(uid).messages.map(m => m.uid) : [uid]);
@@ -68,12 +73,17 @@ const stripPrefix = s => String(s || '').replace(/^\s*((re|fwd?|aw|wg|antw)\s*:\
 
 /* ---------------- loading (with endless scrolling) ---------------- */
 
+// folders and messages load side by side, so this runs again once folder names arrive
+function renderTitle() {
+    $('#folder-title').innerHTML = esc(state.query ? `Search` : folderInfo(state.folder).name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
+}
+
 let listToken = 0;
 let loadingMore = false;
 async function loadMessages({ quiet = false } = {}) {
     const token = ++listToken;
     const info = folderInfo(state.folder);
-    $('#folder-title').innerHTML = esc(state.query ? `Search` : info.name) + (state.query ? `<span class="sub">“${esc(state.query)}”</span>` : '');
+    renderTitle();
     if (info.specialUse === '\\Snoozed') await loadSnoozeIndex();
     const cached = listCache.get(listKey());
     if (cached && !quiet) {
@@ -224,7 +234,7 @@ function renderList(animate = false, { appended = false } = {}) {
                 let header = '';
                 if (grouped) {
                     const g = groupLabel(m.date);
-                    if (g !== lastGroup) header = `<div class="group-label">${esc(g)}</div>`;
+                    if (g !== lastGroup) header = `<div class="group-label" role="presentation">${esc(g)}</div>`;
                     lastGroup = g;
                 }
                 const snooze = inSnoozed && m.messageId ? snoozeIndex.get(m.messageId) : null;
@@ -236,7 +246,7 @@ function renderList(animate = false, { appended = false } = {}) {
                 const whoText = showTo ? `To: ${m.to.map(personName).join(', ') || '(no recipients)'}` : n > 1 ? participants(t) : personName(who) || '(unknown)';
                 const subject = n > 1 ? stripPrefix(t.messages[n - 1].subject) || m.subject : m.subject;
                 const checked = state.checked.has(m.uid);
-                return `${header}<div class="msg${animate ? ' enter' : ''}${state.fresh && t.messages.some(x => state.fresh.has(x.uid)) ? ' fresh' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${checked ? ' checked' : ''}${m.uid === state.focusUid ? ' focused' : ''}" data-uid="${m.uid}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
+                return `${header}<div class="msg${animate ? ' enter' : ''}${state.fresh && t.messages.some(x => state.fresh.has(x.uid)) ? ' fresh' : ''}${unread ? ' unread' : ''}${m.uid === state.openUid ? ' selected' : ''}${checked ? ' checked' : ''}${m.uid === state.focusUid ? ' focused' : ''}" data-uid="${m.uid}" id="row-${m.uid}" role="option" aria-selected="${m.uid === state.openUid}" aria-label="${esc(`${unread ? 'Unread. ' : ''}${whoText}${n > 1 ? `, ${n} messages` : ''}. ${subject || '(no subject)'}. ${fmtDate(m.date)}`)}" draggable="true"${animate ? ` style="animation-delay:${Math.min(i, 14) * 22}ms"` : ''}>
                 <div class="sel-toggle" title="Select">${checked ? `<div class="avatar check">${icon('check')}</div>` : avatar(who)}</div>
                 <div class="msg-body">
                     <div class="msg-top"><span class="msg-from">${esc(whoText)}</span>${n > 1 ? `<span class="thread-count">${n}</span>` : ''}
@@ -253,7 +263,7 @@ function renderList(animate = false, { appended = false } = {}) {
                     <div class="msg-preview">${esc(m.preview)}</div>
                 </div></div>`;
             })
-            .join('') + (state.messages.length < state.total ? `<div class="list-end"><span class="spinner"></span></div>` : state.messages.length > 20 ? `<div class="list-end done">That’s everything</div>` : '');
+            .join('') + (state.messages.length < state.total ? `<div class="list-end" role="presentation"><span class="spinner"></span></div>` : state.messages.length > 20 ? `<div class="list-end done" role="presentation">That’s everything</div>` : '');
     if (appended) list.scrollTop = scroll;
     const end = $('.list-end', list);
     endWatcher.disconnect();
@@ -426,7 +436,10 @@ $('#refresh-btn').onclick = () => {
 $('#chips').addEventListener('click', e => {
     const c = e.target.closest('.chip');
     if (!c) return;
-    $$('.chip').forEach(x => x.classList.toggle('active', x === c));
+    $$('.chip').forEach(x => {
+        x.classList.toggle('active', x === c);
+        x.setAttribute('aria-pressed', x === c);
+    });
     glide($('#chips'), c);
     state.filter = c.dataset.filter;
     loadMessages();
@@ -478,4 +491,4 @@ document.addEventListener('mousedown', e => {
     renderHints();
 });
 
-export { buildThreads, checkedUids, expandUids, greetingFor, groupLabel, listCache, listKey, loadMessages, loadMore, renderGreeting, renderList, threadOf, threads, toggleCheck, updateBulk, uidsOf };
+export { buildThreads, checkedUids, expandUids, greetingFor, groupLabel, listCache, listKey, loadMessages, loadMore, renderGreeting, renderList, renderTitle, threadOf, threads, toggleCheck, updateBulk, uidsOf };

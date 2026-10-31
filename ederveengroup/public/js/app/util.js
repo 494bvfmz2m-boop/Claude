@@ -112,7 +112,8 @@ document.addEventListener('pointerdown', e => {
 }, { capture: true, passive: true });
 const recentPress = () => (lastPress && performance.now() - lastPress.t < 1200 ? lastPress.rect : null);
 const visibleRect = el => {
-    if (!el || !el.offsetParent) return null;
+    // offsetParent is null for position: fixed, so it can't be used to test visibility
+    if (!el || !el.isConnected || (el.checkVisibility ? !el.checkVisibility() : !el.getClientRects().length)) return null;
     const r = el.getBoundingClientRect();
     return r.width && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight ? r : null;
 };

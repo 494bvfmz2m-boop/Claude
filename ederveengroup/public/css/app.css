@@ -1249,3 +1249,43 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
 .tpl-card .tpl-subject { border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); background: transparent; width: 100%; max-width: none; padding: 10px 14px; height: auto; }
 .sig-editor:empty::before { content: attr(data-placeholder); color: var(--text-3); pointer-events: none; }
 .menu button small { margin-left: auto; padding-left: 14px; color: var(--text-3); font-size: 11.5px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- first-run tour ---------- */
+.tour { position: fixed; inset: 0; z-index: 90; animation: fade .35s var(--ease); }
+.tour.out { opacity: 0; transition: opacity .3s var(--ease); }
+.tour-spot {
+    position: fixed; left: 0; top: 0; width: var(--w); height: var(--h); transform: translate(var(--x), var(--y));
+    border-radius: 16px; pointer-events: none;
+    box-shadow: 0 0 0 200vmax rgba(4, 6, 11, .66), 0 0 0 2px var(--accent-line), 0 0 44px 6px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.tour-spot.center { border-radius: 50%; }
+.tour-card {
+    position: fixed; left: 0; top: 0; padding: 20px 20px 16px; border-radius: 18px; background: var(--surface);
+    box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line-2);
+}
+.tour.ready .tour-spot { transition: transform .55s var(--ease), width .55s var(--ease), height .55s var(--ease), border-radius .55s var(--ease); }
+.tour.ready .tour-card { transition: transform .55s var(--ease); }
+.tour-card h3 { margin: 10px 0 6px; font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.15; }
+.tour-card p { margin: 0 0 16px; color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
+.tour-card.swap h3 { animation: rowUp .45s var(--ease) both; }
+.tour-card.swap p { animation: rowUp .45s .05s var(--ease) both; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line-2); transition: width .35s var(--ease), background .35s; }
+.tour-dots i.on { width: 20px; background: var(--accent); }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+.tour-actions .spacer { flex: 1; }
+.tour-actions [hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    .tour, .tour-card.swap h3, .tour-card.swap p { animation: none; }
+    .tour.ready .tour-spot, .tour.ready .tour-card { transition: none; }
+}
+
+/* ---------- accessibility ---------- */
+.skip-link { position: fixed; left: 12px; top: -60px; z-index: 100; padding: 10px 14px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; transition: top .2s var(--ease); }
+.skip-link:focus { top: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.messages:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent-line); border-radius: 12px; }
+@media (forced-colors: active) {
+    .msg.selected, .msg.focused { outline: 2px solid Highlight; }
+    .tour-spot { outline: 3px solid Highlight; }
+}

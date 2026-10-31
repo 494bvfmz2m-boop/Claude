@@ -46,8 +46,8 @@ const activityRow = (a, i) => `<li class="${a.ok ? 'ok' : 'bad'}" style="animati
 
 function openSettings(tab = 'general') {
     const s = state.settings;
-    const back = h(`<div class="modal-back"><div class="modal" role="dialog" aria-label="Settings">
-        <div class="modal-head"><h2>Settings</h2><button class="icon-btn" data-close>${icon('x')}</button></div>
+    const back = h(`<div class="modal-back"><div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="modal-head"><h2>Settings</h2><button class="icon-btn" data-close aria-label="Close settings">${icon('x')}</button></div>
         <div class="settings">
             <nav>
                 <button data-tab="profile">${icon('user')} Profile</button>

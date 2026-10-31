@@ -163,7 +163,11 @@ let activeMorph = null;
 async function openMessage(uid) {
     const token = ++readToken;
     state.openUid = uid;
-    $$('.msg').forEach(x => x.classList.toggle('selected', Number(x.dataset.uid) === uid));
+    $$('.msg').forEach(x => {
+        const on = Number(x.dataset.uid) === uid;
+        x.classList.toggle('selected', on);
+        x.setAttribute('aria-selected', on);
+    });
     const row = $(`.msg[data-uid="${uid}"]`);
     if (row) row.scrollIntoView({ block: 'nearest' });
     if (isDrafts()) {
@@ -366,19 +370,19 @@ function renderReader({ morph = false } = {}) {
     const people = [...new Set(convo.messages.flatMap(x => [...(x.to || []), ...(x.cc || []), ...x.from]).map(p => p.address.toLowerCase()))];
     $('#reader').innerHTML = `
         <div class="reader-bar">
-            <button class="icon-btn back-btn" data-act="back" data-tip="Back">${icon('left')}</button>
-            <button class="icon-btn" data-act="archive" data-tip="Archive (E)">${icon('archive')}</button>
-            <button class="icon-btn" data-act="junk" data-tip="Spam">${icon('junk')}</button>
-            <button class="icon-btn" data-act="delete" data-tip="Delete (#)">${icon('trash')}</button>
+            <button class="icon-btn back-btn" data-act="back" data-tip="Back" aria-label="Back">${icon('left')}</button>
+            <button class="icon-btn" data-act="archive" data-tip="Archive (E)" aria-label="Archive">${icon('archive')}</button>
+            <button class="icon-btn" data-act="junk" data-tip="Spam" aria-label="Spam">${icon('junk')}</button>
+            <button class="icon-btn" data-act="delete" data-tip="Delete (#)" aria-label="Delete">${icon('trash')}</button>
             <span class="sep"></span>
-            <button class="icon-btn" data-act="unread" data-tip="Mark unread (U)">${icon('mail')}</button>
-            <button class="icon-btn" data-act="snooze" data-tip="Snooze (B)">${icon('clock')}</button>
-            <button class="icon-btn" data-act="star" data-tip="Star (S)">${icon('star')}</button>
-            <button class="icon-btn" data-act="move" data-tip="Move to…">${icon('folder')}</button>
+            <button class="icon-btn" data-act="unread" data-tip="Mark unread (U)" aria-label="Mark unread">${icon('mail')}</button>
+            <button class="icon-btn" data-act="snooze" data-tip="Snooze (B)" aria-label="Snooze">${icon('clock')}</button>
+            <button class="icon-btn" data-act="star" data-tip="Star (S)" aria-label="Star">${icon('star')}</button>
+            <button class="icon-btn" data-act="move" data-tip="Move to…" aria-label="Move to…">${icon('folder')}</button>
             <span class="spacer"></span>
-            <button class="icon-btn" data-act="reply" data-tip="Reply (R)">${icon('reply')}</button>
-            <button class="icon-btn" data-act="replyAll" data-tip="Reply all (A)">${icon('replyAll')}</button>
-            <button class="icon-btn" data-act="forward" data-tip="Forward (F)">${icon('forward')}</button>
+            <button class="icon-btn" data-act="reply" data-tip="Reply (R)" aria-label="Reply">${icon('reply')}</button>
+            <button class="icon-btn" data-act="replyAll" data-tip="Reply all (A)" aria-label="Reply all">${icon('replyAll')}</button>
+            <button class="icon-btn" data-act="forward" data-tip="Forward (F)" aria-label="Forward">${icon('forward')}</button>
         </div>
         <div class="reader-scroll"><div class="reader-content${morph ? ' vt' : ''}">
             <div class="convo-head"><h1${morph ? ' style="view-transition-name:eg-subject"' : ''}>${esc(subject || '(no subject)')}</h1><span class="convo-count"></span></div>

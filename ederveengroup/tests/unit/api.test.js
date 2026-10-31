@@ -215,3 +215,19 @@ test('oversized signatures are refused instead of being cut in half', async () =
     assert.equal(ok.body.templates[0].html, '<p>Thanks so much</p>');
     app.close();
 });
+
+test('service worker is rendered per deploy and only precaches versioned app files', async () => {
+    const app = await start();
+    const d = app.device();
+    const sw = await d('GET', '/mail/sw.js');
+    assert.equal(sw.status, 200);
+    assert.match(sw.headers.get('content-type'), /javascript/);
+    assert.equal(sw.headers.get('cache-control'), 'no-cache');
+    assert.doesNotMatch(sw.body, /%(V|BASE|ASSETS)%/);
+    const assets = JSON.parse(/const ASSETS = (\[.*\]);/.exec(sw.body)[1]);
+    assert.ok(assets.length > 10);
+    assert.ok(assets.every(a => a.startsWith('/mail/') && /\?v=\w+$/.test(a) && !a.includes('/api/')));
+    assert.ok(assets.includes(assets.find(a => a.includes('js/app/main.js'))));
+    for (const a of assets.slice(0, 3)) assert.equal((await d('GET', a)).status, 200);
+    app.close();
+});
