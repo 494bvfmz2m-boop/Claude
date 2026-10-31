@@ -27,6 +27,7 @@ const SHORTCUTS = [
     ['Shift I', 'Mark read'],
     ['Ctrl K', 'Command palette'],
     ['Ctrl Enter', 'Send (in composer)'],
+    ['Ctrl Shift Enter', 'Send & archive (in a reply)'],
     ['Ctrl S', 'Save draft'],
     ['Esc', 'Close / back'],
     ['?', 'Show shortcuts']
@@ -42,6 +43,8 @@ function openPalette() {
         { icon: 'moon', label: 'Toggle dark / light', run: () => toggleTheme() },
         ...(state.openUid ? [{ icon: 'clock', label: 'Snooze this conversation', key: 'B', run: () => snoozeMenu(innerWidth / 2 - 120, innerHeight / 3, [state.openUid]) }] : []),
         { icon: 'signature', label: 'Edit signatures', run: () => openSettings('sigs') },
+        { icon: 'file', label: 'Edit templates', run: () => openSettings('templates') },
+        { icon: 'laptop', label: 'Devices & sign-in activity', run: () => openSettings('devices') },
         { icon: 'palette', label: 'Appearance', run: () => openSettings('look') },
         { icon: 'settings', label: 'Settings', run: () => openSettings('general') },
         { icon: 'keyboard', label: 'Keyboard shortcuts', key: '?', run: () => openSettings('keys') },

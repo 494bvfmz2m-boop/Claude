@@ -54,6 +54,7 @@ function openSettings(tab = 'general') {
                 <button data-tab="general">${icon('settings')} General</button>
                 <button data-tab="look">${icon('palette')} Appearance</button>
                 <button data-tab="sigs">${icon('signature')} Signatures</button>
+                <button data-tab="templates">${icon('file')} Templates</button>
                 <button data-tab="keys">${icon('keyboard')} Shortcuts</button>
                 <button data-tab="security">${icon('lock')} Security</button>
                 <button data-tab="devices">${icon('laptop')} Devices</button>
@@ -266,6 +267,46 @@ function openSettings(tab = 'general') {
                     refreshMe();
                     draw();
                 });
+            };
+            draw();
+        },
+        templates() {
+            let list = (s.templates || []).map(x => ({ ...x }));
+            const draw = () => {
+                section.innerHTML = `<h3>Templates</h3><p class="hint">Canned replies and messages you send often. Insert one from the ${icon('file')} button while composing, or save what you’re writing as a new one.</p>
+                    <div class="tpl-list">${list.length ? '' : `<div class="empty" style="height:auto;padding:30px;border:1px dashed var(--border-strong);border-radius:14px"><div><div class="big">${icon('file')}</div><h3>No templates yet</h3><p>Make one here, or from the composer.</p></div></div>`}</div>
+                    <div style="display:flex;gap:10px;justify-content:space-between;margin-top:16px"><button class="btn" data-new>${icon('plus')} New template</button><button class="btn btn-primary" data-save>${icon('check')} Save templates</button></div>`;
+                const box = $('.tpl-list', section);
+                list.forEach((t, i) => {
+                    const card = h(`<div class="sig-card tpl-card" style="animation-delay:${i * 40}ms"><div class="sig-card-head"><input value="${esc(t.name)}" aria-label="Template name" placeholder="Name">
+                        <button class="icon-btn" data-del title="Delete">${icon('trash')}</button></div>
+                        <input class="input tpl-subject" value="${esc(t.subject)}" placeholder="Subject (optional, used when the subject is empty)" aria-label="Subject">
+                        <div class="sig-editor" contenteditable="true" data-placeholder="Write the template…">${t.html}</div></div>`);
+                    const [name, subject] = $$('input', card);
+                    name.addEventListener('input', () => (t.name = name.value));
+                    subject.addEventListener('input', () => (t.subject = subject.value));
+                    const ed = $('.sig-editor', card);
+                    ed.addEventListener('input', () => (t.html = ed.innerHTML));
+                    $('[data-del]', card).onclick = () => {
+                        list.splice(i, 1);
+                        draw();
+                    };
+                    box.append(card);
+                });
+                $('[data-new]', section).onclick = () => {
+                    list.push({ id: Math.random().toString(36).slice(2, 10), name: 'New template', subject: '', html: '' });
+                    draw();
+                    const cards = $$('.tpl-card', section);
+                    const last = cards[cards.length - 1];
+                    last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    $('input', last).select();
+                };
+                $('[data-save]', section).onclick = async () => {
+                    if (await saveSettings({ templates: list })) {
+                        list = state.settings.templates.map(x => ({ ...x }));
+                        toast('Templates saved');
+                    }
+                };
             };
             draw();
         },

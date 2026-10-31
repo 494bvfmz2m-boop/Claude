@@ -42,9 +42,10 @@ async function start(env = {}) {
         const jar = new Map();
         return async (method, url, body, extra = {}) => {
             const headers = { 'User-Agent': ua, 'X-EG': '1', ...extra };
-            if (body !== undefined) headers['Content-Type'] = 'application/json';
+            const form = body instanceof FormData;
+            if (body !== undefined && !form) headers['Content-Type'] = 'application/json';
             if (jar.size) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
-            const res = await fetch(base + url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
+            const res = await fetch(base + url, { method, headers, body: body === undefined ? undefined : form ? body : JSON.stringify(body), redirect: 'manual' });
             for (const c of res.headers.getSetCookie()) {
                 const [kv] = c.split(';');
                 const i = kv.indexOf('=');
@@ -179,5 +180,38 @@ test('one batched call says which senders have a photo', async () => {
     const r = await d('POST', '/mail/api/avatars', { emails: [USER.toUpperCase(), 'nobody@example.com', 'not an email', 42] });
     assert.deepEqual(Object.keys(r.body.photos), [USER]);
     assert.equal((await d('POST', '/mail/api/avatars', { emails: 'x' })).body.photos && true, true);
+    app.close();
+});
+
+test('pasted images go out as inline cid parts; stray or foreign parts are dropped', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    const fd = new FormData();
+    fd.append('to', 'ava@example.com');
+    fd.append('subject', 'pic');
+    fd.append('html', '<p>look</p><img src="cid:img1abc@eg"><img src="blob:http://x/1">');
+    const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+    fd.append('inline', new Blob([png], { type: 'image/png' }), 'img1abc@eg');
+    fd.append('inline', new Blob([png], { type: 'image/png' }), 'unused@eg');
+    fd.append('inline', new Blob(['<svg/>'], { type: 'image/svg+xml' }), 'img2@eg');
+    fd.append('attachments', new Blob(['hello'], { type: 'text/plain' }), 'notes.txt');
+    const r = await d('POST', '/mail/api/send', fd);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const sent = app.mail.sent[0];
+    assert.match(sent.html, /src="cid:img1abc@eg"/);
+    assert.doesNotMatch(sent.html, /blob:/);
+    assert.deepEqual(sent.attachments.map(a => [a.filename, a.cid || null]), [['notes.txt', null], ['image-1.png', 'img1abc@eg']]);
+    app.close();
+});
+
+test('oversized signatures are refused instead of being cut in half', async () => {
+    const app = await start();
+    const d = app.device();
+    await d('POST', '/mail/api/login', { email: USER, password: PASS });
+    const big = '<p>' + 'x'.repeat(210000) + '</p>';
+    assert.equal((await d('PUT', '/mail/api/settings', { signatures: [{ name: 'Big', html: big }] })).status, 413);
+    const ok = await d('PUT', '/mail/api/settings', { templates: [{ name: 'Thanks', subject: 'Thanks!', html: '<p>Thanks <script>x</script>so much</p>' }] });
+    assert.equal(ok.body.templates[0].html, '<p>Thanks so much</p>');
     app.close();
 });

@@ -1217,3 +1217,35 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
     .dev, .act-list li, .sec-alert { animation: none; }
     .dev.current .dev-ic::after { animation: none; }
 }
+
+/* ---------- composer: inline images, send options, templates ---------- */
+.drop-hint { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; animation: fade .15s; }
+.drop-hint span { display: inline-flex; align-items: center; gap: 10px; }
+.drop-hint span .i { width: 24px; height: 24px; }
+.drop-hint small { font-family: var(--sans, inherit); font-size: 13px; color: var(--text-2); }
+.editor img { max-width: 100%; height: auto; border-radius: 6px; cursor: pointer; transition: box-shadow .18s var(--ease), width .3s var(--ease); }
+.editor img.picked { box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent); }
+.editor img.arriving { animation: imgIn .5s var(--ease) both; }
+@keyframes imgIn { from { opacity: 0; transform: scale(.94); filter: blur(6px); } }
+.img-tools {
+    position: absolute; z-index: 6; display: flex; align-items: center; gap: 2px; padding: 4px;
+    border-radius: 11px; background: var(--surface-3); box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--line-2);
+    animation: menuIn .16s var(--ease); transform-origin: top left;
+}
+.img-tools[hidden] { display: none; }
+.img-tools button { height: 28px; min-width: 32px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-2); display: grid; place-items: center; transition: background .15s, color .15s; }
+.img-tools button:hover { background: var(--hover); color: var(--text); }
+.img-tools button.on { background: var(--accent); color: var(--on-accent); }
+.img-tools button[data-w='rm']:hover { color: var(--danger); }
+.img-tools .i { width: 15px; height: 15px; }
+.img-tools .sep { width: 1px; height: 18px; margin: 0 3px; background: var(--line-2); }
+.send-split { display: inline-flex; }
+.send-split .send-btn:not(:last-child) { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+.send-split .send-more { width: 32px; padding: 0; margin-left: 2px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.send-split .send-more .i { width: 15px; height: 15px; transition: transform .2s var(--ease); }
+.send-split .send-more:hover .i { transform: translateY(1px); }
+.tpl-list { display: flex; flex-direction: column; gap: 12px; }
+.tpl-card { animation: rowUp .35s var(--ease) both; }
+.tpl-card .tpl-subject { border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); background: transparent; width: 100%; max-width: none; padding: 10px 14px; height: auto; }
+.sig-editor:empty::before { content: attr(data-placeholder); color: var(--text-3); pointer-events: none; }
+.menu button small { margin-left: auto; padding-left: 14px; color: var(--text-3); font-size: 11.5px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

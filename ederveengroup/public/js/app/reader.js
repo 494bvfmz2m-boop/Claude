@@ -405,7 +405,10 @@ async function replyTarget() {
 async function startReply(mode, m, inline) {
     const target = m || (await replyTarget());
     const mount = inline && $('#inline-reply');
-    openComposer(mode, target, {}, mount ? { mount, onClose: () => mount.classList.remove('composing'), onSent: () => refreshConversation() } : {});
+    // "Send & archive" files the conversation that was open when you hit reply
+    const folder = state.folder, uids = convoUids();
+    const onSent = ({ archive: andArchive } = {}) => (andArchive && state.folder === folder && uids.length ? archive(uids) : refreshConversation());
+    openComposer(mode, target, {}, mount ? { mount, onClose: () => mount.classList.remove('composing'), onSent } : { onSent });
     if (mount) mount.classList.add('composing');
 }
 

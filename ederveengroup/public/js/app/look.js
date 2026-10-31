@@ -24,8 +24,10 @@ const saveSettings = async patch => {
     applyLook();
     try {
         state.settings = await api('api/settings', { method: 'PUT', body: patch });
+        return true;
     } catch (e) {
         toast(e.message, { error: true });
+        return false;
     }
 };
 

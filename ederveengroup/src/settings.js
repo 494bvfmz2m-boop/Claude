@@ -4,6 +4,11 @@ const { sanitizeComposeHtml } = require('../lib/sanitize');
 
 const id = v => String(v || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || Math.random().toString(36).slice(2, 10);
 const oneOf = (v, list, fallback) => (list.includes(v) ? v : fallback);
+// cutting html short would break it, so oversized content is refused instead
+function limited(html, max, message) {
+    if (html.length > max) throw Object.assign(new Error(message), { status: 413 });
+    return html;
+}
 
 // Validates a settings patch from the browser; unknown keys are dropped by the store.
 function cleanSettingsPatch(body = {}) {
@@ -12,7 +17,7 @@ function cleanSettingsPatch(body = {}) {
         p.signatures = [].concat(p.signatures || []).slice(0, 20).map(s => ({
             id: id(s.id),
             name: String(s.name || 'Signature').slice(0, 80),
-            html: sanitizeComposeHtml(String(s.html || '')).slice(0, 50000)
+            html: limited(sanitizeComposeHtml(String(s.html || '')), 200000, 'That signature is too large. Use a smaller image or an image link.')
         }));
     }
     if ('templates' in p) {
@@ -20,7 +25,7 @@ function cleanSettingsPatch(body = {}) {
             id: id(t.id),
             name: String(t.name || 'Template').slice(0, 80),
             subject: String(t.subject || '').slice(0, 300),
-            html: sanitizeComposeHtml(String(t.html || '')).slice(0, 100000)
+            html: limited(sanitizeComposeHtml(String(t.html || '')), 200000, 'That template is too large.')
         }));
     }
     if ('defaultSignature' in p) p.defaultSignature = p.defaultSignature ? id(p.defaultSignature) : null;

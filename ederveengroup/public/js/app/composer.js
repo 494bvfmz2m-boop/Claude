@@ -3,6 +3,9 @@ import { addFlag, patchLocal } from './actions.js';
 import { askConfirm, askText, restoreSelection, saveSelection } from './dialogs.js';
 import { loadFolders } from './folders.js';
 import { loadMessages, renderList } from './list.js';
+import { saveSettings } from './look.js';
+import { showMenu } from './menus.js';
+import { openSettings } from './settings.js';
 import { isDrafts, isSentLike, specialPath, state } from './state.js';
 import { $, $$, api, avatar, calm, catchIn, debounce, esc, fmtAddr, fmtAddrList, fmtDate, fmtSize, h, morphFrom, morphTo, qs, recentPress, toast, visibleRect } from './util.js';
 
@@ -100,13 +103,15 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
             <button class="icon-btn" data-cmd="insertOrderedList" title="Numbered list">${icon('listOl')}</button>
             <button class="icon-btn" data-cmd="quote" title="Quote">${icon('quote')}</button>
             <button class="icon-btn" data-cmd="link" title="Link (Ctrl K)">${icon('link')}</button>
+            <label class="icon-btn" title="Insert image" style="cursor:pointer">${icon('image')}<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple data-c="images" hidden></label>
             <button class="icon-btn" data-cmd="removeFormat" title="Clear formatting">${icon('eraser')}</button>
         </div>
         <div class="editor" contenteditable="true" data-placeholder="Write your message…">${body}</div>
         <div class="c-attachments"></div>
         <div class="composer-foot">
-            <button class="btn btn-primary send-btn" data-c="send" title="Send (Ctrl Enter)">${icon('send')} Send</button>
+            <div class="send-split"><button class="btn btn-primary send-btn" data-c="send" title="Send (Ctrl Enter)">${icon('send')} Send</button>${onSent && m && mode !== 'draft' ? `<button class="btn btn-primary send-more" data-c="send-more" title="More send options" aria-label="More send options">${icon('down')}</button>` : ''}</div>
             <label class="icon-btn" title="Attach files" style="cursor:pointer">${icon('clip')}<input type="file" multiple data-c="files" hidden></label>
+            <button class="icon-btn" data-c="templates" title="Templates">${icon('file')}</button>
             <select data-c="sig" title="Signature"><option value="">No signature</option>${state.settings.signatures.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
             <span class="spacer"></span>
             <button class="icon-btn" data-c="discard" title="Discard">${icon('trash')}</button>
@@ -167,11 +172,113 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
         e.target.value = '';
     });
 
-    // drag & drop files
+    // inline images: shown from blob: URLs while editing, sent as cid: parts of the email
+    const inlineImages = new Map();
+    const addInline = file => {
+        const cid = `img${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}@eg`;
+        const url = URL.createObjectURL(file);
+        inlineImages.set(cid, { file, url });
+        return `<img src="${url}" data-cid="${cid}" alt="" style="max-width:100%">`;
+    };
+    async function insertImages(list, at) {
+        const imgs = [...list].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
+        if (!imgs.length) return false;
+        const html = [];
+        for (const f of imgs) {
+            if (f.size > 15 * 1024 * 1024) {
+                toast(`${f.name || 'That image'} is too large to place inline`, { error: true });
+                continue;
+            }
+            html.push(addInline(await fitImage(f)));
+        }
+        if (!html.length) return true;
+        editor.focus();
+        if (at) {
+            getSelection().removeAllRanges();
+            getSelection().addRange(at);
+        }
+        document.execCommand('insertHTML', false, html.join('<br>'));
+        $$('img[data-cid]', editor).forEach(img => img.complete || img.classList.add('arriving'));
+        c.dirty = true;
+        return true;
+    }
+    // quoted or drafted images arrive as data: URLs; turn them back into real inline parts
+    for (const img of $$('img[src^="data:image/"]', editor)) {
+        const file = dataUrlFile(img.getAttribute('src'));
+        if (!file) continue;
+        const tmp = h(addInline(file));
+        img.src = tmp.src;
+        img.dataset.cid = tmp.dataset.cid;
+    }
+    editor.addEventListener('load', e => e.target.tagName === 'IMG' && e.target.classList.remove('arriving'), true);
+    editor.addEventListener('paste', e => {
+        const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+        if (!files.length) return;
+        e.preventDefault();
+        insertImages(files);
+    });
+    $('[data-c=images]', el).addEventListener('change', e => {
+        insertImages(e.target.files);
+        e.target.value = '';
+    });
+
+    // click an image to resize or remove it
+    const imgTools = h(`<div class="img-tools" hidden>${[['S', 25], ['M', 50], ['L', 75], ['Full', 100]].map(([l, w]) => `<button data-w="${w}" title="${w}% wide">${l}</button>`).join('')}<span class="sep"></span><button data-w="rm" title="Remove image">${icon('trash')}</button></div>`);
+    el.append(imgTools);
+    let picked = null;
+    const unpick = () => {
+        picked?.classList.remove('picked');
+        picked = null;
+        imgTools.hidden = true;
+    };
+    const placeTools = () => {
+        if (!picked) return;
+        const r = picked.getBoundingClientRect(), er = el.getBoundingClientRect(), ed = editor.getBoundingClientRect();
+        if (r.bottom < ed.top || r.top > ed.bottom) return unpick();
+        imgTools.style.left = `${Math.max(8, r.left - er.left)}px`;
+        imgTools.style.top = `${Math.max(ed.top - er.top + 4, r.top - er.top + 8)}px`;
+        const w = picked.style.width || '';
+        $$('[data-w]', imgTools).forEach(b => b.classList.toggle('on', w === `${b.dataset.w}%`));
+    };
+    editor.addEventListener('click', e => {
+        const img = e.target.closest('img');
+        if (img === picked) return;
+        unpick();
+        if (!img) return;
+        picked = img;
+        img.classList.add('picked');
+        imgTools.hidden = false;
+        placeTools();
+    });
+    editor.addEventListener('scroll', placeTools, { passive: true });
+    editor.addEventListener('keydown', e => {
+        if (picked && (e.key === 'Backspace' || e.key === 'Delete')) {
+            e.preventDefault();
+            picked.remove();
+            unpick();
+            c.dirty = true;
+        } else if (picked) unpick();
+    });
+    imgTools.addEventListener('mousedown', e => e.preventDefault());
+    imgTools.addEventListener('click', e => {
+        const b = e.target.closest('[data-w]');
+        if (!b || !picked) return;
+        if (b.dataset.w === 'rm') {
+            picked.remove();
+            unpick();
+        } else {
+            picked.style.width = `${b.dataset.w}%`;
+            picked.style.height = 'auto';
+            requestAnimationFrame(placeTools);
+        }
+        c.dirty = true;
+    });
+
+    // drag & drop files: images dropped on the text go inline, everything else is attached
     let dragDepth = 0;
     el.addEventListener('dragenter', e => {
         if (![...e.dataTransfer.types].includes('Files')) return;
-        if (dragDepth++ === 0) el.append(h('<div class="drop-hint">Drop to attach</div>'));
+        if (dragDepth++ === 0) el.append(h(`<div class="drop-hint"><span>${icon('clip')} Drop to attach</span><small>Drop images on the text to place them inline</small></div>`));
     });
     el.addEventListener('dragleave', () => {
         if (--dragDepth <= 0) {
@@ -185,7 +292,11 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
         $('.drop-hint', el)?.remove();
         if (!e.dataTransfer.files.length) return;
         e.preventDefault();
-        addFiles(e.dataTransfer.files);
+        const list = [...e.dataTransfer.files];
+        if (editor.contains(e.target) && list.every(f => f.type.startsWith('image/'))) {
+            const at = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+            insertImages(list, at && editor.contains(at.startContainer) ? at : null);
+        } else addFiles(list);
     });
 
     // formatting
@@ -250,7 +361,7 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
     el.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
-            send();
+            send({ archiveAfter: e.shiftKey && !!$('[data-c=send-more]', el) });
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
             e.preventDefault();
             saveDraft(true);
@@ -267,7 +378,20 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
         fd.append('cc', c.fields.cc.value());
         fd.append('bcc', c.fields.bcc.value());
         fd.append('subject', subjectInput.value);
-        fd.append('html', editor.innerHTML);
+        const body = editor.cloneNode(true);
+        $$('.picked, .arriving', body).forEach(x => x.classList.remove('picked', 'arriving'));
+        $$('[class=""]', body).forEach(x => x.removeAttribute('class'));
+        for (const img of $$('img[data-cid]', body)) {
+            const it = inlineImages.get(img.dataset.cid);
+            if (!it) {
+                img.remove();
+                continue;
+            }
+            img.src = `cid:${img.dataset.cid}`;
+            fd.append('inline', it.file, img.dataset.cid);
+            img.removeAttribute('data-cid');
+        }
+        fd.append('html', body.innerHTML);
         Object.entries(c.meta).forEach(([k, v]) => v != null && fd.append(k, v));
         files.forEach(f => fd.append('attachments', f, f.name));
         return fd;
@@ -305,14 +429,19 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
         const target = discard || mount ? null : keep ? visibleRect(drafts) || visibleRect($('#compose-btn')) : visibleRect($('#compose-btn')) || visibleRect($('#fab'));
         morphTo(el, target).then(() => {
             el.remove();
+            if (!keep) freeImages();
             if (keep && !mount) catchIn(drafts);
             if (onClose) onClose();
         });
         // detached nodes are still readable, so the draft can be saved after removal
-        if (keep) saveDraft(false).then(ok => ok && toast('Saved to Drafts'));
+        if (keep) saveDraft(false).then(ok => {
+            freeImages();
+            if (ok) toast('Saved to Drafts');
+        });
     };
+    const freeImages = () => inlineImages.forEach(it => URL.revokeObjectURL(it.url));
 
-    async function send() {
+    async function send({ archiveAfter = false } = {}) {
         if (c.fields.to.pending()) c.fields.to.commit();
         if (c.fields.cc.pending()) c.fields.cc.commit();
         if (c.fields.bcc.pending()) c.fields.bcc.commit();
@@ -345,7 +474,8 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
                 toast('Message sent', { duration: 3000 });
                 if (composer === c) composer = null;
                 el.remove();
-                if (onSent) onSent();
+                freeImages();
+                if (onSent) onSent({ archive: archiveAfter });
                 if (onClose) onClose();
                 loadFolders();
                 if (isSentLike()) loadMessages({ quiet: true });
@@ -373,6 +503,27 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
             });
             setTimeout(go, delay);
         } else go();
+    }
+
+    // put template html where you'd expect: replaces an empty body, else goes at the cursor
+    function insertHtml(html) {
+        const own = editor.cloneNode(true);
+        $$('.pm-signature, .pm-quote', own).forEach(x => x.remove());
+        if (!own.innerText.trim() && !$('img', own)) {
+            const stop = $('.pm-signature, .pm-quote', editor);
+            while (editor.firstChild && editor.firstChild !== stop && !(stop && editor.firstChild.nextSibling === stop && editor.firstChild.nodeName === 'BR')) editor.firstChild.remove();
+            editor.insertAdjacentHTML('afterbegin', `<div>${html}</div><div><br></div>`);
+            const range = document.createRange();
+            range.selectNodeContents(editor.firstElementChild);
+            range.collapse(false);
+            getSelection().removeAllRanges();
+            getSelection().addRange(range);
+            editor.focus();
+        } else {
+            editor.focus();
+            document.execCommand('insertHTML', false, html);
+        }
+        c.dirty = true;
     }
 
     el.addEventListener('click', e => {
@@ -422,6 +573,18 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
             case 'send':
                 send();
                 break;
+            case 'send-more': {
+                e.stopPropagation();
+                const r = b.getBoundingClientRect();
+                showMenu(r.left, r.top - 60, [{ icon: 'archive', label: 'Send & archive', hint: 'Ctrl Shift Enter', run: () => send({ archiveAfter: true }) }]);
+                break;
+            }
+            case 'templates': {
+                e.stopPropagation();
+                const r = b.getBoundingClientRect();
+                templateMenu(r.left, r.top, { editor, subjectInput, insertHtml, markDirty: () => (c.dirty = true) });
+                break;
+            }
         }
     });
 
@@ -438,6 +601,84 @@ function openComposer(mode, m, preset = {}, { mount = null, onClose = null, onSe
 }
 
 const validEmail = a => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a);
+
+// big photos are scaled down before sending so emails stay light (GIFs keep their animation)
+async function fitImage(file) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size < 400 * 1024) return file;
+    let bmp;
+    try {
+        bmp = await createImageBitmap(file);
+    } catch {
+        return file;
+    }
+    const scale = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size < 1.5 * 1024 * 1024) {
+        bmp.close();
+        return file;
+    }
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * scale);
+    cv.height = Math.round(bmp.height * scale);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    bmp.close();
+    const type = file.type === 'image/png' && file.size < 3 * 1024 * 1024 ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise(r => cv.toBlob(r, type, 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], (file.name || 'image').replace(/\.\w+$/, '') + (type === 'image/png' ? '.png' : '.jpg'), { type });
+}
+
+function dataUrlFile(url) {
+    const m = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=\s]+)$/.exec(url);
+    if (!m || m[2].length > 8 * 1024 * 1024) return null;
+    try {
+        const bin = atob(m[2].replace(/\s/g, ''));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new File([bytes], 'image.' + m[1].split('/')[1].replace('jpeg', 'jpg'), { type: m[1] });
+    } catch {
+        return null;
+    }
+}
+
+/* ---------- templates ---------- */
+// the part of the message you wrote: no signature, no quote, no inline images (they can't be stored)
+function ownHtml(editor) {
+    const own = editor.cloneNode(true);
+    $$('.pm-signature, .pm-quote, img[data-cid], .picked', own).forEach(x => (x.classList.contains('picked') && x.tagName !== 'IMG' ? x.classList.remove('picked') : x.remove()));
+    return own.innerHTML.replace(/(<div><br><\/div>|<br>)+$/i, '').trim();
+}
+function templateMenu(x, y, { editor, subjectInput, insertHtml, markDirty }) {
+    const list = state.settings.templates || [];
+    const items = list.map(t => ({
+        icon: 'file',
+        label: t.name,
+        hint: t.subject,
+        run: () => {
+            if (t.subject && !subjectInput.value.trim()) {
+                subjectInput.value = t.subject;
+                subjectInput.dispatchEvent(new Event('input'));
+            }
+            insertHtml(t.html);
+            markDirty();
+        }
+    }));
+    if (items.length) items.push('-');
+    items.push({
+        icon: 'plus',
+        label: 'Save as template',
+        run: async () => {
+            const html = ownHtml(editor);
+            if (!html.replace(/<[^>]+>/g, '').trim()) return toast('Write something first, then save it as a template', { error: true });
+            const name = await askText({ title: 'Save as template', message: 'Reuse this message any time from the templates button.', icon: 'file', confirm: 'Save template', input: { value: subjectInput.value.trim().slice(0, 80), placeholder: 'Template name' } });
+            editor.focus({ preventScroll: true });
+            if (!name) return;
+            const templates = [...list, { id: Math.random().toString(36).slice(2, 10), name: name.slice(0, 80), subject: subjectInput.value.trim(), html }];
+            if (await saveSettings({ templates })) toast(`Saved “${name}”${$('img[data-cid]', editor) ? ' (pasted images aren’t kept in templates)' : ''}`);
+        }
+    });
+    if (list.length) items.push({ icon: 'settings', label: 'Manage templates', run: () => openSettings('templates') });
+    showMenu(x, y - Math.min(52 + items.length * 38, 380), items);
+}
 
 function recipientField(box, onChange) {
     let people = [];

@@ -115,6 +115,21 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
 
     /* ---------- compose ---------- */
 
+    const filesOf = (req, field) => (req.files && req.files[field]) || [];
+    // pasted images: only image parts the message body actually points at (cid:...) are kept
+    function inlineParts(req, html) {
+        return filesOf(req, 'inline')
+            .filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.mimetype) && /^[\w.-]{1,80}@eg$/.test(f.originalname) && html.includes(`cid:${f.originalname}`))
+            .map((f, i) => ({ filename: `image-${i + 1}.${f.mimetype.split('/')[1].replace('jpeg', 'jpg')}`, content: f.buffer, contentType: f.mimetype, cid: f.originalname, contentDisposition: 'inline' }));
+    }
+    const MAX_MESSAGE = 35 * 1024 * 1024;
+    function checkSize(req, res, next) {
+        const total = Object.values(req.files || {}).flat().reduce((n, f) => n + f.size, 0);
+        if (total > MAX_MESSAGE) return res.status(413).json({ error: 'That message is too large. Keep attachments under 35 MB in total.' });
+        next();
+    }
+    const parts = [upload.fields([{ name: 'attachments', maxCount: 20 }, { name: 'inline', maxCount: 30 }]), checkSize];
+
     function composeInput(req) {
         const b = req.body;
         const html = sanitizeComposeHtml(String(b.html || ''));
@@ -129,7 +144,7 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
             text: htmlToText(html, { wordwrap: 78, selectors: [{ selector: 'img', format: 'skip' }] }),
             inReplyTo: b.inReplyTo || undefined,
             references: b.references ? String(b.references).split(/\s+/).filter(Boolean) : [],
-            attachments: (req.files || []).map(f => ({ filename: f.originalname, content: f.buffer, contentType: f.mimetype })),
+            attachments: [...filesOf(req, 'attachments').map(f => ({ filename: f.originalname, content: f.buffer, contentType: f.mimetype })), ...inlineParts(req, html)],
             forwardFrom: b.forwardFolder && b.forwardUid ? { folder: String(b.forwardFolder), uid: Number(b.forwardUid) } : null,
             draftUid: Number(b.draftUid) || null,
             answeredUid: Number(b.answeredUid) || null,
@@ -137,7 +152,7 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
         };
     }
 
-    r.post('/send', upload.array('attachments'), wrap(async (req, res) => {
+    r.post('/send', parts, wrap(async (req, res) => {
         const input = composeInput(req);
         const settings = store.getSettings(req.session.email);
         const result = await mail.sendMessage(req.session, input, { saveSentCopy: settings.saveSentCopy });
@@ -145,7 +160,7 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue }) {
         res.json({ ok: true, ...result });
     }));
 
-    r.post('/drafts', upload.array('attachments'), wrap(async (req, res) => {
+    r.post('/drafts', parts, wrap(async (req, res) => {
         res.json({ ok: true, ...(await mail.saveDraft(req.session, composeInput(req))) });
     }));
 

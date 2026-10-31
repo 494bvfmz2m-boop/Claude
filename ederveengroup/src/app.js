@@ -23,7 +23,7 @@ function createApp(config, { mail = defaultMail } = {}) {
         mail,
         avatars: createAvatars(config.dataDir),
         sessions: createSessions({ dataDir: config.dataDir, cookiePath: config.baseUrl, secureCookies: config.secureCookies, registry: store.sessions }),
-        upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 20 } }),
+        upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 50 } }),
         checkCode: createSecondFactor(store),
         wakeDue: createSnoozeWaker({ store, mail }),
         pages: createPages({ viewsDir: config.viewsDir, publicDir: config.publicDir, baseUrl: config.baseUrl, version: assetVersion(config.publicDir) })

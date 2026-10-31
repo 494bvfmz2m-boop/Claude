@@ -179,7 +179,9 @@ function inspectStructure(node, acc = { text: null, html: null, attachments: fal
         node.childNodes.forEach(c => inspectStructure(c, acc));
         return acc;
     }
-    if (node.disposition === 'attachment' || (node.dispositionParameters && node.dispositionParameters.filename && !/^text\//.test(node.type))) {
+    // images embedded in the body (inline with a Content-ID) aren't attachments
+    const embedded = node.id && node.disposition !== 'attachment' && /^image\//.test(node.type);
+    if (node.disposition === 'attachment' || (!embedded && node.dispositionParameters && node.dispositionParameters.filename && !/^text\//.test(node.type))) {
         acc.attachments = true;
     } else if (node.type === 'text/plain' && !acc.text) {
         acc.text = node;
@@ -656,5 +658,6 @@ module.exports = {
     snoozeMessages,
     wakeSnoozes,
     getThread,
-    searchCounts
+    searchCounts,
+    inspectStructure // exported for tests
 };

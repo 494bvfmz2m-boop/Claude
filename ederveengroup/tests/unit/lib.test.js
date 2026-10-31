@@ -160,3 +160,12 @@ test('unknown or malformed operators fall back to plain text search', () => {
     assert.equal(parseQuery('is:starred').criteria.flagged, true);
     assert.equal(parseQuery('smaller:200k').criteria.smaller, 200 * 1024);
 });
+
+test('embedded images are not counted as attachments', () => {
+    const { inspectStructure } = require('../../lib/mail');
+    const related = { childNodes: [{ type: 'text/html' }, { type: 'image/png', id: '<a@eg>', disposition: 'inline', dispositionParameters: { filename: 'image-1.png' } }] };
+    assert.equal(inspectStructure(related).attachments, false);
+    const mixed = { childNodes: [related, { type: 'application/pdf', disposition: 'attachment', dispositionParameters: { filename: 'a.pdf' } }] };
+    assert.equal(inspectStructure(mixed).attachments, true);
+    assert.equal(inspectStructure({ childNodes: [{ type: 'image/png', dispositionParameters: { filename: 'photo.png' } }] }).attachments, true);
+});
