@@ -83,7 +83,7 @@ Add these under your application → **Environment Variables**, then redeploy:
 
 | Variable | Value |
 | --- | --- |
-| `DB_HOST` | your database server, e.g. `162.0.217.46` |
+| `DB_HOST` | your database server's address, e.g. `203.0.113.10` |
 | `DB_NAME` | the database name |
 | `DB_USER` | the database user |
 | `DB_PASSWORD` | the database password |
