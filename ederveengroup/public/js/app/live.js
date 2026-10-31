@@ -20,6 +20,10 @@ function connectLive() {
         text.textContent = 'Polling';
         setTimeout(connectLive, 60000);
     });
+    es.addEventListener('signedout', () => {
+        es.close();
+        location.replace('login?signedout=1');
+    });
     es.onerror = () => {
         dot.classList.remove('on');
         text.textContent = 'Reconnecting…';

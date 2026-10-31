@@ -130,6 +130,14 @@ test('devices: list, sign out another device, activity log', async () => {
     const activity = (await pc('GET', '/mail/api/activity')).body;
     assert.equal(activity.length, 2);
     assert.equal(activity[0].ok, true);
+    // sign out everything except this device
+    const tablet = app.device('Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Safari/537.36');
+    await tablet('POST', '/mail/api/login', { email: USER, password: PASS });
+    await phone('POST', '/mail/api/login', { email: USER, password: PASS });
+    assert.equal((await pc('POST', '/mail/api/sessions/others', {})).body.signedOut, 2);
+    assert.equal((await tablet('GET', '/mail/api/me')).status, 401);
+    assert.equal((await phone('GET', '/mail/api/me')).status, 401);
+    assert.equal((await pc('GET', '/mail/api/me')).status, 200);
     await pc('POST', '/mail/api/logout/everywhere', {});
     assert.equal((await pc('GET', '/mail/api/me')).status, 401);
     app.close();

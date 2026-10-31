@@ -17,6 +17,33 @@ const SIG_TEMPLATES = {
         `<div style="font-family:Georgia,'Times New Roman',serif"><div style="font-size:18px;color:${state.settings.accent}">${esc(name)}</div><div style="font-family:Arial,sans-serif;font-size:11px;color:#8a8a8a;letter-spacing:2px;text-transform:uppercase;margin-top:2px">EderveenGroup</div><div style="font-family:Arial,sans-serif;font-size:12px;margin-top:8px"><a href="mailto:${esc(email)}" style="color:#8a8a8a;text-decoration:none">${esc(email)}</a></div></div>`
 };
 
+// "3 min ago", "2 h ago", then a date
+function ago(t) {
+    const d = Date.now() - t;
+    if (d < 90e3) return 'just now';
+    if (d < 3600e3) return `${Math.round(d / 60e3)} min ago`;
+    if (d < 864e5) return `${Math.round(d / 3600e3)} h ago`;
+    return fmtDate(new Date(t).toISOString());
+}
+const DEVICE_ICON = { phone: 'phone', tablet: 'tablet', desktop: 'laptop' };
+const deviceRow = (d, i) => `<div class="dev${d.current ? ' current' : ''}" data-ref="${esc(d.ref)}" style="animation-delay:${i * 45}ms">
+    <div class="dev-ic">${icon(DEVICE_ICON[d.device.kind] || 'laptop')}</div>
+    <div class="lbl"><b>${esc(d.device.label)}${d.current ? ' <span class="badge">This device</span>' : ''}</b>
+        <small>${d.current ? 'Active now' : `Active ${esc(ago(d.lastSeen))}`}${d.ip ? ` · ${esc(d.ip)}` : ''} · Signed in ${esc(fmtDate(new Date(d.created).toISOString()))}${d.remember ? '' : ' · Until the browser closes'}</small></div>
+    ${d.current ? '' : `<button class="btn" data-revoke>Sign out</button>`}</div>`;
+const ACT_TEXT = {
+    password: 'Signed in',
+    'trusted-device': 'Signed in on a trusted device',
+    '2fa': 'Signed in with a 2FA code',
+    'recovery-code': 'Signed in with a recovery code'
+};
+const FAIL_TEXT = { 'wrong-password': 'Wrong password', 'wrong-code': 'Wrong 2FA code', locked: 'Blocked: too many attempts' };
+const activityRow = (a, i) => `<li class="${a.ok ? 'ok' : 'bad'}" style="animation-delay:${Math.min(i, 12) * 30}ms">
+    <span class="act-dot">${icon(a.ok ? 'check' : 'x')}</span>
+    <div class="lbl"><b>${esc(a.ok ? ACT_TEXT[a.method] || 'Signed in' : FAIL_TEXT[a.reason] || 'Failed sign-in')}</b>
+        <small>${esc(a.device ? a.device.label : 'Unknown device')}${a.ip ? ` · ${esc(a.ip)}` : ''}</small></div>
+    <time title="${esc(fmtDate(new Date(a.t).toISOString(), true))}">${esc(ago(a.t))}</time></li>`;
+
 function openSettings(tab = 'general') {
     const s = state.settings;
     const back = h(`<div class="modal-back"><div class="modal" role="dialog" aria-label="Settings">
@@ -29,6 +56,7 @@ function openSettings(tab = 'general') {
                 <button data-tab="sigs">${icon('signature')} Signatures</button>
                 <button data-tab="keys">${icon('keyboard')} Shortcuts</button>
                 <button data-tab="security">${icon('lock')} Security</button>
+                <button data-tab="devices">${icon('laptop')} Devices</button>
                 <button data-tab="account">${icon('user')} Account</button>
             </nav>
             <section></section>
@@ -344,6 +372,65 @@ function openSettings(tab = 'general') {
                     tabs.security();
                 });
         },
+        async devices() {
+            const here = section;
+            here.innerHTML = `<h3>Devices &amp; activity</h3><p class="hint">Everywhere you’re signed in to EderveenGroup. Don’t recognise one? Sign it out, then change your Purelymail password.</p><div class="spinner"></div>`;
+            let list, activity;
+            try {
+                [list, activity] = await Promise.all([api('api/sessions'), api('api/activity')]);
+            } catch (e) {
+                return toast(e.message, { error: true });
+            }
+            if (section !== here) return;
+            const others = list.filter(d => !d.current).length;
+            const failures = activity.filter(a => !a.ok && Date.now() - a.t < 7 * 864e5).length;
+            here.innerHTML = `<h3>Devices &amp; activity</h3><p class="hint">Everywhere you’re signed in to EderveenGroup. Don’t recognise one? Sign it out, then change your Purelymail password.</p>
+                ${failures ? `<div class="sec-alert">${icon('alert')}<div><b>${failures} failed sign-in${failures === 1 ? '' : 's'} this week</b><small>Someone typed a wrong password or code. If that wasn’t you, your account is still safe, but consider turning on two-step verification.</small></div></div>` : ''}
+                <div class="dev-list">${list.map((d, i) => deviceRow(d, i)).join('')}</div>
+                ${others ? `<div class="row"><div class="lbl"><b>Sign out all other devices</b><small>Keeps you signed in here only</small></div><button class="btn btn-danger" data-others>${icon('logout')} Sign out ${others} other${others === 1 ? '' : 's'}</button></div>` : ''}
+                <h4 class="sub-h">Recent sign-ins</h4>
+                <ol class="act-list">${activity.length ? activity.slice(0, 12).map((a, i) => activityRow(a, i)).join('') : '<li class="empty">Nothing yet</li>'}</ol>
+                ${activity.length > 12 ? `<button class="btn btn-ghost" data-more-act>Show all ${activity.length}</button>` : ''}`;
+            $$('[data-revoke]', here).forEach(b =>
+                b.addEventListener('click', async () => {
+                    const row = b.closest('.dev');
+                    const d = list.find(x => x.ref === row.dataset.ref);
+                    if (!(await askConfirm({ title: `Sign out ${d.device.label}?`, message: 'That device will be sent back to the sign-in page right away.', icon: 'logout', confirm: 'Sign out', danger: true }))) return;
+                    try {
+                        await api(`api/sessions/${encodeURIComponent(d.ref)}`, { method: 'DELETE' });
+                    } catch (e) {
+                        return toast(e.message, { error: true });
+                    }
+                    row.style.height = row.offsetHeight + 'px';
+                    row.classList.add('gone');
+                    setTimeout(() => section === here && tabs.devices(), 380);
+                    toast(`${d.device.label} signed out`);
+                })
+            );
+            const others$ = $('[data-others]', here);
+            if (others$)
+                others$.onclick = async () => {
+                    if (!(await askConfirm({ title: 'Sign out everywhere else?', message: `${others} other device${others === 1 ? '' : 's'} will be signed out. You stay signed in here.`, icon: 'lock', confirm: 'Sign them out', danger: true }))) return;
+                    try {
+                        const r = await api('api/sessions/others', { method: 'POST' });
+                        $$('.dev:not(.current)', here).forEach((row, n) => {
+                            row.style.height = row.offsetHeight + 'px';
+                            row.style.transitionDelay = `${n * 40}ms`;
+                            row.classList.add('gone');
+                        });
+                        toast(`Signed out ${r.signedOut} device${r.signedOut === 1 ? '' : 's'}`);
+                        setTimeout(() => section === here && tabs.devices(), 420 + others * 40);
+                    } catch (e) {
+                        toast(e.message, { error: true });
+                    }
+                };
+            const more = $('[data-more-act]', here);
+            if (more)
+                more.onclick = () => {
+                    $('.act-list', here).innerHTML = activity.map((a, i) => activityRow(a, Math.max(0, i - 12))).join('');
+                    more.remove();
+                };
+        },
         keys() {
             section.innerHTML = `<h3>Keyboard shortcuts</h3><p class="hint">Fly through your inbox.</p><div class="shortcuts">${SHORTCUTS.map(([k, d]) => `<div><span>${d}</span><span>${k.split(' ').map(x => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')}</div>`;
         },
@@ -351,8 +438,10 @@ function openSettings(tab = 'general') {
             section.innerHTML = `<h3>Account</h3><p class="hint">Connected to Purelymail over IMAP (993) and SMTP (465), both SSL/TLS.</p>
                 <div class="row"><div class="lbl"><b>Signed in as</b><small>${esc(state.me.email)}</small></div>${avatar({ address: state.me.email, name: s.displayName })}</div>
                 <div class="row"><div class="lbl"><b>Session</b><small>Stays signed in until ${esc(fmtDate(state.me.sessionExpires, true))}</small></div>${icon('lock')}</div>
+                <div class="row"><div class="lbl"><b>Devices</b><small>See where you’re signed in and recent sign-ins</small></div><button class="btn" data-goto="devices">${icon('laptop')} Manage</button></div>
                 <div class="row"><div class="lbl"><b>Sign out</b><small>Clears the session cookie on this device</small></div><button class="btn btn-danger" data-logout>${icon('logout')} Sign out</button></div>
                 <div class="row"><div class="lbl"><b>Sign out everywhere</b><small>Ends every session on every device right away. Use it if a device is lost.</small></div><button class="btn btn-danger" data-logout-all>${icon('lock')} Sign out everywhere</button></div>`;
+            $('[data-goto]', section).onclick = () => show('devices');
             $('[data-logout]', section).onclick = logout;
             $('[data-logout-all]', section).onclick = async () => {
                 if (!(await askConfirm({ title: 'Sign out everywhere?', message: 'Every device signed in to your account will be signed out right away, including this one.', icon: 'lock', confirm: 'Sign out everywhere', danger: true }))) return;

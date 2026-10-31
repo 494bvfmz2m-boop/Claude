@@ -1171,3 +1171,49 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
     .app.pane-off:not([data-view='reader']) .reader { display: none; }
     .app.pane-off .back-btn { display: inline-grid; }
 }
+
+/* ---------- devices & sign-in activity ---------- */
+.btn-ghost { background: transparent; box-shadow: none; color: var(--text-2); }
+.btn-ghost:hover { background: var(--hover); box-shadow: none; color: var(--text); }
+.badge { display: inline-flex; align-items: center; height: 19px; padding: 0 8px; margin-left: 6px; border-radius: 99px; font-size: 11px; font-weight: 600; vertical-align: 1px; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.sub-h { margin: 26px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.sec-alert { display: flex; gap: 12px; align-items: flex-start; padding: 13px 15px; margin-bottom: 14px; border-radius: 13px; color: var(--text); background: color-mix(in srgb, #f5a524 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #f5a524 30%, transparent); animation: rise .35s var(--ease); }
+.sec-alert > .i { color: #f5a524; width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.sec-alert b { display: block; font-weight: 600; }
+.sec-alert small { color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+.dev-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.dev {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px;
+    background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+    animation: rowUp .4s var(--ease) both; overflow: hidden;
+    transition: height .32s var(--ease), padding .32s var(--ease), margin .32s var(--ease), opacity .22s, transform .32s var(--ease);
+}
+.dev .lbl { flex: 1; min-width: 0; }
+.dev .lbl b { display: block; font-weight: 500; }
+.dev .lbl small { color: var(--text-3); font-size: 12.5px; }
+.dev-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--surface-3); color: var(--text-2); }
+.dev-ic .i { width: 20px; height: 20px; }
+.dev.current { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-2)); }
+.dev.current .dev-ic { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 16%, transparent); position: relative; }
+.dev.current .dev-ic::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 2.5px var(--surface-2); animation: breathe 2.4s ease-in-out infinite; }
+.dev.gone { height: 0 !important; padding-top: 0; padding-bottom: 0; margin-top: -8px; opacity: 0; transform: translateX(24px); }
+.act-list { list-style: none; margin: 0; padding: 0; }
+.act-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); animation: rowUp .35s var(--ease) both; }
+.act-list li:last-child { border-bottom: 0; }
+.act-list li.empty { color: var(--text-3); }
+.act-list .lbl { flex: 1; min-width: 0; }
+.act-list .lbl b { display: block; font-weight: 500; font-size: 13.5px; }
+.act-list .lbl small, .act-list time { color: var(--text-3); font-size: 12px; }
+.act-list time { white-space: nowrap; }
+.act-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--success); background: color-mix(in srgb, var(--success) 13%, transparent); }
+.act-dot .i { width: 14px; height: 14px; }
+.act-list li.bad .act-dot { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+.act-list li.bad b { color: var(--danger); }
+@media (max-width: 600px) {
+    .dev { flex-wrap: wrap; }
+    .dev [data-revoke] { margin-left: 54px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dev, .act-list li, .sec-alert { animation: none; }
+    .dev.current .dev-ic::after { animation: none; }
+}

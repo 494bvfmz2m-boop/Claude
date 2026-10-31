@@ -126,6 +126,12 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         res.json({ ok: true, current });
     }));
 
+    r.post('/sessions/others', requireAuth, (req, res) => {
+        const before = store.sessions.list(req.session.email).length;
+        store.sessions.revokeAll(req.session.email, req.session.sid);
+        res.json({ ok: true, signedOut: Math.max(0, before - 1) });
+    });
+
     r.get('/activity', requireAuth, (req, res) => {
         res.json(store.listActivity(req.session.email).map(a => ({ ...a, device: describeDevice(a.ua), ua: undefined })));
     });

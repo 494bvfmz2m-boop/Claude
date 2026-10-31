@@ -15,6 +15,13 @@
     window.egFx.magnetic(document.querySelectorAll('[data-magnetic]'));
     window.egFx.cursorGlow();
 
+    // sent here because this device was signed out from somewhere else
+    if (new URLSearchParams(location.search).has('signedout')) {
+        err.textContent = 'You were signed out from another device. Sign in again to continue.';
+        err.classList.remove('hidden');
+        history.replaceState(null, '', location.pathname);
+    }
+
     // caps lock hint
     const caps = document.getElementById('caps');
     const checkCaps = e => e.getModifierState && caps.classList.toggle('on', e.getModifierState('CapsLock'));

@@ -5,7 +5,7 @@
 const express = require('express');
 const { wrap } = require('../http');
 
-module.exports = function eventRoutes({ mail, wakeDue }) {
+module.exports = function eventRoutes({ mail, wakeDue, store }) {
     const r = express.Router();
 
     r.get('/events', wrap(async (req, res) => {
@@ -15,6 +15,13 @@ module.exports = function eventRoutes({ mail, wakeDue }) {
         let stop = null;
         let closed = false;
         const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+        // signed out from another device: tell this tab right away instead of on its next click
+        const guard = setInterval(() => {
+            if (req.session.sid && !store.sessions.isActive(req.session.email, req.session.sid)) {
+                send('signedout', {});
+                res.end();
+            }
+        }, 5000);
         const waker = setInterval(async () => {
             const woke = await wakeDue(req.session, true).catch(() => 0);
             if (woke) send('snooze', { woke });
@@ -22,6 +29,7 @@ module.exports = function eventRoutes({ mail, wakeDue }) {
         req.on('close', () => {
             closed = true;
             clearInterval(ping);
+            clearInterval(guard);
             clearInterval(waker);
             if (stop) stop();
         });
