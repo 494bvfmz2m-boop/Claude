@@ -1197,6 +1197,7 @@
     }
 
     let readToken = 0;
+    let activeMorph = null;
     async function openMessage(uid) {
         const token = ++readToken;
         state.openUid = uid;
@@ -1249,15 +1250,24 @@
             };
             const subj = morph && row.isConnected ? row.querySelector('.msg-subject') : null;
             if (subj) {
+                // only one morph at a time: finish the previous one and drop its names
+                if (activeMorph) activeMorph.skipTransition();
+                $$('[style*="view-transition-name"]').forEach(x => (x.style.viewTransitionName = ''));
                 const av = row.querySelector('.sel-toggle .avatar');
                 subj.style.viewTransitionName = 'eg-subject';
                 if (av) av.style.viewTransitionName = 'eg-avatar';
-                const t = document.startViewTransition(() => {
+                const t = (activeMorph = document.startViewTransition(() => {
                     subj.style.viewTransitionName = '';
                     if (av) av.style.viewTransitionName = '';
                     show();
-                });
-                t.finished.finally(() => $$('.reader-content [style*="view-transition-name"]').forEach(x => (x.style.viewTransitionName = '')));
+                }));
+                t.ready.catch(() => {});
+                t.finished
+                    .catch(() => {})
+                    .then(() => {
+                        if (activeMorph === t) activeMorph = null;
+                        $$('.reader-content [style*="view-transition-name"]').forEach(x => (x.style.viewTransitionName = ''));
+                    });
             } else show();
         } catch (e) {
             row?.classList.remove('opening');
@@ -2689,10 +2699,11 @@
             Object.assign(state.settings, { theme: cur === 'light' ? 'dark' : 'light' });
             applyLook();
         });
+        t.ready.catch(() => {});
         t.ready.then(() =>
             document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] }, { duration: 650, easing: 'cubic-bezier(.22,1,.36,1)', pseudoElement: '::view-transition-new(root)' })
         );
-        t.finished.finally(() => document.documentElement.classList.remove('theme-swap'));
+        t.finished.catch(() => {}).then(() => document.documentElement.classList.remove('theme-swap'));
         apply();
     }
     async function logout() {

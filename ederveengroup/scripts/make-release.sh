@@ -11,7 +11,7 @@ mkdir "$TMP/ederveengroup"
 git archive --format=tar HEAD . | tar -x -C "$TMP/ederveengroup"
 [ -f "$TMP/ederveengroup/package.json" ] || { echo "archive came out empty" >&2; exit 1; }
 perl -pi -e "s/\r?\n/\r\n/" "$TMP"/ederveengroup/*.bat
-(cd "$TMP/ederveengroup" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund >/dev/null && rm -rf scripts)
+(cd "$TMP/ederveengroup" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund >/dev/null && rm -rf scripts tests)
 rm -f "$OUT"
 (cd "$TMP/ederveengroup" && zip -qr -9 -X "$OUT" .)
 echo "Built $OUT ($(du -h "$OUT" | cut -f1))"

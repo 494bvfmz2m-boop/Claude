@@ -57,15 +57,27 @@ function parseCookies(header) {
     for (const part of (header || '').split(';')) {
         const i = part.indexOf('=');
         if (i < 0) continue;
-        out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+        try {
+            out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+        } catch {
+            // ignore malformed cookies instead of failing the request
+        }
     }
     return out;
 }
 
-function createSessions({ dataDir, secureCookies, cookiePath = '/', epochOf = () => 0 }) {
+const newSid = () => crypto.randomBytes(12).toString('base64url');
+
+/**
+ * registry: per-account list of live sessions, so a single device can be signed out.
+ *   isActive(email, sid) -> bool, add(email, sid, info), touch(email, sid, info)
+ * info: { ip, ua } of the request.
+ */
+function createSessions({ dataDir, secureCookies, cookiePath = '/', registry }) {
     const key = loadKey(dataDir);
     // HTTPS directly, or via a trusted reverse proxy (X-Forwarded-Proto), marks cookies Secure
     const secure = res => secureCookies || !!(res.req && res.req.secure);
+    const infoOf = req => ({ ip: req.ip, ua: String(req.get('user-agent') || '').slice(0, 300) });
 
     function write(res, session) {
         const parts = [`${COOKIE}=${seal(key, session)}`, `Path=${cookiePath}`, 'HttpOnly', 'SameSite=Lax'];
@@ -76,7 +88,7 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', epochOf = ()
         res.append('Set-Cookie', parts.join('; '));
     }
 
-    return {
+    const api = {
         // Short-lived sealed blobs, e.g. the "password OK, now enter your code" ticket.
         seal: payload => seal(key, payload),
         open(token, purpose) {
@@ -95,9 +107,10 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', epochOf = ()
             return !!(t && t.purpose === 'trust' && t.email === email && t.since === twofaSince && t.exp > Date.now());
         },
 
-        start(res, { email, password, remember }) {
+        start(res, { email, password, remember }, extra = {}) {
             const now = Date.now();
-            const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), ep: epochOf(email) };
+            const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), sid: newSid() };
+            registry.add(email, session.sid, { ...infoOf(res.req), remember: !!remember, ...extra });
             write(res, session);
             return session;
         },
@@ -106,24 +119,36 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', epochOf = ()
             res.append('Set-Cookie', `${COOKIE}=; Path=${cookiePath}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
         },
 
-        // Express middleware: attaches req.session (or null) and slides long sessions.
+        // Express middleware: attaches req.session (or null), checks it hasn't been signed out
+        // from another device, and slides long sessions forward.
         middleware() {
             return (req, res, next) => {
                 const token = parseCookies(req.headers.cookie)[COOKIE];
                 let session = token ? unseal(key, token) : null;
-                if (session && (!session.exp || session.exp < Date.now())) session = null;
-                // "sign out everywhere" bumps the account's epoch, invalidating older cookies
-                if (session && (session.ep || 0) !== epochOf(session.email)) session = null;
-                if (session && session.remember && Date.now() - session.iat > RENEW_AFTER) {
-                    session.iat = Date.now();
-                    session.exp = session.iat + LONG_TTL;
+                if (session && (!session.exp || session.exp < Date.now() || !session.email)) session = null;
+                if (session && !session.sid) {
+                    // cookie from before sessions were tracked: register it once
+                    session.sid = newSid();
+                    registry.add(session.email, session.sid, { ...infoOf(req), remember: !!session.remember });
                     write(res, session);
+                } else if (session && !registry.isActive(session.email, session.sid)) {
+                    session = null;
+                    api.clear(res);
+                }
+                if (session) {
+                    registry.touch(session.email, session.sid, infoOf(req));
+                    if (session.remember && Date.now() - session.iat > RENEW_AFTER) {
+                        session.iat = Date.now();
+                        session.exp = session.iat + LONG_TTL;
+                        write(res, session);
+                    }
                 }
                 req.session = session;
                 next();
             };
         }
     };
+    return api;
 }
 
-module.exports = { createSessions };
+module.exports = { createSessions, parseCookies };
