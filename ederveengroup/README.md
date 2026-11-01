@@ -2,25 +2,31 @@
 
 Your own **hub of apps** on your own domain. Sign in once at `https://yourdomain/` and your apps are there:
 
-- **Mail**: a fast, refined webmail client for **[Purelymail](https://purelymail.com)**, Gmail, Outlook.com, Microsoft 365 and any other mail server you approve, over IMAP and SMTP with SSL/TLS.
-- **Profile**: a contact card people can open at `https://yourdomain/profile/#/yourname` and save straight into their phone.
-- **Notes**: quick private notes, saved as you type.
-- **Tasks**: a to-do list with Today, Tomorrow and due dates.
-- **Contacts**: your own address book, plus everyone on EderveenGroup with a public card.
-- **Admin** (only for the addresses in `ADMIN_EMAILS`): requests, people, and who may sign in.
+Your apps, grouped on the dashboard:
 
-People sign in with their mail password, or with **Sign in with Microsoft** / **Sign in with Google**. Everything is stored in your MySQL/MariaDB database.
+- **Communicate:** **Mail** (a fast, refined webmail client for **[Purelymail](https://purelymail.com)**, Gmail, Outlook.com, Microsoft 365 and any other mail server you approve) and **Contacts** (your address book, plus everyone on EderveenGroup with a public card).
+- **Plan:** **Calendar** (appointments and deadlines, also on your phone's calendar) and **Tasks** (to-dos with due dates).
+- **Create:** **Notes**, **Docs** (documents and a shared knowledge base) and **Slides** (presentations).
+- **Store:** **Files** (your own cloud drive, also as a network drive on your computer and phone) and **Photos** (every photo and video by the day it was taken).
+- **You:** **Profile** (a contact card people open at `https://yourdomain/profile/#/yourname`) and **Admin** (for the addresses in `ADMIN_EMAILS`).
+
+People sign in with their mail password, or with **Sign in with Microsoft** / **Sign in with Google**. Accounts and app data live in your MySQL/MariaDB database; files and photos in a folder on disk that can be as big as you like.
 
 On a computer it wears **Midnight aurora**: a near-black sky with slow aurora light behind glass panels and cinematic transitions. On a phone it becomes an **Apple-style app** with a tab bar, large titles, swipe-back and sheets.
 
 ## Features
 
-- **The hub.** `/` is the sign-in page; once you're in, it shows your apps (Mail with its unread count, Profile, Notes, Tasks, Contacts, and Admin for admins). It installs as an app on Windows, Mac, Android and iPhone and opens straight on the hub, with shortcuts into Mail, Notes, Tasks and Profile. Every app has a way back to the hub: the logo or **Apps** at the top, the grid button in Mail's sidebar, or the **Apps** tab on a phone.
+- **The dashboard.** `/` is the sign-in page; once you're in, it shows today at a glance (your events, tasks that are due with a tick box, the latest unread mail, and News from the admins), quick buttons for a new message, event, task, note or doc, and every app by category with its own icon and a live line (unread, due today, how many files…). It installs as an app on Windows, Mac, Android and iPhone and opens on the dashboard, with shortcuts into Mail, Calendar, Tasks and Files. Every app has a way back: the logo or **Apps** at the top, the grid button in Mail's sidebar, or the **Apps** tab on a phone.
 - **Sign in with Microsoft or Google.** Buttons on the sign-in page send people to Microsoft's or Google's own sign-in page, and Mail then reads and sends their Outlook.com, Hotmail, Microsoft 365 or Gmail mail with a token instead of a password (IMAP and SMTP with XOAUTH2). Nobody's Microsoft or Google password ever reaches your server. New addresses wait for an admin's approval unless you choose "anyone" in Admin. See [Sign in with Microsoft and Google](#sign-in-with-microsoft-and-google).
-- **Admin app** at `/admin/` for the addresses in `ADMIN_EMAILS`: an overview, requests to add a mail server or to sign in with Microsoft/Google (accept for one address or a whole domain, or reject with a reason; the person is emailed either way), everyone who has signed in (sign them out everywhere, or hide a profile card), and who may sign in with Microsoft or Google.
+- **Admin app** at `/admin/` for the addresses in `ADMIN_EMAILS`: an overview with recent activity; requests to add a mail server or to sign in with Microsoft/Google (accept for one address or a whole domain, or reject with a reason; the person is emailed either way); People (make someone an admin, block an account, sign them out everywhere, hide a profile card); Access (who may sign in with Microsoft or Google); Sign-in (switch on Microsoft and Google by pasting the keys, with step-by-step instructions); Activity (every sign-in on the site, good or failed, and every admin change); News (posts on everyone's dashboard); and Apps (switch apps off for everyone).
 - **Notes.** Private notes that save as you type, with a title, colour labels, pinning, search, and undo when you delete one. On a phone a note opens full screen.
 - **Tasks.** Add a task and tap Today, Tomorrow or pick a date. Tasks are grouped into Overdue, Today, Upcoming and Someday; star the important ones, click a task to rename it, tick it off (with undo), and find finished ones under Completed.
 - **Contacts.** Your own address book (name, up to four email addresses, phone, company, EderveenGroup username and a note), with favourites, A–Z, search, **Add people I've emailed** (from the people Mail has seen you write to and hear from), and **Export (.vcf)** for your phone or another mail app. The **EderveenGroup** tab lists everyone with a public card. Email and Call buttons open a new message in Mail or your phone's dialler.
+- **Calendar.** Month view with the day beside it (a compact month with dots on a phone), an agenda of what's coming, and events that last all day or several days, repeat (daily, weekdays, weekly, monthly, yearly, until a date), with a place, notes and a colour. **On your phone:** Calendar gives you a private address to add as a subscribed calendar on iPhone, Google Calendar or Outlook, so your events show up there and stay up to date.
+- **Files: your own cloud drive.** Folders, uploads of any size (big ones go up in parts and carry on after a dropped connection), previews, share links that work without signing in, search across folders, and a meter of the room left. Files can also be a **network drive**: see [Your own cloud](#your-own-cloud-files-photos-and-a-network-drive).
+- **Photos.** Every photo and video from Files, by month, using the date the camera recorded; albums (your folders), a full-screen viewer with swipe and arrow keys, videos that play and seek, share links. Add photos from your phone's camera roll, or let a sync app back them up by itself.
+- **Docs.** Documents saved as you type: headings, lists, checklists, quotes, code, links, pictures. Keep a doc private or share it with everyone (to read, or to edit too); shared docs are your knowledge base for guides and how-tos. Download as HTML, print or save as PDF.
+- **Slides.** Presentations edited right on the slide, with five layouts and five themes, pictures, speaker notes, drag to reorder, and a full-screen presenter (arrows, space, click or swipe). Print one slide per page or save as PDF.
 - **A username for everyone.** The first time someone signs in (Purelymail or an added mail server), they choose a username, checked live as they type, with free alternatives when a name is taken. Names are unique, and a few are reserved for the site.
 - **Profile.** Write your card once (name, what you do, company, location, bio, email with a show/hide switch, phone, website, and LinkedIn, X, Instagram, GitHub, TikTok or YouTube), with a live preview. The card can use your Mail photo, its own photo, or none. Anyone with your link gets Email/Call/Website buttons, **Save contact** (a vCard with your photo), Share and a QR code. Nothing is public until you save it, and you can make it private again at any time.
 - **New-mail chime** while the app is open (Settings, then General). On iPhone it starts working after your first tap, as Safari requires.
@@ -100,7 +106,7 @@ Cookies are marked `Secure` automatically behind HTTPS.
 | `DB_PASSWORD` | the database password |
 | `ADMIN_EMAILS` | your email address (more than one: separate with commas). Gives you the **Admin** app |
 
-Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypted connections. For **Sign in with Microsoft / Google**, add the variables in [that section](#sign-in-with-microsoft-and-google).
+Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypted connections. **Sign in with Microsoft / Google** is easiest to switch on in the Admin app (Admin, then Sign-in), or with the variables in [that section](#sign-in-with-microsoft-and-google). For where Files and Photos keep their contents, see [Your own cloud](#your-own-cloud-files-photos-and-a-network-drive).
 
 1. Point your domain's DNS `A` record at the server, and open ports 80 and 443.
 2. In Coolify: **+ New → Application**, then pick this GitHub repository and branch.
@@ -127,11 +133,36 @@ This packages the last commit with production dependencies into `ederveengroup.z
 
 EderveenGroup keeps everything in MySQL or MariaDB when `DB_HOST` is set: accounts and settings, usernames, profiles, profile photos, and the list of added mail servers. On first start it creates three tables (`eg_users`, `eg_photos`, `eg_registry`) in the database you give it; there's nothing to import by hand.
 
-- **Private data is encrypted** before it's stored (AES-256-GCM): settings, signatures, two-step verification, signed-in devices, sign-in history, contacts, snoozes, Microsoft/Google sign-in tokens, and everything in Notes, Tasks and Contacts. The database host only ever sees ciphertext for these. Usernames and public profiles are stored readable, because they are public anyway.
+- **Private data is encrypted** before it's stored (AES-256-GCM): settings, signatures, two-step verification, signed-in devices, sign-in history, contacts, snoozes, Microsoft/Google sign-in tokens, everything in Notes, Tasks, Contacts and Calendar, Docs and Slides, News and the activity log. File contents (Files, Photos) live encrypted on disk, see [Your own cloud](#your-own-cloud-files-photos-and-a-network-drive). The database host only ever sees ciphertext for these. Usernames and public profiles are stored readable, because they are public anyway.
 - **Moving over is automatic.** If the app ran before with files in `data/`, each account, photo and the mail-server list is copied into the database the first time it's used.
 - **If the database can't be reached**, every page says so and the app keeps retrying every 10 seconds.
 
 **Shared hosting (cPanel, e.g. Namecheap):** the database only accepts connections from addresses you allow. In cPanel, open **Remote MySQL** (or "Remote Database Access"), add your VPS's public IP address as an access host, and save. Then fill in the `DB_*` variables above. Database names and users on cPanel usually carry your account prefix (`cpaneluser_name`).
+
+## Your own cloud: Files, Photos and a network drive
+
+Files and Photos keep what you upload in a folder on disk, encrypted, not in the database. That folder is `FILES_DIR` (default: `files` inside the data folder, so `/data/files` in Docker and Coolify). Give it as much room as you like:
+
+| Variable | Value |
+| --- | --- |
+| `FILES_DIR` | where file contents are kept, e.g. `/storage/ederveengroup` |
+| `FILES_QUOTA_MB` | optional: room per person in MB (default: no limit but the disk) |
+| `FILES_MAX_MB` | optional: the biggest single file in MB (default: no limit) |
+
+**More room with a storage server.** Three ways, from simplest:
+1. **A bigger disk on your VPS.** Most hosts let you add a volume (Hetzner Volumes, for example). Mount it on the server (say at `/mnt/storage`), and in Coolify add a **Persistent Storage → Bind mount** from `/mnt/storage` to `/storage` and set `FILES_DIR=/storage`.
+2. **A storage box mounted over the network.** A Hetzner Storage Box (1 TB for a few euros a month) or any server with lots of disk can be mounted on your VPS with SMB/CIFS or SSHFS, then used like option 1. Use a mount that survives a reboot (an `/etc/fstab` line) so Files never writes into an empty folder.
+3. **Run EderveenGroup on the storage server itself.** Give it a domain, install Coolify or Docker there, and keep the database where it is (`DATABASE_URL`).
+
+**Keep the secret key.** File contents are encrypted with a key derived from the server's secret (`SESSION_SECRET`, or `data/session.key`). Back up that key with your files: without it they can't be read. To back up, copy `FILES_DIR` (for example with `rsync`, or the storage box's snapshots) and back up the database as usual.
+
+**Use Files as a drive.** In Files, choose **Connect a device**. It shows the address (`https://yourdomain/dav/`) and your username, and makes an **app password** for each computer or phone (shown once; remove it any time to disconnect that device). Your own password is never used for this, so it works for people who sign in with Microsoft or Google too.
+- **Windows:** File Explorer → **This PC** → **Map network drive**, folder `https://yourdomain/dav/`, tick **Connect using different credentials**.
+- **Mac:** Finder → **Go** → **Connect to Server** (⌘K), paste the address, choose **Registered User**.
+- **iPhone / iPad:** an app that opens WebDAV drives, such as **Documents** or **FE File Explorer**. **PhotoSync** can back up the camera roll by itself: add a WebDAV target with the address, your username and an app password, and choose the folder **Photos**.
+- **Android:** **FolderSync** or **Solid Explorer**; FolderSync and PhotoSync can upload new photos by themselves.
+
+Photos that arrive this way keep the date the camera recorded and appear in Photos straight away.
 
 ## Adding other mail servers
 
@@ -146,7 +177,7 @@ Notes: iCloud and other providers that use app passwords work here with an app p
 
 ## Sign in with Microsoft and Google
 
-With this turned on, the sign-in page shows **Sign in with Microsoft** and **Sign in with Google**. People sign in on Microsoft's or Google's own page, agree to let EderveenGroup use their mail, and land in the hub. Mail then uses a token for IMAP and SMTP; the server renews it by itself, and it's stored encrypted with the rest of the account. Each button only appears once its two variables are set.
+The sign-in page always shows **Sign in with Microsoft** and **Sign in with Google**; until one is set up, it explains that it isn't switched on yet. **The easiest way to switch them on is in the Admin app: Admin, then Sign-in.** It walks through the steps below with the exact redirect address to copy, and takes the client ID and secret right there (the secret is stored encrypted and never shown again). The environment variables at the end of this section still work and take precedence. People sign in on Microsoft's or Google's own page, agree to let EderveenGroup use their mail, and land in the hub. Mail then uses a token for IMAP and SMTP; the server renews it by itself, and it's stored encrypted with the rest of the account. Each button only appears once its two variables are set.
 
 **Who may use it:** admins always can. Anyone else's first sign-in becomes a request in the Admin app, and they're emailed when you accept it (for that address or their whole domain). In Admin, then Access, you can allow addresses or domains in advance, or switch from **Only approved** to **Anyone**.
 
@@ -207,10 +238,15 @@ IMAP and SMTP need your password for every connection, so the session cookie car
 ```
 server.js          Entry point: loads config and starts the app
 src/               The app: config, security, pages, settings validation, 2FA, devices, profiles,
-                   routes/ (hub = site-wide API for usernames and Profile; apps = Notes/Tasks/Contacts;
+                   routes/ (hub = site-wide API for usernames and Profile; apps = Notes/Tasks/Contacts/Calendar
+                   and the dashboard's summary; files = Files and Photos; dav = the network drive and app
+                   passwords; docs = Docs and Slides;
                    oauth = Sign in with Microsoft/Google; servers = requests and the Admin API;
                    auth, twofa, account, mail, events)
 lib/session.js     Encrypted 30-day cookie sessions
+lib/vault.js       File contents on disk, encrypted in 4 MB pieces (any range readable, uploads resumable)
+lib/docs.js        Shared documents (docs index, news, activity log, share links), cached and written back
+lib/exif.js        When a photo was taken (EXIF), for photos that arrive over WebDAV
 lib/oauth.js       Sign in with Microsoft / Google (OAuth 2.0 + PKCE), token renewal, their mail servers
 lib/mail.js        IMAP pool (imapflow), message parsing, conversations, SMTP send, drafts, IDLE
 lib/query.js       Search box operators (from:, has:attachment, before: …) to IMAP SEARCH
@@ -229,7 +265,9 @@ brand/             Logo kit (generated by scripts/brand/make_logo.py)
 public/            Styles, icons and scripts (vanilla JS, no build step)
 public/css/        app.css (shared), desk.css (computers: Midnight aurora), phone.css (phones: Apple-style)
 public/js/app/     The webmail client as ES modules (main.js boots it; router.js = addresses, phone.js = phone app)
-public/js/         hub.js, login.js, profile.js, admin.js, and notes.js / tasks.js / contacts.js on top of kit.js
+public/js/         hub.js (the dashboard), login.js, profile.js, admin.js, and the apps on top of kit.js: notes, tasks,
+                   contacts, calendar, files, photos, docs, slides
+public/icons/apps/ The app icons
 tests/             npm test: unit + HTTP integration tests (no mail server needed)
 Start EderveenGroup (Windows).bat / (Mac).command / start.sh   Double-click launchers
 ```
