@@ -235,7 +235,12 @@ module.exports = function appRoutes(ctx) {
             notes: items('notes').length,
             tasks: { open: tasks.length, today: tasks.filter(t => t.due === today).length, overdue: tasks.filter(t => t.due && t.due < today).length },
             contacts: items('contacts').length,
-            calendar: { today: todays.length, next: next && { title: next.title, at: next.start.slice(11) } },
+            calendar: {
+                today: todays.length,
+                next: next && { title: next.title, at: next.start.slice(11) },
+                items: todays.slice(0, 6).map(e => ({ title: e.title, allDay: e.allDay, at: e.start.slice(11, 16), location: e.location, color: e.color }))
+            },
+            pages: ctx.appPages || null,
             files: { count: files.length, used: files.reduce((n, f) => n + (f.size || 0), 0) },
             ...extra
         });

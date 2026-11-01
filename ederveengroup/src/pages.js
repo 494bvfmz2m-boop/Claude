@@ -57,7 +57,7 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
         id: '/',
         name: 'EderveenGroup',
         short_name: 'EderveenGroup',
-        description: 'Mail, your profile and more, in one place.',
+        description: 'Mail, calendar, tasks, files and more, in one place.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
@@ -69,11 +69,11 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
             { src: `${baseUrl}favicon.svg`, sizes: 'any', type: 'image/svg+xml' }
         ],
         shortcuts: [
-            { name: 'Mail', url: `${baseUrl}inbox`, icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] },
-            { name: 'Notes', url: '/notes/', icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] },
-            { name: 'Tasks', url: '/tasks/', icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] },
-            { name: 'Profile', url: '/profile/', icons: [{ src: `${baseUrl}icons/icon-192.png`, sizes: '192x192' }] }
-        ]
+            ['Mail', `${baseUrl}inbox`, 'mail'],
+            ['Calendar', '/calendar/', 'calendar'],
+            ['Tasks', '/tasks/', 'tasks'],
+            ['Files', '/files/', 'files']
+        ].map(([name, url, icon]) => ({ name, url, icons: [{ src: `${baseUrl}icons/apps/${icon}.svg`, sizes: 'any', type: 'image/svg+xml' }] }))
     });
     const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
     return {

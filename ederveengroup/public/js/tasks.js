@@ -178,7 +178,9 @@
         .then(r => {
             tasks = r.items;
             draw();
-            if (!window.EG.phone()) $('#text').focus();
+            const fresh = location.hash === '#new'; // from the dashboard's + Task
+            if (fresh) history.replaceState(null, '', location.pathname);
+            if (!window.EG.phone() || fresh) $('#text').focus();
         })
         .catch(e => (root.innerHTML = `<div class="pf-empty"><h1>Couldn’t load your tasks</h1><p>${esc(e.message)}</p></div>`));
 })();

@@ -369,6 +369,10 @@
         .then(r => {
             events = r.items;
             draw();
+            if (location.hash === '#new') {
+                history.replaceState(null, '', location.pathname);
+                sheet(null, today());
+            }
         })
         .catch(e => (root.innerHTML = `<div class="pf-empty"><h1>Couldn’t load your calendar</h1><p>${esc(e.message)}</p></div>`));
 })();

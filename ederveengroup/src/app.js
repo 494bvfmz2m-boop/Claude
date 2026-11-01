@@ -150,7 +150,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));
     // Notes, Tasks, Contacts, Calendar, Files, Docs…: each a page of its own, signed in
     // (a page that isn't written yet is simply not found)
-    for (const app of APP_PAGES.filter(a => fs.existsSync(path.join(config.viewsDir, `${a}.html`)))) {
+    ctx.appPages = APP_PAGES.filter(a => fs.existsSync(path.join(config.viewsDir, `${a}.html`)));
+    for (const app of ctx.appPages) {
         site.get(`/${app}`, (req, res) => {
             if (!req.session) return toLogin(res, `/${app}/`);
             if (needsName(req)) return toWelcome(res, `/${app}/`);

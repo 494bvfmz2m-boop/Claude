@@ -44,7 +44,8 @@ import { $, api, glide, qs, toast } from './util.js';
     // else needs the folder list first (to turn the address into a folder)
     const route = parse();
     const params = new URLSearchParams(location.search);
-    const composeTo = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(params.get('compose') || '') ? params.get('compose') : '';
+    // "new" opens an empty message (the dashboard's + Message)
+    const composeTo = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(params.get('compose') || '') || params.get('compose') === 'new' ? params.get('compose') : '';
     const composeName = params.get('name') || '';
     const folders = loadFolders();
     const plainInbox = !route.search && !route.folderId && (!route.slug || route.slug === 'inbox');
@@ -91,7 +92,7 @@ import { $, api, glide, qs, toast } from './util.js';
     if (route.settings) openSettings(route.settings);
     else if (route.link) openLink(route.link);
     // other apps (Contacts) open a new message with ?compose=address (read before the router tidies the address)
-    if (composeTo) setTimeout(() => openComposer('new', null, { to: [{ name: composeName.slice(0, 100), address: composeTo }] }), 400);
+    if (composeTo) setTimeout(() => openComposer('new', null, composeTo === 'new' ? {} : { to: [{ name: composeName.slice(0, 100), address: composeTo }] }), 400);
     document.title = titleFor();
     connectLive();
     setInterval(loadFolders, 120000);

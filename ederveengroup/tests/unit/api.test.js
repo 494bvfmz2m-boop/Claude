@@ -340,7 +340,7 @@ test('the whole site installs as one app that opens the hub', async () => {
     const manifest = JSON.parse(typeof m.body === 'string' ? m.body : JSON.stringify(m.body));
     assert.equal(manifest.start_url, '/');
     assert.equal(manifest.scope, '/');
-    assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Notes', 'Tasks', 'Profile']);
+    assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Calendar', 'Tasks', 'Files']);
     assert.match((await d('GET', '/mail/sw.js')).body, /unregister/); // the old /mail/ worker retires itself
     app.close();
 });

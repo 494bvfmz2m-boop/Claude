@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/phone.css?v=%V%" media="(max-width: 760px)">
     <script src="js/boot.js?v=%V%"></script>
     <script src="js/icons.js?v=%V%"></script>
-        <script src="js/hub.js?v=%V%" defer></script>
+    <script src="js/hub.js?v=%V%" defer></script>
 </head>
 <body class="hub-body">
     <div class="ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
@@ -30,11 +30,14 @@
             </div>
         </header>
         <section class="hub-hero">
-            <p class="hub-date" id="hub-date"></p>
-            <h1 id="hub-greet">Welcome</h1>
-            <p class="hub-sub">Everything EderveenGroup, in one place.</p>
+            <div>
+                <p class="hub-date" id="hub-date"></p>
+                <h1 id="hub-greet">Welcome</h1>
+            </div>
+            <nav class="hub-quick" id="hub-quick" aria-label="New"></nav>
         </section>
-        <nav class="hub-apps" id="hub-apps" aria-label="Apps"></nav>
+        <section class="hub-today" id="hub-today" aria-label="Today"></section>
+        <div class="hub-cats" id="hub-apps"></div>
         <p class="hub-foot"><span data-icon="lock"></span><span>Signed in as <b id="hub-email"></b></span></p>
     </main>
 </body>

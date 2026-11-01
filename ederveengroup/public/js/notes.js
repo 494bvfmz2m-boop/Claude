@@ -176,8 +176,11 @@
         .then(r => {
             notes = r.items;
             drawList();
-            // big screens open the newest note straight away
-            if (notes.length && !window.EG.phone()) select(notes[0]);
+            // from the dashboard's + Note: a new one straight away; big screens otherwise open the newest
+            if (location.hash === '#new') {
+                history.replaceState(null, '', location.pathname);
+                $('#new').click();
+            } else if (notes.length && !window.EG.phone()) select(notes[0]);
             else drawDetail();
         })
         .catch(e => (root.innerHTML = `<div class="pf-empty"><h1>Couldn’t load your notes</h1><p>${esc(e.message)}</p></div>`));

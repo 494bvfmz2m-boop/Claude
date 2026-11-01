@@ -513,3 +513,23 @@
     .fl-pop { left: 8px !important; right: 8px; top: auto !important; bottom: calc(var(--safe-b) + 8px); border-radius: 16px; }
     .fl-pop button { height: 48px; font-size: 16px; }
 }
+
+/* the dashboard on a phone: widgets, then a home screen of icons by category */
+@media (max-width: 760px) {
+    .hub-hero { display: block; margin: 18px 2px 18px; }
+    .hub-hero h1 { font: 700 32px/1.15 var(--display); }
+    .hub-quick { margin-top: 14px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -22px; padding-right: 22px; }
+    .hub-quick::-webkit-scrollbar { display: none; }
+    .hub-q { flex: none; height: 36px; background: var(--cell); box-shadow: none; font-size: 15px; }
+    .hub-today { grid-template-columns: 1fr; gap: 12px; margin-bottom: 26px; }
+    .hub-card { padding: 14px 16px 10px; border-radius: 20px; background: var(--cell); box-shadow: none; }
+    .hub-card h3 { font-size: 12px; }
+    .hub-cats { gap: 18px; }
+    .hub-cat h2 { margin: 0 0 12px 2px; font-size: 12px; letter-spacing: .06em; }
+    .hub-cat .hub-apps { grid-template-columns: repeat(4, 1fr); gap: 18px 8px; }
+    .hub-cat .hub-app { display: flex; padding: 0; border-radius: 0; }
+    .hub-cat .hub-icon { width: 62px; height: 62px; }
+    .hub-cat .hub-text b { font-size: 12px; }
+    .hub-cat .hub-stat { display: none; }
+    .app-ic { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .22)); }
+}

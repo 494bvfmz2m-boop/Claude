@@ -302,3 +302,7 @@ body::after {
 /* ---------- Notes, Tasks, Contacts on a computer ---------- */
 .ea-detail, .tk-add { background: var(--glass); }
 .ea-head h1, .ct-top h2 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* dashboard on a computer: glass cards */
+.hub-card, .hub-q { background: var(--glass); }
+.hub-card { box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .9), inset 0 1px 0 rgba(255, 255, 255, .05), inset 0 0 0 1px var(--line); }
+.hub-cat .hub-app:not(.soon) { animation-duration: .9s; animation-delay: calc(var(--i, 0) * 40ms + 200ms); }
