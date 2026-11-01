@@ -37,6 +37,7 @@
         { id: 'tasks', name: 'Tasks', cat: 'plan', href: '/tasks/', blurb: 'To-dos and projects, with due dates.' },
         { id: 'notes', name: 'Notes', cat: 'create', href: '/notes/', blurb: 'Quick notes, saved as you type.' },
         { id: 'docs', name: 'Docs', cat: 'create', href: '/docs/', blurb: 'Documents, guides and how-tos.' },
+        { id: 'sheets', name: 'Spreadsheets', cat: 'create', href: '/sheets/', blurb: 'Tables and sums, like Excel.' },
         { id: 'slides', name: 'Slides', cat: 'create', href: '/slides/', blurb: 'Presentations you can show anywhere.' },
         { id: 'photos', name: 'Photos', cat: 'store', href: '/photos/', blurb: 'Every photo and video, by the day it was taken.' },
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
@@ -122,6 +123,7 @@
         if (sum.photos != null) stat('photos', sum.photos ? plural(sum.photos, 'item') : 'Add your first');
         if (sum.files) stat('files', sum.files.count ? `${plural(sum.files.count, 'file')} · ${size(sum.files.used)}` : 'No files yet');
         if (sum.docs != null) stat('docs', sum.docs ? plural(sum.docs, 'doc') : 'No docs yet');
+        if (sum.sheets != null) stat('sheets', sum.sheets ? plural(sum.sheets, 'spreadsheet') : 'No spreadsheets yet');
         if (sum.slides != null) stat('slides', sum.slides ? plural(sum.slides, 'deck') : 'No decks yet');
         if (sum.chat != null) stat('chat', sum.chat ? `<i>${sum.chat}</i> unread` : 'All read', sum.chat);
         if (sum.mail != null) stat('mail', sum.mail ? `<i>${sum.mail}</i> unread` : 'All read', sum.mail);

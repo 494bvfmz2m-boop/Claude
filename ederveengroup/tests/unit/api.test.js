@@ -1070,3 +1070,70 @@ test('Calendar: shared calendars by link (Magister, Google): read, shown, refres
     app.close();
     srv.close();
 });
+
+test('Spreadsheets: saved safely, downloaded as .xlsx, .csv and PDF, Excel and CSV files opened', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    assert.match((await jo('GET', '/sheets/')).body, /js\/sheets\.js/);
+    const wb = (await jo('POST', '/api/docs', { kind: 'sheet', title: 'Budget 2027' })).body;
+    assert.equal(wb.body.sheets[0].name, 'Sheet1');
+    const book = { active: 0, sheets: [
+        { name: 'Budget', cols: { A: 160, Z9: 50, B: 5000 }, cells: {
+            A1: { v: 'Item', s: { b: true, fill: '#ddebf7', evil: 'x' } }, B1: { v: 'Cost', s: { b: true, align: 'right' } },
+            A2: { v: 'Rent' }, B2: { v: '950', s: { fmt: 'currency' } }, A3: { v: 'Food' }, B3: { v: '320,5', s: { fmt: 'currency' } },
+            A4: { v: 'Total', s: { b: true } }, B4: { v: '=SOM(B2:B3)', s: { fmt: 'currency', color: '#c00000', b: true } },
+            B5: { v: '=B4/0' }, 'ZZZZ1': { v: 'out of range' }, A6: { v: 'Share', s: { fmt: 'percent', dec: 1 } }, B6: { v: '=B2/B4' }
+        } },
+        { name: 'Notes', cells: { A1: { v: '=Budget!B4*12' } } }
+    ] };
+    const saved = (await jo('PUT', `/api/docs/${wb.id}`, { title: 'Budget 2027', version: wb.version, body: book })).body;
+    assert.equal(saved.version, 2);
+    const back = (await jo('GET', `/api/docs/${wb.id}`)).body.body;
+    assert.deepEqual(back.sheets[0].cells.A1, { v: 'Item', s: { b: true, fill: '#ddebf7' } });
+    assert.equal(back.sheets[0].cells.ZZZZ1, undefined);
+    assert.deepEqual(back.sheets[0].cols, { A: 160 });
+    // .xlsx, read back with an Excel library
+    const res = await fetch(`${app.base}/api/docs/${wb.id}/export?format=xlsx`, { headers: { Cookie: jo.cookies() } });
+    assert.match(res.headers.get('content-type'), /spreadsheetml/);
+    assert.match(res.headers.get('content-disposition'), /filename="Budget 2027\.xlsx"/);
+    const ExcelJS = require('exceljs');
+    const x = new ExcelJS.Workbook();
+    await x.xlsx.load(Buffer.from(await res.arrayBuffer()));
+    const ws = x.getWorksheet('Budget');
+    assert.equal(ws.getCell('B2').value, 950);
+    assert.equal(ws.getCell('B3').value, 320.5);
+    assert.deepEqual(ws.getCell('B4').value, { formula: 'SUM(B2:B3)', result: 1270.5 });
+    assert.equal(ws.getCell('B4').numFmt, '"€" #,##0.00');
+    assert.equal(ws.getCell('B4').font.color.argb, 'FFC00000');
+    assert.equal(ws.getCell('A1').fill.fgColor.argb, 'FFDDEBF7');
+    assert.deepEqual(ws.getCell('B5').value, { formula: 'B4/0', result: { error: '#DIV/0!' } });
+    assert.equal(ws.getCell('B6').numFmt, undefined);
+    assert.equal(ws.getCell('A6').numFmt, '0.0%');
+    assert.equal(ws.getColumn('A').width, 23);
+    assert.deepEqual(x.getWorksheet('Notes').getCell('A1').value, { formula: 'Budget!B4*12', result: 15246 });
+    // .csv of a sheet, and PDF
+    const csvBytes = Buffer.from(await (await fetch(`${app.base}/api/docs/${wb.id}/export?format=csv&sheet=0`, { headers: { Cookie: jo.cookies() } })).arrayBuffer());
+    assert.deepEqual([...csvBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]); // so Excel reads it as UTF-8
+    assert.equal(csvBytes.subarray(3).toString(), 'Item,Cost\r\nRent,950\r\nFood,320.5\r\nTotal,1270.5\r\n,#DIV/0!\r\nShare,0.7477371114\r\n');
+    const pdf = Buffer.from(await (await fetch(`${app.base}/api/docs/${wb.id}/export?format=pdf`, { headers: { Cookie: jo.cookies() } })).arrayBuffer());
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+    assert.equal((await jo('GET', `/api/docs/${wb.id}/export?format=docx`)).status, 400);
+    // open the .xlsx we made as a new spreadsheet, and a CSV with ; and decimal commas
+    const xlsxBytes = Buffer.from(await (await fetch(`${app.base}/api/docs/${wb.id}/export?format=xlsx`, { headers: { Cookie: jo.cookies() } })).arrayBuffer());
+    const imported = (await jo('POST', '/api/docs/import?name=Budget.xlsx', xlsxBytes)).body;
+    assert.equal(imported.title, 'Budget');
+    const ib = (await jo('GET', `/api/docs/${imported.id}`)).body.body;
+    assert.deepEqual(ib.sheets.map(s => s.name), ['Budget', 'Notes']);
+    assert.equal(ib.sheets[0].cells.B4.v, '=SUM(B2:B3)');
+    assert.equal(ib.sheets[0].cells.B4.s.fmt, 'currency');
+    assert.equal(ib.sheets[0].cells.A1.s.b, true);
+    const fromCsv = (await jo('POST', '/api/docs/import?name=list.csv', Buffer.from('Name;Age\n"Smith; Jo";41\nAva;29\n'))).body;
+    const cb = (await jo('GET', `/api/docs/${fromCsv.id}`)).body.body.sheets[0].cells;
+    assert.deepEqual([cb.A2.v, cb.B2.v, cb.A3.v], ['Smith; Jo', '41', 'Ava']);
+    assert.equal((await jo('POST', '/api/docs/import?name=virus.exe', Buffer.from('MZ'))).status, 400);
+    // the dashboard counts them
+    assert.equal((await jo('GET', '/api/apps-summary')).body.sheets, 3);
+    app.close();
+});

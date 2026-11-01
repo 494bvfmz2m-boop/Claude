@@ -379,3 +379,52 @@ test('shared calendars: Google and Magister style .ics, repeats, exceptions, tim
     assert.throws(() => normalizeUrl('ftp://x/y.ics'), /https/);
     assert.throws(() => normalizeUrl('not a link'), /link/);
 });
+
+test('spreadsheet formulas: arithmetic, ranges, functions (also Dutch), errors, other sheets, copying', () => {
+    const F = require('../../public/js/formula');
+    const book = {
+        sheets: [
+            { name: 'Budget', cells: {
+                A1: { v: 'Item' }, B1: { v: 'Cost' }, A2: { v: 'Rent' }, B2: { v: '950' }, A3: { v: 'Food' }, B3: { v: '320,50' }, A4: { v: 'Fun' }, B4: { v: '80' },
+                B5: { v: '=SUM(B2:B4)' }, B6: { v: '=SOM(B2:B4)' }, B7: { v: '=AVERAGE(B2:B4)' }, B8: { v: '=ALS(B5>1000;"over";"ok")' }, B9: { v: '=B5/0' },
+                B10: { v: '=IFERROR(B9,"none")' }, B11: { v: '=COUNTIF(B2:B4,">100")' }, B12: { v: '=SUMIF(A2:A4,"F*",B2:B4)' }, B13: { v: '=Totals!A1*2' },
+                B14: { v: '=VLOOKUP("food",A2:B4,2,FALSE)' }, B15: { v: '=ROUND(2.5,0)' }, B16: { v: '=AFRONDEN(2,5;0)' }, B17: { v: '="Total: "&B5' },
+                B18: { v: '=B19' }, B19: { v: '=B18' }, B20: { v: '=NOPE(1)' }, B21: { v: '=2^3+-1*4%' }, B22: { v: '=MAX(B2:B4)-MIN(B2:B4)' },
+                B23: { v: '=IF(TRUE,1)' }, B24: { v: '=LEN(A2)&UPPER(A3)' }, B25: { v: "='Totals'!B1" }, B26: { v: '=DATE(2026,11,1)' }, B27: { v: '=YEAR(B26)' }
+            } },
+            { name: 'Totals', cells: { A1: { v: '=Budget!B5' }, B1: { v: 'yes' } } }
+        ]
+    };
+    const e = F.evaluator(book);
+    const g = a => e.get(0, a);
+    assert.equal(g('B2'), 950);
+    assert.equal(g('B3'), 320.5); // a decimal comma, as typed in the Netherlands
+    assert.equal(g('B5'), 1350.5);
+    assert.equal(g('B6'), 1350.5);
+    assert.equal(Math.round(g('B7') * 100) / 100, 450.17);
+    assert.equal(g('B8'), 'over');
+    assert.equal(g('B9'), '#DIV/0!');
+    assert.equal(g('B10'), 'none');
+    assert.equal(g('B11'), 2);
+    assert.equal(g('B12'), 400.5); // Food + Fun
+    assert.equal(g('B13'), 2701);
+    assert.equal(g('B14'), 320.5);
+    assert.equal(g('B15'), 3);
+    assert.equal(g('B16'), 3);
+    assert.equal(g('B17'), 'Total: 1350.5');
+    assert.equal(g('B18'), '#CIRC!');
+    assert.equal(g('B20'), '#NAME?');
+    assert.equal(g('B21'), 7.96);
+    assert.equal(g('B22'), 870);
+    assert.equal(g('B23'), 1);
+    assert.equal(g('B24'), '4FOOD');
+    assert.equal(g('B25'), 'yes');
+    assert.equal(F.format(g('B26'), { fmt: 'date' }), '01-11-2026');
+    assert.equal(g('B27'), 2026);
+    assert.equal(F.format(1350.5, { fmt: 'currency', locale: 'en-US' }), '€ 1,350.50');
+    assert.equal(F.format(0.256, { fmt: 'percent' }), '26%');
+    // copying a formula moves its references, except the $ ones
+    assert.equal(F.shift('=SUM(B2:B4)+$C$1+"A1"', 1, 1), '=SUM(C3:C5)+$C$1+"A1"');
+    assert.equal(F.colName(28), 'AB');
+    assert.equal(F.colNum('AB'), 28);
+});

@@ -18,7 +18,46 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const { sanitizeDocHtml } = require('../../lib/sanitize');
 
-const KINDS = ['doc', 'deck'];
+const KINDS = ['doc', 'deck', 'sheet'];
+const F = require('../../public/js/formula');
+const office = require('../../lib/office');
+const HEX = /^#[0-9a-f]{6}$/i;
+const FMTS = ['general', 'number', 'currency', 'percent', 'date', 'text'];
+// one cell's look, checked
+function cellStyle(s) {
+    if (!s || typeof s !== 'object') return null;
+    const o = {};
+    for (const k of ['b', 'i', 'u', 'st', 'wrap']) if (s[k]) o[k] = true;
+    if (HEX.test(s.color || '')) o.color = s.color.toLowerCase();
+    if (HEX.test(s.fill || '')) o.fill = s.fill.toLowerCase();
+    if (['left', 'center', 'right'].includes(s.align)) o.align = s.align;
+    if (FMTS.includes(s.fmt) && s.fmt !== 'general') o.fmt = s.fmt;
+    if (Number.isInteger(s.dec) && s.dec >= 0 && s.dec <= 6) o.dec = s.dec;
+    return Object.keys(o).length ? o : null;
+}
+function cleanBook(b) {
+    const names = new Set();
+    const sheets = [].concat((b && b.sheets) || []).slice(0, 20).map((sh, i) => {
+        let name = String((sh && sh.name) || '').replace(/[\u0000-\u001f\\/?*[\]:]/g, ' ').trim().slice(0, 31) || `Sheet${i + 1}`;
+        while (names.has(name.toLowerCase())) name = `${name.slice(0, 27)} (${i + 1})`;
+        names.add(name.toLowerCase());
+        const cells = {};
+        let n = 0;
+        for (const [a, c] of Object.entries((sh && sh.cells) || {})) {
+            if (++n > 60000) break;
+            const p = F.parseAddr(a);
+            if (!p || p.r > 10000 || p.c > 200 || !c || typeof c !== 'object') continue;
+            const v = String(c.v == null ? '' : c.v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, 5000);
+            const st = cellStyle(c.s);
+            if (v || st) cells[F.addr(p.c, p.r)] = { ...(v ? { v } : {}), ...(st ? { s: st } : {}) };
+        }
+        const cols = {};
+        for (const [col, w] of Object.entries((sh && sh.cols) || {})) if (/^[A-Z]{1,3}$/.test(col) && Number(w) >= 24 && Number(w) <= 800) cols[col] = Math.round(Number(w));
+        return { id: /^[A-Za-z0-9_-]{1,24}$/.test(String((sh && sh.id) || '')) ? sh.id : crypto.randomBytes(5).toString('base64url'), name, cells, cols, ...(sh && sh.freeze ? { freeze: true } : {}) };
+    });
+    if (!sheets.length) sheets.push({ id: 's1', name: 'Sheet1', cells: {}, cols: {} });
+    return { sheets, active: Math.max(0, Math.min(sheets.length - 1, Number((b && b.active) || 0) || 0)) };
+}
 const SHARES = ['private', 'view', 'edit'];
 const LAYOUTS = ['title', 'bullets', 'statement', 'image', 'columns'];
 const THEMES = ['midnight', 'paper', 'sunset', 'ocean', 'forest'];
@@ -28,6 +67,7 @@ const text = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000
 const picture = v => (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(String(v || '')) && String(v).length < 2.5 * 1024 * 1024 ? String(v) : '');
 
 function cleanBody(kind, b) {
+    if (kind === 'sheet') return cleanBook(b);
     if (kind === 'doc') return { html: sanitizeDocHtml(String((b && b.html) || '')).slice(0, MAX_BODY) };
     const slides = [].concat((b && b.slides) || []).slice(0, 200).map(s => ({
         id: /^[A-Za-z0-9_-]{4,24}$/.test(String(s.id || '')) ? s.id : crypto.randomBytes(6).toString('base64url'),
@@ -128,6 +168,61 @@ module.exports = function docRoutes(ctx) {
         res.json(view(id, all.items[id], email));
     }));
 
+    /* ---------- exports in Microsoft's file types, and PDF ---------- */
+    const FORMATS = { sheet: ['xlsx', 'csv', 'pdf'], doc: office.docToDocx ? ['docx', 'pdf'] : [], deck: office.deckToPptx ? ['pptx', 'pdf'] : [] };
+    const TYPES = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', pdf: 'application/pdf', csv: 'text/csv; charset=utf-8' };
+    r.get('/docs/:id/export', wrap(async (req, res) => {
+        const { m } = await meta(req);
+        const format = String(req.query.format || '');
+        if (!(FORMATS[m.kind] || []).includes(format)) throw httpError(400, `That can be downloaded as ${(FORMATS[m.kind] || []).join(', ')}`);
+        const body = await docs.get(`d:${req.params.id}`, () => cleanBody(m.kind, {}));
+        const title = m.title || 'Untitled';
+        // numbers in PDFs the way the reader writes them (1.457,50 in Dutch)
+        let locale = String(req.get('accept-language') || 'en').split(',')[0].split(';')[0].trim();
+        try {
+            locale = Intl.NumberFormat.supportedLocalesOf([locale])[0] || 'en';
+        } catch {
+            locale = 'en';
+        }
+        const out = {
+            sheet: { xlsx: () => office.sheetToXlsx(title, body), csv: () => office.sheetToCsv(body, Number(req.query.sheet) || body.active || 0), pdf: () => office.sheetToPdf(title, body, { locale }) },
+            doc: { docx: () => office.docToDocx(title, body), pdf: () => office.docToPdf(title, body) },
+            deck: { pptx: () => office.deckToPptx(title, body), pdf: () => office.deckToPdf(title, body) }
+        }[m.kind][format];
+        const file = await out();
+        const name = title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').trim().slice(0, 120) || 'Untitled';
+        res.set({
+            'Content-Type': TYPES[format],
+            'Content-Disposition': `attachment; filename="${name.replace(/[^\x20-\x7e]/g, '_')}.${format}"; filename*=UTF-8''${encodeURIComponent(name)}.${format}`,
+            'Cache-Control': 'private, no-store',
+            'X-Content-Type-Options': 'nosniff'
+        });
+        res.end(file);
+    }));
+
+    /* ---------- open an Excel or CSV file as a new spreadsheet ---------- */
+    r.post('/docs/import', express.raw({ type: () => true, limit: '20mb' }), wrap(async (req, res) => {
+        const email = req.session.email;
+        const name = String(req.query.name || 'Imported').slice(0, 160);
+        if (!/\.(xlsx|csv)$/i.test(name)) throw httpError(400, 'Open an Excel (.xlsx) or CSV file');
+        let book;
+        try {
+            book = await office.importSheet(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), name);
+        } catch {
+            throw httpError(400, 'That file couldn’t be read as a spreadsheet');
+        }
+        const all = await index();
+        const id = crypto.randomBytes(9).toString('base64url');
+        const now = Date.now();
+        const body = cleanBook(book);
+        all.items[id] = { kind: 'sheet', title: line(name.replace(/\.(xlsx|csv)$/i, ''), 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
+        const d = await docs.get(`d:${id}`, () => ({}));
+        Object.assign(d, body);
+        docs.save(`d:${id}`);
+        docs.save('docs-index');
+        res.json(view(id, all.items[id], email));
+    }));
+
     r.delete('/docs/:id', wrap(async (req, res) => {
         const { all, m } = await meta(req);
         if (m.owner !== req.session.email && !ctx.isAdmin(req.session.email)) throw httpError(403, 'Only the owner can delete it');
@@ -141,7 +236,7 @@ module.exports = function docRoutes(ctx) {
     const before = ctx.summaryExtras;
     ctx.summaryExtras = async email => {
         const all = Object.values((await index()).items);
-        return { ...(before ? await before(email) : {}), docs: all.filter(m => m.kind === 'doc' && canSee(m, email)).length, slides: all.filter(m => m.kind === 'deck' && canSee(m, email)).length };
+        return { ...(before ? await before(email) : {}), docs: all.filter(m => m.kind === 'doc' && canSee(m, email)).length, slides: all.filter(m => m.kind === 'deck' && canSee(m, email)).length, sheets: all.filter(m => m.kind === 'sheet' && canSee(m, email)).length };
     };
     return r;
 };
