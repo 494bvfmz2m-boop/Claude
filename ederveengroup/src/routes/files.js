@@ -237,12 +237,11 @@ module.exports = function fileRoutes(ctx) {
         res.json(view(req.params.id, f));
     });
 
-    r.delete('/files/:id', wrap(async (req, res) => {
-        const email = req.session.email;
+    // a file, or a folder with everything in it; returns how many items went
+    async function removeTree(email, rootId) {
         const d = load(email);
-        itemOf(d, req.params.id);
-        // the item, and for a folder everything inside it
-        const gone = new Set([req.params.id]);
+        itemOf(d, rootId);
+        const gone = new Set([rootId]);
         for (let grew = true; grew; ) {
             grew = false;
             for (const [id, f] of Object.entries(d.items)) if (!gone.has(id) && gone.has(f.folder)) (gone.add(id), (grew = true));
@@ -258,8 +257,9 @@ module.exports = function fileRoutes(ctx) {
         save(email, d);
         docs.save('shares');
         await Promise.all(dropped.map(dropContents));
-        res.json({ ok: true, removed: gone.size });
-    }));
+        return gone.size;
+    }
+    r.delete('/files/:id', wrap(async (req, res) => res.json({ ok: true, removed: await removeTree(req.session.email, req.params.id) })));
 
     async function send(req, res, f, inline) {
         const show = inline && VIEWABLE.test(f.type);
@@ -342,7 +342,7 @@ module.exports = function fileRoutes(ctx) {
     });
 
     // for WebDAV and Photos: the same building blocks
-    ctx.files = { load, save, view, folderOk, freeName, addFile, bytes, dropContents, roomFor, cleanName, cleanType, send, newId };
+    ctx.files = { load, save, view, folderOk, freeName, addFile, bytes, dropContents, removeTree, roomFor, cleanName, cleanType, send, newId, takenAt };
     return r;
 };
 

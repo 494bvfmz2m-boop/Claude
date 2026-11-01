@@ -141,7 +141,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         res.status(503).set('Retry-After', '10').type('text/plain').send('EderveenGroup can’t reach its database right now. It keeps retrying; refresh in a moment.');
     });
     // gzip/brotli text responses, except the live event stream (it must not be buffered)
-    site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && compression.filter(req, res) }));
+    site.use(compression({ filter: (req, res) => !String(res.getHeader('Content-Type') || '').includes('event-stream') && !req.path.startsWith('/dav') && compression.filter(req, res) }));
     site.use(createSecurityHeaders({ scriptHashes: ctx.pages.scriptHashes }));
 
     site.use(ctx.sessions.middleware());
@@ -158,6 +158,10 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         if (!needsName(req)) return res.redirect(safeNext(req.query.next, config.baseUrl));
         ctx.pages.send(res, 'welcome.html');
     });
+    // Files as a network drive for computers and phones (WebDAV, app passwords)
+    const dav = require('./routes/dav')(ctx);
+    ctx.davApi = dav.api;
+    site.use('/dav', dav.handler);
     // Sign in with Microsoft / Google
     site.use(require('./routes/oauth')(ctx));
     site.use('/api', require('./routes/hub')(ctx));

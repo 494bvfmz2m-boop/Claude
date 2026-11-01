@@ -851,3 +851,91 @@ test('Files on disk: big uploads in resumable parts, ranges for video, previews,
     assert.equal(walk(path.join(app.dataDir, 'files')).length, before - 2);
     app.close();
 });
+
+test('WebDAV: Files as a network drive, signed in with an app password', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const info = (await jo('GET', '/api/app-passwords')).body;
+    assert.match(info.url, /\/dav\/$/);
+    assert.equal(info.username, 'jo.smith');
+    const made = (await jo('POST', '/api/app-passwords', { name: 'Laptop' })).body;
+    assert.match(made.password, /^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}$/);
+    assert.equal(JSON.stringify((await jo('GET', '/api/app-passwords')).body).includes(made.password), false);
+    const auth = (user, pw) => 'Basic ' + Buffer.from(`${user}:${pw}`).toString('base64');
+    const dav = (method, p, { body, headers = {}, user = 'jo.smith', pw = made.password } = {}) =>
+        fetch(app.base + p, { method, body, headers: { Authorization: auth(user, pw), ...headers } });
+    // signing in
+    assert.equal((await fetch(app.base + '/dav/', { method: 'PROPFIND' })).status, 401);
+    assert.equal((await dav('PROPFIND', '/dav/', { pw: 'wrong-wrong-wrong-wrong' })).status, 401);
+    assert.equal((await dav('PROPFIND', '/dav/', { pw: PASS })).status, 401); // never the mail password
+    assert.equal((await dav('PROPFIND', '/dav/', { user: USER, pw: made.password.toUpperCase().replace(/-/g, ' ') })).status, 207); // email works too; dashes and case don't matter
+    const opts = await dav('OPTIONS', '/dav/');
+    assert.match(opts.headers.get('dav'), /1, 2/);
+    // a folder, a photo with its date, a text file
+    assert.equal((await dav('MKCOL', '/dav/Camera%20Roll/')).status, 201);
+    assert.equal((await dav('MKCOL', '/dav/Camera%20Roll/')).status, 405);
+    assert.equal((await dav('MKCOL', '/dav/missing/inner/')).status, 409);
+    // a tiny JPEG with EXIF: taken 2026-07-14 10:12:00 +02:00
+    const exif = Buffer.concat([
+        Buffer.from('Exif\0\0', 'latin1'),
+        Buffer.from('4d4d002a00000008', 'hex'), // big-endian TIFF, IFD0 at 8
+        Buffer.from('0001' + '8769' + '0004' + '00000001' + '0000001a' + '00000000', 'hex'), // IFD0: ExifIFD -> 26
+        Buffer.from('0002' + '9003' + '0002' + '00000014' + '00000038' + '9011' + '0002' + '00000007' + '0000004c' + '00000000', 'hex'),
+        Buffer.from('2026:07:14 10:12:00\0+02:00\0', 'latin1')
+    ]);
+    const app1 = Buffer.concat([Buffer.from([0xff, 0xe1]), Buffer.from([(exif.length + 2) >> 8, (exif.length + 2) & 255]), exif]);
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8]), app1, Buffer.from([0xff, 0xd9])]);
+    assert.equal((await dav('PUT', '/dav/Camera%20Roll/IMG_0001.JPG', { body: jpeg })).status, 201);
+    assert.equal((await dav('PUT', '/dav/nowhere/x.txt', { body: 'x' })).status, 409);
+    assert.equal((await dav('PUT', '/dav/notes.txt', { body: 'first' })).status, 201);
+    assert.equal((await dav('PUT', '/dav/notes.txt', { body: 'second version' })).status, 204); // replaced in place
+    const files = (await jo('GET', '/api/files')).body.items;
+    const photo = files.find(f => f.name === 'IMG_0001.JPG');
+    assert.equal(photo.type, 'image/jpeg');
+    assert.equal(photo.taken, Date.parse('2026-07-14T10:12:00+02:00'));
+    assert.equal(files.filter(f => f.name === 'notes.txt').length, 1);
+    // listing
+    const list = await (await dav('PROPFIND', '/dav/', { headers: { Depth: '1' } })).text();
+    assert.match(list, /<D:href>\/dav\/<\/D:href>/);
+    assert.match(list, /<D:href>\/dav\/Camera%20Roll\/<\/D:href>[\s\S]*?<D:collection\/>/);
+    assert.match(list, /<D:href>\/dav\/notes\.txt<\/D:href>[\s\S]*?<D:getcontentlength>14<\/D:getcontentlength>/);
+    assert.match(list, /<D:quota-available-bytes>\d+<\/D:quota-available-bytes>/);
+    assert.equal((await (await dav('PROPFIND', '/dav/notes.txt', { headers: { Depth: '0' } })).text()).match(/<D:response>/g).length, 1);
+    assert.equal((await dav('PROPFIND', '/dav/nope.txt')).status, 404);
+    // reading, also in part
+    assert.equal(await (await dav('GET', '/dav/notes.txt')).text(), 'second version');
+    assert.equal(await (await dav('GET', '/dav/notes.txt', { headers: { Range: 'bytes=7-13' } })).text(), 'version');
+    // move, rename, copy, delete
+    assert.equal((await dav('MOVE', '/dav/notes.txt', { headers: { Destination: `${app.base}/dav/Camera%20Roll/renamed.txt` } })).status, 201);
+    assert.equal((await dav('GET', '/dav/Camera%20Roll/renamed.txt')).status, 200);
+    assert.equal((await dav('COPY', '/dav/Camera%20Roll/', { headers: { Destination: '/dav/Backup/' } })).status, 201);
+    assert.equal(await (await dav('GET', '/dav/Backup/renamed.txt')).text(), 'second version');
+    assert.equal((await dav('MOVE', '/dav/Backup/', { headers: { Destination: '/dav/Backup/Inside/' } })).status, 403); // not into itself
+    assert.equal((await dav('COPY', '/dav/Camera%20Roll/renamed.txt', { headers: { Destination: '/dav/Backup/renamed.txt', Overwrite: 'F' } })).status, 412);
+    // locks and properties, as Macs and Windows ask for them
+    const lock = await dav('LOCK', '/dav/Backup/renamed.txt', { body: '<?xml version="1.0"?><D:lockinfo xmlns:D="DAV:"/>' });
+    assert.match(lock.headers.get('lock-token'), /^<opaquelocktoken:/);
+    assert.equal((await dav('UNLOCK', '/dav/Backup/renamed.txt')).status, 204);
+    const pp = await dav('PROPPATCH', '/dav/Backup/renamed.txt', { body: '<?xml version="1.0"?><D:propertyupdate xmlns:D="DAV:" xmlns:Z="urn:schemas-microsoft-com:"><D:set><D:prop><Z:Win32LastModifiedTime>Wed, 01 Jul 2026 10:00:00 GMT</Z:Win32LastModifiedTime></D:prop></D:set></D:propertyupdate>' });
+    assert.equal(pp.status, 207);
+    assert.match(await pp.text(), /xmlns:Z="urn:schemas-microsoft-com:"[\s\S]*<Z:Win32LastModifiedTime\/>/);
+    assert.equal((await dav('DELETE', '/dav/Backup/')).status, 204);
+    assert.equal((await dav('PROPFIND', '/dav/Backup/')).status, 404);
+    assert.equal((await dav('DELETE', '/dav/')).status, 403);
+    // someone else's password doesn't open these files
+    const ava = app.device();
+    app.mail.verifyLogin = async () => true;
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    const avaPw = (await ava('POST', '/api/app-passwords', { name: 'Phone' })).body.password;
+    assert.equal((await dav('PROPFIND', '/dav/', { user: 'jo.smith', pw: avaPw })).status, 401);
+    assert.equal((await dav('GET', '/dav/Camera%20Roll/renamed.txt', { user: 'ava', pw: avaPw })).status, 404);
+    // revoking stops it straight away; it's noted when it was last used
+    const mine = (await jo('GET', '/api/app-passwords')).body.items[0];
+    assert.ok(mine.lastUsed);
+    await jo('DELETE', `/api/app-passwords/${made.id}`);
+    assert.equal((await dav('PROPFIND', '/dav/')).status, 401);
+    app.close();
+});

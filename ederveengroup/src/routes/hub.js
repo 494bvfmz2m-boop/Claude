@@ -125,6 +125,7 @@ module.exports = function hubRoutes(ctx) {
     // Notes, Tasks, Contacts and the people directory
     r.use(require('./apps')(ctx));
     r.use(require('./files')(ctx));
+    if (ctx.davApi) r.use(ctx.davApi);
 
     // the Admin app (only for ADMIN_EMAILS)
     if (ctx.adminRouter) r.use(ctx.adminRouter);

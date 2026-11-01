@@ -2057,3 +2057,20 @@ button.ea-sec { cursor: pointer; }
 .ph-v-nav:hover { background: rgba(255, 255, 255, .2); }
 .ph-v-nav.prev { left: 16px; } .ph-v-nav.next { right: 16px; }
 .ph.dragging .fl-drop-hint { display: grid; }
+/* Files → Connect a device */
+.cn-dialog { width: min(640px, 100%); max-width: 640px; max-height: calc(100vh - 40px); overflow-y: auto; text-align: left; }
+.cn-dialog h2 { text-align: center; }
+.cn-dialog code { text-align: left; }
+.cn-dialog p { line-height: 1.55; }
+.cn-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 12px; margin: 10px 0 14px; }
+.cn-grid > span { color: var(--text-3); font-size: 13px; }
+.cn-new { display: flex; gap: 8px; margin: 6px 0 10px; }
+.cn-new .input { flex: 1; }
+.cn-made { margin: 4px 0 12px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--success) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success) 35%, transparent); animation: rowUp .3s var(--ease); }
+.cn-made p { margin: 0 0 6px; }
+.cn-pw { font-size: 18px !important; letter-spacing: .06em; }
+.cn-how { margin: 6px 0 12px; }
+.cn-how summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; }
+.cn-how p { margin: 8px 0; color: var(--text-2); }
+.cn-h { margin: 14px 0 6px; font-size: 14px; }
+@media (max-width: 760px) { .fl-tools #connect span { display: none; } .fl-tools #connect { width: 40px; padding: 0; justify-content: center; } .cn-new { flex-direction: column; } }

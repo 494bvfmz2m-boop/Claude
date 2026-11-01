@@ -65,6 +65,7 @@
             <div class="fl-tools">
                 <div class="ad-search fl-search">${ic('search')}<input class="input" id="q" placeholder="Search all files" aria-label="Search files"></div>
                 <div class="seg fl-layout" role="group" aria-label="View"><button data-l="grid" aria-label="Grid">${ic('grid')}</button><button data-l="list" aria-label="List">${ic('list')}</button></div>
+                <button class="btn" id="connect" title="Use Files on your computer or phone">${ic('laptop')}<span>Connect a device</span></button>
                 <button class="btn" id="newfolder">${ic('folder')}<span>New folder</span></button>
                 <label class="btn btn-primary fl-upload">${ic('plus')}<span>Upload</span><input type="file" id="pick" multiple hidden></label>
             </div>
@@ -105,6 +106,7 @@
     async function load() {
         const r = await call('/api/files');
         ({ items, used, quota, maxFile, disk } = r);
+        items = items.filter(f => !/^\.(_|DS_Store$)/.test(f.name)); // what Macs leave behind on network drives
         if (folder && !items.some(f => f.id === folder)) folder = '';
         draw();
     }
@@ -383,6 +385,59 @@
         folder = location.hash.slice(1);
         draw();
     });
+    /* ---------- connect a computer or phone (WebDAV with an app password) ---------- */
+    async function connect() {
+        const info = await call('/api/app-passwords');
+        const how = [
+            ['Windows', 'File Explorer → <b>This PC</b> → <b>Map network drive</b>. Folder: the address above. Tick <b>Connect using different credentials</b>, then sign in with your username and an app password.'],
+            ['Mac', 'Finder → <b>Go</b> → <b>Connect to Server</b> (⌘K). Paste the address, click <b>Connect</b>, choose <b>Registered User</b>, then your username and an app password.'],
+            ['iPhone / iPad', 'Use an app that opens WebDAV drives, such as <b>Documents</b> or <b>FE File Explorer</b>. To back up your camera roll automatically, use <b>PhotoSync</b> with a WebDAV target, into the folder <b>Photos</b>.'],
+            ['Android', 'Use <b>FolderSync</b> or <b>Solid Explorer</b> (WebDAV). FolderSync and PhotoSync can upload new photos by themselves.']
+        ];
+        const listHtml = list =>
+            list.length
+                ? list.map(p => `<div class="row" data-id="${esc(p.id)}"><div class="lbl"><b>${esc(p.name)}</b><small>Made ${esc(ago(p.createdAt))}${p.lastUsed ? ` · last used ${esc(ago(p.lastUsed))}${p.lastDevice ? ` on ${esc(p.lastDevice)}` : ''}` : ' · not used yet'}</small></div><button class="btn btn-danger" data-revoke>Remove</button></div>`).join('')
+                : '<p class="ad-muted">No app passwords yet.</p>';
+        dialog(`<h2>Use Files on your computer or phone</h2>
+            <p>Your files can show up as a drive in Windows and on a Mac, and in apps on your phone. They sign in with an <b>app password</b>: one per device, which you can remove at any time. Your own password is never used.</p>
+            <div class="cn-grid"><span>Address</span><div class="si-copy"><code>${esc(info.url)}</code><button class="btn" data-copyv="${esc(info.url)}">${ic('copy')}<span>Copy</span></button></div>
+                <span>Username</span><div class="si-copy"><code>${esc(info.username)}</code><button class="btn" data-copyv="${esc(info.username)}">${ic('copy')}<span>Copy</span></button></div></div>
+            <form class="cn-new" id="cn-new"><input class="input" name="name" maxlength="60" placeholder="Name it after the device, e.g. Work laptop" aria-label="Device name"><button class="btn btn-primary">${ic('key')}<span>Make an app password</span></button></form>
+            <div id="cn-made"></div>
+            <details class="cn-how"><summary>How to connect</summary>${how.map(([t, x]) => `<p><b>${t}:</b> ${x}</p>`).join('')}</details>
+            <h3 class="cn-h">Your app passwords</h3><div class="srv-list" id="cn-list">${listHtml(info.items)}</div>`,
+            [['Done', 'btn btn-primary', close => close()]],
+            back => {
+                back.addEventListener('click', async e => {
+                    const c = e.target.closest('[data-copyv]');
+                    if (c) {
+                        await navigator.clipboard.writeText(c.dataset.copyv).then(() => toast('Copied')).catch(() => toast('Select it and copy', { bad: true }));
+                    }
+                    const r = e.target.closest('[data-revoke]');
+                    if (r) {
+                        const id = r.closest('[data-id]').dataset.id;
+                        if (!(await ask({ title: 'Remove this app password?', text: 'The device using it is disconnected right away.', ok: 'Remove', danger: true }))) return;
+                        await call(`/api/app-passwords/${id}`, { method: 'DELETE' });
+                        $('#cn-list', back).innerHTML = listHtml((await call('/api/app-passwords')).items);
+                    }
+                });
+                $('#cn-new', back).addEventListener('submit', async e => {
+                    e.preventDefault();
+                    try {
+                        const made = await call('/api/app-passwords', { method: 'POST', body: { name: e.target.name.value } });
+                        e.target.reset();
+                        $('#cn-made', back).innerHTML = `<div class="cn-made"><p>The app password for <b>${esc(made.name)}</b>. Type or paste it on that device now: it’s only shown once.</p><div class="si-copy"><code class="cn-pw">${esc(made.password)}</code><button class="btn" data-copyv="${esc(made.password)}">${ic('copy')}<span>Copy</span></button></div></div>`;
+                        $('#cn-list', back).innerHTML = listHtml((await call('/api/app-passwords')).items);
+                    } catch (err) {
+                        toast(err.message, { bad: true });
+                    }
+                });
+            },
+            'cn-dialog'
+        );
+    }
+    $('#connect').onclick = () => connect().catch(e => toast(e.message, { bad: true }));
+
     $('#newfolder').onclick = async () => {
         const name = await prompt('New folder', 'New folder', 'Create');
         if (!name) return;

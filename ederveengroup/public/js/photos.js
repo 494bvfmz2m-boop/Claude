@@ -307,7 +307,7 @@
 
     call('/api/files')
         .then(r => {
-            items = r.items;
+            items = r.items.filter(f => !/^\.(_|DS_Store$)/.test(f.name));
             media = items.filter(isMedia).sort((a, b) => when(b) - when(a));
             draw();
         })
