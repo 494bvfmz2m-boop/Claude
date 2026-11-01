@@ -68,7 +68,13 @@ const picture = v => (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/
 
 function cleanBody(kind, b) {
     if (kind === 'sheet') return cleanBook(b);
-    if (kind === 'doc') return { html: sanitizeDocHtml(String((b && b.html) || '')).slice(0, MAX_BODY) };
+    if (kind === 'doc') {
+        const p = (b && b.page) || {};
+        return {
+            html: sanitizeDocHtml(String((b && b.html) || '')).slice(0, MAX_BODY),
+            page: { size: p.size === 'Letter' ? 'Letter' : 'A4', orient: p.orient === 'landscape' ? 'landscape' : 'portrait', margins: ['narrow', 'wide'].includes(p.margins) ? p.margins : 'normal' }
+        };
+    }
     const slides = [].concat((b && b.slides) || []).slice(0, 200).map(s => ({
         id: /^[A-Za-z0-9_-]{4,24}$/.test(String(s.id || '')) ? s.id : crypto.randomBytes(6).toString('base64url'),
         layout: LAYOUTS.includes(s.layout) ? s.layout : 'bullets',
@@ -200,22 +206,23 @@ module.exports = function docRoutes(ctx) {
         res.end(file);
     }));
 
-    /* ---------- open an Excel or CSV file as a new spreadsheet ---------- */
-    r.post('/docs/import', express.raw({ type: () => true, limit: '20mb' }), wrap(async (req, res) => {
+    /* ---------- open an Excel, CSV or Word file as a new spreadsheet or doc ---------- */
+    r.post('/docs/import', express.raw({ type: () => true, limit: '25mb' }), wrap(async (req, res) => {
         const email = req.session.email;
         const name = String(req.query.name || 'Imported').slice(0, 160);
-        if (!/\.(xlsx|csv)$/i.test(name)) throw httpError(400, 'Open an Excel (.xlsx) or CSV file');
-        let book;
+        if (!/\.(xlsx|csv|docx)$/i.test(name)) throw httpError(400, 'Open an Excel (.xlsx), CSV or Word (.docx) file');
+        const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+        const kind = /\.docx$/i.test(name) ? 'doc' : 'sheet';
+        let body;
         try {
-            book = await office.importSheet(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), name);
+            body = kind === 'doc' ? cleanBody('doc', { html: await office.importDocx(buf) }) : cleanBook(await office.importSheet(buf, name));
         } catch {
-            throw httpError(400, 'That file couldn’t be read as a spreadsheet');
+            throw httpError(400, kind === 'doc' ? 'That file couldn’t be read as a Word document' : 'That file couldn’t be read as a spreadsheet');
         }
         const all = await index();
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
-        const body = cleanBook(book);
-        all.items[id] = { kind: 'sheet', title: line(name.replace(/\.(xlsx|csv)$/i, ''), 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
+        all.items[id] = { kind, title: line(name.replace(/\.(xlsx|csv|docx)$/i, ''), 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);

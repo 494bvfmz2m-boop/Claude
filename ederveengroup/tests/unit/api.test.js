@@ -1137,3 +1137,39 @@ test('Spreadsheets: saved safely, downloaded as .xlsx, .csv and PDF, Excel and C
     assert.equal((await jo('GET', '/api/apps-summary')).body.sheets, 3);
     app.close();
 });
+
+test('Docs: downloaded as Word (.docx) and PDF, Word files opened, page settings kept', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const d = (await jo('POST', '/api/docs', { kind: 'doc', title: 'Plan' })).body;
+    const html = '<h1>Steps</h1><p style="text-align:justify">Do <b>this</b> and <span style="color:#c00000;font-size:14pt">that</span>, see <a href="https://example.com">here</a>.</p><ol><li>One</li><li>Two</li></ol><hr data-page-break=""><table><tr><th>A</th></tr><tr><td>1</td></tr></table>';
+    await jo('PUT', `/api/docs/${d.id}`, { title: 'Plan', version: d.version, body: { html, page: { size: 'Letter', orient: 'landscape', margins: 'narrow', evil: 1 } } });
+    const back = (await jo('GET', `/api/docs/${d.id}`)).body.body;
+    assert.deepEqual(back.page, { size: 'Letter', orient: 'landscape', margins: 'narrow' });
+    const get = f => fetch(`${app.base}/api/docs/${d.id}/export?format=${f}`, { headers: { Cookie: jo.cookies() } });
+    const docx = await get('docx');
+    assert.match(docx.headers.get('content-type'), /wordprocessingml/);
+    assert.match(docx.headers.get('content-disposition'), /filename="Plan\.docx"/);
+    const buf = Buffer.from(await docx.arrayBuffer());
+    const mammoth = require('mammoth');
+    const read = (await mammoth.convertToHtml({ buffer: buf })).value;
+    assert.match(read, /<h1>Steps<\/h1>/);
+    assert.match(read, /<strong>this<\/strong>/);
+    assert.match(read, /<a href="https:\/\/example.com">here<\/a>/);
+    assert.match(read, /<ol><li>One<\/li><li>Two<\/li><\/ol>/);
+    assert.match(read, /<table>/);
+    assert.ok(buf.length > 4000);
+    const pdf = Buffer.from(await (await get('pdf')).arrayBuffer());
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+    assert.equal((await jo('GET', `/api/docs/${d.id}/export?format=xlsx`)).status, 400);
+    // a Word file opens as a new doc (pictures kept, everything cleaned)
+    const opened = (await jo('POST', '/api/docs/import?name=Letter.docx', buf)).body;
+    assert.deepEqual([opened.kind, opened.title, opened.mine], ['doc', 'Letter', true]);
+    const ob = (await jo('GET', `/api/docs/${opened.id}`)).body.body;
+    assert.match(ob.html, /<h1>Steps<\/h1>/);
+    assert.match(ob.html, /<ol><li>One<\/li><li>Two<\/li><\/ol>/);
+    assert.equal((await jo('POST', '/api/docs/import?name=bad.docx', Buffer.from('not a zip'))).status, 400);
+    app.close();
+});

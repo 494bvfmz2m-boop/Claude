@@ -42,8 +42,21 @@ const COMPOSE_OPTIONS = {
 // (data:) or from this site, never fetched from elsewhere (which could track who reads it).
 const DOC_OPTIONS = {
     allowedTags: ['p', 'h1', 'h2', 'h3', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'a', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'br', 'img', 'mark', 'sub', 'sup', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'figure', 'figcaption'],
-    allowedAttributes: { a: ['href', 'target', 'rel'], img: ['src', 'alt'], li: ['data-checked'], ul: ['data-checklist'], td: ['colspan', 'rowspan'], th: ['colspan', 'rowspan'], '*': ['style'] },
-    allowedStyles: { '*': { 'text-align': [/^(left|right|center|justify)$/] } },
+    allowedAttributes: { a: ['href', 'target', 'rel'], img: ['src', 'alt', 'width'], li: ['data-checked'], ul: ['data-checklist'], hr: ['data-page-break'], td: ['colspan', 'rowspan'], th: ['colspan', 'rowspan'], '*': ['style'] },
+    // Word-like formatting only: colours, a known font, a size in points, alignment, an indent
+    allowedStyles: {
+        '*': {
+            'text-align': [/^(left|right|center|justify)$/],
+            color: [/^#[0-9a-f]{3,6}$/i, /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/],
+            'background-color': [/^#[0-9a-f]{3,6}$/i, /^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/],
+            'font-size': [/^\d{1,2}(\.\d)?pt$/],
+            'font-family': [/^["']?(Aptos|Calibri|Arial|Georgia|Times New Roman|Verdana|Courier New|Garamond|Trebuchet MS|Tahoma|Segoe UI|Comic Sans MS)["']?(\s*,\s*[\w\s"'-]{1,40})?$/i],
+            'margin-left': [/^\d{1,3}px$/],
+            'font-weight': [/^(bold|700|normal|400)$/],
+            'font-style': [/^(italic|normal)$/],
+            'text-decoration': [/^(underline|line-through|underline line-through|none)$/]
+        }
+    },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     allowedSchemesByTag: { img: ['data'] },
     allowProtocolRelative: false,
