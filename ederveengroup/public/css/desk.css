@@ -293,3 +293,8 @@ body::after {
 .pf-group { background: var(--glass); }
 .pf-save { background: var(--surface-3); box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .9), 0 0 0 1px var(--line); }
 .pf-name, .pf-form h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- Admin app on a computer ---------- */
+.ad-tile, .ad-card, .ad-person { background: var(--glass); }
+.ad-main h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ad-nav a.on { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--violet) 6%, transparent)); }

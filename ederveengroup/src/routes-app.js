@@ -8,7 +8,7 @@ const APP_ROUTE = /^\/(?:(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred
 // page. Anything else (other sites, //host, odd paths) falls back to the hub.
 function safeNext(next, baseUrl = '/mail/') {
     const n = String(next || '');
-    if (n === '/' || n === '/welcome' || /^\/profile\/?$/.test(n)) return n;
+    if (n === '/' || n === '/welcome' || /^\/(profile|admin)\/?$/.test(n)) return n;
     if (n.startsWith(baseUrl) && APP_ROUTE.test('/' + n.slice(baseUrl.length))) return n;
     return '/';
 }

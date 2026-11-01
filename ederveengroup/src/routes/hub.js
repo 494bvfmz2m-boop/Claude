@@ -58,7 +58,8 @@ module.exports = function hubRoutes(ctx) {
 
     r.put('/profile', requireAuth, wrap(async (req, res) => {
         const before = store.getProfile(req.session.email) || {};
-        const profile = { ...cleanProfile(req.body), cardPhoto: before.cardPhoto || null }; // the card photo is only set by its own upload
+        // the card photo is only set by its own upload, and only an admin can hide a card
+        const profile = { ...cleanProfile(req.body), cardPhoto: before.cardPhoto || null, ...(before.hidden ? { hidden: true } : {}) };
         if (profile.photoMode === 'card' && !profile.cardPhoto) profile.photoMode = 'account';
         store.setProfile(req.session.email, profile);
         res.json({ ok: true, profile });
@@ -93,7 +94,7 @@ module.exports = function hubRoutes(ctx) {
         if (!email) throw httpError(404, 'There’s no profile here');
         await store.ready(email);
         const profile = store.getProfile(email);
-        if (!profile || profile.visible === false) throw httpError(404, 'There’s no profile here');
+        if (!profile || profile.visible === false || profile.hidden) throw httpError(404, 'There’s no profile here');
         const mode = profile.photoMode || 'account';
         const photo = mode === 'none' ? null : mode === 'card' ? profile.cardPhoto : await ctx.avatars.photoVersion(email);
         return { email, mode, view: publicView(profile, { username: name, photo }), url: `${originOf(req)}/profile/#/${name}` };

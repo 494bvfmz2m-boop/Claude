@@ -14,7 +14,8 @@
 
     const APPS = [
         { id: 'mail', name: 'Mail', icon: 'mail', href: `${BASE}inbox`, blurb: 'Your inbox, conversations and everything you sent.', tint: 'linear-gradient(140deg, #4c8dff, #7b5cff)' },
-        { id: 'profile', name: 'Profile', icon: 'user', href: '/profile/', blurb: 'Your contact card, ready to share with a link.', tint: 'linear-gradient(140deg, #22d3ee, #4c8dff)' }
+        { id: 'profile', name: 'Profile', icon: 'user', href: '/profile/', blurb: 'Your contact card, ready to share with a link.', tint: 'linear-gradient(140deg, #22d3ee, #4c8dff)' },
+        { id: 'admin', name: 'Admin', icon: 'shield', href: '/admin/', blurb: 'Requests, people and who may sign in.', tint: 'linear-gradient(140deg, #af52de, #ff5e8a)', admin: true }
     ];
 
     function greeting(name) {
@@ -32,14 +33,22 @@
         $('hub-email').textContent = me.email;
         const initials = (name || me.email).replace(/[^A-Za-z ]/g, ' ').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
         $('hub-avatar').innerHTML = esc(initials) + (me.photo ? `<img class="av-img ok" alt="" src="api/avatar?email=${encodeURIComponent(me.email)}&v=${me.photo}">` : '');
+        const apps = APPS.filter(a => !a.admin || me.admin);
         $('hub-apps').innerHTML =
-            APPS.map((a, i) => `<a class="hub-app" href="${esc(a.href)}" data-app="${a.id}" style="--i:${i}">
+            apps.map((a, i) => `<a class="hub-app" href="${esc(a.href)}" data-app="${a.id}" style="--i:${i}">
                 <span class="hub-icon" style="background:${a.tint}">${window.icon(a.icon)}</span>
                 <span class="hub-text"><b>${esc(a.name)}</b><small>${esc(a.blurb)}</small></span>
                 <span class="hub-stat" data-stat="${a.id}"></span>
                 <span class="hub-go">${window.icon('right')}</span></a>`).join('') +
-            `<div class="hub-app soon" style="--i:${APPS.length}"><span class="hub-icon">${window.icon('sparkle')}</span><span class="hub-text"><b>More apps</b><small>New EderveenGroup apps will show up here.</small></span></div>`;
+            `<div class="hub-app soon" style="--i:${apps.length}"><span class="hub-icon">${window.icon('sparkle')}</span><span class="hub-text"><b>More apps</b><small>New EderveenGroup apps will show up here.</small></span></div>`;
         if (me.username) $('hub-apps').querySelector('[data-stat=profile]').textContent = `@${me.username}`;
+        if (me.admin) {
+            const el = $('hub-apps').querySelector('[data-stat=admin]');
+            if (me.pendingRequests) {
+                el.innerHTML = `<i>${me.pendingRequests}</i> waiting`;
+                el.closest('.hub-app').dataset.count = me.pendingRequests;
+            } else el.textContent = 'All handled';
+        }
         // unread mail, filled in when the mail server answers
         api('api/folders')
             .then(folders => {

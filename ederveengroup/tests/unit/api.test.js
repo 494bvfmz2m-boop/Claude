@@ -35,7 +35,7 @@ function fakeMail() {
 async function start(env = {}, opts = {}) {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eg-api-'));
     const mail = fakeMail();
-    const { site } = createApp(loadConfig({ DATA_DIR: dataDir, ...env }), { mail, ...opts });
+    const { site, ctx } = createApp(loadConfig({ DATA_DIR: dataDir, ...env }), { mail, ...opts });
     const server = await new Promise(r => {
         const s = site.listen(0, () => r(s));
         s.unref(); // a failed assertion mustn't leave the test run hanging
@@ -60,7 +60,7 @@ async function start(env = {}, opts = {}) {
             return { status: res.status, headers: res.headers, body: type.includes('json') ? await res.json() : await res.text() };
         };
     };
-    return { base, device, mail, dataDir, close: () => server.close() };
+    return { base, device, mail, dataDir, store: ctx.store, close: () => server.close() };
 }
 
 test('sign in, use the api, sign out', async () => {
@@ -449,5 +449,54 @@ test('Profile: the card can have its own photo, or the mail photo, or none', asy
     await d('DELETE', '/api/profile/photo');
     await d('PUT', '/api/profile', { name: 'Jo', photoMode: 'card' });
     assert.equal((await d('GET', '/api/profile')).body.profile.photoMode, 'account'); // no card photo left
+    app.close();
+});
+
+test('Admin app: only admins; overview, people, sign out, hide a card, access rules', async () => {
+    const app = await start({ ADMIN_EMAILS: USER });
+    app.mail.verifyLogin = async () => true;
+    const admin = app.device();
+    await admin('POST', '/mail/api/login', { email: USER, password: PASS });
+    await admin('POST', '/api/username', { username: 'boss' });
+    const ava = app.device('Mozilla/5.0 (iPhone) Safari/604.1');
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    await ava('PUT', '/api/profile', { name: 'Ava' });
+    // the page and the API are admin-only
+    assert.equal((await ava('GET', '/admin/')).status, 404);
+    assert.equal((await ava('GET', '/api/admin/overview')).status, 403);
+    assert.equal((await app.device()('GET', '/api/admin/overview')).status, 401);
+    assert.match((await admin('GET', '/admin/')).body, /js\/admin\.js/);
+    assert.equal((await admin('GET', '/admin')).headers.get('location'), '/admin/');
+    const o = (await admin('GET', '/api/admin/overview')).body;
+    assert.equal(o.people, 2);
+    assert.equal(o.publicProfiles, 1);
+    assert.equal(o.settings.oauthPolicy, 'approved');
+    assert.deepEqual(o.admins, [USER]);
+    const people = (await admin('GET', '/api/admin/people')).body;
+    const a = people.find(p => p.email === 'ava@example.com');
+    assert.equal(a.username, 'ava');
+    assert.equal(a.signIn, 'password');
+    assert.equal(a.devices, 1);
+    // hide Ava's card, then unhide it; her own saves can't undo an admin's hide
+    await admin('POST', '/api/admin/people/ava%40example.com/profile', { hidden: true });
+    assert.equal((await app.device()('GET', '/api/profiles/ava')).status, 404);
+    await ava('PUT', '/api/profile', { name: 'Ava again' });
+    assert.equal((await app.device()('GET', '/api/profiles/ava')).status, 404);
+    await admin('POST', '/api/admin/people/ava%40example.com/profile', { hidden: false });
+    assert.equal((await app.device()('GET', '/api/profiles/ava')).body.name, 'Ava again');
+    // sign Ava out everywhere
+    assert.equal((await admin('POST', '/api/admin/people/' + encodeURIComponent(USER) + '/signout', {})).status, 400);
+    await admin('POST', '/api/admin/people/ava%40example.com/signout', {});
+    assert.equal((await ava('GET', '/mail/api/me')).status, 401);
+    // who may sign in with Microsoft / Google
+    assert.equal((await admin('POST', '/api/admin/allowed', { key: 'not an address' })).status, 400);
+    await admin('POST', '/api/admin/allowed', { key: '@Contoso.com' });
+    assert.equal(app.store.servers.isAllowed('sam@contoso.com'), true);
+    assert.equal(app.store.servers.isAllowed('sam@other.com'), false);
+    await admin('DELETE', '/api/admin/allowed/%40contoso.com');
+    assert.equal(app.store.servers.isAllowed('sam@contoso.com'), false);
+    assert.equal((await admin('PUT', '/api/admin/settings', { oauthPolicy: 'anyone' })).body.oauthPolicy, 'anyone');
+    assert.equal((await admin('PUT', '/api/admin/settings', { oauthPolicy: 'whatever' })).body.oauthPolicy, 'approved');
     app.close();
 });

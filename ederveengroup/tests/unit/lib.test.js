@@ -262,8 +262,8 @@ test('accepted addresses connect to their own servers by checked address, others
 
 test('after signing in you only ever continue to our own pages', () => {
     const { safeNext } = require('../../src/routes-app');
-    for (const ok of ['/', '/welcome', '/profile/', '/mail/inbox', '/mail/inbox/x7Kq2pW9aZc', '/mail/settings/devices']) assert.equal(safeNext(ok), ok, ok);
-    for (const bad of ['', '//evil.com', 'https://evil.com', '/mail/../api', '/admin', '/mail/inbox/short', 'javascript:alert(1)']) assert.equal(safeNext(bad), '/', bad);
+    for (const ok of ['/', '/welcome', '/profile/', '/admin/', '/mail/inbox', '/mail/inbox/x7Kq2pW9aZc', '/mail/settings/devices']) assert.equal(safeNext(ok), ok, ok);
+    for (const bad of ['', '//evil.com', 'https://evil.com', '/mail/../api', '/admin/../api', '/mail/inbox/short', 'javascript:alert(1)']) assert.equal(safeNext(bad), '/', bad);
 });
 
 test('username rules, reserved names and suggestions', async () => {

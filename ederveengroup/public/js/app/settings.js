@@ -71,7 +71,7 @@ function openSettings(tab = 'general') {
                 <button data-tab="security">${icon('lock')} Security</button>
                 <button data-tab="devices">${icon('laptop')} Devices</button>
                 <button data-tab="account">${icon('user')} Account</button>
-                ${state.me.admin ? `<button data-tab="admin">${icon('shield')} Admin${state.me.pendingRequests ? `<span class="tab-badge">${state.me.pendingRequests}</span>` : ''}</button>` : ''}
+                ${state.me.admin ? `<a class="tab-link" href="/admin/">${icon('shield')} Admin${state.me.pendingRequests ? `<span class="tab-badge">${state.me.pendingRequests}</span>` : ''}</a>` : ''}
             </nav>
             <section></section>
         </div></div></div>`);
@@ -432,89 +432,6 @@ function openSettings(tab = 'general') {
                     toast('Two-step verification is off');
                     tabs.security();
                 });
-        },
-        async admin() {
-            const here = section;
-            if (!state.me.admin) return (here.innerHTML = '<h3>Admin</h3><p class="hint">Only admins can see this page.</p>');
-            here.innerHTML = `<h3>Admin</h3><p class="hint">People who asked to use EderveenGroup with their own mail server.</p><div class="spinner"></div>`;
-            let requests, accounts;
-            try {
-                [requests, accounts] = await Promise.all([api('api/admin/requests'), api('api/admin/servers')]);
-            } catch (e) {
-                return toast(e.message, { error: true });
-            }
-            if (section !== here) return;
-            const pending = requests.filter(r => r.status === 'pending');
-            const decided = requests.filter(r => r.status !== 'pending').slice(0, 20);
-            const srv = x => `${esc(x.host)}:${x.port} · ${x.security === 'tls' ? 'SSL/TLS' : 'STARTTLS'}`;
-            const domainOf = email => email.split('@')[1];
-            here.innerHTML = `<h3>Admin</h3><p class="hint">People who asked to use EderveenGroup with their own mail server. Accepting adds their server right away and emails them from your address.</p>
-                <h4 class="sub-h">Waiting for you${pending.length ? ` · ${pending.length}` : ''}</h4>
-                <div class="req-list">${pending.length ? pending.map((r, i) => `<div class="req" data-id="${esc(r.id)}" style="animation-delay:${i * 50}ms">
-                    <div class="req-head">${avatar({ address: r.email, name: r.name })}<div class="lbl"><b>${esc(r.name || r.email)}</b><small>${esc(r.email)} · ${esc(ago(r.createdAt))}${r.device ? ` · ${esc(r.device)}` : ''}</small></div>${r.verified ? `<span class="badge ok">${icon('check')} Settings work</span>` : ''}</div>
-                    <dl class="req-srv"><dt>IMAP</dt><dd>${srv(r.imap)}</dd><dt>SMTP</dt><dd>${srv(r.smtp)}</dd><dt>Login</dt><dd>${r.login === 'local' ? 'Part before the @' : 'Full email address'}</dd></dl>
-                    ${r.note ? `<p class="req-note">“${esc(r.note)}”</p>` : ''}
-                    <div class="req-actions"><div class="seg" data-scope><button data-v="address" class="on">Only ${esc(r.email)}</button><button data-v="domain">Everyone @${esc(domainOf(r.email))}</button></div>
-                        <span class="spacer"></span><button class="btn btn-danger" data-reject>Reject</button><button class="btn btn-primary" data-accept>${icon('check')} Accept</button></div></div>`).join('') : `<div class="empty-note">${icon('sparkle')} No open requests. Share <b>${esc(location.origin + new URL(document.baseURI).pathname)}request</b> with people who want to join.</div>`}</div>
-                <h4 class="sub-h">Mail servers you added</h4>
-                <div class="srv-list">${accounts.length ? accounts.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${srv(a.imap)} · ${srv(a.smtp)} · added ${esc(ago(a.addedAt))}</small></div><button class="btn btn-danger" data-remove>Remove</button></div>`).join('') : '<p class="hint">None yet. Everyone else signs in with Purelymail.</p>'}</div>
-                ${decided.length ? `<h4 class="sub-h">Decided</h4><ol class="act-list">${decided.map(r => `<li class="${r.status === 'accepted' ? 'ok' : 'bad'}"><span class="act-dot">${icon(r.status === 'accepted' ? 'check' : 'x')}</span><div class="lbl"><b>${esc(r.name || r.email)} · ${r.status === 'accepted' ? `accepted${r.scope === 'domain' ? ` (everyone @${esc(domainOf(r.email))})` : ''}` : 'rejected'}</b><small>${esc(r.email)}${r.reason ? ` · “${esc(r.reason)}”` : ''}</small></div><time>${esc(ago(r.decidedAt))}</time></li>`).join('')}</ol>` : ''}`;
-            const setCount = n => {
-                state.me.pendingRequests = n;
-                const b = $('[data-tab=admin] .tab-badge', back);
-                if (b) n ? (b.textContent = n) : b.remove();
-            };
-            const done = (card, accepted, r) => {
-                card.classList.add(accepted ? 'accepted' : 'rejected');
-                card.style.height = card.offsetHeight + 'px';
-                setTimeout(() => section === here && tabs.admin(), 900);
-                setCount(Math.max(0, (state.me.pendingRequests || 1) - 1));
-                toast(r.emailed ? `${accepted ? 'Accepted' : 'Rejected'}. ${r.request.email} has been emailed.` : `${accepted ? 'Accepted' : 'Rejected'}, but the email couldn’t be sent: ${r.emailError}`, { error: !r.emailed, duration: 6000 });
-            };
-            $$('.req', here).forEach(card => {
-                const id = card.dataset.id;
-                const r0 = pending.find(x => x.id === id);
-                $('[data-accept]', card).onclick = async e => {
-                    const scope = $('[data-scope] .on', card).dataset.v;
-                    const who = scope === 'domain' ? `everyone @${domainOf(r0.email)}` : r0.email;
-                    if (!(await askConfirm({ title: `Accept ${r0.name || r0.email}?`, message: `${who} will be able to sign in with ${r0.imap.host}. They’ll get an email from you right away.`, icon: 'check', confirm: 'Accept & email' }))) return;
-                    e.target.closest('button').disabled = true;
-                    try {
-                        done(card, true, await api(`api/admin/requests/${encodeURIComponent(id)}/accept`, { method: 'POST', body: { scope } }));
-                    } catch (err) {
-                        e.target.closest('button').disabled = false;
-                        toast(err.message, { error: true });
-                    }
-                };
-                $('[data-reject]', card).onclick = async () => {
-                    const reason = await askText({ title: `Reject ${r0.name || r0.email}?`, message: 'They’ll get an email saying it wasn’t accepted. Add a reason if you like.', icon: 'x', confirm: 'Reject & email', danger: true, input: { placeholder: 'Reason (optional)', value: '' }, allowEmpty: true });
-                    if (reason === null) return;
-                    try {
-                        done(card, false, await api(`api/admin/requests/${encodeURIComponent(id)}/reject`, { method: 'POST', body: { reason } }));
-                    } catch (err) {
-                        toast(err.message, { error: true });
-                    }
-                };
-                $('[data-scope]', card).addEventListener('click', ev => {
-                    const b = ev.target.closest('button');
-                    if (!b) return;
-                    ev.stopPropagation();
-                    $$('button', b.parentElement).forEach(x => x.classList.toggle('on', x === b));
-                });
-            });
-            $$('[data-remove]', here).forEach(b =>
-                b.addEventListener('click', async () => {
-                    const key = b.closest('.row').dataset.key;
-                    if (!(await askConfirm({ title: `Remove ${key}?`, message: 'They won’t be able to sign in any more. Their mail stays on their own server.', icon: 'trash', confirm: 'Remove', danger: true }))) return;
-                    try {
-                        await api(`api/admin/servers/${encodeURIComponent(key)}`, { method: 'DELETE' });
-                        toast(`${key} removed`);
-                        tabs.admin();
-                    } catch (err) {
-                        toast(err.message, { error: true });
-                    }
-                })
-            );
         },
         async devices() {
             const here = section;

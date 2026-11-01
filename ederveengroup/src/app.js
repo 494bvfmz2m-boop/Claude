@@ -118,6 +118,14 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));
+    // the Admin app: only for ADMIN_EMAILS (everyone else just sees "not found")
+    site.get('/admin', (req, res) => {
+        if (!req.session) return toLogin(res, '/admin/');
+        if (!ctx.isAdmin(req.session.email)) return ctx.pages.send(res, 'notfound.html', 404);
+        if (needsName(req)) return toWelcome(res, '/admin/');
+        if (!req.path.endsWith('/')) return res.redirect(301, '/admin/');
+        ctx.pages.send(res, 'admin.html');
+    });
     site.get('/login', (req, res) => (req.session ? res.redirect(safeNext(req.query.next, config.baseUrl)) : ctx.pages.send(res, 'login.html')));
     // installable as an app (Windows, Mac, Android, iPhone): it opens the hub
     site.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').set('Cache-Control', 'no-cache').send(ctx.pages.manifest));

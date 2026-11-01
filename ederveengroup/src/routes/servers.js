@@ -42,7 +42,8 @@ function requestRoutes({ store, config, checkMailbox = servers.checkRequest }) {
 }
 
 /** signed in admins only: review requests, manage accepted servers */
-function adminRoutes({ store, mail, config }) {
+function adminRoutes(ctx) {
+    const { store, mail, config } = ctx;
     const r = express.Router();
     const isAdmin = email => config.adminEmails.includes(String(email).toLowerCase());
     r.use('/admin', (req, res, next) => (!req.session ? res.status(401).json({ error: 'Please sign in' }) : isAdmin(req.session.email) ? next() : res.status(403).json({ error: 'Only admins can do that' })));
@@ -72,6 +73,68 @@ function adminRoutes({ store, mail, config }) {
     }
     r.post('/admin/requests/:id/accept', wrap((req, res) => decide(req, res, 'accepted')));
     r.post('/admin/requests/:id/reject', wrap((req, res) => decide(req, res, 'rejected')));
+
+    /* ---------- overview ---------- */
+    r.get('/admin/overview', wrap(async (req, res) => {
+        const people = await store.listPeople();
+        const week = Date.now() - 7 * 864e5;
+        res.json({
+            people: people.length,
+            activeWeek: people.filter(p => (p.lastSeen || 0) > week).length,
+            publicProfiles: people.filter(p => p.profile === 'public').length,
+            twofa: people.filter(p => p.twofa).length,
+            failedWeek: people.reduce((n, p) => n + p.failedWeek, 0),
+            pending: store.servers.listRequests().filter(r => r.status === 'pending').length,
+            servers: store.servers.listAccounts().length,
+            allowed: store.servers.listAllowed().length,
+            signIns: people.reduce((m, p) => ((m[p.signIn] = (m[p.signIn] || 0) + 1), m), {}),
+            providers: ctx.oauth ? ctx.oauth.enabled() : [],
+            settings: store.servers.getSettings(),
+            database: store.backend.kind,
+            admins: config.adminEmails
+        });
+    }));
+
+    /* ---------- people ---------- */
+    r.get('/admin/people', wrap(async (req, res) => res.json(await store.listPeople())));
+    const person = async req => {
+        const email = String(req.params.email || '').toLowerCase();
+        if (!(await store.ready(email))) throw httpError(404, 'No account with that address');
+        return email;
+    };
+    r.post('/admin/people/:email/signout', wrap(async (req, res) => {
+        const email = await person(req);
+        if (email === req.session.email) throw httpError(400, 'Use Settings → Devices to sign yourself out');
+        store.sessions.revokeAll(email);
+        res.json({ ok: true });
+    }));
+    r.post('/admin/people/:email/profile', wrap(async (req, res) => {
+        const email = await person(req);
+        const p = store.getProfile(email);
+        if (!p) throw httpError(404, 'They don’t have a profile');
+        const { hidden, ...rest } = p;
+        store.setProfile(email, req.body.hidden ? { ...rest, hidden: true } : rest);
+        res.json({ ok: true, hidden: !!req.body.hidden });
+    }));
+
+    /* ---------- who may sign in with Microsoft / Google ---------- */
+    r.get('/admin/settings', (req, res) => res.json(store.servers.getSettings()));
+    r.put('/admin/settings', (req, res) => {
+        const patch = {};
+        if ('oauthPolicy' in req.body) patch.oauthPolicy = req.body.oauthPolicy === 'anyone' ? 'anyone' : 'approved';
+        res.json(store.servers.updateSettings(patch));
+    });
+    r.get('/admin/allowed', (req, res) => res.json(store.servers.listAllowed()));
+    r.post('/admin/allowed', (req, res) => {
+        const key = String(req.body.key || '').trim().toLowerCase();
+        if (!/^(@[a-z0-9.-]+\.[a-z]{2,}|[^\s@<>"]+@[a-z0-9.-]+\.[a-z]{2,})$/.test(key)) throw httpError(400, 'Enter an address (ava@gmail.com) or a whole domain (@company.com)');
+        store.servers.allow(key, { addedBy: req.session.email });
+        res.json({ ok: true, key });
+    });
+    r.delete('/admin/allowed/:key', (req, res) => {
+        if (!store.servers.disallow(String(req.params.key).toLowerCase())) throw httpError(404, 'Already removed');
+        res.json({ ok: true });
+    });
 
     r.get('/admin/servers', (req, res) => res.json(store.servers.listAccounts()));
     r.delete('/admin/servers/:key', (req, res) => {

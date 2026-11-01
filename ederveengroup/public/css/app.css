@@ -1508,3 +1508,74 @@ textarea.input { height: auto; padding: 10px 13px; resize: vertical; line-height
 .oauth-or { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; color: var(--text-3); font-size: 12.5px; }
 .oauth-or::before, .oauth-or::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
 .form-ok { line-height: 1.5; }
+
+/* ================= Admin app ================= */
+.ad { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 8px 24px 64px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 32px; align-items: start; }
+.ad-nav { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 2px; }
+.ad-nav a { display: flex; align-items: center; gap: 11px; height: 40px; padding: 0 12px; border-radius: 11px; color: var(--text-2); text-decoration: none; font-weight: 500; transition: background .2s, color .2s; }
+.ad-nav a .i { width: 18px; height: 18px; color: var(--text-3); }
+.ad-nav a:hover { background: var(--hover); color: var(--text); }
+.ad-nav a.on { background: var(--active); color: var(--text); }
+.ad-nav a.on .i { color: var(--accent-ink); }
+.ad-count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; font-style: normal; font-size: 11.5px; font-weight: 700; display: grid; place-items: center; color: var(--on-accent); background: var(--accent); }
+.ad-main.enter > * { animation: pfIn .7s var(--ease) both; }
+.ad-main h1 { margin: 6px 0 4px; font-family: var(--display); font-weight: 400; font-size: 44px; }
+.ad-sub { margin: 0 0 24px; color: var(--text-2); }
+.ad-h2 { margin: 30px 0 10px; color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.ad-muted { color: var(--text-3); font-size: 13.5px; margin: 6px 0 12px; }
+.ad-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.ad-tile { display: flex; flex-direction: column; gap: 2px; padding: 18px; border-radius: 18px; color: var(--text); text-decoration: none; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); transition: transform .3s var(--ease), box-shadow .3s; }
+.ad-tile:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.ad-tile .i { width: 18px; height: 18px; color: var(--accent-ink); margin-bottom: 10px; }
+.ad-tile b { font-family: var(--display); font-weight: 400; font-size: 38px; line-height: 1; }
+.ad-tile span { color: var(--text-3); font-size: 13px; }
+.ad-card { margin-bottom: 16px; padding: 20px; border-radius: 18px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.ad-card h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+.ad-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ad-chip { padding: 6px 12px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); font-size: 13px; }
+.ad-chip b { color: var(--text); margin-left: 4px; }
+.ad-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.ad-row:first-of-type { border-top: 0; }
+.ad-row b { display: block; font-weight: 500; }
+.ad-row small { color: var(--text-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.ad-row .btn { text-decoration: none; }
+.ad-ok, .ad-off { flex: none; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.ad-ok { color: var(--success); background: color-mix(in srgb, var(--success) 13%, transparent); }
+.ad-off { color: var(--text-3); background: var(--surface-3); }
+.ad-av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 13.5px; font-weight: 600; color: hsl(var(--h) 55% 80%); background: hsl(var(--h) 25% 22%); }
+:root[data-theme='light'] .ad-av { color: hsl(var(--h) 40% 32%); background: hsl(var(--h) 45% 90%); }
+.ad-search { position: relative; margin-bottom: 14px; }
+.ad-search .i { position: absolute; left: 13px; top: 12px; width: 17px; height: 17px; color: var(--text-3); }
+.ad-search .input { padding-left: 38px; height: 42px; }
+.ad-people { display: flex; flex-direction: column; gap: 8px; }
+.ad-person { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); animation: rowUp .45s var(--ease) both; }
+.ad-person .lbl { flex: 1; min-width: 0; }
+.ad-person .lbl b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-handle { color: var(--text-3); font-weight: 400; }
+.ad-person .lbl small { display: block; color: var(--text-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ad-tags i { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-style: normal; font-size: 11.5px; color: var(--text-2); background: var(--surface-3); }
+.ad-tags i .i { width: 11px; height: 11px; }
+.ad-tags .t-ok { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.ad-tags .t-bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ad-person-acts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ad-person-acts .btn { height: 32px; font-size: 13px; text-decoration: none; }
+.ad-policy { margin-bottom: 4px; }
+.ad-add { display: flex; gap: 8px; margin: 14px 0 6px; }
+.ad-add .input { flex: 1; }
+.ad-ask p { color: var(--text-2); margin: -6px 0 16px; line-height: 1.5; }
+.ad-ask .input { margin-bottom: 14px; }
+.pf-toast.bad { box-shadow: var(--shadow-lg), inset 3px 0 0 var(--danger); }
+@media (max-width: 860px) {
+    .ad { grid-template-columns: 1fr; gap: 14px; }
+    .ad-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+    .ad-nav a { flex: none; }
+    .ad-tiles { grid-template-columns: repeat(2, 1fr); }
+    .ad-person { flex-wrap: wrap; }
+    .ad-person-acts { width: 100%; justify-content: flex-start; padding-left: 54px; }
+}
+@media (prefers-reduced-motion: reduce) { .ad-main.enter > *, .ad-person { animation: none; } }
+.settings nav .tab-link { display: flex; gap: 10px; align-items: center; height: 36px; padding: 0 11px; border-radius: 9px; color: var(--text-2); text-decoration: none; transition: .18s var(--ease); }
+.settings nav .tab-link .i { width: 16px; height: 16px; color: var(--text-3); }
+.settings nav .tab-link:hover { background: var(--hover); color: var(--text); }
+.ad-count[hidden] { display: none; }

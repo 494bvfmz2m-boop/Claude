@@ -275,6 +275,34 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
             save(email);
         },
 
+        /** everyone with an account, for the Admin app */
+        async listPeople() {
+            const list = await backend.listUsers();
+            const out = [];
+            for (const { email } of list) {
+                try {
+                    await ready(email);
+                } catch {
+                    continue; // unreadable (e.g. written with another secret)
+                }
+                const u = load(email);
+                const ok = u.activity.find(a => a.ok);
+                out.push({
+                    email: norm(email),
+                    username: u.username,
+                    name: u.settings.displayName || (u.profile && u.profile.name) || '',
+                    signIn: u.oauth ? u.oauth.provider : 'password',
+                    lastSignIn: ok ? ok.t : null,
+                    lastSeen: Object.values(u.sessions).reduce((m, s) => Math.max(m, s.lastSeen || 0), 0) || null,
+                    devices: Object.keys(u.sessions).length,
+                    twofa: !!(u.twofa && u.twofa.secret),
+                    profile: u.profile ? (u.profile.visible === false ? 'private' : u.profile.hidden ? 'hidden' : 'public') : 'none',
+                    failedWeek: u.activity.filter(a => !a.ok && Date.now() - a.t < 7 * 864e5).length
+                });
+            }
+            return out;
+        },
+
         /* ---------- Microsoft / Google sign-in tokens ---------- */
         getOAuth: email => load(email).oauth,
         setOAuth(email, value) {
