@@ -29,7 +29,7 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
 
 site.listen(config.port, () => {
     const url = `http://localhost:${config.port}/`;
-    console.log(`EderveenGroup is running at ${url}\n  Mail:    ${url}${config.baseUrl.slice(1)}\n  Profile: ${url}profile/\n  Storage: ${config.db ? `database ${config.db.database} on ${config.db.host}` : 'files in the data folder (set DB_HOST to use a database)'}`);
+    console.log(`EderveenGroup is running at ${url}\n  Mail:    ${url}${config.baseUrl.slice(1)}\n  Profile: ${url}profile/\n  Also:    notes/, tasks/, contacts/, and admin/ for ADMIN_EMAILS\n  Storage: ${config.db ? `database ${config.db.database} on ${config.db.host}` : 'files in the data folder (set DB_HOST to use a database)'}`);
     if (config.openBrowser) openBrowser(url);
 });
 
