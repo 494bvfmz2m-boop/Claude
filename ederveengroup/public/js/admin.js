@@ -5,11 +5,19 @@
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const ic = n => window.icon(n);
     let main = $('#ad-main'); // replaced per section, so old listeners go with it
+    // every request says clearly what went wrong, and gives up after 25 seconds
     const call = async (url, opts = {}) => {
-        const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', 'X-EG': '1' } });
+        let res;
+        try {
+            res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', 'X-EG': '1' }, signal: AbortSignal.timeout ? AbortSignal.timeout(25000) : undefined });
+        } catch (err) {
+            throw new Error(err && err.name === 'TimeoutError' ? `The server didn’t answer in time (${url}).` : `Couldn’t reach the server (${url}). Check your connection; an ad blocker or privacy extension can also stop this.`);
+        }
         if (res.status === 401) location.replace('/login?next=%2Fadmin%2F');
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Something went wrong');
+        const type = res.headers.get('content-type') || '';
+        const data = type.includes('json') ? await res.json().catch(() => ({})) : {};
+        if (!res.ok) throw new Error(`${data.error || 'Something went wrong'} (the server answered ${res.status} for ${url})`);
+        if (!type.includes('json')) throw new Error(`The server sent a page instead of data for ${url} (status ${res.status}). Something between your browser and EderveenGroup changed the answer.`);
         return data;
     };
     const ago = t => {
@@ -466,16 +474,31 @@
         const fresh = main.cloneNode(false);
         main.replaceWith(fresh);
         main = fresh;
-        main.innerHTML = '<div class="pf-loading"><div class="spinner"></div></div>';
+        const mine = main;
+        main.innerHTML = '<div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>';
         main.classList.add('enter');
+        // never a silent blank: after a while, say it's still waiting
+        const slow = setTimeout(() => {
+            if (main !== mine || !$('.ad-loading', mine)) return;
+            mine.innerHTML = `<div class="pf-empty"><h1>Still loading…</h1><p>The server hasn’t answered yet. It may be busy, or something between your browser and EderveenGroup is holding the request.</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
+        }, 10000);
         try {
             await TABS[tab]();
         } catch (e) {
-            main.innerHTML = `<div class="pf-empty"><h1>Couldn’t load this</h1><p>${esc(e.message)}</p></div>`;
+            if (main === mine) showError(e);
+        } finally {
+            clearTimeout(slow);
         }
         const h = $('h1', main);
         document.title = `${h ? h.textContent : 'Admin'} · Admin · EderveenGroup`;
     }
+    function showError(e) {
+        main.innerHTML = `<div class="pf-empty ad-error"><h1>Couldn’t load this</h1><p>${esc((e && e.message) || String(e))}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
+    }
+    document.addEventListener('click', e => e.target.closest('[data-retry]') && route());
+    // a mistake in this page shows up here instead of leaving it empty
+    addEventListener('error', e => !main.textContent.trim() && showError(e.error || e.message));
+    addEventListener('unhandledrejection', e => !main.textContent.trim() && showError(e.reason));
     addEventListener('hashchange', route);
     route();
 })();

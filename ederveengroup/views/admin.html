@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/phone.css?v=%V%" media="(max-width: 760px)">
     <script src="js/boot.js?v=%V%"></script>
     <script src="js/icons.js?v=%V%"></script>
-        <script src="js/admin.js?v=%V%" defer></script>
+    <script src="js/admin.js?v=%V%" defer></script>
 </head>
 <body class="hub-body admin-body">
     <div class="ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
@@ -36,7 +36,8 @@
             <a href="/admin/#/news" data-tab="news" data-icon="bell"><span>News</span></a>
             <a href="/admin/#/apps" data-tab="apps" data-icon="grid"><span>Apps</span></a>
         </nav>
-        <main class="ad-main" id="ad-main" aria-live="polite"><div class="pf-loading"><div class="spinner"></div></div></main>
+        <main class="ad-main" id="ad-main" aria-live="polite"><div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>
+            <p class="ad-stuck">The Admin app didn’t start. Reload the page (Ctrl+F5, or ⌘⇧R on a Mac). If it stays like this, an ad blocker or privacy extension may be stopping it: allow this site and reload.</p></main>
     </div>
 </body>
 </html>
