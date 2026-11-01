@@ -5,6 +5,8 @@
     const COLORS = ['', 'blue', 'green', 'yellow', 'orange', 'pink', 'purple'];
     const REPEATS = [['', 'Never'], ['daily', 'Every day'], ['weekdays', 'Every weekday'], ['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']];
     let events = [];
+    let shared = []; // events from shared calendars (Magister, Google Calendar…), read-only
+    let calendars = []; // those calendars
     let view = sessionGet('cal-view') || 'month';
     let cursor = firstOfMonth(new Date()); // the month on screen
     let selected = iso(new Date()); // the day picked in the month
@@ -67,6 +69,7 @@
     }
     const onDay = day =>
         events
+            .concat(shared)
             .filter(e => occursOn(e, day))
             .sort((a, b) => (b.allDay - a.allDay) || (a.allDay ? 0 : a.start.slice(11).localeCompare(b.start.slice(11))) || a.title.localeCompare(b.title));
     const when = (e, day) => {
@@ -83,6 +86,7 @@
                 <button class="btn" id="today">Today</button>
                 <span class="cal-nav"><button class="icon-btn" id="prev" aria-label="Previous">${ic('left')}</button><button class="icon-btn" id="next" aria-label="Next">${ic('right')}</button></span>
                 <div class="seg cal-view" role="tablist"><button data-view="month">Month</button><button data-view="agenda">Agenda</button></div>
+                <button class="btn" id="cals" title="Add Magister, Google Calendar and other calendars">${ic('calendar')}<span>Calendars</span></button>
                 <button class="icon-btn" id="sub" aria-label="Subscribe on your phone" title="Show it in your phone’s calendar">${ic('phone')}</button>
                 <button class="btn btn-primary" id="new">${ic('plus')}<span>New event</span></button>
             </div>
@@ -137,7 +141,7 @@
     function row(e, day) {
         return `<button class="cal-row" data-id="${esc(e.id)}" data-color="${esc(e.color)}">
             <span class="cal-when">${esc(when(e, day))}</span>
-            <span class="cal-what"><b>${esc(e.title)}</b>${e.location ? `<small>${ic('pin')}${esc(e.location)}</small>` : ''}${e.repeat ? `<small>${ic('refresh')}${esc(REPEATS.find(r => r[0] === e.repeat)[1])}</small>` : ''}</span>
+            <span class="cal-what"><b>${esc(e.title)}</b>${e.location ? `<small>${ic('pin')}${esc(e.location)}</small>` : ''}${e.repeat ? `<small>${ic('refresh')}${esc(REPEATS.find(r => r[0] === e.repeat)[1])}</small>` : ''}${e.ext ? `<small>${ic('calendar')}${esc(e.ext)}</small>` : ''}</span>
         </button>`;
     }
 
@@ -333,7 +337,10 @@
     $('#sub').onclick = () => subscribe().catch(err => toast(err.message, { bad: true }));
     body.addEventListener('click', e => {
         const r = e.target.closest('.cal-row');
-        if (r) return sheet(events.find(x => x.id === r.dataset.id), r.closest('.cal-side') ? selected : null);
+        if (r) {
+            const mine = events.find(x => x.id === r.dataset.id);
+            return mine ? sheet(mine, r.closest('.cal-side') ? selected : null) : details(shared.find(x => x.id === r.dataset.id));
+        }
         const n = e.target.closest('[data-new]');
         if (n) return sheet(null, n.dataset.new);
         const d = e.target.closest('.cal-day');
@@ -365,10 +372,174 @@
         else if (e.key === 'ArrowRight' && view === 'month') $('#next').click();
     });
 
+    /* ---------- shared calendars ---------- */
+    const pad2 = n => String(n).padStart(2, '0');
+    const wall = instant => {
+        const d = new Date(instant);
+        return `${iso(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    };
+    let polls = 0;
+    async function loadShared() {
+        const r = await call('/api/calendar/external');
+        calendars = r.calendars;
+        const byId = Object.fromEntries(calendars.map(c => [c.id, c]));
+        // shown in your own time zone, as your own events are
+        shared = r.events.map(e => ({
+            id: `x-${e.cal}-${e.id}`,
+            title: e.title,
+            allDay: !!e.allDay,
+            start: e.allDay || e.floating ? e.start : wall(e.start),
+            end: e.allDay || e.floating ? e.end : wall(e.end),
+            repeat: '',
+            until: '',
+            location: e.location || '',
+            note: e.note || '',
+            color: (byId[e.cal] || {}).color || 'green',
+            ext: (byId[e.cal] || {}).name || 'Shared calendar'
+        }));
+        draw();
+        if (document.querySelector('.cal-panel')) panelList();
+        // some were being refreshed: look again in a moment
+        if (r.refreshing.length && polls++ < 3) setTimeout(() => loadShared().catch(() => {}), 5000);
+    }
+    function details(e) {
+        if (!e) return;
+        const d = document.createElement('div');
+        d.className = 'pf-crop-back';
+        const day = e.start.slice(0, 10);
+        d.innerHTML = `<div class="pf-crop ad-ask cal-detail" role="dialog" aria-modal="true" data-color="${esc(e.color)}">
+            <p class="cal-from">${ic('calendar')}${esc(e.ext)}</p>
+            <h2>${esc(e.title)}</h2>
+            <p class="cal-when-big">${esc(dayName(day, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${esc(when(e))}</p>
+            ${e.location ? `<p>${ic('pin')} ${esc(e.location)}</p>` : ''}
+            ${e.note ? `<p class="cal-note">${esc(e.note)}</p>` : ''}
+            <p class="ad-muted">This event comes from a shared calendar, so change it there.</p>
+            <div class="pf-crop-acts"><button class="btn btn-primary" data-x>Close</button></div></div>`;
+        document.body.append(d);
+        const close = () => {
+            removeEventListener('keydown', onKey);
+            d.classList.add('out');
+            setTimeout(() => d.remove(), 220);
+        };
+        const onKey = ev => ev.key === 'Escape' && close();
+        addEventListener('keydown', onKey);
+        d.addEventListener('click', ev => (ev.target === d || ev.target.closest('[data-x]')) && close());
+        $('[data-x]', d).focus();
+    }
+
+    // the Calendars panel: your own, and the ones you added by link
+    const ago2 = t => (t ? window.EG.ago(t) : 'not yet');
+    function panelList() {
+        const el = $('#cal-list');
+        if (!el) return;
+        el.innerHTML = `<div class="cal-sub mine"><span class="cal-dot"></span><div><b>My calendar</b><small>${events.length} event${events.length === 1 ? '' : 's'} · on your phone with the 📱 button</small></div></div>` +
+            calendars.map(c => `<div class="cal-sub" data-id="${esc(c.id)}">
+                <label class="cal-show" title="Show or hide"><input type="checkbox" ${c.hidden ? '' : 'checked'}><span class="cal-dot" data-color="${esc(c.color)}"></span></label>
+                <div><b>${esc(c.name)}</b><small class="${c.error ? 'bad' : ''}">${c.error ? esc(c.error) : `${c.count} event${c.count === 1 ? '' : 's'} · updated ${esc(ago2(c.fetchedAt))} · ${esc(c.host)}`}</small></div>
+                <div class="cal-sub-acts">
+                    <div class="cal-colors-mini">${COLORS.filter(Boolean).map(x => `<button class="nt-dot${c.color === x ? ' on' : ''}" data-c="${x}" aria-label="${x}"></button>`).join('')}</div>
+                    <button class="icon-btn" data-act="rename" title="Rename" aria-label="Rename">${ic('pen')}</button>
+                    <button class="icon-btn" data-act="refresh" title="Update now" aria-label="Update now">${ic('refresh')}</button>
+                    <button class="icon-btn" data-act="remove" title="Remove" aria-label="Remove">${ic('trash')}</button>
+                </div></div>`).join('');
+    }
+    function panel() {
+        const d = document.createElement('div');
+        d.className = 'pf-crop-back';
+        d.innerHTML = `<div class="pf-crop ad-ask cal-panel" role="dialog" aria-modal="true">
+            <h2>Calendars</h2>
+            <div id="cal-list" class="cal-subs"></div>
+            <form class="cal-add" id="cal-add" novalidate>
+                <h3>Add a calendar</h3>
+                <p class="ad-muted">Paste a webcal or iCal link. It shows up next to your own events and stays up to date; you can’t change those events here.</p>
+                <input class="input" name="url" placeholder="webcal://… or https://…/basic.ics" autocomplete="off" spellcheck="false" aria-label="Calendar link">
+                <div class="cal-add-row"><input class="input" name="name" maxlength="60" placeholder="Name (optional)" aria-label="Name"><button class="btn btn-primary" type="submit">${ic('plus')}<span>Add</span></button></div>
+                <div class="form-error hidden" role="alert"></div>
+                <details class="cn-how"><summary>Where do I find the link?</summary>
+                    <p><b>Magister:</b> in Magister, open <b>Agenda</b>, then the settings or share button, and copy the <b>agenda link</b> (it starts with <b>webcal://</b>). Paste it here as it is.</p>
+                    <p><b>Google Calendar:</b> on a computer, open Google Calendar → <b>Settings</b> (⚙) → click the calendar on the left → <b>Integrate calendar</b>, and copy the <b>Secret address in iCal format</b>. That works for private calendars. A calendar that’s made public also works with its <b>Public address in iCal format</b> or its share link.</p>
+                    <p><b>Outlook / Microsoft 365:</b> Settings → Calendar → <b>Shared calendars</b> → Publish a calendar, and copy the <b>ICS</b> link.</p>
+                    <p><b>Apple iCloud:</b> in the Calendar app, share the calendar as a <b>Public Calendar</b> and copy its link.</p>
+                </details>
+            </form>
+            <div class="pf-crop-acts"><button class="btn" data-x>Done</button></div></div>`;
+        document.body.append(d);
+        panelList();
+        const close = () => {
+            removeEventListener('keydown', onKey);
+            d.classList.add('out');
+            setTimeout(() => d.remove(), 220);
+        };
+        const onKey = ev => ev.key === 'Escape' && close();
+        addEventListener('keydown', onKey);
+        d.addEventListener('click', async ev => {
+            if (ev.target === d || ev.target.closest('[data-x]')) return close();
+            const row = ev.target.closest('.cal-sub[data-id]');
+            if (!row) return;
+            const id = row.dataset.id;
+            const c = calendars.find(x => x.id === id);
+            try {
+                const dot = ev.target.closest('[data-c]');
+                if (dot) Object.assign(c, await call(`/api/calendar/subscriptions/${id}`, { method: 'PATCH', body: { color: dot.dataset.c } }));
+                const act = ev.target.closest('[data-act]');
+                if (act && act.dataset.act === 'rename') {
+                    const name = prompt('Name for this calendar', c.name);
+                    if (name && name.trim()) Object.assign(c, await call(`/api/calendar/subscriptions/${id}`, { method: 'PATCH', body: { name } }));
+                }
+                if (act && act.dataset.act === 'refresh') {
+                    act.classList.add('spin');
+                    Object.assign(c, await call(`/api/calendar/subscriptions/${id}/refresh`, { method: 'POST', body: {} }));
+                    toast(c.error ? c.error : `${c.name} is up to date`, { bad: !!c.error });
+                }
+                if (act && act.dataset.act === 'remove') {
+                    if (!(await ask({ title: `Remove ${c.name}?`, text: 'Its events disappear from your calendar. You can add the link again later.', ok: 'Remove', danger: true }))) return;
+                    await call(`/api/calendar/subscriptions/${id}`, { method: 'DELETE' });
+                }
+                if (dot || act) await loadShared();
+            } catch (err) {
+                toast(err.message, { bad: true });
+            }
+        });
+        d.addEventListener('change', async ev => {
+            const row = ev.target.closest('.cal-sub[data-id]');
+            if (!row || ev.target.type !== 'checkbox') return;
+            await call(`/api/calendar/subscriptions/${row.dataset.id}`, { method: 'PATCH', body: { hidden: !ev.target.checked } });
+            await loadShared();
+        });
+        $('#cal-add', d).addEventListener('submit', async ev => {
+            ev.preventDefault();
+            const f = ev.target;
+            const err = $('.form-error', f);
+            err.classList.add('hidden');
+            const btn = $('button[type=submit]', f);
+            btn.disabled = true;
+            btn.querySelector('span').textContent = 'Reading…';
+            try {
+                const c = await call('/api/calendar/subscriptions', { method: 'POST', body: { url: f.url.value, name: f.name.value } });
+                f.reset();
+                toast(`${c.name} added: ${c.count} event${c.count === 1 ? '' : 's'}`);
+                await loadShared();
+            } catch (x) {
+                err.textContent = x.message;
+                err.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.querySelector('span').textContent = 'Add';
+            }
+        });
+        setTimeout(() => f0(), 30);
+        function f0() {
+            if (!calendars.length) $('#cal-add [name=url]', d).focus();
+            else $('[data-x]', d).focus();
+        }
+    }
+    $('#cals').onclick = panel;
+
     call('/api/apps/calendar')
         .then(r => {
             events = r.items;
             draw();
+            loadShared().catch(() => {});
             if (location.hash === '#new') {
                 history.replaceState(null, '', location.pathname);
                 sheet(null, today());

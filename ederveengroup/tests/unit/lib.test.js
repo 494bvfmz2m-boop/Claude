@@ -328,3 +328,54 @@ test('vault: files stored encrypted in pieces; any range reads back; uploads res
     await assert.rejects(() => v.writer('../../etc/passwd'), /bad file id/);
     assert.ok((await v.disk()).free > 0);
 });
+
+test('shared calendars: Google and Magister style .ics, repeats, exceptions, time zones, links', () => {
+    const { eventsBetween, normalizeUrl } = require('../../lib/ical');
+    const ics = [
+        'BEGIN:VCALENDAR', 'PRODID:-//Google Inc//Google Calendar 70.9054//EN', 'VERSION:2.0', 'X-WR-CALNAME:Family', 'X-WR-TIMEZONE:Europe/Amsterdam',
+        'BEGIN:VTIMEZONE', 'TZID:Europe/Amsterdam', 'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'DTSTART:19700329T020000', 'END:DAYLIGHT', 'END:VTIMEZONE',
+        // weekly on Mondays at 19:00 Amsterdam time, across the clock change on 25 October
+        'BEGIN:VEVENT', 'DTSTART;TZID=Europe/Amsterdam:20261005T190000', 'DTEND;TZID=Europe/Amsterdam:20261005T200000', 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+        'EXDATE;TZID=Europe/Amsterdam:20261019T190000', 'UID:train@google.com', 'SUMMARY:Football training', 'LOCATION:Sportpark\\, Ede',
+        'DESCRIPTION:Bring\\nboots', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'SUMMARY:Alarm, not an event', 'END:VALARM', 'END:VEVENT',
+        // one occurrence moved to Tuesday 20:00
+        'BEGIN:VEVENT', 'DTSTART;TZID=Europe/Amsterdam:20261027T200000', 'DTEND;TZID=Europe/Amsterdam:20261027T210000', 'RECURRENCE-ID;TZID=Europe/Amsterdam:20261026T190000', 'UID:train@google.com', 'SUMMARY:Football training (moved)', 'END:VEVENT',
+        // all day, three days (DTEND is the day after)
+        'BEGIN:VEVENT', 'DTSTART;VALUE=DATE:20261224', 'DTEND;VALUE=DATE:20261227', 'UID:xmas', 'SUMMARY:Christmas at grandma’s', 'END:VEVENT',
+        // second Tuesday of the month, until March
+        'BEGIN:VEVENT', 'DTSTART;TZID=Europe/Amsterdam:20261013T090000', 'DURATION:PT1H30M', 'RRULE:FREQ=MONTHLY;BYDAY=2TU;UNTIL=20270301T000000Z', 'UID:club', 'SUMMARY:Book club', 'END:VEVENT',
+        // yearly birthday, all day, from long ago
+        'BEGIN:VEVENT', 'DTSTART;VALUE=DATE:19900105', 'RRULE:FREQ=YEARLY', 'UID:bday', 'SUMMARY:Ava’s birthday', 'END:VEVENT',
+        // cancelled
+        'BEGIN:VEVENT', 'DTSTART:20261110T130000Z', 'DTEND:20261110T140000Z', 'STATUS:CANCELLED', 'UID:gone', 'SUMMARY:Called off', 'END:VEVENT',
+        // Magister style: a lesson in UTC, long folded line
+        'BEGIN:VEVENT', 'DTSTART:20261103T073000Z', 'DTEND:20261103T082000Z', 'UID:magister-1', 'SUMMARY:ne - Nederlands - ', ' DEV', 'LOCATION:B204', 'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
+    const { name, events } = eventsBetween(ics, Date.parse('2026-10-01T00:00:00Z'), Date.parse('2027-03-31T00:00:00Z'));
+    assert.equal(name, 'Family');
+    const by = t => events.filter(e => e.title === t);
+    const training = by('Football training');
+    // Oct 5 and 12 in summer time (17:00 UTC); Oct 19 skipped; Oct 26 moved; Nov 2 in winter time (18:00 UTC)
+    assert.deepEqual(training.slice(0, 3).map(e => e.start), ['2026-10-05T17:00:00.000Z', '2026-10-12T17:00:00.000Z', '2026-11-02T18:00:00.000Z']);
+    assert.equal(training[0].end, '2026-10-05T18:00:00.000Z');
+    assert.equal(training[0].location, 'Sportpark, Ede');
+    assert.equal(training[0].note, 'Bring\nboots');
+    assert.deepEqual(by('Football training (moved)').map(e => e.start), ['2026-10-27T19:00:00.000Z']);
+    assert.equal(by('Alarm, not an event').length, 0);
+    assert.deepEqual(by('Christmas at grandma’s').map(e => [e.allDay, e.start, e.end]), [[true, '2026-12-24', '2026-12-26']]);
+    assert.deepEqual(by('Book club').map(e => e.start.slice(0, 10)), ['2026-10-13', '2026-11-10', '2026-12-08', '2027-01-12', '2027-02-09']);
+    assert.equal(by('Book club')[1].start, '2026-11-10T08:00:00.000Z'); // 09:00 winter time
+    assert.equal(by('Book club')[0].end, '2026-10-13T08:30:00.000Z'); // 1 h 30 m
+    assert.deepEqual(by('Ava’s birthday').map(e => e.start), ['2027-01-05']);
+    assert.equal(by('Called off').length, 0);
+    assert.deepEqual(by('ne - Nederlands - DEV').map(e => [e.start, e.end]), [['2026-11-03T07:30:00.000Z', '2026-11-03T08:20:00.000Z']]);
+    // links people paste
+    assert.equal(normalizeUrl('webcal://calendar.magister.net/ical/abc123.ics'), 'https://calendar.magister.net/ical/abc123.ics');
+    assert.equal(normalizeUrl('https://calendar.google.com/calendar/embed?src=family%40group.calendar.google.com&ctz=Europe%2FAmsterdam'), 'https://calendar.google.com/calendar/ical/family%40group.calendar.google.com/public/basic.ics');
+    assert.equal(normalizeUrl('https://calendar.google.com/calendar/u/0?cid=' + Buffer.from('jo@gmail.com').toString('base64')), 'https://calendar.google.com/calendar/ical/jo%40gmail.com/public/basic.ics');
+    const secret = 'https://calendar.google.com/calendar/ical/jo%40gmail.com/private-abc/basic.ics';
+    assert.equal(normalizeUrl(secret), secret);
+    assert.throws(() => normalizeUrl('ftp://x/y.ics'), /https/);
+    assert.throws(() => normalizeUrl('not a link'), /link/);
+});

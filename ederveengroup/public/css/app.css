@@ -2204,3 +2204,37 @@ div.sl-points { padding-left: 0; }
 @keyframes adStuck { to { opacity: 1; } }
 .ad-error p { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .ad-main .ad-stuck { animation: adStuck 0s 6s forwards !important; } }
+
+/* Calendar: shared calendars */
+.cal-panel { width: min(620px, 100%); max-width: 620px; max-height: calc(100vh - 40px); overflow-y: auto; text-align: left; }
+.cal-panel h2 { text-align: center; }
+.cal-subs { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 16px; }
+.cal-sub { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 12px; }
+.cal-sub:hover { background: var(--hover); }
+.cal-sub > div:not(.cal-sub-acts) { flex: 1; min-width: 0; }
+.cal-sub b { display: block; font-weight: 600; }
+.cal-sub small { display: block; color: var(--text-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.cal-sub small.bad { color: var(--danger); }
+.cal-dot { display: inline-block; width: 14px; height: 14px; flex: none; border-radius: 50%; background: var(--ec, var(--accent)); }
+.cal-sub.mine .cal-dot { margin: 0 3px 0 21px; }
+.cal-show { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.cal-show input { width: 16px; height: 16px; accent-color: var(--accent); }
+.cal-sub-acts { display: flex; align-items: center; gap: 2px; }
+.cal-sub-acts .icon-btn { width: 30px; height: 30px; }
+.cal-sub-acts .icon-btn .i { width: 15px; height: 15px; }
+.cal-sub-acts .spin .i { animation: spin .8s linear infinite; }
+.cal-colors-mini { display: none; gap: 4px; margin-right: 4px; }
+.cal-sub:hover .cal-colors-mini, .cal-sub:focus-within .cal-colors-mini { display: flex; }
+.cal-colors-mini .nt-dot { width: 14px; height: 14px; }
+.cal-add { padding-top: 14px; border-top: 1px solid var(--line); }
+.cal-add h3 { margin: 0 0 4px; font-size: 15px; }
+.cal-add .input { width: 100%; margin-top: 8px; }
+.cal-add-row { display: flex; gap: 8px; }
+.cal-add-row .btn { margin-top: 8px; flex: none; }
+.cal-detail { max-width: 460px; text-align: left; box-shadow: var(--shadow-lg), inset 4px 0 0 var(--ec, var(--accent)); }
+.cal-detail h2 { margin: 2px 0 6px; }
+.cal-from { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ec, var(--accent-ink)); font-size: 12.5px; font-weight: 600; }
+.cal-from .i, .cal-detail p .i { width: 14px; height: 14px; vertical-align: -2px; }
+.cal-when-big { color: var(--text-2); }
+.cal-note { white-space: pre-line; color: var(--text-2); max-height: 40vh; overflow-y: auto; }
+@media (max-width: 760px) { .cal-tools #cals span { display: none; } .cal-colors-mini { display: flex; } .cal-sub { flex-wrap: wrap; } .cal-sub-acts { width: 100%; justify-content: flex-end; } }

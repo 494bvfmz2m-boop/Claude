@@ -192,7 +192,7 @@
             apps();
             today_();
             return Promise.allSettled([
-                api(`/api/apps-summary?today=${today}&now=${encodeURIComponent(clock)}`).then(s => {
+                api(`/api/apps-summary?today=${today}&now=${encodeURIComponent(clock)}&tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')}`).then(s => {
                     sum = { ...sum, ...s };
                     pages = s.pages || null;
                 }),

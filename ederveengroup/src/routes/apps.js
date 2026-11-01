@@ -14,6 +14,7 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const usernames = require('../../lib/usernames');
 const { seal, unseal } = require('../../lib/session');
+const ical = require('../../lib/ical');
 
 const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
 
@@ -82,6 +83,14 @@ const APPS = {
     }
 };
 const MAX_BYTES = 2 * 1024 * 1024; // per app per person
+
+// "2026-11-03T07:30:00.000Z" as a wall-clock time in a zone: "2026-11-03T08:30"
+const localFmt = new Map();
+function localOf(iso, tz) {
+    if (!localFmt.has(tz)) localFmt.set(tz, new Intl.DateTimeFormat('en-CA', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+    const p = Object.fromEntries(localFmt.get(tz).formatToParts(new Date(iso)).map(x => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
 
 // calendar times are wall-clock ("2026-11-03T14:00"), like a paper diary: they stay put when you travel
 function realDay(d) {
@@ -225,8 +234,20 @@ module.exports = function appRoutes(ctx) {
         const now = TIME.test(String(req.query.now || '')) ? String(req.query.now) : today + 'T00:00';
         const items = app => Object.values(doc(email, app).items);
         const tasks = items('tasks').filter(t => !t.done);
+        // your own events, and those from shared calendars (in your time zone)
+        const tz = ical.zoneOk(String(req.query.tz || '')) ? String(req.query.tz) : 'UTC';
+        const shared = [];
+        for (const [id, sub] of Object.entries(subs(email).items)) {
+            if (sub.hidden) continue;
+            for (const e of (await ctx.docs.get(`calsub:${id}`, () => ({ events: [] }))).events || []) {
+                const start = e.allDay ? e.start : e.floating ? e.start : localOf(e.start, tz);
+                const end = e.allDay ? e.end : e.floating ? e.end : localOf(e.end, tz);
+                if (start.slice(0, 10) <= today && end.slice(0, 10) >= today) shared.push({ ...e, start, end, color: sub.color, repeat: '' });
+            }
+        }
         const todays = items('calendar')
             .filter(e => occursOn(e, today))
+            .concat(shared)
             .sort((a, b) => (a.allDay ? '' : a.start.slice(11)).localeCompare(b.allDay ? '' : b.start.slice(11)));
         const next = todays.find(e => !e.allDay && e.start.slice(11) >= now.slice(11)) || null;
         const files = items('files').filter(f => f.kind === 'file');
@@ -246,6 +267,117 @@ module.exports = function appRoutes(ctx) {
             photos: files.filter(f => /^(image|video)\//.test(f.type || '')).length,
             ...extra
         });
+    }));
+
+    /* ---------- Calendar: shared calendars from elsewhere (Magister, Google Calendar, Outlook…) ---------- */
+    // added with their webcal/iCal link; the server fetches them (only from public addresses),
+    // keeps the events from a few months back to a year and a half ahead, and refreshes them
+    const SUB_LIMIT = 20;
+    const STALE = 30 * 60 * 1000;
+    const subs = email => store.getApp(email, 'calsubs') || { items: {} };
+    const subView = (id, x) => ({ id, name: x.name, color: x.color, hidden: !!x.hidden, host: x.host, fetchedAt: x.fetchedAt || null, error: x.error || '', count: x.count || 0 });
+    const refreshing = new Map();
+    function refreshSub(email, id) {
+        const key = `${email}|${id}`;
+        if (refreshing.has(key)) return refreshing.get(key);
+        const run = (async () => {
+            const sub = subs(email).items[id];
+            if (!sub) return;
+            let patch;
+            try {
+                const text = await ical.fetchCalendar(sub.url, { allowPrivate: ctx.config.allowPrivateMailHosts });
+                const now = Date.now();
+                const r = ical.eventsBetween(text, now - 120 * 864e5, now + 550 * 864e5);
+                const cache = await ctx.docs.get(`calsub:${id}`, () => ({}));
+                cache.events = r.events;
+                cache.fetchedAt = now;
+                ctx.docs.save(`calsub:${id}`);
+                patch = { fetchedAt: now, triedAt: now, error: '', count: r.events.length, calName: r.name };
+            } catch (err) {
+                patch = { triedAt: Date.now(), error: err.message || 'Couldn’t read that calendar' };
+            }
+            // the list may have changed meanwhile: change only this one, if it's still there
+            const d = subs(email);
+            if (d.items[id]) {
+                Object.assign(d.items[id], patch);
+                store.setApp(email, 'calsubs', d);
+            }
+            return patch;
+        })().finally(() => refreshing.delete(key));
+        refreshing.set(key, run);
+        return run;
+    }
+    const subOf = (email, id) => {
+        const x = subs(email).items[id];
+        if (!x) throw httpError(404, 'That calendar isn’t here any more');
+        return x;
+    };
+    r.get('/calendar/subscriptions', (req, res) => res.json(Object.entries(subs(req.session.email).items).map(([id, x]) => subView(id, x))));
+    r.post('/calendar/subscriptions', wrap(async (req, res) => {
+        const email = req.session.email;
+        const url = ical.normalizeUrl(req.body.url);
+        const d = subs(email);
+        if (Object.keys(d.items).length >= SUB_LIMIT) throw httpError(400, `You can add up to ${SUB_LIMIT} calendars`);
+        if (Object.values(d.items).some(x => x.url === url)) throw httpError(409, 'That calendar is already here');
+        const id = require('crypto').randomBytes(9).toString('base64url');
+        const used = Object.values(d.items).map(x => x.color);
+        const color = COLORS.includes(req.body.color) && req.body.color ? req.body.color : COLORS.slice(1).find(c => !used.includes(c)) || 'green';
+        d.items[id] = { url, host: new URL(url).hostname, name: line(req.body.name, 60), color, hidden: false, addedAt: Date.now() };
+        store.setApp(email, 'calsubs', d);
+        // read it now, so a wrong link is said straight away (and not kept)
+        const r = await refreshSub(email, id);
+        const now = subs(email);
+        if (r && r.error) {
+            delete now.items[id];
+            store.setApp(email, 'calsubs', now);
+            await ctx.docs.remove(`calsub:${id}`);
+            throw httpError(400, r.error);
+        }
+        if (!now.items[id].name) {
+            now.items[id].name = line(now.items[id].calName, 60) || (/magister/i.test(now.items[id].host) ? 'Magister' : /google/i.test(now.items[id].host) ? 'Google Calendar' : now.items[id].host);
+            store.setApp(email, 'calsubs', now);
+        }
+        res.json(subView(id, now.items[id]));
+    }));
+    r.patch('/calendar/subscriptions/:id', (req, res) => {
+        const email = req.session.email;
+        subOf(email, req.params.id);
+        const d = subs(email);
+        const x = d.items[req.params.id];
+        if ('name' in req.body && line(req.body.name, 60)) x.name = line(req.body.name, 60);
+        if (COLORS.includes(req.body.color) && req.body.color) x.color = req.body.color;
+        if ('hidden' in req.body) x.hidden = !!req.body.hidden;
+        store.setApp(email, 'calsubs', d);
+        res.json(subView(req.params.id, x));
+    });
+    r.delete('/calendar/subscriptions/:id', wrap(async (req, res) => {
+        const email = req.session.email;
+        subOf(email, req.params.id);
+        const d = subs(email);
+        delete d.items[req.params.id];
+        store.setApp(email, 'calsubs', d);
+        await ctx.docs.remove(`calsub:${req.params.id}`);
+        res.json({ ok: true });
+    }));
+    r.post('/calendar/subscriptions/:id/refresh', wrap(async (req, res) => {
+        subOf(req.session.email, req.params.id);
+        await refreshSub(req.session.email, req.params.id);
+        res.json(subView(req.params.id, subOf(req.session.email, req.params.id)));
+    }));
+    // the events of all shown shared calendars; ones not read for a while are refreshed meanwhile
+    r.get('/calendar/external', wrap(async (req, res) => {
+        const email = req.session.email;
+        const calendars = [];
+        const events = [];
+        const busy = [];
+        for (const [id, x] of Object.entries(subs(email).items)) {
+            calendars.push(subView(id, x));
+            const stale = Date.now() - (x.fetchedAt || 0) > STALE && Date.now() - (x.triedAt || 0) > 10 * 60 * 1000;
+            if (stale) (refreshSub(email, id), busy.push(id));
+            if (x.hidden) continue;
+            for (const e of (await ctx.docs.get(`calsub:${id}`, () => ({ events: [] }))).events || []) events.push({ ...e, cal: id });
+        }
+        res.json({ calendars, events, refreshing: busy });
     }));
 
     /* ---------- Calendar: a private subscription address for phones and other calendar apps ---------- */

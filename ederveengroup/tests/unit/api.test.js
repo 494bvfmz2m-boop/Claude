@@ -995,3 +995,78 @@ test('Docs and Slides: private or shared, cleaned on save, safe from overwriting
     assert.equal((await ava('GET', `/api/docs/${d.id}`)).status, 404);
     app.close();
 });
+
+test('Calendar: shared calendars by link (Magister, Google): read, shown, refreshed, safe', async () => {
+    const http = require('http');
+    const zlib = require('zlib');
+    const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'X-WR-CALNAME:Rooster 4B', 'BEGIN:VEVENT', `DTSTART:${day}T073000Z`, `DTEND:${day}T082000Z`, 'UID:les-1', 'SUMMARY:ne - Nederlands', 'LOCATION:B204', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const srv = http.createServer((req, res) => {
+        if (req.url === '/rooster.ics') {
+            res.writeHead(200, { 'Content-Type': 'text/calendar', 'Content-Encoding': 'gzip' });
+            res.end(zlib.gzipSync(ics));
+        } else if (req.url === '/moved') {
+            res.writeHead(302, { Location: '/rooster.ics' });
+            res.end();
+        } else if (req.url === '/page') {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end('<html>Sign in</html>');
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+    await new Promise(r => srv.listen(0, '127.0.0.1', r));
+    const base = `http://127.0.0.1:${srv.address().port}`;
+    // a normal server refuses addresses on its own network
+    const plain = await start();
+    const p = plain.device();
+    await p('POST', '/mail/api/login', { email: USER, password: PASS });
+    await p('POST', '/api/username', { username: 'jo.smith' });
+    assert.match((await p('POST', '/api/calendar/subscriptions', { url: `${base}/rooster.ics` })).body.error, /private network/);
+    plain.close();
+    // (tests may read from this machine)
+    const app = await start({ ALLOW_PRIVATE_MAIL_HOSTS: '1' });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    assert.equal((await app.device()('GET', '/api/calendar/external')).status, 401);
+    assert.match((await jo('POST', '/api/calendar/subscriptions', { url: 'nonsense' })).body.error, /link/);
+    assert.match((await jo('POST', '/api/calendar/subscriptions', { url: `${base}/page` })).body.error, /isn’t a calendar/);
+    assert.match((await jo('POST', '/api/calendar/subscriptions', { url: `${base}/nope.ics` })).body.error, /answered 404/);
+    assert.deepEqual((await jo('GET', '/api/calendar/subscriptions')).body, []); // wrong links aren't kept
+    const sub = (await jo('POST', '/api/calendar/subscriptions', { url: `${base}/moved` })).body;
+    assert.deepEqual([sub.name, sub.count, sub.error, sub.hidden, sub.host], ['Rooster 4B', 1, '', false, '127.0.0.1']);
+    assert.ok(sub.color);
+    assert.equal((await jo('POST', '/api/calendar/subscriptions', { url: `${base}/moved` })).status, 409);
+    assert.equal(JSON.stringify((await jo('GET', '/api/calendar/subscriptions')).body).includes('/moved'), false); // the secret link isn't sent back
+    const ext = (await jo('GET', '/api/calendar/external')).body;
+    assert.deepEqual(ext.events.map(e => [e.title, e.location, e.cal, e.start.slice(11, 16)]), [['ne - Nederlands', 'B204', sub.id, '07:30']]);
+    // the dashboard shows it today, in your time zone
+    const today = new Date().toISOString().slice(0, 10);
+    const sum = (await jo('GET', `/api/apps-summary?today=${today}&now=${today}T00:00&tz=Europe/Amsterdam`)).body;
+    assert.equal(sum.calendar.today, 1);
+    assert.equal(sum.calendar.items[0].title, 'ne - Nederlands');
+    assert.match(sum.calendar.items[0].at, /^0[89]:30$/); // 08:30 in winter, 09:30 in summer
+    // hide, rename, recolour
+    await jo('PATCH', `/api/calendar/subscriptions/${sub.id}`, { hidden: true, name: 'School', color: 'purple' });
+    assert.equal((await jo('GET', '/api/calendar/external')).body.events.length, 0);
+    assert.equal((await jo('GET', `/api/apps-summary?today=${today}&tz=Europe/Amsterdam`)).body.calendar.today, 0);
+    await jo('PATCH', `/api/calendar/subscriptions/${sub.id}`, { hidden: false });
+    // the calendar changes at the source; refreshing picks it up
+    ics = ics.replace('END:VCALENDAR', ['BEGIN:VEVENT', `DTSTART;VALUE=DATE:${day}`, 'UID:trip', 'SUMMARY:School trip', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'));
+    const again = (await jo('POST', `/api/calendar/subscriptions/${sub.id}/refresh`, {})).body;
+    assert.deepEqual([again.name, again.color, again.count], ['School', 'purple', 2]);
+    // someone else doesn't see it
+    const ava = app.device();
+    app.mail.verifyLogin = async () => true;
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    assert.equal((await ava('GET', '/api/calendar/external')).body.events.length, 0);
+    assert.equal((await ava('DELETE', `/api/calendar/subscriptions/${sub.id}`)).status, 404);
+    // removing it removes its events
+    assert.equal((await jo('DELETE', `/api/calendar/subscriptions/${sub.id}`)).body.ok, true);
+    assert.equal((await jo('GET', '/api/calendar/external')).body.events.length, 0);
+    app.close();
+    srv.close();
+});
