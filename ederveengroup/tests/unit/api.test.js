@@ -739,3 +739,58 @@ test('Files: upload, folders, room per person, safe downloads, share links', asy
     assert.equal((await jo('GET', '/api/apps-summary')).body.files.count, 3 + 5); // five 2 MB files fit in 10 MB
     app.close();
 });
+
+test('Admin: roles, blocking, the activity log, news on the dashboard, switching apps off', async () => {
+    const app = await start({ ADMIN_EMAILS: USER });
+    app.mail.verifyLogin = async (email, pw) => pw === 'x' || (email === USER && pw === PASS);
+    const boss = app.device();
+    await boss('POST', '/mail/api/login', { email: USER, password: PASS });
+    await boss('POST', '/api/username', { username: 'boss' });
+    const ava = app.device();
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    await app.device()('POST', '/mail/api/login', { email: 'ava@example.com', password: 'wrong' });
+    // roles
+    assert.equal((await ava('GET', '/api/admin/people')).status, 403);
+    const people = (await boss('GET', '/api/admin/people')).body;
+    assert.deepEqual(people.map(p => [p.email, p.role, p.you]).sort(), [['ava@example.com', 'member', false], [USER, 'owner', true]]);
+    assert.equal((await boss('POST', `/api/admin/people/${encodeURIComponent(USER)}/role`, { admin: false })).status, 409);
+    assert.equal((await boss('POST', '/api/admin/people/ava%40example.com/role', { admin: true })).body.role, 'admin');
+    assert.equal((await ava('GET', '/api/admin/people')).status, 200); // now she's an admin too
+    assert.equal((await ava('POST', `/api/admin/people/${encodeURIComponent(USER)}/block`, { blocked: true })).status, 409); // the owner can't be blocked
+    // blocking: signed out, can't sign in again, no longer admin
+    assert.equal((await boss('POST', '/api/admin/people/ava%40example.com/block', { blocked: true })).body.blocked, true);
+    assert.equal((await ava('GET', '/mail/api/me')).status, 401);
+    const again = await app.device()('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    assert.equal(again.status, 403);
+    assert.match(again.body.error, /switched off/);
+    const blockedAva = (await boss('GET', '/api/admin/people')).body.find(p => p.email === 'ava@example.com');
+    assert.deepEqual([blockedAva.blocked, blockedAva.role], [true, 'member']);
+    await boss('POST', '/api/admin/people/ava%40example.com/block', { blocked: false });
+    assert.equal((await app.device()('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' })).status, 200);
+    // the activity log has sign-ins (good and bad) and admin changes, newest first
+    const log = (await boss('GET', '/api/admin/activity')).body;
+    assert.ok(log.some(e => e.kind === 'signin' && e.email === 'ava@example.com' && !e.ok && e.reason === 'wrong-password'));
+    assert.ok(log.some(e => e.kind === 'signin' && e.reason === 'blocked'));
+    assert.ok(log.some(e => e.kind === 'admin' && e.text === 'Blocked ava@example.com' && e.by === USER));
+    assert.ok((await boss('GET', '/api/admin/activity?kind=failed')).body.every(e => e.kind === 'signin' && !e.ok));
+    assert.ok((await boss('GET', '/api/admin/activity?kind=admin')).body.every(e => e.kind === 'admin'));
+    // news shows on everyone's dashboard until it's taken down
+    assert.equal((await boss('POST', '/api/admin/news', { title: '' })).status, 400);
+    const post = (await boss('POST', '/api/admin/news', { title: 'Server maintenance\nSaturday', body: 'Mail is down 9–10.', days: 7 })).body;
+    assert.equal(post.title, 'Server maintenance Saturday');
+    const ava2 = app.device();
+    await ava2('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    assert.deepEqual((await ava2('GET', '/api/apps-summary')).body.news.map(n => n.title), ['Server maintenance Saturday']);
+    await boss('DELETE', `/api/admin/news/${post.id}`);
+    assert.deepEqual((await ava2('GET', '/api/apps-summary')).body.news, []);
+    // switching an app off hides it for everyone
+    assert.ok((await ava2('GET', '/api/apps-summary')).body.pages.includes('notes'));
+    await boss('PUT', '/api/admin/apps', { off: ['notes', 'nonsense'] });
+    assert.deepEqual((await boss('GET', '/api/admin/apps')).body.off, ['notes']);
+    assert.equal((await ava2('GET', '/notes/')).status, 404);
+    assert.equal((await ava2('GET', '/api/apps-summary')).body.pages.includes('notes'), false);
+    await boss('PUT', '/api/admin/apps', { off: [] });
+    assert.equal((await ava2('GET', '/notes/')).status, 200);
+    app.close();
+});

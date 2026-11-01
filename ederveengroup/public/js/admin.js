@@ -84,8 +84,18 @@
                 <div class="ad-row"><div><b>Sign in with Google</b><small>Gmail and Google Workspace</small></div>${provider('google') ? '<span class="ad-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
                 <div class="ad-row"><div><b>Who may use Microsoft / Google</b><small>${o.settings.oauthPolicy === 'anyone' ? 'Anyone with an account' : 'Only approved addresses and domains'}</small></div><a class="btn" href="/admin/#/access">Change</a></div>
                 <div class="ad-row"><div><b>Storage</b><small>${o.database === 'mysql' ? 'MySQL / MariaDB database' : 'Files in the data folder'}</small></div><span class="ad-ok">${o.database === 'mysql' ? 'Database' : 'Files'}</span></div>
-                <div class="ad-row"><div><b>Admins</b><small>${o.admins.map(esc).join(', ')}</small></div></div>
-            </section>`;
+                <div class="ad-row"><div><b>Admins</b><small>${o.admins.map(esc).join(', ')}</small></div><a class="btn" href="/admin/#/people">People</a></div>
+            </section>
+            <section class="ad-card"><h2>Recent activity</h2><div class="ad-log" id="ad-recent"><p class="ad-muted">Loading…</p></div><a class="btn btn-ghost" href="/admin/#/activity">See all activity</a></section>`;
+        call('/api/admin/activity')
+            .then(list => {
+                const el = $('#ad-recent', main);
+                if (!el) return;
+                el.innerHTML = list.length
+                    ? list.slice(0, 6).map(e => `<div class="ad-ev ${e.kind === 'admin' ? 'admin' : e.ok ? 'ok' : 'bad'}"><span class="ad-ev-ic">${ic(e.kind === 'admin' ? 'shield' : e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.kind === 'admin' ? e.text : e.email)}</b><small>${e.kind === 'admin' ? `by ${esc(e.by)}` : e.ok ? 'Signed in' : 'Sign-in failed'}</small></div><time>${esc(ago(e.t))}</time></div>`).join('')
+                    : '<p class="ad-muted">Nothing yet.</p>';
+            })
+            .catch(() => {});
     }
 
     /* ---------- requests ---------- */
@@ -147,13 +157,15 @@
             $('#ad-people', main).innerHTML = shown.length
                 ? shown.map((p, i) => `<div class="ad-person" data-email="${esc(p.email)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
                     ${av(p.name, p.email)}
-                    <div class="lbl"><b>${esc(p.name || p.email)}${p.username ? ` <span class="ad-handle">@${esc(p.username)}</span>` : ''}</b>
+                    <div class="lbl"><b>${esc(p.name || p.email)}${p.username ? ` <span class="ad-handle">@${esc(p.username)}</span>` : ''}${p.role !== 'member' ? ` <span class="ad-role">${p.role === 'owner' ? 'Owner' : 'Admin'}</span>` : ''}${p.blocked ? ' <span class="ad-role bad">Blocked</span>' : ''}${p.you ? ' <span class="ad-handle">(you)</span>' : ''}</b>
                         <small>${esc(p.email)} · ${esc(SIGNIN[p.signIn] || p.signIn)} · last seen ${esc(ago(p.lastSeen))}</small>
                         <span class="ad-tags">${p.twofa ? `<i class="t-ok">${ic('lock')}2FA</i>` : ''}${p.devices ? `<i>${p.devices} device${p.devices === 1 ? '' : 's'}</i>` : ''}${p.profile !== 'none' ? `<i class="${p.profile === 'hidden' ? 't-bad' : ''}">Profile ${p.profile}</i>` : ''}${p.failedWeek ? `<i class="t-bad">${p.failedWeek} failed</i>` : ''}</span></div>
                     <div class="ad-person-acts">
                         ${p.username && p.profile === 'public' ? `<a class="btn btn-ghost" href="/profile/#/${esc(p.username)}" target="_blank" rel="noopener">${ic('external')}<span>Card</span></a>` : ''}
                         ${p.profile === 'public' || p.profile === 'hidden' ? `<button class="btn btn-ghost" data-hide="${p.profile === 'hidden' ? '0' : '1'}">${p.profile === 'hidden' ? 'Unhide card' : 'Hide card'}</button>` : ''}
-                        ${p.devices ? `<button class="btn btn-danger" data-signout>Sign out</button>` : ''}</div></div>`).join('')
+                        ${p.devices && !p.you ? `<button class="btn btn-ghost" data-signout>Sign out</button>` : ''}
+                        ${p.role !== 'owner' && !p.you && !p.blocked ? `<button class="btn btn-ghost" data-role="${p.role === 'admin' ? '0' : '1'}">${p.role === 'admin' ? 'Remove admin' : 'Make admin'}</button>` : ''}
+                        ${p.role !== 'owner' && !p.you ? `<button class="btn ${p.blocked ? '' : 'btn-danger'}" data-block="${p.blocked ? '0' : '1'}">${p.blocked ? 'Unblock' : 'Block'}</button>` : ''}</div></div>`).join('')
                 : '<p class="ad-muted">Nobody matches that.</p>';
         };
         main.innerHTML = `<h1>People</h1><p class="ad-sub">${list.length} ${list.length === 1 ? 'person has' : 'people have'} an EderveenGroup account.</p>
@@ -174,6 +186,32 @@
                     p.devices = 0;
                     draw();
                     toast(`${p.email} was signed out everywhere`);
+                } catch (err) {
+                    toast(err.message, true);
+                }
+            }
+            const role = e.target.closest('[data-role]');
+            if (role) {
+                const on = role.dataset.role === '1';
+                if (on && !(await ask({ title: `Make ${p.name || p.email} an admin?`, text: 'They can accept requests, manage people, change sign-in and see the activity log.', ok: 'Make admin' }))) return;
+                try {
+                    p.role = (await call(`/api/admin/people/${encodeURIComponent(p.email)}/role`, { method: 'POST', body: JSON.stringify({ admin: on }) })).role;
+                    draw();
+                    toast(on ? `${p.email} is an admin now` : `${p.email} is no longer an admin`);
+                } catch (err) {
+                    toast(err.message, true);
+                }
+            }
+            const block = e.target.closest('[data-block]');
+            if (block) {
+                const on = block.dataset.block === '1';
+                if (on && !(await ask({ title: `Block ${p.name || p.email}?`, text: 'They’re signed out everywhere and can’t sign in again until you unblock them. Their mail itself isn’t touched.', ok: 'Block', danger: true }))) return;
+                try {
+                    await call(`/api/admin/people/${encodeURIComponent(p.email)}/block`, { method: 'POST', body: JSON.stringify({ blocked: on }) });
+                    p.blocked = on;
+                    if (on) (p.devices = 0), (p.role = 'member');
+                    draw();
+                    toast(on ? `${p.email} is blocked` : `${p.email} can sign in again`);
                 } catch (err) {
                     toast(err.message, true);
                 }
@@ -339,8 +377,89 @@
         });
     }
 
-    /* ---------- address: #/, #/requests, #/people, #/access, #/signin ---------- */
-    const TABS = { overview, requests, people, access, signin };
+    /* ---------- activity: sign-ins and admin actions ---------- */
+    async function activity() {
+        let kind = '';
+        main.innerHTML = `<h1>Activity</h1><p class="ad-sub">Every sign-in on EderveenGroup, and what admins changed.</p>
+            <div class="seg ad-kind" id="ad-kind"><button data-k="" class="on">Everything</button><button data-k="signin">Sign-ins</button><button data-k="failed">Failed</button><button data-k="admin">Admin changes</button></div>
+            <div class="ad-log" id="ad-log"><div class="pf-loading"><div class="spinner"></div></div></div>`;
+        const METHOD = { password: 'password', 'trusted-device': 'password (trusted device)', '2fa': 'two-step code', totp: 'two-step code', recovery: 'recovery code', google: 'Google', microsoft: 'Microsoft', 'microsoft-work': 'Microsoft 365' };
+        const REASON = { 'wrong-password': 'wrong password', 'wrong-code': 'wrong code', locked: 'too many tries', blocked: 'account blocked', 'no-imap': 'mailbox refused' };
+        const draw = async () => {
+            const list = await call(`/api/admin/activity${kind ? `?kind=${kind}` : ''}`);
+            $('#ad-log', main).innerHTML = list.length
+                ? list.map((e, i) => {
+                      const when = new Date(e.t);
+                      const time = `<time title="${esc(when.toLocaleString())}">${esc(ago(e.t))}</time>`;
+                      if (e.kind === 'admin') return `<div class="ad-ev admin" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="ad-ev-ic">${ic('shield')}</span><div><b>${esc(e.text)}</b><small>by ${esc(e.by)}</small></div>${time}</div>`;
+                      return `<div class="ad-ev ${e.ok ? 'ok' : 'bad'}" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="ad-ev-ic">${ic(e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.email)}</b><small>${e.ok ? 'Signed in' : `Sign-in failed (${esc(REASON[e.reason] || e.reason || 'refused')})`} with ${esc(METHOD[e.method] || e.method || 'password')}${e.device ? ` · ${esc(e.device)}` : ''}${e.ip ? ` · ${esc(e.ip)}` : ''}</small></div>${time}</div>`;
+                  }).join('')
+                : `<div class="empty-note">${ic('sparkle')}<span>Nothing here yet.</span></div>`;
+        };
+        $('#ad-kind', main).addEventListener('click', e => {
+            const b = e.target.closest('[data-k]');
+            if (!b) return;
+            kind = b.dataset.k;
+            $$('#ad-kind button', main).forEach(x => x.classList.toggle('on', x === b));
+            draw();
+        });
+        await draw();
+    }
+
+    /* ---------- news: posts on everyone's dashboard ---------- */
+    async function news() {
+        const list = await call('/api/admin/news');
+        main.innerHTML = `<h1>News</h1><p class="ad-sub">Short posts everyone sees at the top of their dashboard.</p>
+            <form class="ad-card ad-news-form" id="ad-news">
+                <label class="pf-field"><span>Title</span><input class="input" name="title" maxlength="120" placeholder="The mail server is down for maintenance on Saturday"></label>
+                <label class="pf-field"><span>Message</span><textarea class="input" name="body" rows="4" maxlength="2000" placeholder="A few more words, if needed"></textarea></label>
+                <div class="si-acts"><label class="pf-field ad-days"><span>Show it for</span><select class="input" name="days"><option value="3">3 days</option><option value="7" selected>a week</option><option value="30">a month</option><option value="0">until I take it down</option></select></label><span class="spacer"></span><button class="btn btn-primary">${ic('send')}<span>Post</span></button></div>
+            </form>
+            <div class="ad-newslist">${list.length ? list.map(n => `<div class="ad-card ad-newsitem" data-id="${esc(n.id)}"><div><b>${esc(n.title)}</b>${n.body ? `<p>${esc(n.body)}</p>` : ''}<small>${esc(n.by)} · ${esc(ago(n.at))}${n.until ? (n.until > Date.now() ? ` · shown until ${esc(new Date(n.until).toLocaleDateString())}` : ' · no longer shown') : ''}</small></div><button class="btn btn-danger" data-del>Take down</button></div>`).join('') : '<p class="ad-muted">Nothing posted yet.</p>'}</div>`;
+        $('#ad-news', main).addEventListener('submit', async e => {
+            e.preventDefault();
+            const f = e.target;
+            try {
+                await call('/api/admin/news', { method: 'POST', body: JSON.stringify({ title: f.title.value, body: f.body.value, days: Number(f.days.value) }) });
+                toast('Posted. Everyone sees it on their dashboard.');
+                news();
+            } catch (err) {
+                toast(err.message, true);
+            }
+        });
+        $$('[data-del]', main).forEach(b =>
+            b.addEventListener('click', async () => {
+                if (!(await ask({ title: 'Take this post down?', text: 'It disappears from everyone’s dashboard.', ok: 'Take down', danger: true }))) return;
+                await call(`/api/admin/news/${b.closest('[data-id]').dataset.id}`, { method: 'DELETE' });
+                news();
+            })
+        );
+    }
+
+    /* ---------- apps: which apps everyone gets ---------- */
+    const APP_NAMES = { notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', chat: 'Chat' };
+    async function apps() {
+        const { pages, off } = await call('/api/admin/apps');
+        main.innerHTML = `<h1>Apps</h1><p class="ad-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
+            <section class="ad-card ad-apps">${pages.map(a => `<label class="ad-app"><img src="icons/apps/${a}.svg" alt=""><span><b>${esc(APP_NAMES[a] || a)}</b><small>${off.includes(a) ? 'Off' : 'On for everyone'}</small></span><input type="checkbox" class="ad-toggle" data-app="${a}" ${off.includes(a) ? '' : 'checked'}></label>`).join('')}
+            <p class="ad-muted">Mail, Profile and Admin are always on.</p></section>`;
+        $$('[data-app]', main).forEach(t =>
+            t.addEventListener('change', async () => {
+                const offNow = $$('[data-app]', main).filter(x => !x.checked).map(x => x.dataset.app);
+                try {
+                    await call('/api/admin/apps', { method: 'PUT', body: JSON.stringify({ off: offNow }) });
+                    t.closest('.ad-app').querySelector('small').textContent = t.checked ? 'On for everyone' : 'Off';
+                    toast(`${APP_NAMES[t.dataset.app]} is ${t.checked ? 'on' : 'off'}`);
+                } catch (err) {
+                    t.checked = !t.checked;
+                    toast(err.message, true);
+                }
+            })
+        );
+    }
+
+    /* ---------- address: #/, #/requests, #/people, #/access, #/signin, #/activity, #/news, #/apps ---------- */
+    const TABS = { overview, requests, people, access, signin, activity, news, apps };
     async function route() {
         const tab = TABS[location.hash.replace(/^#\/?/, '')] ? location.hash.replace(/^#\/?/, '') : 'overview';
         $$('#ad-nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));

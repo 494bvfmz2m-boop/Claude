@@ -59,6 +59,10 @@ module.exports = function oauthRoutes(ctx) {
             const ua = String(req.get('user-agent') || '');
 
             // may this account use EderveenGroup?
+            if (ctx.isBlocked && ctx.isBlocked(email)) {
+                store.logActivity(email, { ok: false, method: who.mail, reason: 'blocked', ip, ua });
+                return fail(res, 'blocked', id);
+            }
             const policy = store.servers.getSettings().oauthPolicy;
             if (!ctx.isAdmin(email) && policy !== 'anyone' && !store.servers.isAllowed(email)) {
                 if (!store.servers.pendingFor(email)) {

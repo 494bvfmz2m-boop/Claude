@@ -1966,8 +1966,46 @@ button.ea-sec { cursor: pointer; }
 .files-body { --app-icon: url(../icons/apps/files.svg); }
 .docs-body { --app-icon: url(../icons/apps/docs.svg); }
 .slides-body { --app-icon: url(../icons/apps/slides.svg); }
-.passwords-body { --app-icon: url(../icons/apps/passwords.svg); }
+.photos-body { --app-icon: url(../icons/apps/photos.svg); }
 .chat-body { --app-icon: url(../icons/apps/chat.svg); }
 .admin-body { --app-icon: url(../icons/apps/admin.svg); }
 
 .hub-cats.settled .hub-app { animation: none; }
+
+/* Admin: roles, activity, news, apps */
+.ad-role { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; vertical-align: 1px; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ad-role.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+.ad-person-acts { flex-wrap: wrap; justify-content: flex-end; }
+.ad-kind { margin-bottom: 14px; }
+.ad-log { display: flex; flex-direction: column; gap: 2px; }
+.ad-ev { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; animation: rowUp .3s var(--ease) both; }
+.ad-ev:hover { background: var(--hover); }
+.ad-ev-ic { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--surface-3); }
+.ad-ev-ic .i { width: 16px; height: 16px; }
+.ad-ev.ok .ad-ev-ic { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.ad-ev.bad .ad-ev-ic { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ad-ev.admin .ad-ev-ic { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ad-ev b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.ad-ev small { display: block; color: var(--text-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.ad-ev time { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+.ad-news-form .pf-field { margin-bottom: 12px; }
+.ad-news-form textarea { resize: vertical; }
+.ad-days { margin: 0 !important; display: flex !important; align-items: center; gap: 10px; }
+.ad-days > span { margin: 0 !important; }
+.ad-days select { width: auto; height: 36px; }
+.ad-newslist { display: flex; flex-direction: column; gap: 10px; }
+.ad-newsitem { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0; }
+.ad-newsitem b { font-size: 15px; }
+.ad-newsitem p { margin: 4px 0; color: var(--text-2); white-space: pre-line; line-height: 1.5; }
+.ad-newsitem small { color: var(--text-3); font-size: 12px; }
+.ad-apps { display: grid; gap: 2px; }
+.ad-app { display: flex; align-items: center; gap: 14px; padding: 10px 6px; border-radius: 12px; cursor: pointer; }
+.ad-app:hover { background: var(--hover); }
+.ad-app img { width: 40px; height: 40px; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .25)); }
+.ad-app span { flex: 1; }
+.ad-app b { display: block; font-weight: 500; }
+.ad-app small { color: var(--text-3); font-size: 12.5px; }
+.ad-toggle { appearance: none; width: 46px; height: 28px; flex: none; border-radius: 99px; background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line-2); position: relative; cursor: pointer; transition: background .2s; }
+.ad-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); transition: transform .25s var(--ease); }
+.ad-toggle:checked { background: var(--success); }
+.ad-toggle:checked::after { transform: translateX(18px); }

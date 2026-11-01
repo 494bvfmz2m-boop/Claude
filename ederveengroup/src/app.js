@@ -46,6 +46,21 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
 
     ctx.links = createLinks(ctx.sessions.deriveKey('links'));
     ctx.docs = createDocs(store.backend); // shared documents: chat, announcements, shared docs…
+    // the site's activity log (Admin → Activity): every sign-in, and what admins change
+    ctx.audit = entry =>
+        ctx.docs
+            .get('audit', () => ({ items: [] }))
+            .then(d => {
+                d.items.unshift({ t: Date.now(), ...entry });
+                d.items.length = Math.min(d.items.length, 3000);
+                ctx.docs.save('audit');
+            })
+            .catch(() => {});
+    const logOne = store.logActivity;
+    store.logActivity = (email, entry) => {
+        logOne.call(store, email, entry);
+        ctx.audit({ kind: 'signin', email: String(email).toLowerCase(), ok: !!entry.ok, method: entry.method, reason: entry.reason || '', ip: entry.ip || '', device: entry.ua ? require('./devices').describeDevice(entry.ua).label : '' });
+    };
     // accepted addresses / domains use their own mail servers
     if (mail.useServers) mail.useServers(email => store.servers.profileFor(email), { allowPrivateHosts: config.allowPrivateMailHosts });
     // Microsoft / Google sign-ins: access tokens are renewed a few minutes before they expire
@@ -92,6 +107,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     if (mail.useOAuth) mail.useOAuth({ servers: p => ctx.oauth.servers(p), token: tokenFor });
     const admin = adminRoutes(ctx);
     ctx.isAdmin = admin.isAdmin;
+    ctx.isBlocked = admin.isBlocked;
+    ctx.appOn = name => !(store.servers.getSettings().appsOff || []).includes(name);
     ctx.adminRouter = admin.router; // served at /api/admin (the Admin app)
 
     // start-up: create the tables and load the mail-server list; if the database can't be
@@ -154,6 +171,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     for (const app of ctx.appPages) {
         site.get(`/${app}`, (req, res) => {
             if (!req.session) return toLogin(res, `/${app}/`);
+            if (!ctx.appOn(app)) return ctx.pages.send(res, 'notfound.html', 404); // switched off in Admin
             if (needsName(req)) return toWelcome(res, `/${app}/`);
             if (!req.path.endsWith('/')) return res.redirect(301, `/${app}/`);
             ctx.pages.send(res, `${app}.html`);

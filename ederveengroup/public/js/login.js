@@ -68,6 +68,7 @@
         imap_off_personal: [false, 'You’re signed in with Microsoft, but your mailbox doesn’t allow mail apps yet. In Outlook.com open Settings → Mail → Forwarding and IMAP, turn on “Let devices and apps use IMAP”, then try again.'],
         imap_off_work: [false, 'You’re signed in with Microsoft, but your organisation’s mailbox doesn’t allow IMAP and SMTP for apps. Ask your Microsoft 365 admin to turn on IMAP and “Authenticated SMTP” for your mailbox.'],
         imap_off: [false, 'You’re signed in, but your mailbox didn’t accept the connection. Check that IMAP is turned on for your account, then try again.'],
+        blocked: [false, 'This account has been switched off. Ask the person who runs EderveenGroup.'],
         pending: [true, 'Thanks! Your request to use EderveenGroup is waiting for an admin. You’ll get an email when it’s approved.']
     };
     const oauthMsg = new URLSearchParams(location.search).get('oauth');

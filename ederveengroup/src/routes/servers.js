@@ -45,7 +45,12 @@ function requestRoutes({ store, config, checkMailbox = servers.checkRequest }) {
 function adminRoutes(ctx) {
     const { store, mail, config } = ctx;
     const r = express.Router();
-    const isAdmin = email => config.adminEmails.includes(String(email).toLowerCase());
+    // admins: everyone in ADMIN_EMAILS (fixed), plus people made admin in the Admin app
+    const owner = email => config.adminEmails.includes(String(email).toLowerCase());
+    const isAdmin = email => owner(email) || (store.servers.getSettings().admins || []).includes(String(email).toLowerCase());
+    const blocked = email => (store.servers.getSettings().blocked || []).includes(String(email).toLowerCase());
+    // a line in the site's activity log
+    const act = (req, text, extra = {}) => ctx.audit && ctx.audit({ kind: 'admin', by: req.session.email, text, ...extra });
     r.use('/admin', (req, res, next) => (!req.session ? res.status(401).json({ error: 'Please sign in' }) : isAdmin(req.session.email) ? next() : res.status(403).json({ error: 'Only admins can do that' })));
 
     r.get('/admin/requests', (req, res) => {
@@ -59,6 +64,7 @@ function adminRoutes(ctx) {
         const scope = req.body.scope === 'domain' ? 'domain' : 'address';
         const reason = String(req.body.reason || '').slice(0, 500);
         const decided = store.servers.decide(request.id, { status, scope, reason, by: req.session.email });
+        act(req, `${status === 'accepted' ? 'Accepted' : 'Rejected'} ${request.email}${status === 'accepted' && scope === 'domain' ? ` (everyone @${request.email.split('@')[1]})` : ''}`);
         // tell them, from the admin's own mailbox (no stored passwords needed)
         let emailed = true;
         let emailError = null;
@@ -91,12 +97,39 @@ function adminRoutes(ctx) {
             providers: ctx.oauth ? ctx.oauth.enabled() : [],
             settings: store.servers.getSettings(),
             database: store.backend.kind,
-            admins: config.adminEmails
+            admins: [...new Set([...config.adminEmails, ...(store.servers.getSettings().admins || [])])]
         });
     }));
 
     /* ---------- people ---------- */
-    r.get('/admin/people', wrap(async (req, res) => res.json(await store.listPeople())));
+    r.get('/admin/people', wrap(async (req, res) =>
+        res.json((await store.listPeople()).map(p => ({ ...p, role: owner(p.email) ? 'owner' : isAdmin(p.email) ? 'admin' : 'member', blocked: blocked(p.email), you: p.email === req.session.email })))));
+    const setList = (key, email, on) => {
+        const list = new Set(store.servers.getSettings()[key] || []);
+        if (on) list.add(email);
+        else list.delete(email);
+        store.servers.updateSettings({ [key]: [...list] });
+    };
+    r.post('/admin/people/:email/role', wrap(async (req, res) => {
+        const email = await person(req);
+        if (owner(email)) throw httpError(409, 'Admins from ADMIN_EMAILS stay admins. Change that setting on the server to remove one.');
+        if (email === req.session.email) throw httpError(400, 'Ask another admin to change your own role');
+        setList('admins', email, !!req.body.admin);
+        act(req, `${req.body.admin ? 'Made' : 'Removed'} ${email} ${req.body.admin ? 'an admin' : 'as admin'}`);
+        res.json({ ok: true, role: isAdmin(email) ? 'admin' : 'member' });
+    }));
+    r.post('/admin/people/:email/block', wrap(async (req, res) => {
+        const email = await person(req);
+        if (email === req.session.email) throw httpError(400, 'You can’t block yourself');
+        if (owner(email)) throw httpError(409, 'Admins from ADMIN_EMAILS can’t be blocked');
+        setList('blocked', email, !!req.body.blocked);
+        if (req.body.blocked) {
+            setList('admins', email, false);
+            store.sessions.revokeAll(email);
+        }
+        act(req, `${req.body.blocked ? 'Blocked' : 'Unblocked'} ${email}`);
+        res.json({ ok: true, blocked: blocked(email) });
+    }));
     const person = async req => {
         const email = String(req.params.email || '').toLowerCase();
         if (!(await store.ready(email))) throw httpError(404, 'No account with that address');
@@ -106,6 +139,7 @@ function adminRoutes(ctx) {
         const email = await person(req);
         if (email === req.session.email) throw httpError(400, 'Use Settings → Devices to sign yourself out');
         store.sessions.revokeAll(email);
+        act(req, `Signed ${email} out everywhere`);
         res.json({ ok: true });
     }));
     r.post('/admin/people/:email/profile', wrap(async (req, res) => {
@@ -114,6 +148,7 @@ function adminRoutes(ctx) {
         if (!p) throw httpError(404, 'They don’t have a profile');
         const { hidden, ...rest } = p;
         store.setProfile(email, req.body.hidden ? { ...rest, hidden: true } : rest);
+        act(req, `${req.body.hidden ? 'Hid' : 'Showed'} the profile card of ${email}`);
         res.json({ ok: true, hidden: !!req.body.hidden });
     }));
 
@@ -166,11 +201,13 @@ function adminRoutes(ctx) {
             }
         }
         ctx.signinApps.set(id, patch);
+        act(req, 'clientId' in b || b.clientSecret ? `Set up Sign in with ${ctx.oauth.name(id)}` : `${b.hidden ? 'Hid' : 'Showed'} the ${ctx.oauth.name(id)} button`);
         res.json(signinView(req, id));
     });
     r.delete('/admin/signin/:id', (req, res) => {
         const id = signinId(req);
         ctx.signinApps.clear(id);
+        act(req, `Switched off Sign in with ${ctx.oauth.name(id)}`);
         res.json(signinView(req, id));
     });
 
@@ -179,6 +216,7 @@ function adminRoutes(ctx) {
     r.put('/admin/settings', (req, res) => {
         const patch = {};
         if ('oauthPolicy' in req.body) patch.oauthPolicy = req.body.oauthPolicy === 'anyone' ? 'anyone' : 'approved';
+        if (patch.oauthPolicy) act(req, patch.oauthPolicy === 'anyone' ? 'Let anyone sign in with Microsoft or Google' : 'Only approved people may sign in with Microsoft or Google');
         res.json(store.servers.updateSettings(patch));
     });
     r.get('/admin/allowed', (req, res) => res.json(store.servers.listAllowed()));
@@ -186,20 +224,68 @@ function adminRoutes(ctx) {
         const key = String(req.body.key || '').trim().toLowerCase();
         if (!/^(@[a-z0-9.-]+\.[a-z]{2,}|[^\s@<>"]+@[a-z0-9.-]+\.[a-z]{2,})$/.test(key)) throw httpError(400, 'Enter an address (ava@gmail.com) or a whole domain (@company.com)');
         store.servers.allow(key, { addedBy: req.session.email });
+        act(req, `Allowed ${key.startsWith('@') ? `everyone ${key}` : key} to sign in`);
         res.json({ ok: true, key });
     });
     r.delete('/admin/allowed/:key', (req, res) => {
         if (!store.servers.disallow(String(req.params.key).toLowerCase())) throw httpError(404, 'Already removed');
+        act(req, `Removed ${req.params.key} from who may sign in`);
         res.json({ ok: true });
     });
 
     r.get('/admin/servers', (req, res) => res.json(store.servers.listAccounts()));
     r.delete('/admin/servers/:key', (req, res) => {
         if (!store.servers.removeAccount(String(req.params.key))) throw httpError(404, 'Already removed');
+        act(req, `Removed the mail server for ${req.params.key}`);
         res.json({ ok: true });
     });
 
-    return { router: r, isAdmin };
+    /* ---------- activity: sign-ins and admin actions across the whole site ---------- */
+    r.get('/admin/activity', wrap(async (req, res) => {
+        const log = ctx.docs ? (await ctx.docs.get('audit', () => ({ items: [] }))).items : [];
+        const kind = ['signin', 'admin', 'failed'].includes(req.query.kind) ? req.query.kind : '';
+        const list = kind === 'failed' ? log.filter(e => e.kind === 'signin' && !e.ok) : kind ? log.filter(e => e.kind === kind) : log;
+        res.json(list.slice(0, 300));
+    }));
+
+    /* ---------- apps: switch an app off for everyone ---------- */
+    r.get('/admin/apps', (req, res) => res.json({ pages: ctx.appPages || [], off: store.servers.getSettings().appsOff || [] }));
+    r.put('/admin/apps', (req, res) => {
+        const off = [].concat(req.body.off || []).filter(a => (ctx.appPages || []).includes(a));
+        const before = store.servers.getSettings().appsOff || [];
+        store.servers.updateSettings({ appsOff: off });
+        const changed = [...off.filter(a => !before.includes(a)).map(a => `Switched off ${a}`), ...before.filter(a => !off.includes(a)).map(a => `Switched on ${a}`)];
+        if (changed.length) act(req, changed.join(', '));
+        res.json({ off });
+    });
+
+    /* ---------- news: short posts everyone sees on their dashboard ---------- */
+    const newsDoc = () => ctx.docs.get('news', () => ({ items: [] }));
+    r.get('/admin/news', wrap(async (req, res) => res.json((await newsDoc()).items)));
+    r.post('/admin/news', wrap(async (req, res) => {
+        const title = String(req.body.title || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120);
+        const body = String(req.body.body || '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 2000);
+        if (!title) throw httpError(400, 'Give the post a title');
+        const d = await newsDoc();
+        const settings = store.getSettings(req.session.email);
+        const item = { id: require('crypto').randomBytes(8).toString('base64url'), title, body, by: settings.displayName || store.usernameOf(req.session.email) || req.session.email, at: Date.now(), until: Number(req.body.days) > 0 ? Date.now() + Math.min(365, Number(req.body.days)) * 864e5 : null };
+        d.items.unshift(item);
+        d.items.length = Math.min(d.items.length, 50);
+        ctx.docs.save('news');
+        act(req, `Posted “${title}”`);
+        res.json(item);
+    }));
+    r.delete('/admin/news/:id', wrap(async (req, res) => {
+        const d = await newsDoc();
+        const item = d.items.find(n => n.id === req.params.id);
+        if (!item) throw httpError(404, 'Already removed');
+        d.items = d.items.filter(n => n !== item);
+        ctx.docs.save('news');
+        act(req, `Took down “${item.title}”`);
+        res.json({ ok: true });
+    }));
+
+    return { router: r, isAdmin, isBlocked: blocked };
 }
 
 const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;

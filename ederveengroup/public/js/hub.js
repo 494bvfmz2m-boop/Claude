@@ -39,7 +39,6 @@
         { id: 'docs', name: 'Docs', cat: 'create', href: '/docs/', blurb: 'Documents, guides and how-tos.' },
         { id: 'slides', name: 'Slides', cat: 'create', href: '/slides/', blurb: 'Presentations you can show anywhere.' },
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Documents and photos, with share links.' },
-        { id: 'passwords', name: 'Passwords', cat: 'store', href: '/passwords/', blurb: 'Your logins, locked with one master password.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
         { id: 'admin', name: 'Admin', cat: 'you', href: '/admin/', blurb: 'People, sign-in and settings.', admin: true }
     ];
@@ -122,7 +121,6 @@
         if (sum.files) stat('files', sum.files.count ? `${plural(sum.files.count, 'file')} · ${size(sum.files.used)}` : 'No files yet');
         if (sum.docs != null) stat('docs', sum.docs ? plural(sum.docs, 'doc') : 'No docs yet');
         if (sum.slides != null) stat('slides', sum.slides ? plural(sum.slides, 'deck') : 'No decks yet');
-        if (sum.passwords != null) stat('passwords', sum.passwords ? plural(sum.passwords, 'login') : 'Set it up');
         if (sum.chat != null) stat('chat', sum.chat ? `<i>${sum.chat}</i> unread` : 'All read', sum.chat);
         if (sum.mail != null) stat('mail', sum.mail ? `<i>${sum.mail}</i> unread` : 'All read', sum.mail);
     }

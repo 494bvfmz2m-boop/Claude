@@ -240,7 +240,8 @@ module.exports = function appRoutes(ctx) {
                 next: next && { title: next.title, at: next.start.slice(11) },
                 items: todays.slice(0, 6).map(e => ({ title: e.title, allDay: e.allDay, at: e.start.slice(11, 16), location: e.location, color: e.color }))
             },
-            pages: ctx.appPages || null,
+            pages: ctx.appPages ? ctx.appPages.filter(a => !ctx.appOn || ctx.appOn(a)) : null,
+            news: ctx.docs ? (await ctx.docs.get('news', () => ({ items: [] }))).items.filter(n => !n.until || n.until > Date.now()).slice(0, 3) : [],
             files: { count: files.length, used: files.reduce((n, f) => n + (f.size || 0), 0) },
             ...extra
         });

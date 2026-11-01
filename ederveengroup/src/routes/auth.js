@@ -12,7 +12,8 @@ const FIFTEEN_MIN = 15 * 60 * 1000;
 // a public handle for a session, so the real session id never leaves the server
 const sessionRef = sid => crypto.createHash('sha256').update(sid).digest('base64url').slice(0, 16);
 
-module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
+module.exports = function authRoutes(ctx) {
+    const { sessions, store, mail, checkCode } = ctx;
     const r = express.Router();
     const perIp = createLimiter({ max: 10, windowMs: FIFTEEN_MIN });
     const perAccount = createLimiter({ max: 8, windowMs: FIFTEEN_MIN });
@@ -30,6 +31,10 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         const password = String(req.body.password || '');
         if (!isEmail(email) || !password || password.length > 1024) return res.status(400).json({ error: 'Enter your full email address and password.' });
         await store.ready(email);
+        if (ctx.isBlocked && ctx.isBlocked(email)) {
+            store.logActivity(email, { ok: false, method: 'password', reason: 'blocked', ...who(req) });
+            return res.status(403).json({ error: 'This account has been switched off. Ask the person who runs EderveenGroup.' });
+        }
         if (perAccount.blocked(email)) {
             store.logActivity(email, { ok: false, method: 'password', reason: 'locked', ...who(req) });
             return res.status(429).json({ error: 'Too many failed attempts for this account. Try again in 15 minutes.' });
