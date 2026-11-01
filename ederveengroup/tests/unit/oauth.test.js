@@ -126,11 +126,14 @@ async function start(env = {}) {
 
 const ava = { email: 'ava@gmail.com', name: 'Ava Chen', claims: { email: 'Ava@gmail.com', email_verified: true } };
 
-test('sign-in buttons only appear for providers that are set up', async () => {
+test('both sign-in buttons show; one that isn’t set up explains itself', async () => {
     const t = await start({ MICROSOFT_CLIENT_ID: '' });
-    assert.deepEqual((await t.browser()('GET', '/api/auth/providers')).body, [{ id: 'google', name: 'Google' }]);
-    assert.match((await t.browser()('GET', '/auth/microsoft')).location, /oauth=off/);
-    t.close();
+    try {
+        assert.deepEqual((await t.browser()('GET', '/api/auth/providers')).body, [{ id: 'google', name: 'Google', ready: true }, { id: 'microsoft', name: 'Microsoft', ready: false }]);
+        assert.match((await t.browser()('GET', '/auth/microsoft')).location, /oauth=off&provider=microsoft/);
+    } finally {
+        t.close();
+    }
 });
 
 test('Google: unknown accounts become a request; once approved they sign in without a password', async () => {

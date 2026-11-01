@@ -353,7 +353,8 @@ const MAX_PENDING = 100;
 function createServerRegistry(backend) {
     // requests: people asking for access; accounts: added mail servers; allowed: Microsoft/Google
     // addresses or domains that may sign in; settings: site-wide choices made in the Admin app
-    let data = { requests: [], accounts: {}, allowed: {}, settings: { oauthPolicy: 'approved' } };
+    // signin: Microsoft / Google app registrations pasted into the Admin app (secrets sealed)
+    let data = { requests: [], accounts: {}, allowed: {}, settings: { oauthPolicy: 'approved' }, signin: {} };
     let writing = null;
     let again = false;
     const save = () => {
@@ -374,7 +375,7 @@ function createServerRegistry(backend) {
     return {
         async init() {
             const doc = await backend.loadRegistry();
-            data = { requests: (doc && doc.requests) || [], accounts: (doc && doc.accounts) || {}, allowed: (doc && doc.allowed) || {}, settings: { oauthPolicy: 'approved', ...((doc && doc.settings) || {}) } };
+            data = { requests: (doc && doc.requests) || [], accounts: (doc && doc.accounts) || {}, allowed: (doc && doc.allowed) || {}, settings: { oauthPolicy: 'approved', ...((doc && doc.settings) || {}) }, signin: (doc && doc.signin) || {} };
         },
         flush: async () => {
             while (writing) await writing;
@@ -428,6 +429,12 @@ function createServerRegistry(backend) {
             return had;
         },
         getSettings: () => data.settings,
+        getSignin: id => data.signin[id] || null,
+        setSignin(id, value) {
+            if (value) data.signin[id] = value;
+            else delete data.signin[id];
+            save();
+        },
         updateSettings(patch) {
             Object.assign(data.settings, patch);
             save();

@@ -164,4 +164,4 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', legacyPaths 
     return api;
 }
 
-module.exports = { createSessions, loadKey, parseCookies };
+module.exports = { createSessions, loadKey, parseCookies, seal, unseal };

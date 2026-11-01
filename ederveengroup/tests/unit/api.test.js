@@ -569,3 +569,60 @@ test('Notes, Tasks and Contacts: private per person, validated, with limits', as
     assert.equal(status, 413); // 3 MB per app
     app.close();
 });
+
+test('Admin → Sign-in: buttons always show; paste the keys to switch on; the secret never comes back', async () => {
+    const app = await start({ ADMIN_EMAILS: USER });
+    const guest = app.device();
+    assert.deepEqual((await guest('GET', '/api/auth/providers')).body, [{ id: 'google', name: 'Google', ready: false }, { id: 'microsoft', name: 'Microsoft', ready: false }]);
+    assert.match((await guest('GET', '/auth/microsoft')).headers.get('location'), /^\/login\?oauth=off&provider=microsoft$/);
+    assert.equal((await guest('PUT', '/api/admin/signin/microsoft', { clientId: 'x' })).status, 401);
+    const a = app.device();
+    await a('POST', '/mail/api/login', { email: USER, password: PASS });
+    await a('POST', '/api/username', { username: 'boss' });
+    const ID = '1a2b3c4d-5e6f-4a8b-9c0d-112233445566';
+    const SECRET = 'Ab1~cDeFgH.ijk_LmNoPqRsTuVwXyZ0123';
+    assert.equal((await a('PUT', '/api/admin/signin/yahoo', {})).status, 404);
+    assert.match((await a('PUT', '/api/admin/signin/microsoft', { clientId: 'nope', clientSecret: SECRET })).body.error, /Application \(client\) ID/);
+    assert.match((await a('PUT', '/api/admin/signin/microsoft', { clientId: ID, clientSecret: ID })).body.error, /secret’s ID/);
+    assert.match((await a('PUT', '/api/admin/signin/microsoft', { clientId: ID })).body.error, /secret too/);
+    assert.match((await a('PUT', '/api/admin/signin/microsoft', { clientId: ID, clientSecret: SECRET, tenant: 'evil/../x' })).body.error, /Directory/);
+    const on = (await a('PUT', '/api/admin/signin/microsoft', { clientId: ID, clientSecret: SECRET })).body;
+    assert.equal(on.ready, true);
+    assert.equal(on.source, 'admin');
+    assert.equal(on.secretHint, '0123');
+    assert.match(on.redirectUri, /^http:\/\/127\.0\.0\.1:\d+\/auth\/microsoft\/callback$/);
+    const all = (await a('GET', '/api/admin/signin')).body;
+    assert.equal(JSON.stringify(all).includes(SECRET), false);
+    assert.deepEqual((await guest('GET', '/api/auth/providers')).body.map(p => [p.id, p.ready]), [['google', false], ['microsoft', true]]);
+    const go = new URL((await guest('GET', '/auth/microsoft')).headers.get('location'));
+    assert.equal(go.origin + go.pathname, 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
+    assert.equal(go.searchParams.get('client_id'), ID);
+    // saving again without the secret keeps it
+    assert.equal((await a('PUT', '/api/admin/signin/microsoft', { clientId: ID, tenant: 'contoso.com' })).body.secretHint, '0123');
+    assert.match((await guest('GET', '/auth/microsoft')).headers.get('location'), /^https:\/\/login\.microsoftonline\.com\/contoso\.com\//);
+    // Google: wrong-looking id, then hide its button
+    assert.match((await a('PUT', '/api/admin/signin/google', { clientId: 'abc', clientSecret: 'GOCSPX-abcdefgh' })).body.error, /googleusercontent/);
+    await a('PUT', '/api/admin/signin/google', { hidden: true });
+    assert.deepEqual((await guest('GET', '/api/auth/providers')).body.map(p => p.id), ['microsoft']);
+    // the secret is stored sealed, never in the clear
+    await app.store.servers.flush();
+    const files = [];
+    const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(f => (f.isDirectory() ? walk(path.join(d, f.name)) : files.push(path.join(d, f.name))));
+    walk(app.dataDir);
+    assert.equal(files.some(f => fs.readFileSync(f, 'utf8').includes(SECRET)), false);
+    assert.equal(files.some(f => fs.readFileSync(f, 'utf8').includes(ID)), true);
+    // switch off
+    assert.equal((await a('DELETE', '/api/admin/signin/microsoft')).body.ready, false);
+    assert.deepEqual((await guest('GET', '/api/auth/providers')).body, [{ id: 'microsoft', name: 'Microsoft', ready: false }]); // google still hidden
+    app.close();
+    // keys from the environment win, and can't be overwritten here
+    const env = await start({ ADMIN_EMAILS: USER, MICROSOFT_CLIENT_ID: ID, MICROSOFT_CLIENT_SECRET: SECRET });
+    const b = env.device();
+    await b('POST', '/mail/api/login', { email: USER, password: PASS });
+    await b('POST', '/api/username', { username: 'boss' });
+    assert.equal((await b('PUT', '/api/admin/signin/microsoft', { clientId: ID, clientSecret: SECRET })).status, 409);
+    const m = (await b('GET', '/api/admin/signin')).body.find(p => p.id === 'microsoft');
+    assert.equal(m.source, 'env');
+    assert.equal(JSON.stringify(m).includes(SECRET), false);
+    env.close();
+});

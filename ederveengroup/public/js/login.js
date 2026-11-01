@@ -31,12 +31,18 @@
         .then(list => {
             if (!list.length) return;
             oauthBox.innerHTML =
-                list.map(p => `<a class="oauth-btn" data-provider="${p.id}" href="/auth/${p.id}?next=${encodeURIComponent(next)}">${OAUTH_LOGOS[p.id] || ''}<span>Sign in with ${p.name}</span></a>`).join('') +
+                list.map(p => `<a class="oauth-btn" data-provider="${p.id}"${p.ready ? '' : ' data-off'} href="/auth/${p.id}?next=${encodeURIComponent(next)}">${OAUTH_LOGOS[p.id] || ''}<span>Sign in with ${p.name}</span></a>`).join('') +
                 '<div class="oauth-or"><span>or use your email and password</span></div>';
             oauthBox.classList.remove('hidden');
             // pass the address along if they already typed it, so the right account is suggested
             oauthBox.addEventListener('click', e => {
                 const a = e.target.closest('.oauth-btn');
+                if (a && a.hasAttribute('data-off')) {
+                    // not set up yet: say so (and how) instead of going nowhere
+                    e.preventDefault();
+                    showOff(a.dataset.provider);
+                    return;
+                }
                 const email = document.getElementById('email').value.trim();
                 if (a && /@/.test(email)) a.href += `&email=${encodeURIComponent(email)}`;
                 if (a) a.classList.add('busy');
@@ -44,6 +50,12 @@
         })
         .catch(() => {});
 
+    function showOff(provider) {
+        const name = provider === 'google' ? 'Google' : 'Microsoft';
+        const box = document.getElementById('err');
+        box.innerHTML = `<b>Sign in with ${name} isn’t switched on here yet.</b> Running this site? Sign in below with your email and password, then open <b>Admin → Sign-in</b> and follow the steps.`;
+        box.classList.remove('hidden');
+    }
     // back from Microsoft / Google with something to explain
     const OAUTH_MESSAGES = {
         cancelled: [false, 'Sign-in was cancelled.'],
@@ -59,7 +71,10 @@
         pending: [true, 'Thanks! Your request to use EderveenGroup is waiting for an admin. You’ll get an email when it’s approved.']
     };
     const oauthMsg = new URLSearchParams(location.search).get('oauth');
-    if (oauthMsg && OAUTH_MESSAGES[oauthMsg]) {
+    if (oauthMsg === 'off') {
+        showOff(new URLSearchParams(location.search).get('provider'));
+        history.replaceState(null, '', location.pathname + (nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''));
+    } else if (oauthMsg && OAUTH_MESSAGES[oauthMsg]) {
         const [good, text] = OAUTH_MESSAGES[oauthMsg];
         const box = document.getElementById(good ? 'ok' : 'err');
         box.textContent = text;

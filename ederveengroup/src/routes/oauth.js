@@ -95,8 +95,9 @@ module.exports = function oauthRoutes(ctx) {
         }
     });
 
-    // which buttons to show on the sign-in page
-    r.get('/api/auth/providers', (req, res) => res.json(oauth.enabled()));
+    // which buttons to show on the sign-in page: both, unless an admin hid one; "ready" once set up
+    r.get('/api/auth/providers', (req, res) =>
+        res.json(oauth.ids().filter(id => !(ctx.signinApps && (ctx.signinApps.get(id) || {}).hidden)).map(id => ({ id, name: oauth.name(id), ready: oauth.has(id) }))));
 
     return r;
 };

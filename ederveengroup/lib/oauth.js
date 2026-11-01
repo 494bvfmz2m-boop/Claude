@@ -27,17 +27,21 @@ function decodeJwt(token) {
     return JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
 }
 
+const NAMES = { google: 'Google', microsoft: 'Microsoft' };
+
 /**
  * config: { google: { clientId, clientSecret } | null, microsoft: { clientId, clientSecret, tenant } | null,
  *           devIssuer?: string (testing only: a stand-in provider), devMailHost?: string (testing only) }
+ *   (from environment variables; these win)
+ * stored(id): the same, as saved by an admin in the Admin app, or null
  */
-function createOAuth(config = {}) {
+function createOAuth(config = {}, { stored = () => null } = {}) {
     const dev = config.devIssuer ? config.devIssuer.replace(/\/$/, '') : null;
-    const providers = {
-        google: config.google && {
+    const build = {
+        google: client => ({
             id: 'google',
             name: 'Google',
-            client: config.google,
+            client,
             authUrl: dev ? `${dev}/google/authorize` : 'https://accounts.google.com/o/oauth2/v2/auth',
             tokenUrl: dev ? `${dev}/google/token` : 'https://oauth2.googleapis.com/token',
             scope: 'openid email profile https://mail.google.com/',
@@ -48,13 +52,13 @@ function createOAuth(config = {}) {
                 if (claims.email_verified === false || claims.email_verified === 'false') throw bad('Your Google address isn’t verified yet', 'unverified');
                 return { email: String(claims.email || '').toLowerCase(), name: claims.name || '', mail: 'google' };
             }
-        },
-        microsoft: config.microsoft && {
+        }),
+        microsoft: client => ({
             id: 'microsoft',
             name: 'Microsoft',
-            client: config.microsoft,
-            authUrl: dev ? `${dev}/microsoft/authorize` : `https://login.microsoftonline.com/${config.microsoft.tenant || 'common'}/oauth2/v2.0/authorize`,
-            tokenUrl: dev ? `${dev}/microsoft/token` : `https://login.microsoftonline.com/${config.microsoft.tenant || 'common'}/oauth2/v2.0/token`,
+            client,
+            authUrl: dev ? `${dev}/microsoft/authorize` : `https://login.microsoftonline.com/${encodeURIComponent(client.tenant || 'common')}/oauth2/v2.0/authorize`,
+            tokenUrl: dev ? `${dev}/microsoft/token` : `https://login.microsoftonline.com/${encodeURIComponent(client.tenant || 'common')}/oauth2/v2.0/token`,
             scope: 'openid email profile offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send',
             extra: { prompt: 'select_account' },
             issuerOk: iss => /^https:\/\/login\.microsoftonline\.com\/[0-9a-f-]{36}\/v2\.0$/.test(iss) || (dev && iss === `${dev}/microsoft`),
@@ -63,8 +67,20 @@ function createOAuth(config = {}) {
                 const email = String(claims.email || claims.preferred_username || '').toLowerCase();
                 return { email, name: claims.name || '', mail: claims.tid === MSA_TENANT ? 'microsoft' : 'microsoft-work' };
             }
-        }
+        })
     };
+    // where a provider's app registration comes from: the server's environment, or the Admin app
+    function sourceOf(id) {
+        if (!build[id]) return null;
+        if (config[id]) return 'env';
+        const s = stored(id);
+        return s && s.clientId && s.clientSecret ? 'admin' : null;
+    }
+    function provider(id) {
+        const source = sourceOf(id);
+        if (!source) return null;
+        return build[id](source === 'env' ? config[id] : stored(id));
+    }
 
     async function post(url, form) {
         let res;
@@ -85,12 +101,15 @@ function createOAuth(config = {}) {
     return {
         MAIL_SERVERS,
         /** which providers are set up: [{ id, name }] */
-        enabled: () => Object.values(providers).filter(Boolean).map(p => ({ id: p.id, name: p.name })),
-        has: id => !!providers[id],
+        enabled: () => Object.keys(build).filter(sourceOf).map(id => ({ id, name: NAMES[id] })),
+        has: id => !!sourceOf(id),
+        source: sourceOf,
+        ids: () => Object.keys(build),
+        name: id => NAMES[id] || id,
 
         /** step 1: where to send the browser, plus what to remember until it comes back */
         start(id, { redirectUri, loginHint } = {}) {
-            const p = providers[id];
+            const p = provider(id);
             if (!p) throw bad('That sign-in option isn’t set up');
             const state = random(16);
             const nonce = random(16);
@@ -114,7 +133,7 @@ function createOAuth(config = {}) {
 
         /** step 2: the code that came back -> tokens and who signed in */
         async finish(id, { code, verifier, redirectUri, nonce }) {
-            const p = providers[id];
+            const p = provider(id);
             if (!p) throw bad('That sign-in option isn’t set up');
             const t = await post(p.tokenUrl, {
                 grant_type: 'authorization_code',
@@ -143,7 +162,7 @@ function createOAuth(config = {}) {
 
         /** a fresh access token from a refresh token */
         async refresh(mailProvider, refreshToken) {
-            const p = providers[mailProvider === 'google' ? 'google' : 'microsoft'];
+            const p = provider(mailProvider === 'google' ? 'google' : 'microsoft');
             if (!p) throw Object.assign(new Error('That sign-in option was turned off'), { authenticationFailed: true });
             if (!refreshToken) throw Object.assign(new Error('Please sign in again'), { authenticationFailed: true });
             const form = { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: p.client.clientId, client_secret: p.client.clientSecret };

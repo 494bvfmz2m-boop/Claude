@@ -117,6 +117,63 @@ function adminRoutes(ctx) {
         res.json({ ok: true, hidden: !!req.body.hidden });
     }));
 
+    /* ---------- Sign in with Microsoft / Google: the app registrations, pasted in here ---------- */
+    const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const signinView = (req, id) => {
+        const source = ctx.oauth.source(id);
+        const env = source === 'env' ? config.oauth[id] : null;
+        const s = ctx.signinApps.get(id) || {};
+        return {
+            id,
+            name: ctx.oauth.name(id),
+            ready: !!source,
+            source,
+            clientId: env ? env.clientId : s.clientId || '',
+            secretSaved: !env && !!s.clientSecret,
+            secretHint: env ? '' : s.secretHint || '',
+            tenant: id === 'microsoft' ? (env ? env.tenant : s.tenant) || 'common' : '',
+            hidden: !!s.hidden,
+            savedAt: s.savedAt || null,
+            savedBy: s.savedBy || '',
+            redirectUri: `${config.oauth.publicUrl || originOf(req)}/auth/${id}/callback`
+        };
+    };
+    const signinId = req => {
+        if (!ctx.oauth.ids().includes(req.params.id)) throw httpError(404, 'No such sign-in option');
+        return req.params.id;
+    };
+    r.get('/admin/signin', (req, res) => res.json(ctx.oauth.ids().map(id => signinView(req, id))));
+    r.put('/admin/signin/:id', (req, res) => {
+        const id = signinId(req);
+        const b = req.body || {};
+        const patch = { hidden: !!b.hidden, by: req.session.email };
+        if ('clientId' in b || b.clientSecret) {
+            if (ctx.oauth.source(id) === 'env') throw httpError(409, 'This one is set on the server (environment variables). Change it there, or remove those variables to set it here.');
+            const clientId = String(b.clientId || '').trim();
+            const secret = String(b.clientSecret || '').trim();
+            if (id === 'microsoft' && !GUID.test(clientId)) throw httpError(400, 'Paste the Application (client) ID. It looks like 1a2b3c4d-5e6f-…');
+            if (id === 'google' && !/^[\w-]{6,}\.apps\.googleusercontent\.com$/.test(clientId)) throw httpError(400, 'Paste the Client ID. It ends in .apps.googleusercontent.com');
+            if (secret && id === 'microsoft' && GUID.test(secret)) throw httpError(400, 'That’s the secret’s ID. Copy its Value instead (Microsoft shows it once, right after you create it).');
+            if (secret && (/\s/.test(secret) || secret.length < 8 || secret.length > 256)) throw httpError(400, 'That doesn’t look like a client secret. Copy it again, without spaces.');
+            const had = ctx.signinApps.get(id);
+            if (!secret && !(had && had.clientSecret)) throw httpError(400, 'Paste the client secret too');
+            patch.clientId = clientId;
+            if (secret) patch.clientSecret = secret;
+            if (id === 'microsoft') {
+                const tenant = String(b.tenant || 'common').trim().toLowerCase();
+                if (!/^(common|organizations|consumers)$/.test(tenant) && !GUID.test(tenant) && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(tenant)) throw httpError(400, 'Directory: use common, or your tenant ID or domain');
+                patch.tenant = tenant;
+            }
+        }
+        ctx.signinApps.set(id, patch);
+        res.json(signinView(req, id));
+    });
+    r.delete('/admin/signin/:id', (req, res) => {
+        const id = signinId(req);
+        ctx.signinApps.clear(id);
+        res.json(signinView(req, id));
+    });
+
     /* ---------- who may sign in with Microsoft / Google ---------- */
     r.get('/admin/settings', (req, res) => res.json(store.servers.getSettings()));
     r.put('/admin/settings', (req, res) => {

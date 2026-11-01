@@ -1542,6 +1542,32 @@ textarea.input { height: auto; padding: 10px 13px; resize: vertical; line-height
 .ad-ok, .ad-off { flex: none; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
 .ad-ok { color: var(--success); background: color-mix(in srgb, var(--success) 13%, transparent); }
 .ad-off { color: var(--text-3); background: var(--surface-3); }
+/* Admin → Sign-in */
+.ad-ok .i { width: 12px; height: 12px; vertical-align: -1px; }
+.si-head { display: flex; align-items: center; gap: 14px; }
+.si-head > div { flex: 1; min-width: 0; }
+.si-head h2 { margin: 0; }
+.si-head small { color: var(--text-3); font-size: 12.5px; }
+.si-logo { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.si-logo svg { width: 22px; height: 22px; }
+.si-guide, .si-adv { margin-top: 16px; }
+.si-guide summary, .si-adv summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; font-size: 14px; }
+.si-steps { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 10px; line-height: 1.55; color: var(--text-2); }
+.si-steps li::marker { color: var(--accent-ink); font-weight: 600; }
+.si-steps b { color: var(--text); font-weight: 600; }
+.si-steps a { color: var(--accent-ink); }
+.si-steps a .i { width: 13px; height: 13px; vertical-align: -1px; }
+.si-copy { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 6px 6px 6px 12px; border-radius: 10px; background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line); }
+.si-copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; color: var(--text); }
+.si-copy .btn { height: 30px; flex: none; }
+.si-form { display: grid; gap: 12px; margin-top: 16px; }
+.si-form .pf-field small { display: block; margin-top: 6px; }
+.si-acts { display: flex; align-items: center; gap: 10px; }
+.si-acts .spacer { flex: 1; }
+.si-note { margin: 14px 0 0; font-size: 12.5px; line-height: 1.5; }
+.si-show { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--text-2); cursor: pointer; }
+.si-show input { width: 18px; height: 18px; accent-color: var(--accent); }
+.oauth-btn[data-off] { opacity: .9; }
 .ad-av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 13.5px; font-weight: 600; color: hsl(var(--h) 55% 80%); background: hsl(var(--h) 25% 22%); }
 :root[data-theme='light'] .ad-av { color: hsl(var(--h) 40% 32%); background: hsl(var(--h) 45% 90%); }
 .ad-search { position: relative; margin-bottom: 14px; }

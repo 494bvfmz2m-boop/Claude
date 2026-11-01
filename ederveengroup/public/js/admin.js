@@ -80,8 +80,8 @@
             </div>
             <section class="ad-card"><h2>How people sign in</h2><div class="ad-chips">${signIns}</div></section>
             <section class="ad-card"><h2>Setup</h2>
-                <div class="ad-row"><div><b>Sign in with Microsoft</b><small>Outlook.com, Hotmail and Microsoft 365</small></div>${provider('microsoft') ? '<span class="ad-ok">On</span>' : '<span class="ad-off">Not set up</span>'}</div>
-                <div class="ad-row"><div><b>Sign in with Google</b><small>Gmail and Google Workspace</small></div>${provider('google') ? '<span class="ad-ok">On</span>' : '<span class="ad-off">Not set up</span>'}</div>
+                <div class="ad-row"><div><b>Sign in with Microsoft</b><small>Outlook.com, Hotmail and Microsoft 365</small></div>${provider('microsoft') ? '<span class="ad-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
+                <div class="ad-row"><div><b>Sign in with Google</b><small>Gmail and Google Workspace</small></div>${provider('google') ? '<span class="ad-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
                 <div class="ad-row"><div><b>Who may use Microsoft / Google</b><small>${o.settings.oauthPolicy === 'anyone' ? 'Anyone with an account' : 'Only approved addresses and domains'}</small></div><a class="btn" href="/admin/#/access">Change</a></div>
                 <div class="ad-row"><div><b>Storage</b><small>${o.database === 'mysql' ? 'MySQL / MariaDB database' : 'Files in the data folder'}</small></div><span class="ad-ok">${o.database === 'mysql' ? 'Database' : 'Files'}</span></div>
                 <div class="ad-row"><div><b>Admins</b><small>${o.admins.map(esc).join(', ')}</small></div></div>
@@ -200,7 +200,7 @@
         main.innerHTML = `<h1>Access</h1><p class="ad-sub">Who can use EderveenGroup, and which mail servers they use.</p>
             <section class="ad-card"><h2>Sign in with Microsoft / Google</h2>
                 <div class="seg ad-policy" id="ad-policy"><button data-v="approved" class="${settings.oauthPolicy !== 'anyone' ? 'on' : ''}">Only approved</button><button data-v="anyone" class="${settings.oauthPolicy === 'anyone' ? 'on' : ''}">Anyone</button></div>
-                <p class="ad-muted">${settings.oauthPolicy === 'anyone' ? 'Anyone with a Microsoft or Google account can sign in.' : 'Others who sign in with Microsoft or Google show up under Requests.'} ${o.providers.length ? '' : 'Neither is set up yet: see the README.'}</p>
+                <p class="ad-muted">${settings.oauthPolicy === 'anyone' ? 'Anyone with a Microsoft or Google account can sign in.' : 'Others who sign in with Microsoft or Google show up under Requests.'} ${o.providers.length ? '' : 'Neither is switched on yet: <a href="/admin/#/signin">set them up in Sign-in</a>.'}</p>
                 <form class="ad-add" id="ad-allow"><input class="input" placeholder="ava@gmail.com or @company.com" aria-label="Address or domain"><button class="btn btn-primary">${ic('plus')}<span>Allow</span></button></form>
                 <div class="srv-list">${allowed.length ? allowed.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${a.provider ? `${esc(SIGNIN[a.provider] || a.provider)} · ` : ''}added ${esc(ago(a.addedAt))}${a.addedBy ? ` by ${esc(a.addedBy)}` : ''}</small></div><button class="btn btn-danger" data-unallow>Remove</button></div>`).join('') : '<p class="ad-muted">No one approved yet.</p>'}</div>
             </section>
@@ -242,8 +242,105 @@
         );
     }
 
-    /* ---------- address: #/, #/requests, #/people, #/access ---------- */
-    const TABS = { overview, requests, people, access };
+    /* ---------- sign-in: switch on Microsoft / Google by pasting the app's keys ---------- */
+    const LOGOS = {
+        microsoft: '<svg viewBox="0 0 21 21" aria-hidden="true"><path fill="#f25022" d="M1 1h9v9H1z"/><path fill="#7fba00" d="M11 1h9v9h-9z"/><path fill="#00a4ef" d="M1 11h9v9H1z"/><path fill="#ffb900" d="M11 11h9v9h-9z"/></svg>',
+        google: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>'
+    };
+    const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${text} ${ic('external')}</a>`;
+    const copyField = (value, label) => `<span class="si-copy"><code>${esc(value)}</code><button type="button" class="btn" data-copy="${esc(value)}" aria-label="Copy ${esc(label)}">${ic('copy')}<span>Copy</span></button></span>`;
+    const STEPS = {
+        microsoft: p => [
+            `Open ${ext('https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', 'App registrations')} and sign in with any Microsoft account. (If it asks you to create a directory or a free Azure account, do that: it costs nothing.)`,
+            'Click <b>New registration</b>. Name: <b>EderveenGroup</b>. Supported account types: <b>Accounts in any organizational directory and personal Microsoft accounts</b>.',
+            `Redirect URI: choose <b>Web</b> and paste ${copyField(p.redirectUri, 'redirect URI')} Then click <b>Register</b>.`,
+            'On the page that opens, copy the <b>Application (client) ID</b> into the first box below.',
+            'Go to <b>Certificates &amp; secrets</b> → <b>New client secret</b> → expires in 24 months → <b>Add</b>. Copy the <b>Value</b> (not the Secret ID) into the second box below. It’s only shown once.',
+            'Go to <b>API permissions</b> → <b>Add a permission</b> → <b>Microsoft Graph</b> → <b>Delegated permissions</b>. Tick <b>offline_access</b>, <b>openid</b>, <b>email</b>, <b>profile</b>, <b>IMAP.AccessAsUser.All</b> and <b>SMTP.Send</b>, then <b>Add permissions</b>.'
+        ],
+        google: p => [
+            `Open the ${ext('https://console.cloud.google.com/projectcreate', 'Google Cloud console')} and create a project called <b>EderveenGroup</b>.`,
+            `Switch on the ${ext('https://console.cloud.google.com/apis/library/gmail.googleapis.com', 'Gmail API')} for that project (click <b>Enable</b>).`,
+            `Open ${ext('https://console.cloud.google.com/auth/overview', 'Google Auth Platform')} → <b>Get started</b>: app name <b>EderveenGroup</b>, your email, audience <b>External</b>. Under <b>Audience</b>, add the Gmail addresses that may sign in as <b>test users</b>. Under <b>Data access</b>, add the scope <b>https://mail.google.com/</b>.`,
+            `Under <b>Clients</b> → <b>Create client</b>: type <b>Web application</b>, and under <b>Authorized redirect URIs</b> add ${copyField(p.redirectUri, 'redirect URI')}`,
+            'Click <b>Create</b>, then copy the <b>Client ID</b> and <b>Client secret</b> into the boxes below.'
+        ]
+    };
+    const NOTES = {
+        microsoft: 'Outlook.com and Hotmail users need IMAP turned on (Outlook.com → Settings → Mail → Forwarding and IMAP); the sign-in page tells them if it’s off. Microsoft 365 organisations must allow IMAP and Authenticated SMTP.',
+        google: 'While the Google app is in “Testing”, only the test users you add can sign in, and Google asks them to sign in again every 7 days. That’s fine for family or a small team.'
+    };
+    async function signin() {
+        const list = await call('/api/admin/signin');
+        main.innerHTML = `<h1>Sign-in</h1><p class="ad-sub">Let people sign in with their Microsoft or Google account. Mail then works without their password ever reaching this server.</p>
+            ${list.map(p => `<section class="ad-card si-card" data-id="${p.id}">
+                <div class="si-head"><span class="si-logo">${LOGOS[p.id]}</span><div><h2>Sign in with ${esc(p.name)}</h2><small>${p.id === 'microsoft' ? 'Outlook.com, Hotmail, Live and Microsoft 365' : 'Gmail and Google Workspace'}</small></div>
+                    ${p.ready ? `<span class="ad-ok">${ic('check')} On</span>` : '<span class="ad-off">Not set up</span>'}</div>
+                ${p.source === 'env'
+                    ? `<p class="ad-muted">Switched on by the server’s environment variables (${p.id === 'microsoft' ? 'MICROSOFT_CLIENT_ID' : 'GOOGLE_CLIENT_ID'}). To change it, edit them in Coolify.</p>`
+                    : `<details class="si-guide"${p.ready ? '' : ' open'}><summary>${p.ready ? 'How it was set up' : `Set it up (about 5 minutes)`}</summary><ol class="si-steps">${STEPS[p.id](p).map(x => `<li>${x}</li>`).join('')}</ol></details>
+                    <form class="si-form" novalidate>
+                        <label class="pf-field"><span>${p.id === 'microsoft' ? 'Application (client) ID' : 'Client ID'}</span><input class="input" name="clientId" value="${esc(p.clientId)}" placeholder="${p.id === 'microsoft' ? '1a2b3c4d-5e6f-7a8b-9c0d-…' : '123456789-abc….apps.googleusercontent.com'}" autocomplete="off" spellcheck="false"></label>
+                        <label class="pf-field"><span>${p.id === 'microsoft' ? 'Client secret (its Value)' : 'Client secret'}</span><input class="input" name="clientSecret" type="password" placeholder="${p.secretSaved ? `Saved, ends in …${esc(p.secretHint)}. Paste a new one to replace it.` : 'Paste the secret'}" autocomplete="new-password" spellcheck="false"></label>
+                        ${p.id === 'microsoft' ? `<details class="si-adv"><summary>Advanced</summary><label class="pf-field"><span>Directory (tenant)</span><input class="input" name="tenant" value="${esc(p.tenant)}" spellcheck="false"><small class="ad-muted">Leave it on <b>common</b> for everyone. Your tenant ID or domain allows only your own organisation.</small></label></details>` : ''}
+                        <div class="form-error hidden" role="alert"></div>
+                        <div class="si-acts">${p.secretSaved ? '<button type="button" class="btn btn-danger" data-clear>Switch off</button>' : ''}<span class="spacer"></span><button class="btn btn-primary" type="submit">${ic('check')}<span>${p.ready ? 'Save' : 'Save and switch on'}</span></button></div>
+                    </form>`}
+                <p class="ad-muted si-note">${NOTES[p.id]}</p>
+                <label class="si-show"><input type="checkbox" data-show ${p.hidden ? '' : 'checked'}> Show the button on the sign-in page${p.ready ? '' : ' (until it’s set up, it explains that it isn’t switched on yet)'}</label>
+            </section>`).join('')}`;
+        $$('[data-copy]', main).forEach(b =>
+            b.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(b.dataset.copy);
+                    toast('Copied');
+                } catch {
+                    const r = document.createRange();
+                    r.selectNodeContents(b.previousElementSibling);
+                    getSelection().removeAllRanges();
+                    getSelection().addRange(r);
+                }
+            })
+        );
+        $$('.si-card', main).forEach(card => {
+            const id = card.dataset.id;
+            const hidden = () => !$('[data-show]', card).checked;
+            const form = $('.si-form', card);
+            if (form) {
+                form.addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const err = $('.form-error', form);
+                    err.classList.add('hidden');
+                    const body = { clientId: form.clientId.value, clientSecret: form.clientSecret.value, hidden: hidden() };
+                    if (form.tenant) body.tenant = form.tenant.value;
+                    try {
+                        const p = await call(`/api/admin/signin/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+                        toast(`Sign in with ${p.name} is on`);
+                        signin();
+                    } catch (x) {
+                        err.textContent = x.message;
+                        err.classList.remove('hidden');
+                    }
+                });
+                $('[data-clear]', form)?.addEventListener('click', async () => {
+                    if (!(await ask({ title: 'Switch this sign-in off?', text: 'People who signed in this way will have to sign in another way. You can paste the keys again later.', ok: 'Switch off', danger: true }))) return;
+                    await call(`/api/admin/signin/${id}`, { method: 'DELETE' });
+                    signin();
+                });
+            }
+            $('[data-show]', card).addEventListener('change', async () => {
+                try {
+                    await call(`/api/admin/signin/${id}`, { method: 'PUT', body: JSON.stringify({ hidden: hidden() }) });
+                    toast(hidden() ? 'Hidden on the sign-in page' : 'Shown on the sign-in page');
+                } catch (x) {
+                    toast(x.message, true);
+                }
+            });
+        });
+    }
+
+    /* ---------- address: #/, #/requests, #/people, #/access, #/signin ---------- */
+    const TABS = { overview, requests, people, access, signin };
     async function route() {
         const tab = TABS[location.hash.replace(/^#\/?/, '')] ? location.hash.replace(/^#\/?/, '') : 'overview';
         $$('#ad-nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));

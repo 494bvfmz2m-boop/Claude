@@ -53,7 +53,7 @@
             if (settings && settings.provider) {
                 const name = settings.provider === 'google' ? 'Google' : 'Microsoft';
                 const on = await fetch('/api/auth/providers').then(r => r.json()).catch(() => []);
-                note.innerHTML = on.some(p => p.id === settings.provider)
+                note.innerHTML = on.some(p => p.id === settings.provider && p.ready)
                     ? `Your mail is with ${name}: no settings needed. <a href="/auth/${settings.provider}?email=${encodeURIComponent(email)}">Sign in with ${name}</a>`
                     : `Your mail is with ${name}, which needs “Sign in with ${name}”. It isn’t switched on here yet; ask the admin.`;
             } else if (settings && settings.purelymail) {

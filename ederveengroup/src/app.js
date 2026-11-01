@@ -6,7 +6,7 @@ const express = require('express');
 const compression = require('compression');
 const multer = require('multer');
 const crypto = require('crypto');
-const { createSessions, loadKey } = require('../lib/session');
+const { createSessions, loadKey, seal, unseal } = require('../lib/session');
 const { createBackend } = require('../lib/db');
 const { createStore } = require('../lib/store');
 const { createAvatars } = require('../lib/avatars');
@@ -45,7 +45,29 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     // accepted addresses / domains use their own mail servers
     if (mail.useServers) mail.useServers(email => store.servers.profileFor(email), { allowPrivateHosts: config.allowPrivateMailHosts });
     // Microsoft / Google sign-ins: access tokens are renewed a few minutes before they expire
-    ctx.oauth = createOAuth(config.oauth);
+    // the app registrations come from the environment, or from Admin → Sign-in (secret sealed with a derived key)
+    const signinKey = ctx.sessions.deriveKey('signin-apps');
+    ctx.signinApps = {
+        get(id) {
+            const s = store.servers.getSignin(id);
+            if (!s) return null;
+            const secret = s.secret ? unseal(signinKey, s.secret) : null;
+            return { clientId: s.clientId, clientSecret: secret && secret.v, tenant: s.tenant, hidden: !!s.hidden, secretHint: s.secretHint || '', savedAt: s.savedAt, savedBy: s.savedBy };
+        },
+        set(id, { clientId, clientSecret, tenant, hidden, by }) {
+            const before = store.servers.getSignin(id) || {};
+            const next = { ...before, hidden: !!hidden };
+            if (clientId !== undefined) next.clientId = clientId;
+            if (tenant !== undefined) next.tenant = tenant;
+            if (clientSecret) Object.assign(next, { secret: seal(signinKey, { v: clientSecret }), secretHint: clientSecret.slice(-4), savedAt: Date.now(), savedBy: by });
+            store.servers.setSignin(id, next);
+        },
+        clear(id) {
+            const s = store.servers.getSignin(id);
+            store.servers.setSignin(id, s && s.hidden ? { hidden: true } : null);
+        }
+    };
+    ctx.oauth = createOAuth(config.oauth, { stored: id => ctx.signinApps.get(id) });
     const renewing = new Map();
     async function tokenFor({ email }) {
         await store.ready(email);
