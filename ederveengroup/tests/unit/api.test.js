@@ -44,7 +44,7 @@ async function start(env = {}, opts = {}) {
     // a tiny browser: keeps cookies per "device"
     const device = (ua = 'Mozilla/5.0 (Windows NT 10.0) Chrome/130.0 Safari/537.36') => {
         const jar = new Map();
-        return async (method, url, body, extra = {}) => {
+        const send = async (method, url, body, extra = {}) => {
             const headers = { 'User-Agent': ua, 'X-EG': '1', ...extra };
             const form = body instanceof FormData;
             const raw = body instanceof Uint8Array; // a file upload
@@ -61,6 +61,8 @@ async function start(env = {}, opts = {}) {
             const type = res.headers.get('content-type') || '';
             return { status: res.status, headers: res.headers, body: type.includes('json') ? await res.json() : await res.text() };
         };
+        send.cookies = () => [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
+        return send;
     };
     return { base, device, mail, dataDir, store: ctx.store, close: () => server.close() };
 }
@@ -792,5 +794,60 @@ test('Admin: roles, blocking, the activity log, news on the dashboard, switching
     assert.equal((await ava2('GET', '/api/apps-summary')).body.pages.includes('notes'), false);
     await boss('PUT', '/api/admin/apps', { off: [] });
     assert.equal((await ava2('GET', '/notes/')).status, 200);
+    app.close();
+});
+
+test('Files on disk: big uploads in resumable parts, ranges for video, previews, nothing readable on disk', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const PIECE = 4 * 1024 * 1024;
+    const data = require('crypto').randomBytes(2 * PIECE + 1000);
+    data.write('SECRET-HOLIDAY-VIDEO', 100);
+    const up = (await jo('POST', '/api/files/uploads', { name: 'holiday.mp4', size: data.length, type: 'video/mp4', taken: Date.parse('2026-07-14T10:00:00Z') })).body;
+    assert.equal(up.piece, PIECE);
+    // a part that isn't whole pieces is refused (it couldn't be resumed)
+    assert.equal((await jo('PUT', `/api/files/uploads/${up.id}?offset=0`, data.subarray(0, 1000))).status, 400);
+    assert.equal((await jo('PUT', `/api/files/uploads/${up.id}?offset=0`, data.subarray(0, PIECE))).body.offset, PIECE);
+    // out of step: told where to carry on
+    const wrong = await jo('PUT', `/api/files/uploads/${up.id}?offset=0`, data.subarray(0, PIECE));
+    assert.deepEqual([wrong.status, wrong.body.offset], [409, PIECE]);
+    assert.equal((await jo('GET', `/api/files/uploads/${up.id}`)).body.offset, PIECE);
+    const done = (await jo('PUT', `/api/files/uploads/${up.id}?offset=${PIECE}`, data.subarray(PIECE))).body;
+    assert.equal(done.done, true);
+    assert.equal(done.file.size, data.length);
+    assert.equal(done.file.taken, Date.parse('2026-07-14T10:00:00Z'));
+    assert.equal((await jo('GET', `/api/files/uploads/${up.id}`)).status, 404);
+    // ranges, as a video player asks for them
+    const get = range => fetch(`${app.base}/api/files/${done.file.id}/content?inline=1`, { headers: { Range: range, Cookie: jo.cookies() } });
+    const part = await get(`bytes=${PIECE - 5}-${PIECE + 4}`);
+    assert.equal(part.status, 206);
+    assert.equal(part.headers.get('content-range'), `bytes ${PIECE - 5}-${PIECE + 4}/${data.length}`);
+    assert.equal(Buffer.compare(Buffer.from(await part.arrayBuffer()), data.subarray(PIECE - 5, PIECE + 5)), 0);
+    assert.equal(Buffer.compare(Buffer.from(await (await get('bytes=-10')).arrayBuffer()), data.subarray(-10)), 0);
+    assert.equal((await get(`bytes=${data.length}-`)).status, 416);
+    const whole = await get('');
+    assert.equal(whole.headers.get('accept-ranges'), 'bytes');
+    assert.equal(Buffer.compare(Buffer.from(await whole.arrayBuffer()), data), 0);
+    // nothing readable in the files folder
+    const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(f => (f.isDirectory() ? walk(path.join(d, f.name)) : [path.join(d, f.name)]));
+    assert.equal(walk(path.join(app.dataDir, 'files')).some(f => fs.readFileSync(f).includes(Buffer.from('SECRET-HOLIDAY-VIDEO'))), false);
+    // previews: JPEG only, then served
+    assert.equal((await jo('PUT', `/api/files/${done.file.id}/thumb`, Buffer.from('<svg onload=alert(1)>'.padEnd(200)))).status, 400);
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 7)]);
+    assert.equal((await jo('PUT', `/api/files/${done.file.id}/thumb`, jpeg)).body.ok, true);
+    const t = await fetch(`${app.base}/api/files/${done.file.id}/thumb`, { headers: { Cookie: jo.cookies() } });
+    assert.equal(t.headers.get('content-type'), 'image/jpeg');
+    assert.equal(Buffer.compare(Buffer.from(await t.arrayBuffer()), jpeg), 0);
+    assert.equal((await jo('GET', '/api/files')).body.items[0].thumb, true);
+    // giving up on an upload removes what was sent
+    const gone = (await jo('POST', '/api/files/uploads', { name: 'x.bin', size: PIECE * 2 })).body;
+    await jo('PUT', `/api/files/uploads/${gone.id}?offset=0`, data.subarray(0, PIECE));
+    assert.equal((await jo('DELETE', `/api/files/uploads/${gone.id}`)).body.ok, true);
+    // deleting the file removes its contents and its preview from disk
+    const before = walk(path.join(app.dataDir, 'files')).length;
+    await jo('DELETE', `/api/files/${done.file.id}`);
+    assert.equal(walk(path.join(app.dataDir, 'files')).length, before - 2);
     app.close();
 });

@@ -4,8 +4,9 @@
     const root = $('#files');
     let items = [];
     let used = 0;
-    let quota = 1;
+    let quota = 0;
     let maxFile = 0;
+    let disk = null;
     let folder = '';
     let q = '';
     let layout = read('files-layout') || (phone() ? 'list' : 'grid');
@@ -44,7 +45,8 @@
     const GLYPH = { folder: 'folder', image: 'image', pdf: 'file', doc: 'file', sheet: 'grid', slides: 'laptop', audio: 'bell', video: 'eye', zip: 'archive', file: 'file' };
     const thumb = f => {
         const [k, label] = kindOf(f);
-        if (isImage(f) && f.size < 15 * 1048576) return `<span class="fl-thumb img"><img loading="lazy" alt="" src="/api/files/${encodeURIComponent(f.id)}/content?inline=1&v=${f.updatedAt}"></span>`;
+        if (f.thumb) return `<span class="fl-thumb img"><img loading="lazy" alt="" src="/api/files/${encodeURIComponent(f.id)}/thumb"></span>`;
+        if (isImage(f) && f.size < 8 * 1048576) return `<span class="fl-thumb img"><img loading="lazy" alt="" src="/api/files/${encodeURIComponent(f.id)}/content?inline=1&v=${f.updatedAt}"></span>`;
         return `<span class="fl-thumb" data-k="${k}">${ic(GLYPH[k])}${k === 'folder' ? '' : `<em>${esc((ext(f.name) || label).toUpperCase().slice(0, 4))}</em>`}</span>`;
     };
     const pathTo = id => {
@@ -95,13 +97,14 @@
                 </div>`)
                   .join('')
             : `<div class="ea-empty big">${ic(q ? 'search' : 'folder')}<p>${q ? 'No files match that.' : folder ? 'This folder is empty. Drop files here, or use Upload.' : 'No files yet. Drop files anywhere on this page, or use Upload.'}</p></div>`;
-        const pct = Math.min(100, (used / quota) * 100);
-        $('#meter').innerHTML = `<div class="fl-bar"><i style="width:${pct.toFixed(1)}%"></i></div><span>${size(used)} of ${size(quota)} used${maxFile ? ` · files up to ${size(maxFile)}` : ''}</span>`;
+        const room = quota || (disk ? used + disk.free : 0);
+        const pct = room ? Math.min(100, (used / room) * 100) : 0;
+        $('#meter').innerHTML = `<div class="fl-bar"><i style="width:${pct.toFixed(1)}%"></i></div><span>${size(used)} used${quota ? ` of ${size(quota)}` : disk ? ` · ${size(disk.free)} free on the server` : ''}${maxFile ? ` · files up to ${size(maxFile)}` : ''}</span>`;
     }
 
     async function load() {
         const r = await call('/api/files');
-        ({ items, used, quota, maxFile } = r);
+        ({ items, used, quota, maxFile, disk } = r);
         if (folder && !items.some(f => f.id === folder)) folder = '';
         draw();
     }
@@ -114,48 +117,33 @@
             row.className = 'fl-up';
             row.innerHTML = `<span class="fl-up-name">${esc(file.name)}</span><span class="fl-up-bar"><i></i></span><span class="fl-up-pct">0%</span>`;
             $('#uploads').append(row);
-            if (maxFile && file.size > maxFile) {
+            const fail = msg => {
                 row.classList.add('bad');
-                $('.fl-up-pct', row).textContent = `Too big (max ${size(maxFile)})`;
-                setTimeout(() => row.remove(), 6000);
+                $('.fl-up-pct', row).textContent = msg;
+                setTimeout(() => row.remove(), 8000);
+            };
+            if (maxFile && file.size > maxFile) {
+                fail(`Too big (max ${size(maxFile)})`);
                 continue;
             }
-            const x = new XMLHttpRequest();
-            x.open('POST', `/api/files?name=${encodeURIComponent(file.name)}&folder=${encodeURIComponent(into)}&type=${encodeURIComponent(file.type || '')}`);
-            x.setRequestHeader('X-EG', '1');
-            x.setRequestHeader('Content-Type', 'application/octet-stream');
-            x.upload.onprogress = e => {
-                if (!e.lengthComputable) return;
-                const p = Math.round((e.loaded / e.total) * 100);
-                $('i', row).style.width = p + '%';
-                $('.fl-up-pct', row).textContent = p + '%';
-            };
-            x.onload = () => {
-                let r = {};
-                try {
-                    r = JSON.parse(x.responseText);
-                } catch {
-                    // not JSON: shown as a generic problem below
+            window.EG.upload(file, {
+                folder: into,
+                onProgress: p => {
+                    $('i', row).style.width = Math.round(p * 100) + '%';
+                    $('.fl-up-pct', row).textContent = Math.round(p * 100) + '%';
                 }
-                if (x.status === 200) {
-                    items.push(r);
-                    used += r.size;
+            })
+                .then(f => {
+                    items.push(f);
+                    used += f.size;
                     row.classList.add('done');
                     $('.fl-up-pct', row).textContent = 'Done';
                     setTimeout(() => row.remove(), 1200);
                     draw();
-                    $(`.fl-item[data-id="${r.id}"]`)?.classList.add('fresh');
-                } else {
-                    row.classList.add('bad');
-                    $('.fl-up-pct', row).textContent = r.error || 'Didn’t upload';
-                    setTimeout(() => row.remove(), 8000);
-                }
-            };
-            x.onerror = () => {
-                row.classList.add('bad');
-                $('.fl-up-pct', row).textContent = 'Connection lost';
-            };
-            x.send(file);
+                    $(`.fl-item[data-id="${f.id}"]`)?.classList.add('fresh');
+                    if (window.EG.thumbFor) window.EG.thumbFor(f, file); // a preview for pictures and videos
+                })
+                .catch(err => fail(err.message || 'Didn’t upload'));
         }
     }
     $('#pick').addEventListener('change', e => {

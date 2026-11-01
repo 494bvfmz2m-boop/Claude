@@ -533,3 +533,16 @@
     .hub-cat .hub-stat { display: none; }
     .app-ic { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .22)); }
 }
+
+/* Photos on a phone: edge to edge, three across, like the Photos app */
+@media (max-width: 760px) {
+    .ph-tools { width: 100%; }
+    .ph-tabs { flex: 1; }
+    .ph-upload span { display: none; }
+    .ph-upload { width: 40px; padding: 0; justify-content: center; }
+    .ph-grid { grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 -16px; }
+    .ph-tile { border-radius: 0; }
+    .ph-month h2 { font-size: 17px; }
+    .ph-albums { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .ph-v-nav { display: none; }
+}

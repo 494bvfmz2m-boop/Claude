@@ -278,3 +278,53 @@ test('username rules, reserved names and suggestions', async () => {
     assert.equal(alts.length, 3);
     assert.ok(alts.every(a => /^ava\d+$/.test(a)));
 });
+
+test('vault: files stored encrypted in pieces; any range reads back; uploads resume', async () => {
+    const crypto = require('crypto');
+    const { createVault, PIECE } = require('../../lib/vault');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eg-vault-'));
+    const v = createVault({ dir, key: crypto.randomBytes(32) });
+    const read = async (id, r) => Buffer.concat(await (await v.read(id, r)).toArray());
+    for (const n of [0, 1, PIECE - 1, PIECE, PIECE + 1, 2 * PIECE + 12345]) {
+        const data = crypto.randomBytes(n);
+        const id = 'file-' + n + '-abcdefghijk';
+        // arriving in odd-sized bits
+        const w = await v.writer(id);
+        for (let at = 0; at < n; at += 777777) await w.write(data.subarray(at, at + 777777));
+        assert.equal(await w.end(), n);
+        assert.equal(await v.size(id), n);
+        assert.equal(Buffer.compare(await read(id), data), 0, `whole file of ${n}`);
+        if (n > 10) {
+            for (const [s, e] of [[0, 0], [5, 9], [n - 3, n - 1], [PIECE - 2, PIECE + 2], [1, n - 2]]) {
+                if (s > e || e >= n) continue;
+                assert.equal(Buffer.compare(await read(id, { start: s, end: e }), data.subarray(s, e + 1)), 0, `range ${s}-${e} of ${n}`);
+            }
+        }
+    }
+    // nothing readable on disk
+    const marker = Buffer.from('VISIBLE-MARKER-'.repeat(100));
+    await v.put('marker-abcdefghijklmn', marker);
+    const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(f => (f.isDirectory() ? walk(path.join(d, f.name)) : [path.join(d, f.name)]));
+    assert.equal(walk(dir).some(f => fs.readFileSync(f).includes(Buffer.from('VISIBLE-MARKER'))), false);
+    // an upload in two goes (whole pieces first), picked up by a new writer
+    const big = crypto.randomBytes(2 * PIECE + 500);
+    const w1 = await v.writer('resume-abcdefghijklmn');
+    await w1.write(big.subarray(0, PIECE));
+    assert.equal(await w1.pause(), PIECE);
+    assert.equal(await v.partial('resume-abcdefghijklmn'), PIECE);
+    const w2 = await v.writer('resume-abcdefghijklmn', { resume: true });
+    assert.equal(w2.written, PIECE);
+    await w2.write(big.subarray(PIECE));
+    assert.equal(await w2.end(), big.length);
+    assert.equal(Buffer.compare(await v.readAll('resume-abcdefghijklmn'), big), 0);
+    // a changed byte is caught, not passed on
+    const f = walk(dir).find(x => x.endsWith('resume-abcdefghijklmn'));
+    const buf = fs.readFileSync(f);
+    buf[40] ^= 1;
+    fs.writeFileSync(f, buf);
+    await assert.rejects(() => v.readAll('resume-abcdefghijklmn'), /damaged/);
+    await v.remove('resume-abcdefghijklmn');
+    assert.equal(await v.size('resume-abcdefghijklmn'), null);
+    await assert.rejects(() => v.writer('../../etc/passwd'), /bad file id/);
+    assert.ok((await v.disk()).free > 0);
+});

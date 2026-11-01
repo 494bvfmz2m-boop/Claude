@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { createDocs } = require('../lib/docs');
+const { createVault } = require('../lib/vault');
 const { createSessions, loadKey, seal, unseal } = require('../lib/session');
 const { createBackend } = require('../lib/db');
 const { createStore } = require('../lib/store');
@@ -46,6 +47,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
 
     ctx.links = createLinks(ctx.sessions.deriveKey('links'));
     ctx.docs = createDocs(store.backend); // shared documents: chat, announcements, shared docs…
+    // file contents for Files and Photos: on disk (FILES_DIR), encrypted with a key of their own
+    ctx.vault = createVault({ dir: config.files.dir, key: ctx.sessions.deriveKey('vault') });
     // the site's activity log (Admin → Activity): every sign-in, and what admins change
     ctx.audit = entry =>
         ctx.docs

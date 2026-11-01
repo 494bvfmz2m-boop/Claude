@@ -243,6 +243,7 @@ module.exports = function appRoutes(ctx) {
             pages: ctx.appPages ? ctx.appPages.filter(a => !ctx.appOn || ctx.appOn(a)) : null,
             news: ctx.docs ? (await ctx.docs.get('news', () => ({ items: [] }))).items.filter(n => !n.until || n.until > Date.now()).slice(0, 3) : [],
             files: { count: files.length, used: files.reduce((n, f) => n + (f.size || 0), 0) },
+            photos: files.filter(f => /^(image|video)\//.test(f.type || '')).length,
             ...extra
         });
     }));

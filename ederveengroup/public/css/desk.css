@@ -306,3 +306,5 @@ body::after {
 .hub-card, .hub-q { background: var(--glass); }
 .hub-card { box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .9), inset 0 1px 0 rgba(255, 255, 255, .05), inset 0 0 0 1px var(--line); }
 .hub-cat .hub-app:not(.soon) { animation-duration: .9s; animation-delay: calc(var(--i, 0) * 40ms + 200ms); }
+/* Photos on a computer: month titles sit in the page, no bar behind them */
+.ph-month h2 { position: static; background: none; padding: 4px 2px; }

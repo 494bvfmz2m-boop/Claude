@@ -38,7 +38,8 @@
         { id: 'notes', name: 'Notes', cat: 'create', href: '/notes/', blurb: 'Quick notes, saved as you type.' },
         { id: 'docs', name: 'Docs', cat: 'create', href: '/docs/', blurb: 'Documents, guides and how-tos.' },
         { id: 'slides', name: 'Slides', cat: 'create', href: '/slides/', blurb: 'Presentations you can show anywhere.' },
-        { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Documents and photos, with share links.' },
+        { id: 'photos', name: 'Photos', cat: 'store', href: '/photos/', blurb: 'Every photo and video, by the day it was taken.' },
+        { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
         { id: 'admin', name: 'Admin', cat: 'you', href: '/admin/', blurb: 'People, sign-in and settings.', admin: true }
     ];
@@ -118,6 +119,7 @@
         }
         if (sum.notes != null) stat('notes', sum.notes ? plural(sum.notes, 'note') : 'No notes yet');
         if (sum.contacts != null) stat('contacts', sum.contacts ? plural(sum.contacts, 'contact') : 'Add your first');
+        if (sum.photos != null) stat('photos', sum.photos ? plural(sum.photos, 'item') : 'Add your first');
         if (sum.files) stat('files', sum.files.count ? `${plural(sum.files.count, 'file')} · ${size(sum.files.used)}` : 'No files yet');
         if (sum.docs != null) stat('docs', sum.docs ? plural(sum.docs, 'doc') : 'No docs yet');
         if (sum.slides != null) stat('slides', sum.slides ? plural(sum.slides, 'deck') : 'No decks yet');

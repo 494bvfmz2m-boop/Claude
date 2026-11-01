@@ -40,9 +40,10 @@ function loadConfig(env = process.env) {
     // Where the webmail lives: /mail by default; BASE_PATH=/ serves it at the root instead.
     // The hub (sign-in and your apps) lives at "/", Mail at BASE_PATH (default /mail).
     const base = ('/' + (env.BASE_PATH ?? '/mail')).replace(/\/+/g, '/').replace(/\/$/, '') || '/mail';
+    const dataDir = env.DATA_DIR || path.join(ROOT, 'data');
     return {
         port: Number(env.PORT) || 3000,
-        dataDir: env.DATA_DIR || path.join(ROOT, 'data'),
+        dataDir,
         publicDir: path.join(ROOT, 'public'),
         viewsDir: path.join(ROOT, 'views'),
         base,
@@ -57,10 +58,12 @@ function loadConfig(env = process.env) {
         allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',
         // MySQL / MariaDB; without DB_HOST everything is kept in files in the data folder
         db: dbSetting(env),
-        // the Files app: room per person, and the biggest single file (in MB)
+        // Files and Photos: where the contents live (any big disk, e.g. a mounted storage VPS),
+        // and optional limits in MB (room per person, biggest single file; 0 = only the disk limits)
         files: {
-            quota: Math.max(10, Number(env.FILES_QUOTA_MB) || 1024) * 1024 * 1024,
-            maxFile: Math.min(500, Math.max(1, Number(env.FILES_MAX_MB) || 100)) * 1024 * 1024
+            dir: env.FILES_DIR ? path.resolve(env.FILES_DIR) : path.join(dataDir, 'files'),
+            quota: Math.max(0, Number(env.FILES_QUOTA_MB) || 0) * 1024 * 1024,
+            maxFile: Math.max(0, Number(env.FILES_MAX_MB) || 0) * 1024 * 1024
         },
         // "Sign in with Microsoft / Google": set the client ID and secret from each provider's console
         oauth: {
