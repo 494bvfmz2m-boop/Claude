@@ -59,8 +59,7 @@ function cleanBook(b) {
     return { sheets, active: Math.max(0, Math.min(sheets.length - 1, Number((b && b.active) || 0) || 0)) };
 }
 const SHARES = ['private', 'view', 'edit'];
-const LAYOUTS = ['title', 'bullets', 'statement', 'image', 'columns'];
-const THEMES = ['midnight', 'paper', 'sunset', 'ocean', 'forest'];
+const KIT = require('../../public/js/slidekit');
 const MAX_BODY = 6 * 1024 * 1024;
 const line = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max);
 const text = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').slice(0, max);
@@ -75,16 +74,68 @@ function cleanBody(kind, b) {
             page: { size: p.size === 'Letter' ? 'Letter' : 'A4', orient: p.orient === 'landscape' ? 'landscape' : 'portrait', margins: ['narrow', 'wide'].includes(p.margins) ? p.margins : 'normal' }
         };
     }
-    const slides = [].concat((b && b.slides) || []).slice(0, 200).map(s => ({
+    const slides = [].concat((b && b.slides) || []).slice(0, 200).map(cleanSlide);
+    return { theme: KIT.THEMES[b && b.theme] ? b.theme : 'midnight', slides: slides.length ? slides : [cleanSlide({ layout: 'title' })] };
+}
+
+/* ---------- a slide: its layout's text, and the boxes, shapes and pictures put on it ---------- */
+const colour = v => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : '');
+const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? Math.max(lo, Math.min(hi, Math.round(Number(v) * 100) / 100)) : d);
+const ALIGN = ['left', 'center', 'right'];
+const VALIGN = ['top', 'middle', 'bottom'];
+function cleanLook(f) {
+    const o = {};
+    if (!f || typeof f !== 'object') return o;
+    if (KIT.FONTS.includes(f.font)) o.font = f.font;
+    if (f.size != null && f.size !== '') o.size = num(f.size, 6, 200, 18);
+    for (const k of ['b', 'i', 'u', 'nob']) if (f[k]) o[k] = true;
+    if (colour(f.color)) o.color = colour(f.color);
+    if (ALIGN.includes(f.align)) o.align = f.align;
+    return o;
+}
+function cleanObject(o) {
+    const t = o.t === 'text' || o.t === 'img' || KIT.SHAPES[o.t] ? o.t : 'text';
+    const out = {
+        id: /^[A-Za-z0-9_-]{4,24}$/.test(String(o.id || '')) ? o.id : crypto.randomBytes(5).toString('base64url'),
+        t,
+        x: num(o.x, -100, 200, 30),
+        y: num(o.y, -100, 200, 30),
+        w: num(o.w, 0.5, 300, 40),
+        h: num(o.h, 0.5, 300, 20),
+        ...cleanLook(o)
+    };
+    if (t === 'img') {
+        out.src = picture(o.src);
+        return out.src ? out : null;
+    }
+    out.text = text(o.text, 4000);
+    if (VALIGN.includes(o.v)) out.v = o.v;
+    const fill = o.fill === 'none' ? 'none' : colour(o.fill);
+    const ln = o.line === 'none' ? 'none' : colour(o.line);
+    if (fill) out.fill = fill;
+    if (ln) out.line = ln;
+    return out;
+}
+function cleanSlide(s) {
+    s = s && typeof s === 'object' ? s : {};
+    const fmt = {};
+    for (const f of ['title', 'body', 'body2']) {
+        const l = cleanLook(s.fmt && s.fmt[f]);
+        if (Object.keys(l).length) fmt[f] = l;
+    }
+    return {
         id: /^[A-Za-z0-9_-]{4,24}$/.test(String(s.id || '')) ? s.id : crypto.randomBytes(6).toString('base64url'),
-        layout: LAYOUTS.includes(s.layout) ? s.layout : 'bullets',
-        title: text(s.title, 300),
-        body: text(s.body, 4000),
-        body2: text(s.body2, 4000),
+        layout: KIT.LAYOUTS[s.layout] ? s.layout : 'bullets',
+        title: text(s.title, 600),
+        body: text(s.body, 6000),
+        body2: text(s.body2, 6000),
         image: picture(s.image),
-        notes: text(s.notes, 4000)
-    }));
-    return { theme: THEMES.includes(b && b.theme) ? b.theme : 'midnight', slides: slides.length ? slides : [{ id: crypto.randomBytes(6).toString('base64url'), layout: 'title', title: '', body: '', body2: '', image: '', notes: '' }] };
+        notes: text(s.notes, 8000),
+        fmt,
+        objs: [].concat(s.objs || []).slice(0, 60).filter(o => o && typeof o === 'object').map(cleanObject).filter(Boolean),
+        bg: colour(s.bg),
+        transition: KIT.TRANSITIONS[s.transition] ? s.transition : 'none'
+    };
 }
 
 module.exports = function docRoutes(ctx) {
@@ -118,7 +169,7 @@ module.exports = function docRoutes(ctx) {
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
         const body = cleanBody(kind, req.body.body || {});
-        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
+        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}) };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);
@@ -210,19 +261,22 @@ module.exports = function docRoutes(ctx) {
     r.post('/docs/import', express.raw({ type: () => true, limit: '25mb' }), wrap(async (req, res) => {
         const email = req.session.email;
         const name = String(req.query.name || 'Imported').slice(0, 160);
-        if (!/\.(xlsx|csv|docx)$/i.test(name)) throw httpError(400, 'Open an Excel (.xlsx), CSV or Word (.docx) file');
+        if (!/\.(xlsx|csv|docx|pptx)$/i.test(name)) throw httpError(400, 'Open an Excel (.xlsx), CSV, Word (.docx) or PowerPoint (.pptx) file');
         const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-        const kind = /\.docx$/i.test(name) ? 'doc' : 'sheet';
+        const kind = /\.docx$/i.test(name) ? 'doc' : /\.pptx$/i.test(name) ? 'deck' : 'sheet';
         let body;
         try {
-            body = kind === 'doc' ? cleanBody('doc', { html: await office.importDocx(buf) }) : cleanBook(await office.importSheet(buf, name));
+            if (kind === 'doc') body = cleanBody('doc', { html: await office.importDocx(buf) });
+            else if (kind === 'deck') body = cleanBody('deck', await office.importPptx(buf));
+            else body = cleanBook(await office.importSheet(buf, name));
         } catch {
-            throw httpError(400, kind === 'doc' ? 'That file couldn’t be read as a Word document' : 'That file couldn’t be read as a spreadsheet');
+            throw httpError(400, { doc: 'That file couldn’t be read as a Word document', deck: 'That file couldn’t be read as a PowerPoint presentation', sheet: 'That file couldn’t be read as a spreadsheet' }[kind]);
         }
+        if (JSON.stringify(body).length > MAX_BODY) throw httpError(413, 'That presentation is too big to open here. Use smaller pictures.');
         const all = await index();
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
-        all.items[id] = { kind, title: line(name.replace(/\.(xlsx|csv|docx)$/i, ''), 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
+        all.items[id] = { kind, title: line(name.replace(/\.(xlsx|csv|docx|pptx)$/i, ''), 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}) };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);

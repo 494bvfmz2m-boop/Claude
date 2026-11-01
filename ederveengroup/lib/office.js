@@ -608,3 +608,497 @@ module.exports.docToDocx = docToDocx;
 module.exports.docToPdf = docToPdf;
 module.exports.importDocx = importDocx;
 module.exports.htmlToBlocks = htmlToBlocks;
+
+/* ---------- Slides: PowerPoint (.pptx) and PDF, laid out like the editor ---------- */
+const KIT = require('../public/js/slidekit');
+
+// a small PNG, written by hand: theme backgrounds are gradients, which PowerPoint gets as a picture
+function png(w, h, px, alpha) {
+    const zlib = require('zlib');
+    const ch = alpha ? 4 : 3;
+    const raw = Buffer.alloc((w * ch + 1) * h);
+    for (let y = 0; y < h; y++) px.copy(raw, y * (w * ch + 1) + 1, y * w * ch, (y + 1) * w * ch);
+    const chunk = (type, data) => {
+        const len = Buffer.alloc(4);
+        len.writeUInt32BE(data.length);
+        const td = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+        const crc = Buffer.alloc(4);
+        crc.writeUInt32BE(zlib.crc32(td) >>> 0);
+        return Buffer.concat([len, td, crc]);
+    };
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0);
+    ihdr.writeUInt32BE(h, 4);
+    ihdr.set([8, alpha ? 6 : 2, 0, 0, 0], 8);
+    return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+}
+const rgb = c => [1, 3, 5].map(i => parseInt(String(c).slice(i, i + 2), 16));
+// a CSS gradient (as the editor draws it) painted into pixels
+const bgCache = new Map();
+function backgroundPng(spec) {
+    const key = JSON.stringify(spec);
+    if (bgCache.has(key)) return bgCache.get(key);
+    const w = 640;
+    const h = 360;
+    const stops = spec.stops.map(([at, c]) => [at / 100, rgb(c)]);
+    const at = t => {
+        t = Math.max(0, Math.min(1, t));
+        let i = 0;
+        while (i < stops.length - 2 && t > stops[i + 1][0]) i++;
+        const [a, ca] = stops[i];
+        const [b, cb] = stops[i + 1] || stops[i];
+        const k = b > a ? Math.max(0, Math.min(1, (t - a) / (b - a))) : 0;
+        return ca.map((v, j) => v + (cb[j] - v) * k);
+    };
+    const px = Buffer.alloc(w * h * 3);
+    const rad = (spec.angle || 0) * Math.PI / 180;
+    const len = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            let t;
+            if (spec.kind === 'radial') {
+                const dx = (x + 0.5 - (spec.cx / 100) * w) / ((spec.rx / 100) * w);
+                const dy = (y + 0.5 - (spec.cy / 100) * h) / ((spec.ry / 100) * h);
+                t = Math.sqrt(dx * dx + dy * dy);
+            } else {
+                t = ((x + 0.5 - w / 2) * Math.sin(rad) - (y + 0.5 - h / 2) * Math.cos(rad)) / len + 0.5;
+            }
+            const c = at(t);
+            // a touch of noise keeps the gradient free of bands
+            const n = ((x * 7919 + y * 104729) % 17) / 17 - 0.5;
+            px.set(c.map(v => Math.max(0, Math.min(255, Math.round(v + n)))), (y * w + x) * 3);
+        }
+    }
+    const out = png(w, h, px, false);
+    bgCache.set(key, out);
+    return out;
+}
+// the dark fade under a picture's caption
+let shadeBuf = null;
+function shadePng() {
+    if (shadeBuf) return shadeBuf;
+    const h = 128;
+    const px = Buffer.alloc(4 * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < 4; x++) px.set([0, 0, 0, Math.round(165 * Math.pow(y / (h - 1), 1.2))], (y * 4 + x) * 4);
+    return (shadeBuf = png(4, h, px, true));
+}
+const dataUri = (buf, type = 'png') => `data:image/${type};base64,${buf.toString('base64')}`;
+const inch = b => ({ x: (b.x / 100) * KIT.W, y: (b.y / 100) * KIT.H, w: (b.w / 100) * KIT.W, h: (b.h / 100) * KIT.H });
+// roughly how wide letters are in each font (in ems), to shrink text that wouldn't fit, like PowerPoint does
+const CHARW = { Georgia: 0.55, 'Times New Roman': 0.46, Garamond: 0.44, Calibri: 0.47, 'Calibri Light': 0.46, Aptos: 0.5, Arial: 0.52, Verdana: 0.6, 'Trebuchet MS': 0.5, 'Segoe UI': 0.51, 'Courier New': 0.6, 'Comic Sans MS': 0.55 };
+function fitSize(ps, wIn, hIn, L) {
+    const k = (CHARW[L.font] || 0.5) * (L.b ? 1.07 : 1);
+    const lines = (t, cpl) => {
+        let n = 1;
+        let col = 0;
+        for (const word of String(t).split(/\s+/)) {
+            const len = word.length + (col ? 1 : 0);
+            if (col && col + len > cpl) {
+                n++;
+                col = word.length;
+            } else col += len;
+            while (col > cpl) {
+                n++;
+                col -= cpl;
+            }
+        }
+        return n;
+    };
+    const need = sz =>
+        ps.reduce((sum, p, i) => {
+            const z = sz * (L.bullets ? KIT.LV[p.lv] : 1);
+            return sum + lines(p.text, Math.max(1, ((wIn - 0.2 - (L.bullets ? 0.3 + p.lv * 0.5 : p.lv * 0.5)) * 72) / (z * k))) * z * L.lh + (i ? z * 0.35 : 0);
+        }, 0) / 72 + 0.1;
+    let size = L.size;
+    while (size > L.size * 0.35 && need(size) > hIn) size = Math.round(size * 0.93 * 10) / 10;
+    return size;
+}
+const TRANSITION_XML = { fade: '<p:fade/>', push: '<p:push dir="u"/>', wipe: '<p:wipe dir="r"/>', zoom: '<p:zoom/>' };
+
+async function deckToPptx(title, body) {
+    const PptxGen = require('pptxgenjs');
+    const pptx = new PptxGen();
+    pptx.layout = 'LAYOUT_WIDE';
+    pptx.title = title || 'Presentation';
+    pptx.company = 'EderveenGroup';
+    const th = KIT.theme(body.theme);
+    pptx.defineSlideMaster({ title: 'EG', background: th.bg.kind === 'solid' ? { color: hex(th.bg.color) } : { data: dataUri(backgroundPng(th.bg)) } });
+    const textRuns = (ps, L, b) => {
+        const size = fitSize(ps, b.w, b.h, L);
+        return ps.map((p, i) => ({
+            text: p.text,
+            options: { breakLine: i < ps.length - 1, bullet: L.bullets ? { indent: 20 } : false, indentLevel: p.lv || 0, paraSpaceBefore: i ? Math.round(size * 0.35) : 0, ...(L.bullets && p.lv ? { fontSize: Math.round(size * KIT.LV[p.lv] * 10) / 10 } : {}) }
+        }));
+    };
+    const textOpts = (L, b, ps, extra = {}) => ({
+        ...b,
+        fontFace: L.font,
+        fontSize: fitSize(ps, b.w, b.h, L),
+        color: hex(L.color) || '000000',
+        bold: L.b,
+        italic: L.i,
+        ...(L.u ? { underline: { style: 'sng' } } : {}),
+        align: L.align,
+        valign: L.v,
+        fit: 'shrink',
+        lineSpacingMultiple: L.lh < 1.15 ? 0.9 : 1,
+        ...extra
+    });
+    for (const s of body.slides) {
+        const sl = pptx.addSlide({ masterName: 'EG' });
+        if (s.bg) sl.background = { color: hex(s.bg) };
+        // our own placeholders carry a name, so the file opens here again with its layout and theme
+        const tag = what => `EG:${body.theme}:${s.layout}:${what}`;
+        for (const box of KIT.boxes(s)) {
+            const b = inch(box);
+            if (box.kind === 'bar') sl.addShape(pptx.ShapeType.rect, { ...b, fill: { color: hex(th.accent) }, line: { type: 'none' }, objectName: tag('bar') });
+            else if (box.kind === 'shade') (s.image || s.title) && sl.addImage({ data: dataUri(shadePng()), ...b, objectName: tag('shade') });
+            else if (box.kind === 'picture') {
+                const img = imageInfo(s.image);
+                if (img) sl.addImage({ data: s.image, x: b.x, y: b.y, w: b.w, h: (b.w * img.h) / img.w, sizing: { type: 'cover', w: b.w, h: b.h }, objectName: tag('picture') });
+            } else if (String(s[box.f] || '').trim()) {
+                const L = KIT.look(box, s.fmt && s.fmt[box.f], th);
+                const ps = KIT.paras(s[box.f]);
+                sl.addText(textRuns(ps, L, b), textOpts(L, b, ps, { objectName: tag(box.f) }));
+            }
+        }
+        for (const o of s.objs || []) {
+            const b = inch(o);
+            if (o.t === 'img') {
+                if (imageInfo(o.src)) sl.addImage({ data: o.src, ...b });
+                continue;
+            }
+            const L = KIT.objLook(o, th);
+            const ps = KIT.paras(o.text);
+            const shape = o.t === 'text' ? null : KIT.SHAPES[o.t].office;
+            sl.addText(textRuns(ps, L, b), textOpts(L, b, ps, {
+                ...(shape ? { shape } : {}),
+                ...(shape === 'roundRect' ? { rectRadius: Math.min(b.w, b.h) * 0.16 } : {}),
+                fill: L.fill ? { color: hex(L.fill) } : { type: 'none' },
+                ...(L.line ? { line: { color: hex(L.line), width: 1.5 } } : {}),
+                fit: o.t === 'text' ? 'resize' : 'shrink'
+            }));
+        }
+        if (s.notes && s.notes.trim()) sl.addNotes(s.notes);
+    }
+    let buf = await pptx.write({ outputType: 'nodebuffer' });
+    // transitions: pptxgenjs doesn't write them, so they go into each slide's XML afterwards
+    if (body.slides.some(s => TRANSITION_XML[s.transition])) {
+        const JSZip = require('jszip');
+        const zip = await JSZip.loadAsync(buf);
+        for (let i = 0; i < body.slides.length; i++) {
+            const t = TRANSITION_XML[body.slides[i].transition];
+            const f = zip.file(`ppt/slides/slide${i + 1}.xml`);
+            if (!t || !f) continue;
+            const xml = await f.async('string');
+            zip.file(`ppt/slides/slide${i + 1}.xml`, xml.replace('</p:clrMapOvr>', `</p:clrMapOvr><p:transition spd="med">${t}</p:transition>`));
+        }
+        buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    }
+    return buf;
+}
+
+async function deckToPdf(title, body) {
+    const PW = 960;
+    const PH = 540;
+    const { doc, done } = pdfDoc({ title, pdf: { size: [PW, PH], margin: 0 } });
+    const th = KIT.theme(body.theme);
+    const bg = th.bg.kind === 'solid' ? null : doc.openImage(backgroundPng(th.bg));
+    const shade = doc.openImage(shadePng());
+    const pt = b => ({ x: (b.x / 100) * PW, y: (b.y / 100) * PH, w: (b.w / 100) * PW, h: (b.h / 100) * PH });
+    const family = f => (/Georgia|Times|Garamond/.test(f) ? 'Times' : /Courier/.test(f) ? 'Courier' : 'Helvetica');
+    const face = L => {
+        const fam = family(L.font);
+        if (fam === 'Times') return L.b && L.i ? 'Times-BoldItalic' : L.b ? 'Times-Bold' : L.i ? 'Times-Italic' : 'Times-Roman';
+        return `${fam}${L.b && L.i ? '-BoldOblique' : L.b ? '-Bold' : L.i ? '-Oblique' : ''}`;
+    };
+    function textBox(b, ps, L) {
+        const iw = b.w - 14.4;
+        const ih = b.h - 7.2;
+        const indent = p => (L.bullets ? 21.6 + p.lv * 36 : p.lv * 36);
+        const gapOf = sz => {
+            doc.font(face(L)).fontSize(sz);
+            return Math.max(-sz * 0.3, sz * L.lh - doc.currentLineHeight(true));
+        };
+        const zOf = (p, sz) => sz * (L.bullets ? KIT.LV[p.lv] : 1);
+        const height = sz =>
+            ps.reduce((sum, p, i) => {
+                const z = zOf(p, sz);
+                return sum + doc.heightOfString(safe(p.text) || ' ', { width: Math.max(10, iw - indent(p)), lineGap: gapOf(z) }) + (i ? z * 0.35 : 0);
+            }, 0);
+        let size = L.size;
+        while (size > L.size * 0.35 && height(size) > ih) size *= 0.93;
+        const total = height(size);
+        let y = b.y + 3.6 + (L.v === 'middle' ? (ih - total) / 2 : L.v === 'bottom' ? ih - total : 0);
+        ps.forEach((p, i) => {
+            const z = zOf(p, size);
+            const lineGap = gapOf(z);
+            doc.fillColor(L.color);
+            if (i) y += z * 0.35;
+            const x = b.x + 7.2 + indent(p);
+            const w = Math.max(10, iw - indent(p));
+            if (L.bullets && p.text.trim()) doc.fillColor(th.accent).text('•', x - 18, y, { lineBreak: false, lineGap }).fillColor(L.color);
+            doc.text(safe(p.text) || ' ', x, y, { width: w, align: L.align, lineGap, underline: L.u });
+            y += doc.heightOfString(safe(p.text) || ' ', { width: w, lineGap });
+        });
+    }
+    function picture(src, b, cover) {
+        const img = imageInfo(src);
+        if (!img) return;
+        try {
+            doc.save();
+            doc.rect(b.x, b.y, b.w, b.h).clip();
+            if (cover) doc.image(img.buf, b.x, b.y, { cover: [b.w, b.h], align: 'center', valign: 'center' });
+            else doc.image(img.buf, b.x, b.y, { width: b.w, height: b.h });
+            doc.restore();
+        } catch {
+            doc.restore();
+            doc.rect(b.x, b.y, b.w, b.h).fill('#d9d9d9');
+        }
+    }
+    for (const s of body.slides) {
+        doc.addPage({ size: [PW, PH], margin: 0 });
+        if (s.bg || !bg) doc.rect(0, 0, PW, PH).fill(s.bg || th.bg.color);
+        else doc.image(bg, 0, 0, { width: PW, height: PH });
+        for (const box of KIT.boxes(s)) {
+            const b = pt(box);
+            if (box.kind === 'bar') doc.rect(b.x, b.y, b.w, b.h).fill(th.accent);
+            else if (box.kind === 'shade') (s.image || s.title) && doc.image(shade, b.x, b.y, { width: b.w, height: b.h });
+            else if (box.kind === 'picture') picture(s.image, b, true);
+            else if (String(s[box.f] || '').trim()) textBox(b, KIT.paras(s[box.f]), KIT.look(box, s.fmt && s.fmt[box.f], th));
+        }
+        for (const o of s.objs || []) {
+            const b = pt(o);
+            if (o.t === 'img') {
+                picture(o.src, b, false);
+                continue;
+            }
+            const L = KIT.objLook(o, th);
+            if (o.t !== 'text' || L.fill || L.line) {
+                const shape = KIT.SHAPES[o.t];
+                if (o.t === 'ellipse') doc.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, b.h / 2);
+                else if (o.t === 'round') doc.roundedRect(b.x, b.y, b.w, b.h, Math.min(b.w, b.h) * 0.16);
+                else if (shape && shape.poly) doc.polygon(...shape.poly.map(([px, py]) => [b.x + (px / 100) * b.w, b.y + (py / 100) * b.h]));
+                else doc.rect(b.x, b.y, b.w, b.h);
+                doc.lineWidth(1.5);
+                if (L.fill && L.line) doc.fillAndStroke(L.fill, L.line);
+                else if (L.fill) doc.fill(L.fill);
+                else if (L.line) doc.stroke(L.line);
+            }
+            if (String(o.text || '').trim()) textBox(b, KIT.paras(o.text), L);
+        }
+    }
+    doc.end();
+    return done;
+}
+
+module.exports.deckToPptx = deckToPptx;
+module.exports.deckToPdf = deckToPdf;
+module.exports.backgroundPng = backgroundPng;
+
+/* ---------- open a PowerPoint file: titles, text, notes, pictures and simple shapes ---------- */
+const EMU = 914400;
+async function importPptx(buffer) {
+    const JSZip = require('jszip');
+    const { parseDocument } = require('htmlparser2');
+    const zip = await JSZip.loadAsync(buffer);
+    const read = async p => (zip.file(p) ? zip.file(p).async('string') : null);
+    const xml = s => parseDocument(s || '', { xmlMode: true });
+    const kids = (n, name) => (n && n.children ? n.children.filter(c => c.type === 'tag' && (!name || c.name === name)) : []);
+    const kid = (n, name) => kids(n, name)[0];
+    const find = (n, name, out = []) => {
+        for (const c of kids(n)) {
+            if (c.name === name) out.push(c);
+            find(c, name, out);
+        }
+        return out;
+    };
+    const relsOf = async p => {
+        const dir = p.replace(/[^/]+$/, '');
+        const r = xml(await read(`${dir}_rels/${p.split('/').pop()}.rels`));
+        const map = {};
+        for (const rel of find(r, 'Relationship')) {
+            let t = rel.attribs.Target;
+            if (rel.attribs.TargetMode === 'External') continue;
+            const parts = (t.startsWith('/') ? t.slice(1) : dir + t).split('/');
+            const out = [];
+            for (const part of parts) part === '..' ? out.pop() : part !== '.' && out.push(part);
+            map[rel.attribs.Id] = { target: out.join('/'), type: rel.attribs.Type };
+        }
+        return map;
+    };
+    const pres = xml(await read('ppt/presentation.xml'));
+    const sz = find(pres, 'p:sldSz')[0];
+    const SW = sz ? +sz.attribs.cx : 12192000;
+    const SH = sz ? +sz.attribs.cy : 6858000;
+    const presRels = await relsOf('ppt/presentation.xml');
+    const order = find(pres, 'p:sldId').map(s => presRels[s.attribs['r:id']]).filter(Boolean).map(r => r.target);
+    const textOf = sp => {
+        const body = kid(sp, 'p:txBody');
+        if (!body) return { text: '', run: {} };
+        let run = null;
+        let algn = null;
+        const lines = kids(body, 'a:p').map(p => {
+            const pPr = kid(p, 'a:pPr');
+            if (pPr && !algn) algn = pPr.attribs.algn;
+            const t = find(p, 'a:t').map(x => (x.children || []).map(c => c.data || '').join('')).join('');
+            if (!run) {
+                const r = find(p, 'a:rPr')[0];
+                if (r && t) run = r;
+            }
+            return '\t'.repeat(Math.min(4, +(pPr && pPr.attribs.lvl) || 0)) + t.replace(/\s+/g, ' ');
+        });
+        const look = {};
+        if (run) {
+            if (run.attribs.sz) look.size = Math.max(6, Math.min(200, +run.attribs.sz / 100));
+            if (run.attribs.b === '1') look.b = true;
+            if (run.attribs.i === '1') look.i = true;
+            if (run.attribs.u && run.attribs.u !== 'none') look.u = true;
+            const c = find(run, 'a:srgbClr')[0];
+            if (c) look.color = `#${c.attribs.val.toLowerCase()}`;
+        }
+        if (algn === 'ctr') look.align = 'center';
+        else if (algn === 'r') look.align = 'right';
+        return { text: lines.join('\n').replace(/\n+$/, ''), look };
+    };
+    const place = (xfrm, g) => {
+        const off = kid(xfrm, 'a:off');
+        const ext = kid(xfrm, 'a:ext');
+        if (!off || !ext) return null;
+        let x = +off.attribs.x;
+        let y = +off.attribs.y;
+        let w = +ext.attribs.cx;
+        let h = +ext.attribs.cy;
+        if (g) {
+            x = g.x + (x - g.cx) * g.sx;
+            y = g.y + (y - g.cy) * g.sy;
+            w *= g.sx;
+            h *= g.sy;
+        }
+        const r = v => Math.round(v * 100) / 100;
+        return { x: r((x / SW) * 100), y: r((y / SH) * 100), w: r((w / SW) * 100), h: r((h / SH) * 100) };
+    };
+    const SHAPE = { rect: 'rect', roundRect: 'round', ellipse: 'ellipse', triangle: 'triangle', rightArrow: 'arrow', star5: 'star' };
+    const egTag = c => {
+        const m = c && /^EG:([a-z]+):([a-z]+):([a-z0-9]+)$/.exec(c.attribs.name || '');
+        return m ? { theme: m[1], layout: m[2], what: m[3] } : null;
+    };
+    let theme = 'office';
+    const slides = [];
+    for (const path of order.slice(0, 200)) {
+        const doc = xml(await read(path));
+        const rels = await relsOf(path);
+        const s = { layout: 'blank', title: '', body: '', body2: '', image: '', notes: '', fmt: {}, objs: [] };
+        let kind = null;
+        const bodies = [];
+        const bg = find(doc, 'p:bgPr')[0];
+        const bgc = bg && find(bg, 'a:srgbClr')[0];
+        if (bgc) s.bg = `#${bgc.attribs.val.toLowerCase()}`;
+        const walk = async (tree, g) => {
+            for (const n of kids(tree)) {
+                if (n.name === 'p:grpSp') {
+                    const x = find(kid(n, 'p:grpSpPr'), 'a:xfrm')[0];
+                    const o = x && kid(x, 'a:off');
+                    const e = x && kid(x, 'a:ext');
+                    const co = x && kid(x, 'a:chOff');
+                    const ce = x && kid(x, 'a:chExt');
+                    const inner = o && e && co && ce ? { x: +o.attribs.x, y: +o.attribs.y, cx: +co.attribs.x, cy: +co.attribs.y, sx: +ce.attribs.cx ? +e.attribs.cx / +ce.attribs.cx : 1, sy: +ce.attribs.cy ? +e.attribs.cy / +ce.attribs.cy : 1 } : null;
+                    const outer = g && inner ? { x: g.x + (inner.x - g.cx) * g.sx, y: g.y + (inner.y - g.cy) * g.sy, cx: inner.cx, cy: inner.cy, sx: inner.sx * g.sx, sy: inner.sy * g.sy } : inner || g;
+                    await walk(n, outer);
+                } else if (n.name === 'p:sp') {
+                    const ph = find(kid(n, 'p:nvSpPr'), 'p:ph')[0];
+                    const { text, look } = textOf(n);
+                    const eg = egTag(kid(kid(n, 'p:nvSpPr'), 'p:cNvPr'));
+                    if (eg) {
+                        mine = eg;
+                        if (['title', 'body', 'body2'].includes(eg.what)) {
+                            s[eg.what] = text;
+                            const keep = {};
+                            for (const k of ['b', 'i', 'u']) if (look[k]) keep[k] = true;
+                            const box = KIT.boxes({ layout: eg.layout }).find(x => x.f === eg.what);
+                            const plain = box && KIT.look(box, {}, KIT.theme(eg.theme));
+                            if (look.align && plain && look.align !== plain.align) keep.align = look.align;
+                            if (look.color && plain && look.color !== plain.color.toLowerCase()) keep.color = look.color;
+                            if (Object.keys(keep).length) s.fmt[eg.what] = keep;
+                        }
+                        continue;
+                    }
+                    const pos = place(find(kid(n, 'p:spPr'), 'a:xfrm')[0], g);
+                    if (ph) {
+                        const t = ph.attribs.type || 'body';
+                        if (['title', 'ctrTitle'].includes(t)) {
+                            if (t === 'ctrTitle') kind = 'title';
+                            s.title = text.replace(/\n/g, ' ');
+                            continue;
+                        }
+                        if (['body', 'subTitle', 'obj'].includes(t)) {
+                            if (t === 'subTitle') kind = 'title';
+                            bodies.push(text);
+                            continue;
+                        }
+                        if (['dt', 'ftr', 'sldNum', 'hdr'].includes(t)) continue;
+                    }
+                    if (!pos) continue;
+                    const geom = find(kid(n, 'p:spPr'), 'a:prstGeom')[0];
+                    const shape = geom && SHAPE[geom.attribs.prst];
+                    const spPr = kid(n, 'p:spPr');
+                    const fill = kid(spPr, 'a:solidFill') && find(kid(spPr, 'a:solidFill'), 'a:srgbClr')[0];
+                    const ln = kid(spPr, 'a:ln');
+                    const line = ln && kid(ln, 'a:solidFill') && find(kid(ln, 'a:solidFill'), 'a:srgbClr')[0];
+                    if (!text.trim() && !fill && !shape) continue;
+                    const isBox = !shape || (shape === 'rect' && !fill && !line);
+                    s.objs.push({ t: isBox ? 'text' : shape, ...pos, text, ...look, ...(fill ? { fill: `#${fill.attribs.val.toLowerCase()}` } : isBox ? {} : { fill: 'none' }), ...(line ? { line: `#${line.attribs.val.toLowerCase()}` } : {}) });
+                } else if (n.name === 'p:pic') {
+                    const eg = egTag(kid(kid(n, 'p:nvPicPr'), 'p:cNvPr'));
+                    if (eg) mine = eg;
+                    if (eg && eg.what !== 'picture') continue;
+                    const blip = find(n, 'a:blip')[0];
+                    const rel = blip && rels[blip.attribs['r:embed']];
+                    const pos = place(find(kid(n, 'p:spPr'), 'a:xfrm')[0], g);
+                    const f = rel && zip.file(rel.target);
+                    const type = rel && /\.(png|jpe?g|gif)$/i.exec(rel.target);
+                    if (!f || !type || !pos) continue;
+                    const buf = await f.async('nodebuffer');
+                    if (buf.length > 2.4 * 1024 * 1024) continue;
+                    const src = `data:image/${type[1].toLowerCase() === 'jpg' ? 'jpeg' : type[1].toLowerCase()};base64,${buf.toString('base64')}`;
+                    // a picture filling the slide becomes a picture slide
+                    if ((eg || (pos.w > 95 && pos.h > 95)) && !s.image) s.image = src;
+                    else s.objs.push({ t: 'img', ...pos, src });
+                }
+            }
+        };
+        let mine = null;
+        await walk(find(doc, 'p:spTree')[0]);
+        if (mine && KIT.LAYOUTS[mine.layout]) {
+            s.layout = mine.layout;
+            if (KIT.THEMES[mine.theme]) theme = mine.theme;
+        } else {
+            [s.body, s.body2] = bodies;
+            s.body = s.body || '';
+            s.body2 = s.body2 || '';
+        }
+        if (mine) {
+            // nothing more to work out
+        } else if (s.image && !s.body) s.layout = 'image';
+        else if (kind === 'title') s.layout = 'title';
+        else if (s.title && bodies.length > 1) s.layout = 'columns';
+        else if (s.title && bodies.length) s.layout = 'bullets';
+        else if (s.title) s.layout = 'titleonly';
+        else if (bodies.length) {
+            s.layout = 'bullets';
+        }
+        // speaker notes
+        const notes = Object.values(rels).find(r => /notesSlide$/.test(r.type));
+        if (notes) {
+            const nd = xml(await read(notes.target));
+            for (const sp of find(nd, 'p:sp')) {
+                const ph = find(sp, 'p:ph')[0];
+                if (ph && (ph.attribs.type || 'body') === 'body') s.notes = textOf(sp).text;
+            }
+        }
+        slides.push(s);
+    }
+    if (!slides.length) throw new Error('No slides');
+    return { theme, slides };
+}
+module.exports.importPptx = importPptx;

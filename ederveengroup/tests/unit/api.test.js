@@ -1173,3 +1173,102 @@ test('Docs: downloaded as Word (.docx) and PDF, Word files opened, page settings
     assert.equal((await jo('POST', '/api/docs/import?name=bad.docx', Buffer.from('not a zip'))).status, 400);
     app.close();
 });
+
+test('Slides: text boxes, shapes and pictures saved cleanly; downloaded as PowerPoint and PDF; PowerPoint files opened', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const office = require('../../lib/office');
+    const pic = `data:image/png;base64,${office.backgroundPng({ kind: 'linear', angle: 90, stops: [[0, '#336699'], [100, '#ffcc00']] }).toString('base64')}`;
+    const d = (await jo('POST', '/api/docs', { kind: 'deck', title: '', body: { theme: 'ocean', slides: [{ layout: 'title', title: 'Hello' }] } })).body;
+    assert.equal(d.body.theme, 'ocean');
+    assert.equal(d.cover, 'ocean|Hello');
+    const body = {
+        theme: 'sunset',
+        slides: [
+            { layout: 'title', title: 'Quarterly plan', body: 'November', transition: 'fade', fmt: { title: { b: true, color: '#C00000', font: 'Comic Sans MS', size: 60, evil: 'x' }, body: { font: 'Wingdings' } } },
+            { layout: 'bullets', title: 'Points', body: 'One\n\tOne and a half\nTwo', notes: 'Say hello first', transition: 'teleport' },
+            { layout: 'columns', title: 'Before / after', body: 'Slow', body2: 'Fast' },
+            {
+                layout: 'titleonly',
+                title: 'Shapes',
+                objs: [
+                    { t: 'round', x: 10, y: 30, w: 20, h: 30, text: 'Plan', fill: '#2e7d32', line: 'red' },
+                    { t: 'text', x: 40, y: 30, w: 30, h: 10, text: 'A note', size: 999, align: 'sideways' },
+                    { t: 'img', x: 70, y: 30, w: 20, h: 30, src: pic },
+                    { t: 'img', x: 70, y: 30, w: 20, h: 30, src: 'javascript:alert(1)' },
+                    { t: 'hexagon', x: 'a', y: null, text: 'odd one' }
+                ]
+            },
+            { layout: 'image', title: 'The lake', image: pic, bg: '#fde68a' }
+        ]
+    };
+    const put = await jo('PUT', `/api/docs/${d.id}`, { title: 'Plan', version: d.version, body });
+    assert.equal(put.status, 200);
+    const back = (await jo('GET', `/api/docs/${d.id}`)).body.body;
+    assert.equal(back.theme, 'sunset');
+    assert.deepEqual(back.slides[0].fmt, { title: { font: 'Comic Sans MS', size: 60, b: true, color: '#c00000' } });
+    assert.deepEqual([back.slides[0].transition, back.slides[1].transition], ['fade', 'none']);
+    assert.equal(back.slides[1].body, 'One\n\tOne and a half\nTwo');
+    const objs = back.slides[3].objs;
+    assert.deepEqual(objs.map(o => o.t), ['round', 'text', 'img', 'text']); // the bad picture is dropped, the unknown shape becomes a text box
+    assert.equal(objs[0].fill, '#2e7d32');
+    assert.equal(objs[0].line, undefined);
+    assert.equal(objs[1].size, 200);
+    assert.equal(objs[1].align, undefined);
+    assert.deepEqual([objs[3].x, objs[3].y], [30, 30]);
+    assert.equal(back.slides[4].bg, '#fde68a');
+    // PowerPoint: a real .pptx, one slide each, notes, transitions, pictures
+    const get = f => fetch(`${app.base}/api/docs/${d.id}/export?format=${f}`, { headers: { Cookie: jo.cookies() } });
+    const res = await get('pptx');
+    assert.match(res.headers.get('content-type'), /presentationml/);
+    assert.match(res.headers.get('content-disposition'), /filename="Plan\.pptx"/);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const JSZip = require('jszip');
+    const zip = await JSZip.loadAsync(buf);
+    const slides = Object.keys(zip.files).filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f));
+    assert.equal(slides.length, 5);
+    const s1 = await zip.file('ppt/slides/slide1.xml').async('string');
+    assert.match(s1, /Quarterly plan/);
+    assert.match(s1, /<p:transition spd="med"><p:fade\/><\/p:transition>/);
+    assert.match(s1, /typeface="Comic Sans MS"/);
+    const s4 = await zip.file('ppt/slides/slide4.xml').async('string');
+    assert.match(s4, /prst="roundRect"/);
+    assert.match(s4, /2E7D32/);
+    const notes = Object.keys(zip.files).filter(f => /notesSlide\d+\.xml$/.test(f));
+    const allNotes = (await Promise.all(notes.map(f => zip.file(f).async('string')))).join('');
+    assert.match(allNotes, /Say hello first/);
+    assert.ok(Object.keys(zip.files).some(f => /^ppt\/media\//.test(f)));
+    // PDF: one page per slide
+    const pdf = Buffer.from(await (await get('pdf')).arrayBuffer());
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+    assert.equal((pdf.toString('latin1').match(/\/Type \/Page\b/g) || []).length, 5);
+    assert.equal((await jo('GET', `/api/docs/${d.id}/export?format=docx`)).status, 400);
+    // and back again: our own PowerPoint file opens with its layouts, theme and notes
+    const opened = (await jo('POST', '/api/docs/import?name=Plan%20copy.pptx', buf)).body;
+    assert.deepEqual([opened.kind, opened.title], ['deck', 'Plan copy']);
+    const ob = (await jo('GET', `/api/docs/${opened.id}`)).body.body;
+    assert.equal(ob.theme, 'sunset');
+    assert.deepEqual(ob.slides.map(s => s.layout), ['title', 'bullets', 'columns', 'titleonly', 'image']);
+    assert.deepEqual([ob.slides[0].title, ob.slides[1].body, ob.slides[2].body2, ob.slides[1].notes], ['Quarterly plan', 'One\n\tOne and a half\nTwo', 'Fast', 'Say hello first']);
+    assert.equal(ob.slides[0].fmt.title.b, true);
+    assert.ok(ob.slides[4].image.startsWith('data:image/png;base64,'));
+    assert.deepEqual(ob.slides[3].objs.map(o => o.t), ['round', 'text', 'img', 'text']);
+    assert.equal((await jo('POST', '/api/docs/import?name=bad.pptx', Buffer.from('not a zip'))).status, 400);
+    // a PowerPoint file from elsewhere: real placeholders become the layout's text
+    const PptxGen = require('pptxgenjs');
+    const p = new PptxGen();
+    p.defineSlideMaster({ title: 'M', objects: [{ placeholder: { options: { name: 'title', type: 'title', x: 0.5, y: 0.3, w: 9, h: 1 }, text: '' } }, { placeholder: { options: { name: 'body', type: 'body', x: 0.5, y: 1.5, w: 9, h: 4 }, text: '' } }] });
+    const sl = p.addSlide({ masterName: 'M' });
+    sl.addText('From elsewhere', { placeholder: 'title' });
+    sl.addText('First point', { placeholder: 'body' });
+    sl.addShape(p.ShapeType.ellipse, { x: 7, y: 4, w: 1, h: 1, fill: { color: 'FF0000' } });
+    const foreign = await p.write({ outputType: 'nodebuffer' });
+    const fo = (await jo('POST', '/api/docs/import?name=Other.pptx', foreign)).body;
+    const fb = (await jo('GET', `/api/docs/${fo.id}`)).body.body;
+    assert.equal(fb.theme, 'office');
+    assert.deepEqual([fb.slides[0].layout, fb.slides[0].title, fb.slides[0].body], ['bullets', 'From elsewhere', 'First point']);
+    assert.deepEqual(fb.slides[0].objs.map(o => [o.t, o.fill]), [['ellipse', '#ff0000']]);
+    app.close();
+});
