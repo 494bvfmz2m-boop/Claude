@@ -4,6 +4,7 @@ import { loadFolders, openFolder, renderFolders } from './folders.js';
 import { loadMessages } from './list.js';
 import { connectLive } from './live.js';
 import { applyLook } from './look.js';
+import { openComposer } from './composer.js';
 import './phone.js';
 import { openMessage, showEmptyReader } from './reader.js';
 import { folderOf, parse, queryOf, remember, start as startRouter, sync, titleFor } from './router.js';
@@ -42,6 +43,9 @@ import { $, api, glide, qs, toast } from './util.js';
     // the address says what to show; the inbox can load alongside the folder list, anything
     // else needs the folder list first (to turn the address into a folder)
     const route = parse();
+    const params = new URLSearchParams(location.search);
+    const composeTo = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(params.get('compose') || '') ? params.get('compose') : '';
+    const composeName = params.get('name') || '';
     const folders = loadFolders();
     const plainInbox = !route.search && !route.folderId && (!route.slug || route.slug === 'inbox');
     const messages = plainInbox
@@ -86,10 +90,12 @@ import { $, api, glide, qs, toast } from './util.js';
     });
     if (route.settings) openSettings(route.settings);
     else if (route.link) openLink(route.link);
+    // other apps (Contacts) open a new message with ?compose=address (read before the router tidies the address)
+    if (composeTo) setTimeout(() => openComposer('new', null, { to: [{ name: composeName.slice(0, 100), address: composeTo }] }), 400);
     document.title = titleFor();
     connectLive();
     setInterval(loadFolders, 120000);
-    if (!state.settings.tourDone) setTimeout(() => startTour(), 700);
+    if (!state.settings.tourDone && !composeTo) setTimeout(() => startTour(), 700);
     else if (state.me.admin && state.me.pendingRequests && !route.settings)
         setTimeout(() => toast(`${state.me.pendingRequests} ${state.me.pendingRequests === 1 ? 'person wants' : 'people want'} to add their mail`, { action: 'Review', onAction: () => location.assign('/admin/#/requests'), duration: 9000 }), 1500);
     registerWorker();

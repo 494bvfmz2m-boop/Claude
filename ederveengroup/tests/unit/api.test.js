@@ -338,7 +338,7 @@ test('the whole site installs as one app that opens the hub', async () => {
     const manifest = JSON.parse(typeof m.body === 'string' ? m.body : JSON.stringify(m.body));
     assert.equal(manifest.start_url, '/');
     assert.equal(manifest.scope, '/');
-    assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Profile']);
+    assert.deepEqual(manifest.shortcuts.map(x => x.name), ['Mail', 'Notes', 'Tasks', 'Profile']);
     assert.match((await d('GET', '/mail/sw.js')).body, /unregister/); // the old /mail/ worker retires itself
     app.close();
 });
@@ -498,5 +498,74 @@ test('Admin app: only admins; overview, people, sign out, hide a card, access ru
     assert.equal(app.store.servers.isAllowed('sam@contoso.com'), false);
     assert.equal((await admin('PUT', '/api/admin/settings', { oauthPolicy: 'anyone' })).body.oauthPolicy, 'anyone');
     assert.equal((await admin('PUT', '/api/admin/settings', { oauthPolicy: 'whatever' })).body.oauthPolicy, 'approved');
+    app.close();
+});
+
+test('Notes, Tasks and Contacts: private per person, validated, with limits', async () => {
+    const app = await start();
+    app.mail.verifyLogin = async () => true;
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    assert.equal((await app.device()('GET', '/api/apps/notes')).status, 401);
+    assert.equal((await app.device()('GET', '/notes/')).status, 302);
+    for (const page of ['notes', 'tasks', 'contacts']) {
+        assert.match((await jo('GET', `/${page}/`)).body, new RegExp(`js/${page}\\.js`));
+        assert.equal((await jo('GET', `/${page}`)).headers.get('location'), `/${page}/`);
+    }
+    assert.equal((await jo('GET', '/api/apps/secrets')).status, 404);
+    assert.equal((await jo('PUT', '/api/apps/notes/x', { title: 'a' })).status, 400); // id too short
+    assert.equal((await jo('PUT', '/api/apps/notes/abc123', { title: 'a' }, { 'X-EG': '' })).status, 403);
+    // notes
+    const n = (await jo('PUT', '/api/apps/notes/note-001', { title: 'Shopping\nlist', body: 'milk\u0000', color: 'red', pinned: 1, extra: 'x' })).body;
+    assert.equal(n.title, 'Shopping list');
+    assert.equal(n.body, 'milk');
+    assert.equal(n.color, '');
+    assert.equal(n.pinned, true);
+    assert.equal('extra' in n, false);
+    const again = (await jo('PUT', '/api/apps/notes/note-001', { title: 'Shopping', body: 'milk, eggs', color: 'yellow' })).body;
+    assert.equal(again.createdAt, n.createdAt);
+    assert.equal(again.color, 'yellow');
+    assert.equal((await jo('GET', '/api/apps/notes')).body.items.length, 1);
+    // tasks
+    assert.equal((await jo('PUT', '/api/apps/tasks/task-001', { text: '   ' })).status, 400);
+    const t = (await jo('PUT', '/api/apps/tasks/task-001', { text: 'Call Ava', due: '2026-13-45', done: true })).body;
+    assert.equal(t.due, '');
+    assert.equal(typeof t.doneAt, 'number');
+    assert.equal((await jo('PUT', '/api/apps/tasks/task-002', { text: 'Pay rent', due: '2026-12-01' })).body.due, '2026-12-01');
+    assert.equal((await jo('DELETE', '/api/apps/tasks/task-001')).body.ok, true);
+    assert.equal((await jo('DELETE', '/api/apps/tasks/task-001')).status, 404);
+    assert.deepEqual((await jo('GET', '/api/apps/tasks')).body.items.map(x => x.text), ['Pay rent']);
+    // contacts
+    assert.equal((await jo('PUT', '/api/apps/contacts/ct-0001', { name: '' })).status, 400);
+    assert.equal((await jo('PUT', '/api/apps/contacts/ct-0001', { name: 'Ava', emails: ['nope'] })).status, 400);
+    assert.equal((await jo('PUT', '/api/apps/contacts/ct-0001', { name: 'Ava', phone: '<b>' })).status, 400);
+    const c = (await jo('PUT', '/api/apps/contacts/ct-0001', { name: 'Ava', emails: ['Ava@Example.com'], phone: '+31 6 12', username: 'ava' })).body;
+    assert.deepEqual(c.emails, ['ava@example.com']);
+    // import the people Mail has learned, without duplicates
+    assert.deepEqual((await jo('POST', '/api/apps/contacts/import', {})).body, { added: 0, known: 0 });
+    app.store.rememberContacts(USER, [{ address: 'ava@example.com', name: 'Ava' }, { address: 'sam@example.com', name: 'Sam' }]);
+    assert.equal((await jo('POST', '/api/apps/contacts/import', {})).body.added, 1);
+    assert.equal((await jo('POST', '/api/apps/contacts/import', {})).body.added, 0);
+    assert.equal((await jo('GET', '/api/apps/contacts')).body.items.length, 2);
+    // someone else sees none of it
+    const ava = app.device();
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    for (const a of ['notes', 'tasks', 'contacts']) assert.equal((await ava('GET', `/api/apps/${a}`)).body.items.length, 0);
+    assert.equal((await ava('DELETE', '/api/apps/notes/note-001')).status, 404);
+    // the directory lists public cards only
+    await ava('PUT', '/api/profile', { name: 'Ava Jansen', company: 'Ederveen', email: 'ava@work.example' });
+    assert.deepEqual((await jo('GET', '/api/directory')).body.map(p => p.username), ['ava']);
+    assert.equal((await jo('GET', '/api/directory?q=@AVA')).body.length, 1);
+    assert.equal((await jo('GET', '/api/directory?q=zzz')).body.length, 0);
+    assert.equal(JSON.stringify((await jo('GET', '/api/directory')).body).includes('ava@work.example'), true); // she shows her email…
+    await ava('PUT', '/api/profile', { name: 'Ava Jansen', email: 'ava@work.example', showEmail: false });
+    assert.equal((await jo('GET', '/api/directory')).body[0].email, ''); // …until she hides it
+    // the item limit holds
+    const big = 'x'.repeat(19000);
+    let status = 200;
+    for (let i = 0; i < 200 && status === 200; i++) status = (await jo('PUT', `/api/apps/notes/bulk-${String(i).padStart(4, '0')}`, { body: big })).status;
+    assert.equal(status, 413); // 3 MB per app
     app.close();
 });

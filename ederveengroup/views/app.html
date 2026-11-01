@@ -26,7 +26,8 @@
     <div class="ambient" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
     <div class="app" id="app">
         <aside class="sidebar">
-            <div class="brand"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></div>
+            <a class="brand" href="/" title="All apps"><span class="brand-mark"></span><span class="wordmark">Ederveen<em>Group</em></span></a>
+            <a class="phone-apps" href="/">Apps</a>
             <h1 class="phone-title">Mailboxes</h1>
             <button class="btn btn-primary compose-btn" id="compose-btn" data-icon="pen"><span>New message</span><kbd>C</kbd></button>
             <nav class="folders" id="folders" aria-label="Folders"></nav>
@@ -36,6 +37,7 @@
                     <div class="who"><b id="me-email"></b><small><i class="live-dot" id="live-dot"></i><span id="live-text">Connecting…</span></small></div>
                 </div>
                 <div class="side-actions">
+                    <a class="icon-btn" id="apps-btn" href="/" data-icon="grid" data-tip="All apps" aria-label="All apps"></a>
                     <button class="icon-btn" id="theme-btn" data-tip="Theme" aria-label="Theme"></button>
                     <button class="icon-btn" id="palette-btn" data-icon="command" data-tip="Commands  Ctrl K" aria-label="Commands"></button>
                     <button class="icon-btn" id="settings-btn" data-icon="settings" data-tip="Settings" aria-label="Settings"></button>
@@ -86,6 +88,7 @@
 
     <button class="fab" id="fab" data-icon="pen" aria-label="New message"></button>
     <nav class="tabbar" id="tabbar" aria-label="Sections">
+        <a href="/" data-tab="apps" data-icon="grid"><span>Apps</span></a>
         <button data-tab="mail" class="on" data-icon="inbox"><span>Mail</span></button>
         <button data-tab="search" data-icon="search"><span>Search</span></button>
         <button data-tab="write" data-icon="pen"><span>Write</span></button>

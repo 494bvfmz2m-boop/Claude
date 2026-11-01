@@ -80,6 +80,15 @@ function createFileBackend(dataDir) {
         async saveUser(email, { data, username, profile }) {
             write(userFile(email), JSON.stringify({ ...data, email: norm(email), username, profile }, null, 2));
         },
+        /** everyone who has a username and a profile (public or not; the caller filters) */
+        async listProfiles() {
+            const out = [];
+            for (const [username, email] of Object.entries(index)) {
+                const d = readJson(userFile(email));
+                if (d && d.profile) out.push({ email, username, profile: d.profile });
+            }
+            return out;
+        },
         /** everyone with an account (files written before addresses were stored are skipped) */
         async listUsers() {
             return fs.readdirSync(users).filter(f => f.endsWith('.json')).map(f => readJson(path.join(users, f))).filter(d => d && d.email).map(d => ({ email: d.email }));
@@ -188,6 +197,9 @@ function createMysqlBackend({ host, port = 3306, database, user, password, ssl =
         },
         async listUsers() {
             return (await q('SELECT email FROM eg_users ORDER BY updated_at DESC LIMIT 2000')).map(r => ({ email: r.email }));
+        },
+        async listProfiles() {
+            return (await q('SELECT email, username, profile FROM eg_users WHERE username IS NOT NULL AND profile IS NOT NULL LIMIT 2000')).map(r => ({ email: r.email, username: r.username, profile: JSON.parse(r.profile) }));
         },
         async getPhoto(email) {
             const [row] = await q('SELECT bytes, version FROM eg_photos WHERE email = ?', [norm(email)]);

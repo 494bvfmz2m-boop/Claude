@@ -122,6 +122,9 @@ module.exports = function hubRoutes(ctx) {
         res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" }).send(svg);
     }));
 
+    // Notes, Tasks, Contacts and the people directory
+    r.use(require('./apps')(ctx));
+
     // the Admin app (only for ADMIN_EMAILS)
     if (ctx.adminRouter) r.use(ctx.adminRouter);
 

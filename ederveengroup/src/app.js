@@ -118,6 +118,15 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));
+    // Notes, Tasks, Contacts: your own, signed in
+    for (const app of ['notes', 'tasks', 'contacts']) {
+        site.get(`/${app}`, (req, res) => {
+            if (!req.session) return toLogin(res, `/${app}/`);
+            if (needsName(req)) return toWelcome(res, `/${app}/`);
+            if (!req.path.endsWith('/')) return res.redirect(301, `/${app}/`);
+            ctx.pages.send(res, `${app}.html`);
+        });
+    }
     // the Admin app: only for ADMIN_EMAILS (everyone else just sees "not found")
     site.get('/admin', (req, res) => {
         if (!req.session) return toLogin(res, '/admin/');

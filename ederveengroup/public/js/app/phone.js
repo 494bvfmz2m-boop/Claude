@@ -35,6 +35,7 @@ tabbar.addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
     const tab = b.dataset.tab;
+    if (tab === 'apps') return; // a plain link back to the hub
     if (tab === 'write') return openComposer('new');
     if (tab === 'settings') return openSettings('index');
     if ($('.modal .settings')) $('.modal [data-close]').click();

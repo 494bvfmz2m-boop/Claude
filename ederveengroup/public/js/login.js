@@ -18,7 +18,7 @@
     // where to go after signing in: the page you asked for (only pages inside the app)
     // (the server checks it again; anything else goes to the hub)
     const nextParam = new URLSearchParams(location.search).get('next') || '';
-    const next = /^\/(?:|welcome|profile\/?|admin\/?|mail\/(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred|f\/[\w-]{8}|search\/[\w-]{6,16}|settings)(?:\/[\w-]{2,20}){0,2})$/.test(nextParam) ? nextParam : '/';
+    const next = /^\/(?:|welcome|(?:profile|admin|notes|tasks|contacts)\/?|mail\/(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred|f\/[\w-]{8}|search\/[\w-]{6,16}|settings)(?:\/[\w-]{2,20}){0,2})$/.test(nextParam) ? nextParam : '/';
 
     // "Sign in with Microsoft / Google": only the ones that are set up
     const OAUTH_LOGOS = {

@@ -189,12 +189,12 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
             }
             save(email);
         },
-        searchContacts(email, q) {
+        searchContacts(email, q, limit = 8) {
             q = (q || '').toLowerCase();
             return Object.entries(load(email).contacts)
                 .filter(([addr, c]) => !q || addr.includes(q) || (c.name || '').toLowerCase().includes(q))
                 .sort((a, b) => b[1].count - a[1].count || b[1].last - a[1].last)
-                .slice(0, 8)
+                .slice(0, limit)
                 .map(([address, c]) => ({ address, name: c.name }));
         },
 
