@@ -626,3 +626,41 @@ test('Admin → Sign-in: buttons always show; paste the keys to switch on; the s
     assert.equal(JSON.stringify(m).includes(SECRET), false);
     env.close();
 });
+
+test('Calendar: events are checked, repeat, show up on the hub, and phones can subscribe', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    assert.match((await jo('GET', '/calendar/')).body, /js\/calendar\.js/);
+    const put = (id, body) => jo('PUT', `/api/apps/calendar/${id}`, body);
+    assert.match((await put('event-01', { title: '' })).body.error, /name/);
+    assert.match((await put('event-01', { title: 'Dentist', start: '2026-02-30T10:00' })).body.error, /day and time/);
+    assert.match((await put('event-01', { title: 'Dentist', start: '2026-11-03T10:00', end: '2026-11-03T09:00' })).body.error, /end before/);
+    const e = (await put('event-01', { title: 'Dentist', start: '2026-11-03T14:00', location: 'Ede', repeat: 'monthly', until: '2026-01-01' })).body;
+    assert.equal(e.end, '2026-11-03T15:00'); // an hour, unless said otherwise
+    assert.equal(e.until, ''); // "until" before the start is ignored
+    assert.equal((await put('event-02', { title: 'Holiday', allDay: true, start: '2026-12-24T09:00', end: '2026-12-26' })).body.start, '2026-12-24');
+    await put('event-03', { title: 'Standup', start: '2026-11-02T09:00', repeat: 'weekdays' });
+    const sum = (await jo('GET', '/api/apps-summary?today=2026-12-03&now=2026-12-03T08:00')).body;
+    assert.equal(sum.calendar.today, 2); // the monthly dentist and the weekday standup
+    assert.deepEqual(sum.calendar.next, { title: 'Standup', at: '09:00' });
+    assert.equal((await jo('GET', '/api/apps-summary?today=2026-12-05')).body.calendar.today, 0); // a Saturday
+    // the subscription address works without signing in, and stops working once replaced
+    const { url } = (await jo('GET', '/api/calendar/feed')).body;
+    const feed = new URL(url).pathname;
+    assert.match(feed, /^\/cal\/[A-Za-z0-9_-]+\.ics$/);
+    const cal = await app.device()('GET', feed);
+    assert.match(cal.headers.get('content-type'), /text\/calendar/);
+    assert.match(cal.body, /SUMMARY:Dentist/);
+    assert.match(cal.body, /RRULE:FREQ=MONTHLY/);
+    assert.match(cal.body, /DTSTART;VALUE=DATE:20261224/);
+    assert.match(cal.body, /DTEND;VALUE=DATE:20261227/);
+    assert.equal((await jo('GET', '/api/calendar/feed')).body.url, url); // stays the same until you ask for a new one
+    const fresh = (await jo('POST', '/api/calendar/feed', {})).body.url;
+    assert.notEqual(fresh, url);
+    assert.equal((await app.device()('GET', feed)).status, 404);
+    assert.equal((await app.device()('GET', new URL(fresh).pathname)).status, 200);
+    assert.equal((await app.device()('GET', '/cal/' + 'A'.repeat(40) + '.ics')).status, 404);
+    app.close();
+});

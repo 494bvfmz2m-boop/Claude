@@ -461,3 +461,38 @@
     .ea-detail .ct-card, .ea-detail .nt-editor { animation: none; }
     .ct-tools { border: 0; }
 }
+
+/* Calendar on a phone: a compact month with dots, the day's events below (like iOS) */
+@media (max-width: 760px) {
+    .cal-head { gap: 8px; }
+    .cal-head h1 { font-size: 30px; }
+    .cal-tools { width: 100%; flex-wrap: nowrap; gap: 6px; }
+    .cal-tools .btn { padding: 0 12px; }
+    .cal-colors { order: 0; width: auto; padding: 0; justify-content: flex-start; }
+    .cal-tools #new span { display: none; }
+    .cal-tools #new { width: 40px; padding: 0; justify-content: center; margin-left: auto; }
+    .cal-view button { min-width: 0; }
+    .cal-grid-wrap { border-radius: 16px; background: var(--cell); box-shadow: none; }
+    .cal-week span { padding: 8px 0; text-align: center; letter-spacing: 0; }
+    .cal-grid { grid-auto-rows: 52px; }
+    .cal-day { align-items: center; gap: 2px; padding: 4px 0; border: 0; }
+    .cal-day:hover { background: none; }
+    .cal-day.sel { background: none; }
+    .cal-day.sel .n { background: var(--text); color: var(--bg); }
+    .cal-day.today .n { background: none; color: var(--danger, #ff3b30); }
+    .cal-day.today.sel .n { background: var(--danger, #ff3b30); color: #fff; }
+    .cal-day .n { width: 32px; height: 32px; font-size: 17px; font-weight: 400; }
+    .cal-evs { display: none; }
+    .cal-dots { display: flex; gap: 3px; height: 5px; }
+    .cal-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ec); }
+    .cal-side { padding: 14px 0 0; background: none; box-shadow: none; }
+    .cal-side h2 { font-size: 15px; color: var(--text-2); padding: 0 4px; }
+    .cal-row { grid-template-columns: 1fr; gap: 2px; background: var(--cell); border-radius: 12px; box-shadow: inset 4px 0 0 var(--ec); padding: 12px 14px 12px 18px; }
+    .cal-row .cal-when { order: 2; }
+    .cal-agenda .cal-row { grid-template-columns: 1fr; }
+    .ea-sheet-back { padding: 0; place-items: end stretch; background: rgba(0, 0, 0, .35); backdrop-filter: none; }
+    .ea-sheet { width: 100%; max-height: calc(100% - var(--safe-t) - 12px); border-radius: 14px 14px 0 0; padding-bottom: var(--safe-b); animation: sheetUp .4s var(--ios); }
+    @keyframes sheetUp { from { transform: translateY(100%); } }
+    .ea-sheet .nt-bar .btn-primary span { display: inline; }
+    .cal-fieldset { background: var(--cell); }
+}

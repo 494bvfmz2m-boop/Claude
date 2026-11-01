@@ -6,6 +6,9 @@ const express = require('express');
 const compression = require('compression');
 const multer = require('multer');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { createDocs } = require('../lib/docs');
 const { createSessions, loadKey, seal, unseal } = require('../lib/session');
 const { createBackend } = require('../lib/db');
 const { createStore } = require('../lib/store');
@@ -18,7 +21,7 @@ const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
 const { createLinks } = require('../lib/links');
 const { createOAuth } = require('../lib/oauth');
-const { APP_ROUTE, safeNext } = require('./routes-app');
+const { APP_ROUTE, APP_PAGES, safeNext } = require('./routes-app');
 const { adminRoutes, requestRoutes } = require('./routes/servers');
 
 function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
@@ -42,6 +45,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     };
 
     ctx.links = createLinks(ctx.sessions.deriveKey('links'));
+    ctx.docs = createDocs(store.backend); // shared documents: chat, announcements, shared docs…
     // accepted addresses / domains use their own mail servers
     if (mail.useServers) mail.useServers(email => store.servers.profileFor(email), { allowPrivateHosts: config.allowPrivateMailHosts });
     // Microsoft / Google sign-ins: access tokens are renewed a few minutes before they expire
@@ -137,11 +141,14 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     // Sign in with Microsoft / Google
     site.use(require('./routes/oauth')(ctx));
     site.use('/api', require('./routes/hub')(ctx));
+    // a calendar subscription for phones (the address itself is the secret)
+    site.get(/^\/cal\/([A-Za-z0-9_-]{20,400})\.ics$/, (req, res, next) => ((req.params.token = req.params[0]), ctx.calendarFeed(req, res, next)));
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));
-    // Notes, Tasks, Contacts: your own, signed in
-    for (const app of ['notes', 'tasks', 'contacts']) {
+    // Notes, Tasks, Contacts, Calendar, Files, Docs…: each a page of its own, signed in
+    // (a page that isn't written yet is simply not found)
+    for (const app of APP_PAGES.filter(a => fs.existsSync(path.join(config.viewsDir, `${a}.html`)))) {
         site.get(`/${app}`, (req, res) => {
             if (!req.session) return toLogin(res, `/${app}/`);
             if (needsName(req)) return toWelcome(res, `/${app}/`);

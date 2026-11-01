@@ -7,9 +7,14 @@
 //                     automatically on first start.
 //   JSON files        otherwise (the double-click zip): the data/ folder, as before.
 //
-// Private account data (settings, 2FA, devices, sign-in activity, contacts, snoozes) is stored
-// encrypted (AES-256-GCM, key derived from the server's secret), so the database host never
-// sees it in the clear. Usernames and public profiles are stored readable: they're public.
+// Private account data (settings, 2FA, devices, sign-in activity, contacts, snoozes, the hub
+// apps' data), shared documents (chat, short links) and uploaded files are stored encrypted
+// (AES-256-GCM, key derived from the server's secret), so the database host never sees them in
+// the clear. Usernames and public profiles are stored readable: they're public.
+//
+// Besides accounts, both backends keep
+//   documents   named JSON documents shared by everyone (chat conversations, short links…)
+//   blobs       file contents (the Files app), by random id
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -38,14 +43,38 @@ function sealer(key) {
     };
 }
 
+const BLOB_ID = /^[A-Za-z0-9_-]{16,40}$/;
+const blobId = id => {
+    if (!BLOB_ID.test(String(id))) throw new Error('bad blob id');
+    return String(id);
+};
+// file contents are encrypted in pieces of 1 MB, so any MySQL/MariaDB (max_allowed_packet 4 MB on old ones) takes them
+const CHUNK = 1024 * 1024;
+function sealBytes(key, buf) {
+    const iv = crypto.randomBytes(12);
+    const c = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const body = Buffer.concat([c.update(buf), c.final()]);
+    return Buffer.concat([iv, c.getAuthTag(), body]);
+}
+function openBytes(key, raw) {
+    const d = crypto.createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
+    d.setAuthTag(raw.subarray(12, 28));
+    return Buffer.concat([d.update(raw.subarray(28)), d.final()]);
+}
+
 /* ---------- files (no database configured) ---------- */
 function createFileBackend(dataDir) {
     const users = path.join(dataDir, 'users');
     const photos = path.join(dataDir, 'avatars');
     const indexFile = path.join(dataDir, 'usernames.json');
     const registryFile = path.join(dataDir, 'servers.json');
+    const docs = path.join(dataDir, 'docs');
+    const blobs = path.join(dataDir, 'blobs');
     fs.mkdirSync(users, { recursive: true, mode: 0o700 });
     fs.mkdirSync(photos, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(docs, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(blobs, { recursive: true, mode: 0o700 });
+    const docFile = name => path.join(docs, sha(String(name)) + '.json');
     try {
         fs.chmodSync(dataDir, 0o700);
     } catch {
@@ -124,6 +153,28 @@ function createFileBackend(dataDir) {
         },
         async saveRegistry(doc) {
             write(registryFile, JSON.stringify(doc, null, 2));
+        },
+        async loadDoc(name) {
+            return readJson(docFile(name));
+        },
+        async saveDoc(name, doc) {
+            write(docFile(name), JSON.stringify(doc));
+        },
+        async deleteDoc(name) {
+            fs.rmSync(docFile(name), { force: true });
+        },
+        async putBlob(id, buf) {
+            write(path.join(blobs, blobId(id)), buf);
+        },
+        async getBlob(id) {
+            try {
+                return fs.readFileSync(path.join(blobs, blobId(id)));
+            } catch {
+                return null;
+            }
+        },
+        async deleteBlob(id) {
+            fs.rmSync(path.join(blobs, blobId(id)), { force: true });
         }
     };
 }
@@ -148,6 +199,12 @@ const SCHEMA = [
         name VARCHAR(40) NOT NULL PRIMARY KEY,
         doc MEDIUMTEXT NOT NULL,
         updated_at BIGINT NOT NULL
+    ) DEFAULT CHARSET=utf8mb4`,
+    `CREATE TABLE IF NOT EXISTS eg_blobs (
+        id VARCHAR(40) NOT NULL,
+        part INT NOT NULL,
+        bytes MEDIUMBLOB NOT NULL,
+        PRIMARY KEY (id, part)
     ) DEFAULT CHARSET=utf8mb4`
 ];
 
@@ -224,6 +281,41 @@ function createMysqlBackend({ host, port = 3306, database, user, password, ssl =
         },
         async saveRegistry(doc) {
             await q("INSERT INTO eg_registry (name, doc, updated_at) VALUES ('servers', ?, ?) ON DUPLICATE KEY UPDATE doc = VALUES(doc), updated_at = VALUES(updated_at)", [JSON.stringify(doc), Date.now()]);
+        },
+        // shared documents live next to the registry, under "doc:<name>", encrypted
+        async loadDoc(name) {
+            const [row] = await q('SELECT doc FROM eg_registry WHERE name = ?', ['doc:' + name]);
+            return row ? box.open(row.doc) : null;
+        },
+        async saveDoc(name, doc) {
+            await q('INSERT INTO eg_registry (name, doc, updated_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE doc = VALUES(doc), updated_at = VALUES(updated_at)', ['doc:' + name, box.seal(doc), Date.now()]);
+        },
+        async deleteDoc(name) {
+            await q('DELETE FROM eg_registry WHERE name = ?', ['doc:' + name]);
+        },
+        async putBlob(id, buf) {
+            id = blobId(id);
+            const conn = await pool.getConnection();
+            try {
+                await conn.beginTransaction();
+                await conn.execute('DELETE FROM eg_blobs WHERE id = ?', [id]);
+                for (let part = 0, at = 0; at < buf.length || part === 0; part++, at += CHUNK) {
+                    await conn.execute('INSERT INTO eg_blobs (id, part, bytes) VALUES (?, ?, ?)', [id, part, sealBytes(key, buf.subarray(at, at + CHUNK))]);
+                }
+                await conn.commit();
+            } catch (err) {
+                await conn.rollback().catch(() => {});
+                throw err;
+            } finally {
+                conn.release();
+            }
+        },
+        async getBlob(id) {
+            const rows = await q('SELECT bytes FROM eg_blobs WHERE id = ? ORDER BY part', [blobId(id)]);
+            return rows.length ? Buffer.concat(rows.map(r => openBytes(key, Buffer.from(r.bytes)))) : null;
+        },
+        async deleteBlob(id) {
+            await q('DELETE FROM eg_blobs WHERE id = ?', [blobId(id)]);
         }
     };
 }
