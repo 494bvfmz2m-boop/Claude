@@ -15,7 +15,10 @@ const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhos
 module.exports = function hubRoutes(ctx) {
     const { store } = ctx;
     const r = express.Router();
-    r.use(express.json({ limit: '1mb' }));
+    // JSON bodies: 1 MB, except Docs and Slides (pictures are part of them)
+    const small = express.json({ limit: '1mb' });
+    const big = express.json({ limit: '8mb' });
+    r.use((req, res, next) => (req.path.startsWith('/docs') ? big : small)(req, res, next));
     r.use(csrfGuard);
     const checks = createLimiter({ max: 120, windowMs: 60 * 1000 });
 
@@ -125,6 +128,7 @@ module.exports = function hubRoutes(ctx) {
     // Notes, Tasks, Contacts and the people directory
     r.use(require('./apps')(ctx));
     r.use(require('./files')(ctx));
+    r.use(require('./docs')(ctx));
     if (ctx.davApi) r.use(ctx.davApi);
 
     // the Admin app (only for ADMIN_EMAILS)

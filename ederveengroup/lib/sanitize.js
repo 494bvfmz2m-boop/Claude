@@ -37,7 +37,25 @@ const COMPOSE_OPTIONS = {
     exclusiveFilter: undefined
 };
 
+// Docs: shown right inside the app (and to others, when shared), so only plain structure:
+// no inline styles (they could cover the page with a fake form), and pictures only embedded
+// (data:) or from this site, never fetched from elsewhere (which could track who reads it).
+const DOC_OPTIONS = {
+    allowedTags: ['p', 'h1', 'h2', 'h3', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'a', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr', 'br', 'img', 'mark', 'sub', 'sup', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'figure', 'figcaption'],
+    allowedAttributes: { a: ['href', 'target', 'rel'], img: ['src', 'alt'], li: ['data-checked'], ul: ['data-checklist'], td: ['colspan', 'rowspan'], th: ['colspan', 'rowspan'], '*': ['style'] },
+    allowedStyles: { '*': { 'text-align': [/^(left|right|center|justify)$/] } },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemesByTag: { img: ['data'] },
+    allowProtocolRelative: false,
+    transformTags: {
+        a: (tagName, attribs) => ({ tagName, attribs: { ...attribs, target: '_blank', rel: 'noopener noreferrer' } }),
+        img: (tagName, attribs) => ({ tagName, attribs: /^data:image\/(png|jpeg|gif|webp);/.test(attribs.src || '') || /^\/(?!\/)/.test(attribs.src || '') ? attribs : {} })
+    },
+    exclusiveFilter: frame => frame.tag === 'img' && !frame.attribs.src
+};
+
 module.exports = {
     sanitizeEmailHtml: html => sanitizeHtml(html, EMAIL_OPTIONS),
+    sanitizeDocHtml: html => sanitizeHtml(html || '', DOC_OPTIONS),
     sanitizeComposeHtml: html => sanitizeHtml(html || '', COMPOSE_OPTIONS)
 };

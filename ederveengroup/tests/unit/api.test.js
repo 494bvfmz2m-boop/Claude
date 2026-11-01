@@ -939,3 +939,59 @@ test('WebDAV: Files as a network drive, signed in with an app password', async (
     assert.equal((await dav('PROPFIND', '/dav/')).status, 401);
     app.close();
 });
+
+test('Docs and Slides: private or shared, cleaned on save, safe from overwriting each other', async () => {
+    const app = await start({ ADMIN_EMAILS: '' });
+    app.mail.verifyLogin = async () => true;
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const ava = app.device();
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    assert.match((await jo('GET', '/docs/')).body, /js\/docs\.js/);
+    const d = (await jo('POST', '/api/docs', { kind: 'doc', title: 'How we back up' })).body;
+    assert.equal(d.share, 'private');
+    // cleaned on the way in
+    const saved = (await jo('PUT', `/api/docs/${d.id}`, { title: 'How we back up', version: d.version, body: { html: '<h2 style="position:fixed">Steps</h2><p onclick="x()">Run it<script>alert(1)</script></p><img src="https://tracker.example/x.gif"><ul data-checklist><li data-checked="true">Disk</li></ul>' } })).body;
+    assert.equal(saved.version, 2);
+    const back = (await jo('GET', `/api/docs/${d.id}`)).body;
+    assert.equal(back.body.html, '<h2>Steps</h2><p>Run it</p><ul data-checklist><li data-checked="true">Disk</li></ul>');
+    // private: Ava can't see it
+    assert.equal((await ava('GET', '/api/docs?kind=doc')).body.length, 0);
+    assert.equal((await ava('GET', `/api/docs/${d.id}`)).status, 404);
+    // shared to read: she can read, not change, but can make her own copy
+    assert.equal((await ava('PATCH', `/api/docs/${d.id}`, { share: 'edit' })).status, 404);
+    await jo('PATCH', `/api/docs/${d.id}`, { share: 'view' });
+    const seen = (await ava('GET', '/api/docs?kind=doc')).body;
+    assert.deepEqual(seen.map(x => [x.title, x.mine, x.canEdit, x.ownerName]), [['How we back up', false, false, '@jo.smith']]);
+    assert.equal((await ava('PUT', `/api/docs/${d.id}`, { title: 'hacked', version: 2, body: { html: '' } })).status, 403);
+    const copy = (await ava('POST', `/api/docs/${d.id}/copy`, {})).body;
+    assert.deepEqual([copy.title, copy.mine, copy.share], ['How we back up (copy)', true, 'private']);
+    // shared to edit: her save counts; Jo's stale save is stopped instead of wiping hers
+    await jo('PATCH', `/api/docs/${d.id}`, { share: 'edit' });
+    assert.equal((await ava('PUT', `/api/docs/${d.id}`, { title: 'How we back up', version: 2, body: { html: '<p>Ava’s version</p>' } })).body.version, 3);
+    const stale = await jo('PUT', `/api/docs/${d.id}`, { title: 'How we back up', version: 2, body: { html: '<p>old</p>' } });
+    assert.equal(stale.status, 409);
+    assert.match(stale.body.error, /@ava changed this/);
+    assert.equal((await jo('GET', `/api/docs/${d.id}`)).body.body.html, '<p>Ava’s version</p>');
+    // only the owner deletes
+    assert.equal((await ava('DELETE', `/api/docs/${d.id}`)).status, 403);
+    // Slides: text only, known layouts and themes, pictures only as embedded images
+    const deck = (await jo('POST', '/api/docs', { kind: 'deck', title: 'Plans' })).body;
+    assert.equal(deck.body.slides.length, 1);
+    const ds = (await jo('PUT', `/api/docs/${deck.id}`, { title: 'Plans', version: 1, body: { theme: 'nonsense', slides: [{ layout: 'title', title: 'Plans <b>2027</b>' }, { layout: 'weird', title: 'Next', body: 'One\nTwo', image: 'javascript:alert(1)' }, { layout: 'image', image: 'data:image/png;base64,iVBORw0KGgo=' }] } })).body;
+    const deckBack = (await jo('GET', `/api/docs/${deck.id}`)).body.body;
+    assert.equal(deckBack.theme, 'midnight');
+    assert.deepEqual(deckBack.slides.map(s => s.layout), ['title', 'bullets', 'image']);
+    assert.equal(deckBack.slides[0].title, 'Plans <b>2027</b>'); // kept as text; shown escaped
+    assert.equal(deckBack.slides[1].image, '');
+    assert.equal(deckBack.slides[2].image, 'data:image/png;base64,iVBORw0KGgo=');
+    assert.equal(ds.cover, 'midnight|Plans <b>2027</b>');
+    // the dashboard counts what you can see
+    const sum = (await ava('GET', '/api/apps-summary')).body;
+    assert.deepEqual([sum.docs, sum.slides], [2, 0]);
+    assert.equal((await jo('DELETE', `/api/docs/${d.id}`)).body.ok, true);
+    assert.equal((await ava('GET', `/api/docs/${d.id}`)).status, 404);
+    app.close();
+});

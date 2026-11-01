@@ -357,7 +357,7 @@
             q = '';
             $('#q').value = '';
             draw();
-            history.pushState({ folder }, '', `#${f.id}`);
+            history.pushState({ folder }, '', `${location.pathname}#${f.id}`);
         } else preview(f);
     }
 
@@ -379,7 +379,7 @@
         if (!b) return;
         folder = b.dataset.go;
         draw();
-        history.pushState({ folder }, '', folder ? `#${folder}` : location.pathname);
+        history.pushState({ folder }, '', folder ? `${location.pathname}#${folder}` : location.pathname);
     });
     addEventListener('popstate', () => {
         folder = location.hash.slice(1);

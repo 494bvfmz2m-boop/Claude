@@ -546,3 +546,21 @@
     .ph-albums { grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .ph-v-nav { display: none; }
 }
+@media (max-width: 760px) {
+    .dc-page { padding: 18px 18px 60px; }
+    .dc-title { font: 700 28px/1.2 var(--display); }
+    .dc-bar { gap: 4px; }
+    .dc-tools { order: 9; width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .dc-style, .dc-share { max-width: 140px; }
+}
+@media (max-width: 760px) {
+    .sl-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .sl-ed { height: auto; }
+    .sl-main { grid-template-columns: 1fr; }
+    .sl-strip { order: 2; flex-direction: row; overflow-x: auto; padding-bottom: 6px; }
+    .sl-mini { flex: none; width: 120px; }
+    .sl-add { margin: 0; width: 90px; height: 100%; }
+    .sl-canvas, .sl-notes { width: 100%; }
+    .sl-top #present span, .sl-top .btn-ghost span { display: none; }
+    .sl-name { font-size: 20px; flex: 1 1 140px; }
+}
