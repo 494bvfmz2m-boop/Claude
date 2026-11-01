@@ -169,6 +169,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.get(/^\/cal\/([A-Za-z0-9_-]{20,400})\.ics$/, (req, res, next) => ((req.params.token = req.params[0]), ctx.calendarFeed(req, res, next)));
     // a file someone shared from Files (the address itself is the secret)
     site.get('/s/:token', (req, res, next) => ctx.sharedFile(req, res, next));
+    // a form to fill in (open to anyone with the link, unless the form asks to sign in)
+    site.get('/r/:token', (req, res) => (/^[A-Za-z0-9_-]{16}$/.test(req.params.token) && ctx.appOn('forms') ? ctx.pages.send(res, 'respond.html') : ctx.pages.send(res, 'notfound.html', 404)));
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));

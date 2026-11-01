@@ -1272,3 +1272,118 @@ test('Slides: text boxes, shapes and pictures saved cleanly; downloaded as Power
     assert.deepEqual(fb.slides[0].objs.map(o => [o.t, o.fill]), [['ellipse', '#ff0000']]);
     app.close();
 });
+
+test('Forms: a link anyone can fill in, answers checked, responses as charts data, Excel, CSV and a spreadsheet', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const f = (await jo('POST', '/api/docs', { kind: 'form', title: 'BBQ', body: { questions: [{ type: 'short', title: 'Name', required: true }] } })).body;
+    assert.equal(f.kind, 'form');
+    assert.match(f.token, /^[A-Za-z0-9_-]{16}$/);
+    const body = {
+        desc: 'Saturday at 6',
+        color: '#C2185B',
+        questions: [
+            { id: 'name1', type: 'short', title: 'Name', required: true },
+            { id: 'come1', type: 'choice', title: 'Coming?', options: ['Yes', 'No', 'Yes', ''], required: true },
+            { id: 'food1', type: 'checks', title: 'Food', options: ['Meat', 'Veggie'], other: true },
+            { id: 'rate1', type: 'rating', title: 'Last time?', high: 5 },
+            { id: 'scl01', type: 'scale', title: 'Hungry?', low: 0, high: 99 },
+            { id: 'mail1', type: 'email', title: 'Email' },
+            { id: 'when1', type: 'date', title: 'Best day' },
+            { id: 'sect1', type: 'section', title: 'Extra', required: true },
+            { id: 'many1', type: 'number', title: 'Guests' },
+            { type: 'teleport', title: 'Odd one' }
+        ],
+        settings: { open: true, who: 'anyone', thanks: 'See you there!' }
+    };
+    assert.equal((await jo('PUT', `/api/docs/${f.id}`, { title: 'BBQ', version: f.version, body })).status, 200);
+    const saved = (await jo('GET', `/api/docs/${f.id}`)).body;
+    assert.equal(saved.body.color, '#c2185b');
+    assert.deepEqual(saved.body.questions[1].options, ['Yes', 'No']);
+    assert.equal(saved.body.questions[4].high, 10);
+    assert.equal(saved.body.questions[7].required, undefined);
+    assert.equal(saved.body.questions[9].type, 'short');
+    // the public page and the questions, without signing in
+    const guest = app.device();
+    assert.equal((await guest('GET', `/r/${f.token}`)).status, 200);
+    assert.equal((await guest('GET', '/r/short')).status, 404);
+    assert.equal((await guest('GET', '/api/respond/AAAAAAAAAAAAAAAA')).status, 404);
+    const pub = (await guest('GET', `/api/respond/${f.token}`)).body;
+    assert.equal(pub.title, 'BBQ');
+    assert.equal(pub.questions.length, 10);
+    assert.equal(pub.token, undefined);
+    assert.equal((await guest('GET', '/api/respond/nope')).status, 404);
+    // answers are checked
+    const send = (who, answers, extra = {}) => who('POST', `/api/respond/${f.token}`, { answers, ...extra });
+    assert.match((await send(guest, { come1: 'Yes' })).body.error, /Name/);
+    assert.equal((await send(guest, { name1: 'Ann', come1: 'Perhaps' })).status, 400);
+    assert.match((await send(guest, { name1: 'Ann', come1: 'Yes', mail1: 'not-an-email' })).body.error, /email/);
+    assert.equal((await send(guest, { name1: 'Ann', come1: 'Yes', rate1: 9 })).status, 400);
+    const ok = await send(guest, { name1: 'Ann', come1: 'Yes', food1: ['Veggie', 'Fish'], rate1: 4, scl01: 7, mail1: 'ann@example.com', when1: '2026-11-07', many1: '2,5', nope: 'x' });
+    assert.deepEqual(ok.body, { ok: true, thanks: 'See you there!' });
+    assert.equal((await send(app.device(), { name1: '=HYPERLINK("http://evil")', come1: 'No', food1: ['Meat'] })).status, 200);
+    // a robot filling in the hidden field is thanked, and nothing is kept
+    assert.equal((await send(app.device(), { name1: 'Bot', come1: 'Yes' }, { website: 'http://spam' })).body.ok, true);
+    const rs = (await jo('GET', `/api/forms/${f.id}/responses`)).body;
+    assert.equal(rs.length, 2);
+    assert.deepEqual(rs[0].a, { name1: 'Ann', come1: 'Yes', food1: ['Veggie', 'Fish'], rate1: 4, scl01: 7, mail1: 'ann@example.com', when1: '2026-11-07', many1: 2.5 });
+    assert.equal(rs[0].by, '');
+    assert.equal((await jo('GET', `/api/docs/${f.id}`)).body.responses, 2);
+    assert.equal((await guest('GET', `/api/forms/${f.id}/responses`)).status, 401);
+    // Excel: values, never formulas; CSV: a ' in front of anything a spreadsheet would run
+    const xl = await fetch(`${app.base}/api/forms/${f.id}/responses/export?format=xlsx`, { headers: { Cookie: jo.cookies() } });
+    assert.match(xl.headers.get('content-disposition'), /BBQ \(responses\)\.xlsx/);
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(Buffer.from(await xl.arrayBuffer()));
+    const ws = wb.getWorksheet('Responses');
+    assert.equal(ws.getCell('C1').value, 'Name');
+    assert.equal(ws.getCell('C2').value, 'Ann');
+    assert.equal(ws.getCell('E2').value, 'Veggie; Fish');
+    assert.equal(ws.getCell('C3').value, '=HYPERLINK("http://evil")');
+    assert.equal(ws.getCell('C3').formula, undefined);
+    const csv = await (await fetch(`${app.base}/api/forms/${f.id}/responses/export?format=csv`, { headers: { Cookie: jo.cookies() } })).text();
+    assert.match(csv, /"'=HYPERLINK\(""http:\/\/evil""\)"/);
+    // the responses as a spreadsheet of your own
+    const sheet = (await jo('POST', `/api/forms/${f.id}/sheet`, {})).body;
+    assert.equal(sheet.kind, 'sheet');
+    const book = (await jo('GET', `/api/docs/${sheet.id}`)).body.body;
+    assert.equal(book.sheets[0].cells.C2.v, 'Ann');
+    assert.equal(book.sheets[0].cells.C3.v, '\'=HYPERLINK("http://evil")');
+    // one response deleted, then all
+    assert.equal((await jo('DELETE', `/api/forms/${f.id}/responses/${rs[1].id}`)).body.responses, 1);
+    // closed: the link says so and refuses answers
+    body.settings.open = false;
+    await jo('PUT', `/api/docs/${f.id}`, { title: 'BBQ', version: saved.version, body });
+    assert.equal((await guest('GET', `/api/respond/${f.token}`)).body.closed, true);
+    assert.equal((await send(guest, { name1: 'Late', come1: 'No' })).status, 403);
+    // only people with an account, once each: they sign in, and their name comes with it
+    body.settings = { open: true, who: 'members', once: true };
+    await jo('PUT', `/api/docs/${f.id}`, { title: 'BBQ', version: saved.version + 1, body });
+    assert.equal((await guest('GET', `/api/respond/${f.token}`)).body.signIn, true);
+    assert.equal((await send(guest, { name1: 'Ann', come1: 'Yes' })).status, 401);
+    assert.equal((await send(jo, { name1: 'Jo', come1: 'Yes' })).status, 200);
+    assert.equal((await jo('GET', `/api/respond/${f.token}`)).body.answered, true);
+    assert.equal((await send(jo, { name1: 'Jo', come1: 'No' })).status, 409);
+    assert.equal((await jo('GET', `/api/forms/${f.id}/responses`)).body.pop().by, USER);
+    // too many from one address
+    body.settings = { open: true, who: 'anyone' };
+    await jo('PUT', `/api/docs/${f.id}`, { title: 'BBQ', version: saved.version + 2, body });
+    const spam = app.device();
+    let last = 0;
+    for (let i = 0; i < 14; i++) last = (await send(spam, { name1: `S${i}`, come1: 'No' })).status;
+    assert.equal(last, 429);
+    // a copy has its own link and no responses; deleting the form removes its responses
+    const copy = (await jo('POST', `/api/docs/${f.id}/copy`, {})).body;
+    assert.notEqual(copy.token, f.token);
+    assert.equal(copy.responses, 0);
+    assert.equal((await jo('DELETE', `/api/forms/${f.id}/responses`)).body.responses, 0);
+    await jo('DELETE', `/api/docs/${f.id}`);
+    assert.equal((await guest('GET', `/api/respond/${f.token}`)).status, 404);
+    // the dashboard counts forms
+    const sum = (await jo('GET', '/api/apps-summary')).body;
+    assert.deepEqual([sum.forms, sum.formResponses], [1, 0]);
+    app.close();
+});

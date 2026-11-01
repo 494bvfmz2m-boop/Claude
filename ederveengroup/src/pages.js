@@ -46,7 +46,7 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
     }
     // the service worker precaches this deploy's own files (never anything from /api/)
     const assets = [
-        'css/app.css', 'css/desk.css', 'css/phone.css', 'js/boot.js', 'js/kit.js', 'js/hub.js', 'js/notes.js', 'js/tasks.js', 'js/contacts.js', 'js/calendar.js', 'js/files.js', 'js/photos.js', 'js/docs.js', 'js/slidekit.js', 'js/slides.js', 'js/formula.js', 'js/sheets.js', 'js/profile.js', 'js/icons.js', 'favicon.svg', 'icons/apple-touch-icon.png',
+        'css/app.css', 'css/desk.css', 'css/phone.css', 'js/boot.js', 'js/kit.js', 'js/hub.js', 'js/notes.js', 'js/tasks.js', 'js/contacts.js', 'js/calendar.js', 'js/files.js', 'js/photos.js', 'js/docs.js', 'js/slidekit.js', 'js/slides.js', 'js/forms.js', 'js/formula.js', 'js/sheets.js', 'js/profile.js', 'js/icons.js', 'favicon.svg', 'icons/apple-touch-icon.png',
         ...(fs.existsSync(path.join(publicDir, 'js', 'app')) ? fs.readdirSync(path.join(publicDir, 'js', 'app')).filter(f => f.endsWith('.js')).sort().map(f => `js/app/${f}`) : [])
     ].filter(f => fs.existsSync(path.join(publicDir, f))).map(f => `${baseUrl}${f}?v=${version}`);
     const serviceWorker = fs.existsSync(path.join(viewsDir, 'sw.js'))

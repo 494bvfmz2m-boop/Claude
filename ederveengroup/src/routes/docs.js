@@ -18,7 +18,8 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const { sanitizeDocHtml } = require('../../lib/sanitize');
 
-const KINDS = ['doc', 'deck', 'sheet'];
+const KINDS = ['doc', 'deck', 'sheet', 'form'];
+const forms = require('../../lib/forms');
 const F = require('../../public/js/formula');
 const office = require('../../lib/office');
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -67,6 +68,7 @@ const picture = v => (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/
 
 function cleanBody(kind, b) {
     if (kind === 'sheet') return cleanBook(b);
+    if (kind === 'form') return forms.cleanForm(b);
     if (kind === 'doc') {
         const p = (b && b.page) || {};
         return {
@@ -146,7 +148,12 @@ module.exports = function docRoutes(ctx) {
     const nameOf = email => store.getSettings(email).displayName || (store.getProfile(email) || {}).name || (store.usernameOf(email) ? `@${store.usernameOf(email)}` : email);
     const canSee = (m, email) => m.owner === email || m.share !== 'private';
     const canEdit = (m, email) => m.owner === email || m.share === 'edit';
-    const view = (id, m, email) => ({ id, kind: m.kind, title: m.title, share: m.share, mine: m.owner === email, ownerName: m.ownerName, updatedAt: m.updatedAt, updatedBy: m.updatedBy, version: m.version, canEdit: canEdit(m, email), size: m.size || 0, cover: m.cover || '' });
+    const view = (id, m, email) => ({
+        id, kind: m.kind, title: m.title, share: m.share, mine: m.owner === email, ownerName: m.ownerName, updatedAt: m.updatedAt, updatedBy: m.updatedBy, version: m.version, canEdit: canEdit(m, email), size: m.size || 0, cover: m.cover || '',
+        // a form: how many answered, and (for whoever may change it) the link to fill it in
+        ...(m.kind === 'form' ? { responses: m.responses || 0, lastResponse: m.lastResponse || 0, open: m.open !== false, ...(canEdit(m, email) ? { token: m.token } : {}) } : {})
+    });
+    const formToken = () => crypto.randomBytes(12).toString('base64url');
     async function meta(req) {
         const all = await index();
         const m = all.items[req.params.id];
@@ -169,7 +176,7 @@ module.exports = function docRoutes(ctx) {
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
         const body = cleanBody(kind, req.body.body || {});
-        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}) };
+        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}), ...(kind === 'form' ? { token: formToken(), open: body.settings.open } : {}) };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);
@@ -198,6 +205,7 @@ module.exports = function docRoutes(ctx) {
         Object.assign(m, { title: 'title' in req.body ? line(req.body.title, 160) : m.title, updatedAt: Date.now(), updatedBy: nameOf(email), version: m.version + 1, size });
         // a small cover for the deck grid: the first slide's title and theme
         if (m.kind === 'deck') m.cover = `${body.theme}|${line(body.slides[0].title, 80)}`;
+        if (m.kind === 'form') m.open = body.settings.open;
         docs.save(`d:${req.params.id}`);
         docs.save('docs-index');
         res.json(view(req.params.id, m, email));
@@ -218,6 +226,8 @@ module.exports = function docRoutes(ctx) {
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
         all.items[id] = { ...m, title: `${m.title || 'Untitled'} (copy)`, owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1 };
+        // a copied form gets its own link, and starts without responses
+        if (m.kind === 'form') Object.assign(all.items[id], { token: formToken(), responses: 0, lastResponse: 0 });
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, JSON.parse(JSON.stringify(body)));
         docs.save(`d:${id}`);
@@ -290,6 +300,7 @@ module.exports = function docRoutes(ctx) {
         delete all.items[req.params.id];
         docs.save('docs-index');
         await docs.remove(`d:${req.params.id}`);
+        if (m.kind === 'form') await docs.remove(`fr:${req.params.id}`);
         res.json({ ok: true });
     }));
 
@@ -297,7 +308,34 @@ module.exports = function docRoutes(ctx) {
     const before = ctx.summaryExtras;
     ctx.summaryExtras = async email => {
         const all = Object.values((await index()).items);
-        return { ...(before ? await before(email) : {}), docs: all.filter(m => m.kind === 'doc' && canSee(m, email)).length, slides: all.filter(m => m.kind === 'deck' && canSee(m, email)).length, sheets: all.filter(m => m.kind === 'sheet' && canSee(m, email)).length };
+        const myForms = all.filter(m => m.kind === 'form' && canEdit(m, email));
+        return {
+            ...(before ? await before(email) : {}),
+            docs: all.filter(m => m.kind === 'doc' && canSee(m, email)).length,
+            slides: all.filter(m => m.kind === 'deck' && canSee(m, email)).length,
+            sheets: all.filter(m => m.kind === 'sheet' && canSee(m, email)).length,
+            forms: myForms.length,
+            formResponses: myForms.reduce((n, m) => n + (m.responses || 0), 0)
+        };
+    };
+    // for Forms (src/routes/forms.js): the same list, rules and a way to add a document
+    ctx.docsApi = {
+        index,
+        meta,
+        canEdit,
+        view,
+        nameOf,
+        async add(email, kind, title, body) {
+            const all = await index();
+            const id = crypto.randomBytes(9).toString('base64url');
+            const now = Date.now();
+            all.items[id] = { kind, title: line(title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length };
+            const d = await docs.get(`d:${id}`, () => ({}));
+            Object.assign(d, body);
+            docs.save(`d:${id}`);
+            docs.save('docs-index');
+            return view(id, all.items[id], email);
+        }
     };
     return r;
 };

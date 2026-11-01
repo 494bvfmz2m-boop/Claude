@@ -12,7 +12,7 @@ const PAGE_RE = new RegExp(`^/(profile|admin|${APP_PAGES.join('|')})/?$`);
 // page. Anything else (other sites, //host, odd paths) falls back to the hub.
 function safeNext(next, baseUrl = '/mail/') {
     const n = String(next || '');
-    if (n === '/' || n === '/welcome' || PAGE_RE.test(n)) return n;
+    if (n === '/' || n === '/welcome' || PAGE_RE.test(n) || /^\/r\/[A-Za-z0-9_-]{16}$/.test(n)) return n;
     if (n.startsWith(baseUrl) && APP_ROUTE.test('/' + n.slice(baseUrl.length))) return n;
     return '/';
 }

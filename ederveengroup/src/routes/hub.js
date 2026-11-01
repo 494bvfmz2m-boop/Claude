@@ -129,6 +129,7 @@ module.exports = function hubRoutes(ctx) {
     r.use(require('./apps')(ctx));
     r.use(require('./files')(ctx));
     r.use(require('./docs')(ctx));
+    r.use(require('./forms')(ctx));
     if (ctx.davApi) r.use(ctx.davApi);
 
     // the Admin app (only for ADMIN_EMAILS)
