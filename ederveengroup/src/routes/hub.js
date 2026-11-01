@@ -121,6 +121,9 @@ module.exports = function hubRoutes(ctx) {
         res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" }).send(svg);
     }));
 
+    // the Admin app (only for ADMIN_EMAILS)
+    if (ctx.adminRouter) r.use(ctx.adminRouter);
+
     r.use((req, res) => res.status(404).json({ error: 'Not found' }));
     // eslint-disable-next-line no-unused-vars
     r.use((err, req, res, next) => {

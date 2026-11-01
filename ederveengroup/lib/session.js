@@ -110,9 +110,11 @@ function createSessions({ dataDir, secureCookies, cookiePath = '/', legacyPaths 
             return !!(t && t.purpose === 'trust' && t.email === email && t.since === twofaSince && t.exp > Date.now());
         },
 
-        start(res, { email, password, remember }, extra = {}) {
+        // password sign-ins carry the (sealed) password; Microsoft/Google ones carry the provider
+        // instead, and their tokens stay on the server
+        start(res, { email, password, provider, remember }, extra = {}) {
             const now = Date.now();
-            const session = { email, password, remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), sid: newSid() };
+            const session = { email, ...(provider ? { provider } : { password }), remember: !!remember, iat: now, exp: now + (remember ? LONG_TTL : SHORT_TTL), sid: newSid() };
             registry.add(email, session.sid, { ...infoOf(res.req), remember: !!remember, ...extra });
             for (const p of legacyPaths) if (p !== cookiePath) res.append('Set-Cookie', `${COOKIE}=; Path=${p}; HttpOnly; SameSite=Lax; Max-Age=0${secure(res) ? '; Secure' : ''}`);
             write(res, session);

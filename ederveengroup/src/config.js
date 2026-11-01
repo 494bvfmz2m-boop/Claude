@@ -56,7 +56,17 @@ function loadConfig(env = process.env) {
         // testing only: let requests point at mail servers on private networks
         allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',
         // MySQL / MariaDB; without DB_HOST everything is kept in files in the data folder
-        db: dbSetting(env)
+        db: dbSetting(env),
+        // "Sign in with Microsoft / Google": set the client ID and secret from each provider's console
+        oauth: {
+            google: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : null,
+            microsoft: env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET ? { clientId: env.MICROSOFT_CLIENT_ID, clientSecret: env.MICROSOFT_CLIENT_SECRET, tenant: env.MICROSOFT_TENANT || 'common' } : null,
+            // the address people reach the site at, for the sign-in return address (else taken from the request)
+            publicUrl: (env.PUBLIC_URL || '').replace(/\/$/, ''),
+            // testing only: a stand-in sign-in service and mail server
+            devIssuer: env.OAUTH_DEV_ISSUER || '',
+            devMailHost: env.OAUTH_DEV_MAIL_HOST || ''
+        }
     };
 }
 

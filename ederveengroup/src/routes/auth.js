@@ -80,7 +80,7 @@ module.exports = function authRoutes({ sessions, store, mail, checkCode }) {
         }
         perIp.reset(req.ip);
         codeGuesses.reset(t.email);
-        sessions.start(res, { email: t.email, password: t.password, remember: t.remember });
+        sessions.start(res, { email: t.email, ...(t.provider ? { provider: t.provider } : { password: t.password }), remember: t.remember });
         store.logActivity(t.email, { ok: true, method: result.method, ...who(req) });
         res.json(result);
     }));

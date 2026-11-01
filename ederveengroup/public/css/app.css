@@ -1490,3 +1490,21 @@ textarea.input { height: auto; padding: 10px 13px; resize: vertical; line-height
 .pf-crop input[type=range] { width: 100%; margin: 18px 0 16px; accent-color: var(--accent); }
 .pf-crop-acts { display: flex; gap: 8px; }
 .pf-crop-acts .btn { flex: 1; }
+
+/* ---------- Sign in with Microsoft / Google ---------- */
+.oauth { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.oauth.hidden { display: none; }
+.oauth-btn {
+    position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; height: 48px; border-radius: 12px;
+    color: #1f1f1f; background: #fff; font-weight: 600; font-size: 15px; text-decoration: none;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .12), 0 6px 18px -10px rgba(0, 0, 0, .5); transition: transform .15s var(--ease), box-shadow .2s;
+    animation: rise .7s var(--ease) both;
+}
+.oauth-btn + .oauth-btn { animation-delay: .06s; }
+.oauth-btn:hover { box-shadow: 0 0 0 1px rgba(0, 0, 0, .18), 0 10px 26px -10px rgba(0, 0, 0, .55); }
+.oauth-btn:active { transform: scale(.98); }
+.oauth-btn svg { width: 20px; height: 20px; flex: none; }
+.oauth-btn.busy::after { content: ''; position: absolute; right: 16px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(0, 0, 0, .15); border-top-color: #555; animation: spin .7s linear infinite; }
+.oauth-or { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; color: var(--text-3); font-size: 12.5px; }
+.oauth-or::before, .oauth-or::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
+.form-ok { line-height: 1.5; }

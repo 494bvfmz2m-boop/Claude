@@ -282,10 +282,10 @@ test('bring your own server: request, admin accepts for the domain, requester is
     const me = (await admin('GET', '/mail/api/me')).body;
     assert.equal(me.admin, true);
     assert.equal(me.pendingRequests, 1);
-    const [req] = (await admin('GET', '/mail/api/admin/requests')).body;
+    const [req] = (await admin('GET', '/api/admin/requests')).body;
     assert.equal(req.verified, true);
     assert.equal('password' in req, false);
-    const done = (await admin('POST', `/mail/api/admin/requests/${req.id}/accept`, { scope: 'domain' })).body;
+    const done = (await admin('POST', `/api/admin/requests/${req.id}/accept`, { scope: 'domain' })).body;
     assert.equal(done.emailed, true);
     assert.equal(app.mail.sent[0].to[0].address, 'ava@studio.io');
     assert.match(app.mail.sent[0].subject, /ready/);
@@ -293,8 +293,8 @@ test('bring your own server: request, admin accepts for the domain, requester is
     // anyone @studio.io now uses that server; others keep the default
     assert.equal(app.mail.profileFor('jo@studio.io').imap.host, 'imap.studio.io');
     assert.equal(app.mail.profileFor('jo@elsewhere.io'), null);
-    assert.equal((await admin('POST', `/mail/api/admin/requests/${req.id}/reject`, {})).status, 404); // already decided
-    assert.equal((await admin('DELETE', `/mail/api/admin/servers/${encodeURIComponent('@studio.io')}`)).status, 200);
+    assert.equal((await admin('POST', `/api/admin/requests/${req.id}/reject`, {})).status, 404); // already decided
+    assert.equal((await admin('DELETE', `/api/admin/servers/${encodeURIComponent('@studio.io')}`)).status, 200);
     assert.equal(app.mail.profileFor('jo@studio.io'), null);
     app.close();
 });
@@ -304,15 +304,15 @@ test('only admins see requests; rejecting emails the reason', async () => {
     await app.device()('POST', '/mail/api/requests', { email: 'mo@shop.io', imap: { host: 'imap.shop.io', port: 993 }, smtp: { host: 'smtp.shop.io', port: 587 }, password: 'x' });
     const d = app.device();
     await d('POST', '/mail/api/login', { email: USER, password: PASS });
-    assert.equal((await d('GET', '/mail/api/admin/requests')).status, 403);
+    assert.equal((await d('GET', '/api/admin/requests')).status, 403);
     assert.equal((await d('GET', '/mail/api/me')).body.admin, undefined);
     app.close();
     const app2 = await start({ ADMIN_EMAILS: USER }, { checkMailbox: async () => true });
     await app2.device()('POST', '/mail/api/requests', { email: 'mo@shop.io', imap: { host: 'imap.shop.io', port: 993 }, smtp: { host: 'smtp.shop.io', port: 587 }, password: 'x' });
     const a = app2.device();
     await a('POST', '/mail/api/login', { email: USER, password: PASS });
-    const [req] = (await a('GET', '/mail/api/admin/requests')).body;
-    await a('POST', `/mail/api/admin/requests/${req.id}/reject`, { reason: 'Not <b>now</b>' });
+    const [req] = (await a('GET', '/api/admin/requests')).body;
+    await a('POST', `/api/admin/requests/${req.id}/reject`, { reason: 'Not <b>now</b>' });
     assert.match(app2.mail.sent[0].html, /Not &lt;b&gt;now&lt;\/b&gt;/);
     assert.equal(app2.mail.profileFor('mo@shop.io'), null);
     app2.close();

@@ -169,6 +169,9 @@ async function autodetect(email) {
         // no MX records: fall back to the provider database only
     }
     if (mx.some(h => h === 'purelymail.com' || h.endsWith('.purelymail.com'))) return { purelymail: true };
+    // Gmail / Google Workspace and Outlook.com / Microsoft 365 sign in with their own button
+    if (['gmail.com', 'googlemail.com'].includes(domain) || mx.some(h => /(^|\.)(google|googlemail)\.com$/.test(h))) return { provider: 'google' };
+    if (['outlook.com', 'hotmail.com', 'live.com', 'msn.com'].includes(domain) || /^(outlook|hotmail|live)\.[a-z.]+$/.test(domain) || mx.some(h => /\.(mail\.protection\.outlook\.com|olc\.protection\.outlook\.com)$/.test(h))) return { provider: 'microsoft' };
     const direct = await fetchIspdb(domain);
     if (direct) return { ...direct, source: 'provider' };
     // custom domains hosted somewhere well known: look the mail host's provider up instead

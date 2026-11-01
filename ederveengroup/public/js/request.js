@@ -50,7 +50,13 @@
         note.textContent = 'Looking up your provider…';
         try {
             const { settings } = await call(`api/requests/autodetect?email=${encodeURIComponent(email)}`);
-            if (settings && settings.purelymail) {
+            if (settings && settings.provider) {
+                const name = settings.provider === 'google' ? 'Google' : 'Microsoft';
+                const on = await fetch('/api/auth/providers').then(r => r.json()).catch(() => []);
+                note.innerHTML = on.some(p => p.id === settings.provider)
+                    ? `Your mail is with ${name}: no settings needed. <a href="/auth/${settings.provider}?email=${encodeURIComponent(email)}">Sign in with ${name}</a>`
+                    : `Your mail is with ${name}, which needs “Sign in with ${name}”. It isn’t switched on here yet; ask the admin.`;
+            } else if (settings && settings.purelymail) {
                 note.innerHTML = 'Your mail is on Purelymail: no request needed. <a href="/login">Sign in now</a>';
             } else if (settings) {
                 setServer('imap', settings.imap);

@@ -45,7 +45,7 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
     const norm = email => String(email).trim().toLowerCase();
 
     function blank() {
-        return { settings: { ...DEFAULTS }, contacts: {}, snoozes: [], twofa: null, sessions: {}, activity: [], photo: null };
+        return { settings: { ...DEFAULTS }, contacts: {}, snoozes: [], twofa: null, sessions: {}, activity: [], photo: null, oauth: null, apps: {} };
     }
     function hydrate(row) {
         const data = (row && row.data) || {};
@@ -59,6 +59,8 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
             sessions: data.sessions || {},
             activity: data.activity || [],
             photo: data.photo || null,
+            oauth: data.oauth || null, // { provider, accessToken, refreshToken, expiresAt } for Microsoft/Google sign-ins
+            apps: data.apps || {}, // per-app private data (notes, tasks, contacts…)
             username: (row && row.username) || null,
             profile: (row && row.profile) || null,
             persisted: !!row
@@ -96,8 +98,8 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
     }
 
     function snapshot(user) {
-        const { settings, contacts, snoozes, twofa, sessions, activity, photo } = user;
-        return { data: { settings, contacts, snoozes, twofa, sessions, activity, photo }, username: user.username, profile: user.profile };
+        const { settings, contacts, snoozes, twofa, sessions, activity, photo, oauth, apps } = user;
+        return { data: { settings, contacts, snoozes, twofa, sessions, activity, photo, oauth, apps }, username: user.username, profile: user.profile };
     }
 
     // one write at a time per account; changes made meanwhile go out in the next write
@@ -273,6 +275,20 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
             save(email);
         },
 
+        /* ---------- Microsoft / Google sign-in tokens ---------- */
+        getOAuth: email => load(email).oauth,
+        setOAuth(email, value) {
+            load(email).oauth = value;
+            save(email);
+        },
+
+        /* ---------- private data of hub apps (notes, tasks, contacts…) ---------- */
+        getApp: (email, app) => load(email).apps[app] || null,
+        setApp(email, app, value) {
+            load(email).apps[app] = value;
+            save(email);
+        },
+
         /* ---------- username and public profile ---------- */
         usernameOf: email => load(email).username,
         async claimUsername(email, username) {
@@ -307,7 +323,9 @@ function createStore(dataDir, { backend = createFileBackend(dataDir) } = {}) {
 const MAX_REQUESTS = 300;
 const MAX_PENDING = 100;
 function createServerRegistry(backend) {
-    let data = { requests: [], accounts: {} };
+    // requests: people asking for access; accounts: added mail servers; allowed: Microsoft/Google
+    // addresses or domains that may sign in; settings: site-wide choices made in the Admin app
+    let data = { requests: [], accounts: {}, allowed: {}, settings: { oauthPolicy: 'approved' } };
     let writing = null;
     let again = false;
     const save = () => {
@@ -328,7 +346,7 @@ function createServerRegistry(backend) {
     return {
         async init() {
             const doc = await backend.loadRegistry();
-            data = { requests: (doc && doc.requests) || [], accounts: (doc && doc.accounts) || {} };
+            data = { requests: (doc && doc.requests) || [], accounts: (doc && doc.accounts) || {}, allowed: (doc && doc.allowed) || {}, settings: { oauthPolicy: 'approved', ...((doc && doc.settings) || {}) } };
         },
         flush: async () => {
             while (writing) await writing;
@@ -356,12 +374,37 @@ function createServerRegistry(backend) {
             Object.assign(r, { status, decidedAt: Date.now(), decidedBy: by, reason: String(reason).slice(0, 500) });
             if (status === 'accepted') {
                 r.scope = scope === 'domain' ? 'domain' : 'address';
-                data.accounts[keyFor(r.email, r.scope)] = { imap: r.imap, smtp: r.smtp, login: r.login, addedAt: Date.now(), addedBy: by, requestId: r.id, name: r.name };
+                // Microsoft/Google requests only need permission; others bring their servers
+                if (r.provider) data.allowed[keyFor(r.email, r.scope)] = { provider: r.provider, addedAt: Date.now(), addedBy: by, requestId: r.id, name: r.name };
+                else data.accounts[keyFor(r.email, r.scope)] = { imap: r.imap, smtp: r.smtp, login: r.login, addedAt: Date.now(), addedBy: by, requestId: r.id, name: r.name };
             }
             save();
             return r;
         },
         listAccounts: () => Object.entries(data.accounts).map(([key, a]) => ({ key, ...a })),
+
+        /* Microsoft / Google sign-ins */
+        isAllowed(email) {
+            const e = String(email || '').toLowerCase();
+            return !!(data.allowed[e] || data.allowed['@' + e.split('@')[1]]);
+        },
+        listAllowed: () => Object.entries(data.allowed).map(([key, a]) => ({ key, ...a })),
+        allow(key, info) {
+            data.allowed[String(key).toLowerCase()] = { addedAt: Date.now(), ...info };
+            save();
+        },
+        disallow(key) {
+            const had = !!data.allowed[key];
+            delete data.allowed[key];
+            save();
+            return had;
+        },
+        getSettings: () => data.settings,
+        updateSettings(patch) {
+            Object.assign(data.settings, patch);
+            save();
+            return data.settings;
+        },
         removeAccount(key) {
             const had = !!data.accounts[key];
             delete data.accounts[key];

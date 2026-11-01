@@ -24,15 +24,38 @@ function useServers(fn, { allowPrivateHosts = false } = {}) {
     profileFor = fn;
     allowPrivate = allowPrivateHosts;
 }
-async function imapConfig(email, password) {
-    const p = profileFor(email);
-    if (!p) return { ...IMAP, auth: { user: email, pass: password }, logger: false, emitLogs: false };
-    return servers.imapOptions(p.imap, await servers.publicAddress(p.imap.host, { allowPrivate }), { user: servers.userFor(email, p.login), pass: password });
+
+// Accounts signed in with Microsoft or Google have no password here: they use an access token
+// (XOAUTH2) on their provider's servers. The app tells us how to get a current token.
+let oauth = { servers: () => null, token: async () => null };
+function useOAuth({ servers: serversFor, token }) {
+    oauth = { servers: serversFor, token };
 }
-async function smtpConfig(email, password) {
-    const p = profileFor(email);
-    if (!p) return { ...SMTP, auth: { user: email, pass: password } };
-    return servers.smtpOptions(p.smtp, await servers.publicAddress(p.smtp.host, { allowPrivate }), { user: servers.userFor(email, p.login), pass: password });
+
+// a "cred" is a session: { email, password } or { email, provider }
+const credOf = (a, b) => (typeof a === 'string' ? { email: a, password: b } : a);
+
+async function imapConfig(a, b) {
+    const cred = credOf(a, b);
+    if (cred.provider) {
+        const srv = oauth.servers(cred.provider);
+        if (!srv) throw Object.assign(new Error('That sign-in option was turned off'), { authenticationFailed: true });
+        return { ...srv.imap, auth: { user: cred.email, accessToken: await oauth.token(cred) }, logger: false, emitLogs: false };
+    }
+    const p = profileFor(cred.email);
+    if (!p) return { ...IMAP, auth: { user: cred.email, pass: cred.password }, logger: false, emitLogs: false };
+    return servers.imapOptions(p.imap, await servers.publicAddress(p.imap.host, { allowPrivate }), { user: servers.userFor(cred.email, p.login), pass: cred.password });
+}
+async function smtpConfig(a, b) {
+    const cred = credOf(a, b);
+    if (cred.provider) {
+        const srv = oauth.servers(cred.provider);
+        if (!srv) throw Object.assign(new Error('That sign-in option was turned off'), { authenticationFailed: true });
+        return { ...srv.smtp, auth: { type: 'OAuth2', user: cred.email, accessToken: await oauth.token(cred) }, connectionTimeout: 15000 };
+    }
+    const p = profileFor(cred.email);
+    if (!p) return { ...SMTP, auth: { user: cred.email, pass: cred.password } };
+    return servers.smtpOptions(p.smtp, await servers.publicAddress(p.smtp.host, { allowPrivate }), { user: servers.userFor(cred.email, p.login), pass: cred.password });
 }
 const IDLE_CLOSE_MS = 5 * 60 * 1000;
 const PAGE_SIZE = 50;
@@ -40,14 +63,17 @@ const PAGE_SIZE = 50;
 const pool = new Map();
 const creating = new Map();
 
-function poolKey(email, password) {
+function poolKey(a, b) {
+    const { email, password, provider } = credOf(a, b);
+    // token sign-ins share one connection per mailbox (tokens renew, the mailbox doesn't)
+    if (provider) return crypto.createHash('sha256').update(`${email.toLowerCase()}\0oauth:${provider}`).digest('hex');
     const p = profileFor(email);
     const where = p ? `${p.imap.host}:${p.imap.port}` : '';
     return crypto.createHash('sha256').update(email.toLowerCase() + '\0' + password + '\0' + where).digest('hex');
 }
 
-async function newClient(email, password) {
-    return new ImapFlow(await imapConfig(email, password));
+async function newClient(a, b) {
+    return new ImapFlow(await imapConfig(a, b));
 }
 
 // Verify credentials by opening (and closing) a throwaway IMAP connection.
@@ -61,15 +87,16 @@ function addToPool(key, client, ready) {
 
 // Checks credentials with a real IMAP login and keeps that connection for the
 // session that follows, so the first page load doesn't connect a second time.
-async function verifyLogin(email, password) {
-    const client = await newClient(email, password);
+async function verifyLogin(a, b) {
+    const cred = credOf(a, b);
+    const client = await newClient(cred);
     try {
         await client.connect();
     } catch (err) {
         if (err.authenticationFailed) return false;
         throw err;
     }
-    const key = poolKey(email, password);
+    const key = poolKey(cred);
     const existing = pool.get(key);
     if (existing && existing.client.usable) {
         client.logout().catch(() => {});
@@ -83,8 +110,8 @@ async function verifyLogin(email, password) {
     return true;
 }
 
-async function getClient({ email, password }) {
-    const key = poolKey(email, password);
+async function getClient(cred) {
+    const key = poolKey(cred);
     let entry = pool.get(key);
     if (entry && !entry.client.usable) {
         pool.delete(key);
@@ -92,7 +119,7 @@ async function getClient({ email, password }) {
     }
     if (!entry) {
         // creating a client can wait on DNS (own servers), so concurrent requests share one
-        if (!creating.has(key)) creating.set(key, newClient(email, password).then(client => addToPool(key, client, client.connect())).finally(() => creating.delete(key)));
+        if (!creating.has(key)) creating.set(key, newClient(cred).then(client => addToPool(key, client, client.connect())).finally(() => creating.delete(key)));
         entry = await creating.get(key);
     }
     try {
@@ -109,8 +136,8 @@ async function getClient({ email, password }) {
     return entry.client;
 }
 
-async function closeClient({ email, password }) {
-    const key = poolKey(email, password);
+async function closeClient(cred) {
+    const key = poolKey(cred);
     const entry = pool.get(key);
     if (!entry) return;
     pool.delete(key);
@@ -122,7 +149,7 @@ async function closeClient({ email, password }) {
 // Reads and flag changes are safe to repeat, so those retry once on a fresh connection;
 // moves and appends never retry, because the first attempt may already have happened.
 const isDeadConnection = err => !!err && (['NoConnection', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT'].includes(err.code) || /connection not available|connection closed/i.test(err.message || ''));
-const dropClient = session => pool.delete(poolKey(session.email, session.password));
+const dropClient = session => pool.delete(poolKey(session));
 
 async function withClient(session, fn, { retry = false } = {}) {
     try {
@@ -607,7 +634,7 @@ async function sendMessage(session, input, { saveSentCopy = true } = {}) {
         err.status = 400;
         throw err;
     }
-    const transport = nodemailer.createTransport(await smtpConfig(session.email, session.password));
+    const transport = nodemailer.createTransport(await smtpConfig(session));
     try {
         await transport.sendMail({ envelope: { from: session.email, to: recipients }, raw });
     } finally {
@@ -649,7 +676,7 @@ async function saveDraft(session, input) {
 
 // Opens a dedicated IDLE connection on INBOX and calls onChange when mail arrives.
 async function watchInbox(session, onChange) {
-    const client = await newClient(session.email, session.password);
+    const client = await newClient(session);
     await client.connect();
     await client.mailboxOpen('INBOX');
     client.on('exists', data => onChange({ type: 'exists', ...data }));
@@ -684,6 +711,7 @@ module.exports = {
     getThread,
     searchCounts,
     useServers,
+    useOAuth,
     imapConfig, // exported for tests
     smtpConfig,
     inspectStructure // exported for tests

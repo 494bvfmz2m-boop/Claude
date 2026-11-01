@@ -37,9 +37,12 @@ const ACT_TEXT = {
     password: 'Signed in',
     'trusted-device': 'Signed in on a trusted device',
     '2fa': 'Signed in with a 2FA code',
-    'recovery-code': 'Signed in with a recovery code'
+    'recovery-code': 'Signed in with a recovery code',
+    google: 'Signed in with Google',
+    microsoft: 'Signed in with Microsoft',
+    'microsoft-work': 'Signed in with Microsoft 365'
 };
-const FAIL_TEXT = { 'wrong-password': 'Wrong password', 'wrong-code': 'Wrong 2FA code', locked: 'Blocked: too many attempts' };
+const FAIL_TEXT = { 'wrong-password': 'Wrong password', 'wrong-code': 'Wrong 2FA code', locked: 'Blocked: too many attempts', 'no-imap': 'Mailbox didn’t allow IMAP' };
 const activityRow = (a, i) => `<li class="${a.ok ? 'ok' : 'bad'}" style="animation-delay:${Math.min(i, 12) * 30}ms">
     <span class="act-dot">${icon(a.ok ? 'check' : 'x')}</span>
     <div class="lbl"><b>${esc(a.ok ? ACT_TEXT[a.method] || 'Signed in' : FAIL_TEXT[a.reason] || 'Failed sign-in')}</b>

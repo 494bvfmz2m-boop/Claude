@@ -17,6 +17,7 @@ const { assetVersion, createPages } = require('./pages');
 const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
 const { createLinks } = require('../lib/links');
+const { createOAuth } = require('../lib/oauth');
 const { APP_ROUTE, safeNext } = require('./routes-app');
 const { adminRoutes, requestRoutes } = require('./routes/servers');
 
@@ -43,8 +44,29 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     ctx.links = createLinks(ctx.sessions.deriveKey('links'));
     // accepted addresses / domains use their own mail servers
     if (mail.useServers) mail.useServers(email => store.servers.profileFor(email), { allowPrivateHosts: config.allowPrivateMailHosts });
+    // Microsoft / Google sign-ins: access tokens are renewed a few minutes before they expire
+    ctx.oauth = createOAuth(config.oauth);
+    const renewing = new Map();
+    async function tokenFor({ email }) {
+        await store.ready(email);
+        const t = store.getOAuth(email);
+        if (!t) throw Object.assign(new Error('Please sign in again'), { authenticationFailed: true });
+        if (t.accessToken && t.expiresAt - Date.now() > 3 * 60 * 1000) return t.accessToken;
+        if (!renewing.has(email)) {
+            renewing.set(email, ctx.oauth.refresh(t.provider, t.refreshToken)
+                .then(fresh => {
+                    store.setOAuth(email, { ...t, ...fresh });
+                    return fresh.accessToken;
+                })
+                .finally(() => renewing.delete(email)));
+        }
+        return renewing.get(email);
+    }
+    ctx.tokenFor = tokenFor;
+    if (mail.useOAuth) mail.useOAuth({ servers: p => ctx.oauth.servers(p), token: tokenFor });
     const admin = adminRoutes(ctx);
     ctx.isAdmin = admin.isAdmin;
+    ctx.adminRouter = admin.router; // served at /api/admin (the Admin app)
 
     // start-up: create the tables and load the mail-server list; if the database can't be
     // reached, say so on every page and keep retrying
@@ -90,6 +112,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         if (!needsName(req)) return res.redirect(safeNext(req.query.next, config.baseUrl));
         ctx.pages.send(res, 'welcome.html');
     });
+    // Sign in with Microsoft / Google
+    site.use(require('./routes/oauth')(ctx));
     site.use('/api', require('./routes/hub')(ctx));
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
@@ -141,7 +165,6 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     api.use(require('./routes/auth')(ctx));
     api.use(requestRoutes(ctx));
     api.use(requireAuth);
-    api.use(admin.router);
     api.use(require('./routes/account')(ctx));
     api.use('/2fa', require('./routes/twofa')(ctx));
     api.use(require('./routes/mail')(ctx));
@@ -153,7 +176,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     app.use((err, req, res, next) => {
         if (err.authenticationFailed) {
             ctx.sessions.clear(res);
-            return res.status(401).json({ error: 'Your Purelymail password changed. Please sign in again.' });
+            return res.status(401).json({ error: req.session && req.session.provider ? 'Your sign-in expired. Please sign in again.' : 'Your mail password changed. Please sign in again.' });
         }
         if (err instanceof multer.MulterError) return res.status(413).json({ error: 'Attachments are limited to 25 MB each.' });
         if (err.type === 'entity.too.large') return res.status(413).json({ error: 'That’s too large to send.' });

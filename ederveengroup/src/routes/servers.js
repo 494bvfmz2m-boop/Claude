@@ -45,7 +45,7 @@ function requestRoutes({ store, config, checkMailbox = servers.checkRequest }) {
 function adminRoutes({ store, mail, config }) {
     const r = express.Router();
     const isAdmin = email => config.adminEmails.includes(String(email).toLowerCase());
-    r.use('/admin', (req, res, next) => (isAdmin(req.session.email) ? next() : res.status(403).json({ error: 'Only admins can do that' })));
+    r.use('/admin', (req, res, next) => (!req.session ? res.status(401).json({ error: 'Please sign in' }) : isAdmin(req.session.email) ? next() : res.status(403).json({ error: 'Only admins can do that' })));
 
     r.get('/admin/requests', (req, res) => {
         const list = store.servers.listRequests();
@@ -87,17 +87,18 @@ const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhos
 function decisionEmail(request, { origin, base, fromName }) {
     const name = request.name || request.email;
     const accepted = request.status === 'accepted';
-    const signIn = `${origin}${base}login`;
+    const signIn = `${origin}/login`;
+    const via = request.provider ? (request.provider === 'google' ? 'Google' : 'Microsoft') : null;
     const subject = accepted ? 'Your mailbox is ready on EderveenGroup' : 'About your EderveenGroup request';
     const lines = accepted
         ? [
               `Good news: ${request.scope === 'domain' ? `everyone at @${request.email.split('@')[1]}` : request.email} can now use EderveenGroup.`,
-              'Sign in with your email address and your mailbox password:'
+              via ? `Sign in with ${via} on the sign-in page:` : 'Sign in with your email address and your mailbox password:'
           ]
         : [`Your request to add ${request.email} to EderveenGroup wasn’t accepted.`, ...(request.reason ? [`Reason: ${request.reason}`] : [])];
     const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#111827;max-width:520px">
 <p>Hi ${esc(name)},</p>${lines.map(l => `<p>${esc(l)}</p>`).join('')}
-${accepted ? `<p><a href="${esc(signIn)}" style="display:inline-block;padding:11px 20px;border-radius:10px;background:#4c8dff;color:#fff;text-decoration:none;font-weight:600">Sign in to EderveenGroup</a></p>` : ''}
+${accepted ? `<p><a href="${esc(signIn)}" style="display:inline-block;padding:11px 20px;border-radius:10px;background:#4c8dff;color:#fff;text-decoration:none;font-weight:600">${via ? `Sign in with ${esc(via)}` : 'Sign in to EderveenGroup'}</a></p>` : ''}
 <p style="color:#6b7280">${esc(fromName || 'EderveenGroup')}</p></div>`;
     const text = `Hi ${name},\n\n${lines.join('\n\n')}${accepted ? `\n\n${signIn}` : ''}\n\n${fromName || 'EderveenGroup'}\n`;
     return { fromName, to: [{ name: request.name || '', address: request.email }], cc: [], bcc: [], subject, html, text, references: [], attachments: [] };
