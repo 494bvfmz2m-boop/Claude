@@ -22,7 +22,7 @@ function dbConfig() {
 async function freshTables() {
     const mysql = require('mysql2/promise');
     const c = await mysql.createConnection(dbConfig());
-    await c.query('DROP TABLE IF EXISTS eg_users, eg_photos, eg_registry');
+    await c.query('DROP TABLE IF EXISTS eg_users, eg_photos, eg_registry, eg_blobs');
     await c.end();
 }
 async function raw(sql, args) {
@@ -145,4 +145,36 @@ test('the whole app runs on the database and survives a restart', { skip }, asyn
     assert.equal(me.settings.accent, '#22c3ee');
     await two.app.close();
     two.server.close();
+});
+
+test('file contents and shared documents are stored encrypted, in pieces any MySQL accepts', { skip }, async () => {
+    await freshTables();
+    const { createMysqlBackend } = require('../../lib/db');
+    const db = createMysqlBackend(dbConfig(), { key: crypto.randomBytes(32) });
+    await db.init();
+    // 2.5 MB: three pieces of at most 1 MB, none holding the plain bytes
+    const marker = Buffer.from('PLAIN-TEXT-MARKER');
+    const buf = Buffer.concat([marker, crypto.randomBytes(2.5 * 1024 * 1024)]);
+    await db.putBlob('blob-abcdefghijklmnop', buf);
+    const rows = await raw('SELECT part, LENGTH(bytes) AS n, bytes FROM eg_blobs WHERE id = ? ORDER BY part', ['blob-abcdefghijklmnop']);
+    assert.deepEqual(rows.map(r => r.part), [0, 1, 2]);
+    assert.ok(rows.every(r => r.n <= 1024 * 1024 + 28));
+    assert.equal(rows.some(r => Buffer.from(r.bytes).includes(marker)), false);
+    assert.equal(Buffer.compare(await db.getBlob('blob-abcdefghijklmnop'), buf), 0);
+    // writing again replaces it; an empty file is fine too
+    await db.putBlob('blob-abcdefghijklmnop', Buffer.from('short'));
+    assert.equal((await db.getBlob('blob-abcdefghijklmnop')).toString(), 'short');
+    await db.putBlob('blob-empty-0000000000', Buffer.alloc(0));
+    assert.equal((await db.getBlob('blob-empty-0000000000')).length, 0);
+    await db.deleteBlob('blob-abcdefghijklmnop');
+    assert.equal(await db.getBlob('blob-abcdefghijklmnop'), null);
+    await assert.rejects(() => db.getBlob('../etc/passwd'));
+    // shared documents
+    await db.saveDoc('chat:x1', { secret: 'meet at noon' });
+    assert.deepEqual(await db.loadDoc('chat:x1'), { secret: 'meet at noon' });
+    const [doc] = await raw("SELECT doc FROM eg_registry WHERE name = 'doc:chat:x1'");
+    assert.equal(doc.doc.includes('noon'), false);
+    await db.deleteDoc('chat:x1');
+    assert.equal(await db.loadDoc('chat:x1'), null);
+    await db.close();
 });

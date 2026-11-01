@@ -496,3 +496,20 @@
     .ea-sheet .nt-bar .btn-primary span { display: inline; }
     .cal-fieldset { background: var(--cell); }
 }
+
+/* Files on a phone: a list like the Files app */
+@media (max-width: 760px) {
+    .fl-tools { width: 100%; flex-wrap: nowrap; }
+    .fl-search { flex: 1; width: auto; }
+    .fl-tools #newfolder span, .fl-upload span { display: none; }
+    .fl-tools #newfolder, .fl-upload { width: 40px; padding: 0; justify-content: center; }
+    .fl-layout { display: none; }
+    .fl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .fl-list { gap: 1px; border-radius: 12px; overflow: hidden; }
+    .fl-list .fl-item { border-radius: 0; background: var(--cell); animation: none; }
+    .fl-menu { opacity: 1; }
+    .fl-up { grid-template-columns: minmax(0, 1fr) 70px; }
+    .fl-up-bar { display: none; }
+    .fl-pop { left: 8px !important; right: 8px; top: auto !important; bottom: calc(var(--safe-b) + 8px); border-radius: 16px; }
+    .fl-pop button { height: 48px; font-size: 16px; }
+}

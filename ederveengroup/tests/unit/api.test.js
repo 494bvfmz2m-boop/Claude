@@ -47,9 +47,11 @@ async function start(env = {}, opts = {}) {
         return async (method, url, body, extra = {}) => {
             const headers = { 'User-Agent': ua, 'X-EG': '1', ...extra };
             const form = body instanceof FormData;
-            if (body !== undefined && !form) headers['Content-Type'] = 'application/json';
+            const raw = body instanceof Uint8Array; // a file upload
+            if (raw) headers['Content-Type'] = 'application/octet-stream';
+            else if (body !== undefined && !form) headers['Content-Type'] = 'application/json';
             if (jar.size) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
-            const res = await fetch(base + url, { method, headers, body: body === undefined ? undefined : form ? body : JSON.stringify(body), redirect: 'manual' });
+            const res = await fetch(base + url, { method, headers, body: body === undefined ? undefined : form || raw ? body : JSON.stringify(body), redirect: 'manual' });
             for (const c of res.headers.getSetCookie()) {
                 const [kv] = c.split(';');
                 const i = kv.indexOf('=');
@@ -662,5 +664,78 @@ test('Calendar: events are checked, repeat, show up on the hub, and phones can s
     assert.equal((await app.device()('GET', feed)).status, 404);
     assert.equal((await app.device()('GET', new URL(fresh).pathname)).status, 200);
     assert.equal((await app.device()('GET', '/cal/' + 'A'.repeat(40) + '.ics')).status, 404);
+    app.close();
+});
+
+test('Files: upload, folders, room per person, safe downloads, share links', async () => {
+    const app = await start({ FILES_QUOTA_MB: '10', FILES_MAX_MB: '2' });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const up = (name, bytes, q = '') => jo('POST', `/api/files?name=${encodeURIComponent(name)}${q}`, Buffer.from(bytes));
+    assert.equal((await app.device()('GET', '/api/files')).status, 401);
+    assert.match((await jo('GET', '/files/')).body, /js\/files\.js/);
+    const empty = (await jo('GET', '/api/files')).body;
+    assert.deepEqual([empty.items, empty.used, empty.quota, empty.maxFile], [[], 0, 10 * 1048576, 2 * 1048576]);
+    // folders, and uploads into them
+    const docsF = (await jo('POST', '/api/files/folders', { name: 'Documents' })).body;
+    assert.equal((await jo('POST', '/api/files/folders', { name: 'Documents' })).body.name, 'Documents (2)');
+    assert.equal((await jo('POST', '/api/files/folders', { name: '  ' })).status, 400);
+    const note = (await up('notes/../te\u0000st.txt', 'hello there', `&folder=${docsF.id}&type=text/plain`)).body;
+    assert.equal(note.name, 'notes..test.txt'); // no slashes or control characters in names
+    assert.equal(note.folder, docsF.id);
+    assert.equal(note.size, 11);
+    assert.equal((await up('a.txt', 'x', '&folder=nope123')).status, 400);
+    const json = (await up('data.json', '{"a":1}', '&type=application/json')).body; // not parsed as JSON on the way in
+    assert.equal(json.size, 7);
+    const page = (await up('evil.html', '<script>alert(1)</script>', '&type=text/html')).body;
+    // too big, or no room left
+    assert.equal((await up('big.bin', new Uint8Array(2 * 1048576 + 1))).status, 413);
+    // downloads: a text file can be looked at; HTML is always a download, never a page
+    const t = await jo('GET', `/api/files/${note.id}/content?inline=1`);
+    assert.equal(t.body, 'hello there');
+    assert.match(t.headers.get('content-type'), /^text\/plain/);
+    assert.match(t.headers.get('content-security-policy'), /sandbox/);
+    assert.match(t.headers.get('content-disposition'), /^inline; filename="notes..test.txt"/);
+    const h = await jo('GET', `/api/files/${page.id}/content?inline=1`);
+    assert.equal(h.headers.get('content-type'), 'application/octet-stream');
+    assert.match(h.headers.get('content-disposition'), /^attachment/);
+    assert.equal(h.headers.get('x-content-type-options'), 'nosniff');
+    // rename, move, and a folder can't go inside itself
+    assert.equal((await jo('PATCH', `/api/files/${note.id}`, { name: 'hello.txt', folder: '' })).body.folder, '');
+    assert.equal((await jo('PATCH', `/api/files/${json.id}`, { name: 'hello.txt' })).body.name, 'hello (2).txt');
+    const sub = (await jo('POST', '/api/files/folders', { name: 'Sub', folder: docsF.id })).body;
+    assert.match((await jo('PATCH', `/api/files/${docsF.id}`, { folder: sub.id })).body.error, /inside itself/);
+    // share links work without signing in, until switched off
+    const share = (await jo('POST', `/api/files/${note.id}/share`, { on: true })).body;
+    assert.match(share.url, /\/s\/[A-Za-z0-9_-]{22}$/);
+    const guest = app.device();
+    const path1 = new URL(share.url).pathname;
+    assert.equal((await guest('GET', path1)).body, 'hello there');
+    assert.match((await guest('GET', path1)).headers.get('content-disposition'), /^attachment/); // text is downloaded, not shown
+    assert.equal((await jo('GET', '/api/files')).body.items.find(f => f.id === note.id).shared, true);
+    await jo('POST', `/api/files/${note.id}/share`, { on: false });
+    assert.equal((await guest('GET', path1)).status, 404);
+    assert.equal((await guest('GET', '/s/' + 'a'.repeat(22))).status, 404);
+    // someone else can't reach them
+    const ava = app.device();
+    app.mail.verifyLogin = async () => true;
+    await ava('POST', '/mail/api/login', { email: 'ava@example.com', password: 'x' });
+    await ava('POST', '/api/username', { username: 'ava' });
+    assert.equal((await ava('GET', `/api/files/${note.id}/content`)).status, 404);
+    assert.equal((await ava('DELETE', `/api/files/${note.id}`)).status, 404);
+    // deleting a folder takes everything in it
+    await up('in-sub.txt', 'deep', `&folder=${sub.id}`);
+    assert.equal((await jo('DELETE', `/api/files/${docsF.id}`)).body.removed, 3); // Documents, Sub, in-sub.txt
+    const after = (await jo('GET', '/api/files')).body;
+    assert.deepEqual(after.items.map(f => f.name).sort(), ['Documents (2)', 'evil.html', 'hello (2).txt', 'hello.txt']);
+    assert.equal(after.used, 11 + 7 + 25);
+    // the room per person holds
+    let last;
+    for (let i = 0; i < 6; i++) last = await up(`chunk${i}.bin`, new Uint8Array(2 * 1048576 - 10));
+    assert.equal(last.status, 413);
+    assert.match(last.body.error, /doesn’t fit/);
+    // the hub sees them
+    assert.equal((await jo('GET', '/api/apps-summary')).body.files.count, 3 + 5); // five 2 MB files fit in 10 MB
     app.close();
 });

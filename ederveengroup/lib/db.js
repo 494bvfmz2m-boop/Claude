@@ -295,20 +295,25 @@ function createMysqlBackend({ host, port = 3306, database, user, password, ssl =
         },
         async putBlob(id, buf) {
             id = blobId(id);
-            const conn = await pool.getConnection();
-            try {
-                await conn.beginTransaction();
-                await conn.execute('DELETE FROM eg_blobs WHERE id = ?', [id]);
-                for (let part = 0, at = 0; at < buf.length || part === 0; part++, at += CHUNK) {
-                    await conn.execute('INSERT INTO eg_blobs (id, part, bytes) VALUES (?, ?, ?)', [id, part, sealBytes(key, buf.subarray(at, at + CHUNK))]);
+            // no transaction or up-front delete: those take range locks that make parallel
+            // uploads deadlock. Ids are new random ones; replacing one just trims leftover pieces.
+            const parts = Math.max(1, Math.ceil(buf.length / CHUNK));
+            const retry = async fn => {
+                for (let i = 0; ; i++) {
+                    try {
+                        return await fn();
+                    } catch (err) {
+                        if (err.errno !== 1213 || i >= 3) throw err; // deadlock: try again
+                        await new Promise(r => setTimeout(r, 30 * (i + 1)));
+                    }
                 }
-                await conn.commit();
-            } catch (err) {
-                await conn.rollback().catch(() => {});
-                throw err;
-            } finally {
-                conn.release();
+            };
+            for (let part = 0; part < parts; part++) {
+                const bytes = sealBytes(key, buf.subarray(part * CHUNK, (part + 1) * CHUNK));
+                await retry(() => q('INSERT INTO eg_blobs (id, part, bytes) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE bytes = VALUES(bytes)', [id, part, bytes]));
             }
+            const [{ n }] = await q('SELECT COUNT(*) AS n FROM eg_blobs WHERE id = ?', [id]);
+            if (Number(n) > parts) await retry(() => q('DELETE FROM eg_blobs WHERE id = ? AND part >= ?', [id, parts]));
         },
         async getBlob(id) {
             const rows = await q('SELECT bytes FROM eg_blobs WHERE id = ? ORDER BY part', [blobId(id)]);

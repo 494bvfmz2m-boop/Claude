@@ -57,6 +57,11 @@ function loadConfig(env = process.env) {
         allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',
         // MySQL / MariaDB; without DB_HOST everything is kept in files in the data folder
         db: dbSetting(env),
+        // the Files app: room per person, and the biggest single file (in MB)
+        files: {
+            quota: Math.max(10, Number(env.FILES_QUOTA_MB) || 1024) * 1024 * 1024,
+            maxFile: Math.min(500, Math.max(1, Number(env.FILES_MAX_MB) || 100)) * 1024 * 1024
+        },
         // "Sign in with Microsoft / Google": set the client ID and secret from each provider's console
         oauth: {
             google: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : null,

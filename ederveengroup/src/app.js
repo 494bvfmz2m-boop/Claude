@@ -143,6 +143,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.use('/api', require('./routes/hub')(ctx));
     // a calendar subscription for phones (the address itself is the secret)
     site.get(/^\/cal\/([A-Za-z0-9_-]{20,400})\.ics$/, (req, res, next) => ((req.params.token = req.params[0]), ctx.calendarFeed(req, res, next)));
+    // a file someone shared from Files (the address itself is the secret)
+    site.get('/s/:token', (req, res, next) => ctx.sharedFile(req, res, next));
     // Profile: the editor and everyone's public cards (/profile/#/username) are one page
     // (Express treats /profile and /profile/ alike, so one handler adds the slash the page needs)
     site.get('/profile', (req, res) => (req.path.endsWith('/') ? ctx.pages.send(res, 'profile.html') : res.redirect(301, '/profile/')));

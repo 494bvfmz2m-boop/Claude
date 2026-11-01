@@ -17,6 +17,8 @@
         { id: 'profile', name: 'Profile', icon: 'user', href: '/profile/', blurb: 'Your contact card, ready to share with a link.', tint: 'linear-gradient(140deg, #22d3ee, #4c8dff)' },
         { id: 'notes', name: 'Notes', icon: 'note', href: '/notes/', blurb: 'Quick private notes, saved as you type.', tint: 'linear-gradient(140deg, #f5c542, #fb923c)' },
         { id: 'tasks', name: 'Tasks', icon: 'tasks', href: '/tasks/', blurb: 'Your to-do list, with due dates.', tint: 'linear-gradient(140deg, #34d399, #0ea5e9)' },
+        { id: 'calendar', name: 'Calendar', icon: 'calendar', href: '/calendar/', blurb: 'Appointments and deadlines, also on your phone.', tint: 'linear-gradient(140deg, #ff6b6b, #ff3b30)' },
+        { id: 'files', name: 'Files', icon: 'folder', href: '/files/', blurb: 'Your documents and photos, with share links.', tint: 'linear-gradient(140deg, #5aa2ff, #2f6bff)' },
         { id: 'contacts', name: 'Contacts', icon: 'book', href: '/contacts/', blurb: 'Your address book, and everyone on EderveenGroup.', tint: 'linear-gradient(140deg, #8b5cf6, #ec4899)' },
         { id: 'admin', name: 'Admin', icon: 'shield', href: '/admin/', blurb: 'Requests, people and who may sign in.', tint: 'linear-gradient(140deg, #af52de, #ff5e8a)', admin: true }
     ];
