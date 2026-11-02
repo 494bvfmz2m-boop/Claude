@@ -3,7 +3,7 @@
 // is never changed: you download an edited copy or save one to Files. Admins can let Claude
 // edit a photo (Admin → AI).
 (function () {
-    const { $, $$, esc, ic, call, toast, upload, phone } = window.EG;
+    const { $, $$, esc, ic, call, toast, upload, phone, typing: textBox, undoKey } = window.EG;
     const FX = window.EGFX;
     const root = $('#photoedit');
     const ASPECTS = [['free', 'Free'], ['original', 'Original'], ['1:1', 'Square'], ['4:5', '4:5'], ['16:9', '16:9'], ['9:16', '9:16'], ['3:2', '3:2'], ['2:3', '2:3']];
@@ -22,6 +22,7 @@
     let sel = null; // the selected text or sticker
     let comparing = false;
     let aiOn = false;
+    let aiName = 'Claude'; // the AI service set up in Admin → AI
     let brush = { color: '#ffffff', size: 1.2 };
     const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -495,9 +496,9 @@
                 ${slider('brush', 'Brush size', 0.3, 6, brush.size, 'step="0.1"')}
                 <button class="btn btn-ghost danger pe-wide" data-cleardraw>${ic('eraser')}<span>Clear drawing</span></button>`;
         } else if (tool === 'ai') {
-            p.innerHTML = `<div class="pe-phead"><h3>AI edit</h3></div><p class="ad-muted">Claude looks at the photo and edits it: light, colour, a look, crop and straightening. Everything it changes stays adjustable, and Undo takes it back.</p>
+            p.innerHTML = `<div class="pe-phead"><h3>AI edit</h3></div><p class="ad-muted">${esc(aiName)} looks at the photo and edits it: light, colour, a look, crop and straightening. Everything it changes stays adjustable, and Undo takes it back.</p>
                 <textarea class="input pe-ta" id="wish" rows="3" placeholder="Optional: what you want, e.g. “warm and moody”, “make it pop for Instagram”, “fix the dark faces”">${esc(wish)}</textarea>
-                <button class="btn btn-primary pe-wide" data-ai>${ic('zap')}<span>Edit with Claude</span></button><p class="ad-muted pe-note" id="ainote"></p>`;
+                <button class="btn btn-primary pe-wide" data-ai>${ic('zap')}<span>Edit with ${esc(aiName)}</span></button><p class="ad-muted pe-note" id="ainote"></p>`;
         }
     }
     // little previews of each look
@@ -705,7 +706,7 @@
     async function aiEdit(btn) {
         wish = $('#wish').value;
         btn.disabled = true;
-        btn.innerHTML = `<span class="spinner sm"></span><span>Claude is editing…</span>`;
+        btn.innerHTML = `<span class="spinner sm"></span><span>${esc(aiName)} is editing…</span>`;
         try {
             const ph = photoForAi();
             const r = await call('/api/ai/photo', { method: 'POST', body: { photo: ph.data, wish, size: { w: ph.w, h: ph.h } } });
@@ -736,12 +737,12 @@
             layout();
             panel();
             $('#ainote').textContent = ed.note || 'Done.';
-            toast('Edited by Claude. Undo takes it back.');
+            toast(`Edited by ${aiName}. Undo takes it back.`);
         } catch (e) {
             toast(e.message, { bad: true });
         }
         btn.disabled = false;
-        btn.innerHTML = `${ic('zap')}<span>Edit with Claude</span>`;
+        btn.innerHTML = `${ic('zap')}<span>Edit with ${esc(aiName)}</span>`;
     }
 
     /* ---------- undo ---------- */
@@ -762,10 +763,11 @@
     }
     addEventListener('keydown', e => {
         if (!img || !$('#gl')) return;
+        // undo and redo work everywhere, also right after moving a slider (not while typing in a box)
+        const u = undoKey(e);
+        if (u && !textBox(e)) return (e.preventDefault(), u === 'undo' ? step(undo, redo) : step(redo, undo));
         if (e.target.closest && e.target.closest('input, textarea, select')) return;
         const k = e.key.toLowerCase();
-        if ((e.ctrlKey || e.metaKey) && k === 'z') return (e.preventDefault(), e.shiftKey ? step(redo, undo) : step(undo, redo));
-        if ((e.ctrlKey || e.metaKey) && k === 'y') return (e.preventDefault(), step(redo, undo));
         if ((k === 'delete' || k === 'backspace') && sel) {
             e.preventDefault();
             remember();
@@ -853,6 +855,7 @@
     // open straight from Photos or Files: /photoedit/#file=<id>
     Promise.all([call('/api/ai/status').catch(() => ({ on: false }))]).then(([s]) => {
         aiOn = !!s.on;
+        aiName = s.name || 'AI';
         const m = /^#file=([A-Za-z0-9_-]+)$/.exec(location.hash);
         if (m) {
             call('/api/files')

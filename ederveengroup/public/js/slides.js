@@ -2,7 +2,7 @@
 // text boxes, shapes and pictures you drag around, speaker notes and a full-screen slide show.
 // Downloads as PowerPoint (.pptx) or PDF; opens PowerPoint files.
 (function () {
-    const { $, $$, esc, ic, call, toast, ask, debounce, ago, phone } = window.EG;
+    const { $, $$, esc, ic, call, toast, ask, debounce, ago, phone, typing: textBox, undoKey } = window.EG;
     const K = window.SlideKit;
     const root = $('#slides');
     const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96];
@@ -949,6 +949,9 @@
             return saveNow();
         }
         const t = e.target;
+        // Ctrl Z / Ctrl Y (and Ctrl Shift Z) undo the deck's changes, except while typing, where they undo the typing
+        const u = undoKey(e);
+        if (u && deck.canEdit && !textBox(e)) return (e.preventDefault(), u === 'undo' ? step(undo, redo) : step(redo, undo));
         if (t.closest && (t.closest('[contenteditable="true"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
         if (!deck.canEdit) {
             if (['ArrowDown', 'PageDown'].includes(e.key)) go(cur + 1);

@@ -193,5 +193,76 @@
         return res.ok;
     }
 
-    window.EG = { $, $$, esc, ic: n => window.icon(n), call, toast, ask, id, debounce, ago, hue, initials, phone, upload, takenAt, preview, thumbFor };
+    /* ---------- undo and redo ---------- */
+    /** typing in a text box? There Ctrl Z undoes the typing, as everywhere; sliders, ticks and menus don't count */
+    function typing(e) {
+        const t = e.target;
+        if (!t || !t.tagName) return false;
+        if (t.isContentEditable || t.tagName === 'TEXTAREA') return true;
+        return t.tagName === 'INPUT' && !/^(range|checkbox|radio|button|submit|reset|color|file|image)$/i.test(t.type);
+    }
+    /** Ctrl/⌘ Z → 'undo'; Ctrl/⌘ Shift Z and Ctrl Y → 'redo' */
+    function undoKey(e) {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return null;
+        const k = (e.key || '').toLowerCase();
+        if (k === 'z') return e.shiftKey ? 'redo' : 'undo';
+        if (k === 'y' && !e.shiftKey) return 'redo';
+        return null;
+    }
+    /**
+     * Undo for an app that calls note() after each change: it keeps snapshots of get(), and set()
+     * puts one back. Changes in quick succession (typing a name) count as one step.
+     */
+    function undoable(get, set, { limit = 100, merge = 600 } = {}) {
+        let back = [];
+        let ahead = [];
+        let last = null;
+        let at = 0;
+        const now = () => JSON.stringify(get());
+        return {
+            reset() {
+                back = [];
+                ahead = [];
+                last = now();
+                at = 0;
+            },
+            note() {
+                const cur = now();
+                if (last === null) return void (last = cur);
+                if (cur === last) return;
+                const t = Date.now();
+                if (!(t - at < merge && back.length)) {
+                    back.push(last);
+                    if (back.length > limit) back.shift();
+                }
+                at = t;
+                ahead = [];
+                last = cur;
+            },
+            undo() {
+                if (!back.length) return false;
+                ahead.push(now());
+                last = back.pop();
+                at = 0;
+                set(JSON.parse(last));
+                return true;
+            },
+            redo() {
+                if (!ahead.length) return false;
+                back.push(now());
+                last = ahead.pop();
+                at = 0;
+                set(JSON.parse(last));
+                return true;
+            },
+            get canUndo() {
+                return back.length > 0;
+            },
+            get canRedo() {
+                return ahead.length > 0;
+            }
+        };
+    }
+
+    window.EG = { $, $$, esc, ic: n => window.icon(n), call, toast, ask, id, debounce, ago, hue, initials, phone, upload, takenAt, preview, thumbFor, typing, undoKey, undoable };
 })();

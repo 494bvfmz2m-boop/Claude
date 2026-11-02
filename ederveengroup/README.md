@@ -33,8 +33,9 @@ On a computer it wears **Midnight aurora**: a near-black sky with slow aurora li
 - **Planner, like Microsoft Planner or Trello.** Boards with columns (start blank, or from a project, week planner or trip) and cards you drag from column to column, also with a long press on a phone. A card has labels (named per board), a due date (late, today and soon stand out), people on it, notes and a checklist; dropping it in Done marks it done. Filter cards or show only yours, pick a background, and share a board to plan together. The dashboard shows what's due for you this week.
 - **Whiteboard.** An endless canvas with pen, highlighter, eraser, lines, arrows, rectangles, circles, text and sticky notes; select, move, resize, duplicate and undo; pan and zoom (pinch on a phone). Share a whiteboard to draw on it together, and download it as PNG or SVG.
 - **Photo Editor.** Open a photo from your device, from Files, or with the pencil button in Photos. **Adjust** light and colour (exposure, contrast, highlights, shadows, saturation, vibrance, warmth, tint, fade, vignette, sharpen, blur, grain, with a one-tap Auto), pick one of 14 **Looks**, add **Effects** (glitch, pixelate, sepia, invert…), **Crop** to a shape, rotate, flip and straighten, and add **text** (fonts, colours, outline/box styles), **stickers** and **drawing**. Everything runs on the graphics card, so sliders are live even on a phone. Undo/redo, hold **Before** to compare, then download a full-size JPEG, PNG or WebP, or save it to Files → Edited photos.
-- **Video Editor, like CapCut.** Make a project in 16:9, 9:16 (TikTok, Reels, Shorts), 1:1 or 4:5 and import videos, photos and music (they're kept in Files → Video Editor, so a project opens on any device). On the timeline you drag clips to reorder them, drag their ends to trim, split at the playhead (S), copy and delete, change speed (0.25× to 4×) and volume, and choose Fill or Fit (on a blurred, black or white background). Each clip gets the Photo Editor's looks and adjustments, plus effects (zoom in/out, pulse, shake, glitch, flash, black & white, blur in) and a transition into the next clip (fade, dip to black or white, slide, zoom, wipe). Add titles and captions (styles, fonts, colours, fade/pop/slide/typewriter animations) and drag them on the video, and add music with fade in/out. **Export** plays the edit once while recording it into a 1080p or 720p video file (MP4 where the browser can make one, otherwise WebM) to download or save to Files. Undo/redo, keyboard shortcuts, autosave, and projects can be shared like docs.
-- **Auto edit with Claude (admins).** Admins get an **Auto edit** button in the Video Editor and an **AI edit** tool in the Photo Editor. For a video, Claude looks at frames from every clip, how loud each second is (cheering, laughter, speech) and the beat of your music, then builds the whole edit from your brief (“a fast 30-second recap of our holiday for Instagram, with a title”): the best moments, their order and speed, looks, effects, transitions, titles and the music, cut to the beat. You can change anything afterwards, and Undo takes it all back. For a photo it chooses the adjustments, a look, a crop and straightening. It runs on your own Claude API key; see [Auto editing with Claude](#auto-editing-with-claude).
+- **Video Editor, like CapCut.** Make a project in 16:9, 9:16 (TikTok, Reels, Shorts), 1:1 or 4:5 and import videos, photos and music (they're kept in Files → Video Editor, so a project opens on any device). On the timeline you drag clips to reorder them, drag their ends to trim, split at the playhead (S), add a **freeze frame** (F), copy and delete, change speed (0.25× to 4×) and volume, and choose Fill or Fit. Place each clip in the frame with **size, position, rotation, mirror and flip** (or drag the picture on the video), on a blurred, black, white or coloured background, and **fade** it in and out. Each clip gets the Photo Editor's looks and adjustments, plus **27 effects** (zoom, slow zoom, pans, pulse, heartbeat, shake, earthquake, wobble, spin in, glitch, VHS, RGB split, old film, pixel in, flash, strobe, invert flash, black & white, colour in, dream, rainbow, blur in/out) and one of **21 transitions** into the next clip (fade, dip to black or white, flash, slides in four directions, cover, zoom in/out, spin, wipes, diagonal, circle, split, blur, whip pan, glitch, pixelate). Add titles and captions in 9 styles (shadow, outline, box, title, neon, highlight, retro, gradient…) with 11 animations (fade, pop, slide, drop, bounce, zoom, typewriter, wave, blur in, flicker…), and music with fade in/out. **Export** plays the edit once while recording it into a 1080p or 720p video file (MP4 where the browser can make one, otherwise WebM) to download or save to Files. Projects can be duplicated, cleared (**Clear timeline**, with Undo) or deleted (the footage stays in Files), and shared like docs.
+- **Auto edit with AI (admins).** Admins get an **Auto edit** button in the Video Editor and an **AI edit** tool in the Photo Editor. For a video, the AI looks at frames from every clip, how loud each second is (cheering, laughter, speech) and the beat of your music, then builds the whole edit from your brief (“a fast 30-second recap of our holiday for Instagram, with a title”): the best moments, their order and speed, looks, effects, transitions, titles and the music, cut to the beat. You can change anything afterwards, and Undo takes it all back. For a photo it chooses the adjustments, a look, a crop and straightening. It runs on your own API key: Claude by default, or Gemini, Groq, OpenAI, OpenRouter, Mistral, Grok or any OpenAI-compatible service (also Ollama or LM Studio on your own computer); see [Auto editing with AI](#auto-editing-with-ai).
+- **Undo and redo everywhere.** Ctrl Z (⌘ Z) undoes and Ctrl Y or Ctrl Shift Z redoes in Docs, Spreadsheets, Slides, Forms, Planner, Whiteboard and both editors, also right after you moved a slider or picked from a menu. In a text box they undo your typing, as usual.
 - **A username for everyone.** The first time someone signs in (Purelymail or an added mail server), they choose a username, checked live as they type, with free alternatives when a name is taken. Names are unique, and a few are reserved for the site.
 - **Profile.** Write your card once (name, what you do, company, location, bio, email with a show/hide switch, phone, website, and LinkedIn, X, Instagram, GitHub, TikTok or YouTube), with a live preview. The card can use your Mail photo, its own photo, or none. Anyone with your link gets Email/Call/Website buttons, **Save contact** (a vCard with your photo), Share and a QR code. Nothing is public until you save it, and you can make it private again at any time.
 - **New-mail chime** while the app is open (Settings, then General). On iPhone it starts working after your first tap, as Safari requires.
@@ -122,7 +123,7 @@ Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypt
 4. **Persistent Storage → Volume** mounted at **`/data`** (keeps sign-ins, settings, photos and 2FA across deploys).
 5. Deploy. No environment variables are needed: the image runs as a non-root user, trusts Coolify's proxy (`TRUST_PROXY=1`) and has a health check.
 
-**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.3*) shows which release is live.
+**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.4*) shows which release is live.
 
 ### Docker
 
@@ -220,15 +221,26 @@ Good to know: `https://mail.google.com/` is a *restricted* scope. While the app 
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from step 3 above |
 | `PUBLIC_URL` | optional: `https://yourdomain`, if the redirect address comes out wrong behind your proxy |
 
-## Auto editing with Claude
+## Auto editing with AI
 
-Auto edit is only for admins (the addresses in `ADMIN_EMAILS` and people made admin in Admin → People), because it runs on your Anthropic account.
+Auto edit is only for admins (the addresses in `ADMIN_EMAILS` and people made admin in Admin → People), because it runs on your own API key. Set it up in **Admin → AI**: pick a service, follow its **Get a key** steps, paste the key and press **Save**, then **Test**. Keys are stored encrypted and never shown again (only their last four characters). Each service keeps its own key; **Use … for auto editing** switches between them.
 
-1. Create an API key at [console.anthropic.com](https://console.anthropic.com) → **API keys** (it starts with `sk-ant-`), and add some credit under **Billing**.
-2. In EderveenGroup: **Admin → AI**, paste the key and press **Save**, then **Test**. The key is stored encrypted and is never shown again (only its last four characters). **Or** set it as the environment variable `ANTHROPIC_API_KEY` in Coolify and redeploy; a key set there wins over one saved in Admin.
-3. Choose the model under **Model**: **Claude Opus 5.5** (the default, best edits), Claude Sonnet 5.5 (faster, cheaper) or Claude Haiku 5.5 (fastest, cheapest). If Claude Opus or Sonnet declines a request, it's retried on Anthropic's recommended fallback model automatically.
+| Service | Where to get a key | Or set on the server |
+| --- | --- | --- |
+| **Claude** (Anthropic, the default) | console.anthropic.com → API keys | `ANTHROPIC_API_KEY` |
+| Gemini (Google) | aistudio.google.com/apikey | `GEMINI_API_KEY` |
+| Groq | console.groq.com/keys | `GROQ_API_KEY` |
+| OpenAI | platform.openai.com/api-keys | `OPENAI_API_KEY` |
+| OpenRouter | openrouter.ai/keys | `OPENROUTER_API_KEY` |
+| Mistral | console.mistral.ai → API keys | `MISTRAL_API_KEY` |
+| Grok (xAI) | console.x.ai | `XAI_API_KEY` |
+| Other (any OpenAI-compatible API: Together, DeepSeek, Ollama, LM Studio…) | that service | `AI_API_KEY` and `AI_BASE_URL` |
 
-What it costs depends on the model and how much footage there is: a video auto edit sends 3 to 12 small frames (512 pixels) per clip, at most 90, plus some text, a photo one picture. **Admin → AI** shows this month's auto edits and tokens; the exact cost is on console.anthropic.com under **Usage**. Each admin can do 40 auto edits an hour. Only frames, loudness numbers and beat times leave your server, never the video files themselves.
+A key set in Coolify's environment variables wins over one pasted in Admin. For **Other**, give the service's API address (like `https://api.together.xyz/v1`); plain `http://` is only allowed for this computer or your own network, like `http://localhost:11434/v1` for Ollama (type any word as the key).
+
+**Models.** For Claude choose **Claude Opus 5.5** (the default, best edits), Claude Sonnet 5.5 (faster, cheaper) or Claude Haiku 5.5 (fastest, cheapest); if Claude Opus or Sonnet declines a request, it's retried on Anthropic's recommended fallback model automatically. For the other services, press **Load models** to see what your key can use and pick one that can look at pictures (vision). Claude answers in an exact format (structured outputs); the other services are asked for JSON and their answer is checked the same way, so a weak model may need another try.
+
+**Costs.** Each service bills its own account, separately from any chat subscription (Claude.ai, ChatGPT, Gemini). A video auto edit sends 3 to 12 small frames (512 pixels) per clip, plus some text; **Pictures per video auto edit** (1–90) limits how many, and some services (like Groq's vision models) take only a few. A photo edit sends one picture. **Admin → AI** shows this month's auto edits and tokens for all services together; the exact cost is on each service's own site. Each admin can do 40 auto edits an hour. Only frames, loudness numbers and beat times leave your server, never the video files themselves.
 
 ## Two-step verification and Purelymail
 
@@ -246,7 +258,7 @@ IMAP and SMTP have no way to ask for a second factor, so no mail app can show Pu
 - Strict Content-Security-Policy, HSTS over HTTPS, no framing, locked-down Permissions-Policy, cross-origin isolation
 - Incoming mail is sanitized server-side and rendered in a script-less sandbox; remote images are blocked by default
 - The Photo and Video Editors work in the browser: photos and video are edited and exported on the device, and the server only keeps the files and the edit (checked on save: known footage only, every number in range)
-- Auto edit with Claude is admin-only and rate-limited; the API key is stored encrypted (or kept in the server's environment) and never sent to the browser, and Claude's answer is checked before an editor uses it
+- Auto edit is admin-only and rate-limited; API keys are stored encrypted (or kept in the server's environment) and never sent to the browser, a custom AI address must use https (plain http only on this computer or the local network), and the AI's answer is checked before an editor uses it
 - Office files: documents are cleaned when saved (only allowed formatting, pictures only as embedded images), uploaded Word/Excel/PowerPoint files are read as data, never run, and a form's answers go into Excel and CSV downloads as plain values, so nothing anyone types into a form can turn into a formula. A form's public link answers only with its questions, and sending is rate-limited per address and per form
 - Sender photos are fetched by the server, so senders never see your IP
 - 2FA codes can't be replayed; recovery codes are single-use and stored hashed
@@ -264,7 +276,7 @@ src/               The app: config, security, pages, settings validation, 2FA, d
                    routes/ (hub = site-wide API for usernames and Profile; apps = Notes/Tasks/Contacts/Calendar
                    and the dashboard's summary; files = Files and Photos; dav = the network drive and app
                    passwords; docs = Docs, Spreadsheets, Slides, Planner and Whiteboard;
-                   chat = Chat; ai = Auto edit with Claude (Admin → AI);
+                   chat = Chat; ai = Auto edit with AI (Admin → AI);
                    forms = Forms' responses and the public link;
                    oauth = Sign in with Microsoft/Google; servers = requests and the Admin API;
                    auth, twofa, account, mail, events)
@@ -273,7 +285,7 @@ lib/vault.js       File contents on disk, encrypted in 4 MB pieces (any range re
 lib/docs.js        Shared documents (docs index, news, activity log, share links), cached and written back
 lib/office.js      Word, Excel and PowerPoint files (and PDF): downloads and opening uploaded files
 lib/forms.js       Forms: questions, checking answers, responses for Excel/CSV/Spreadsheets
-lib/ai.js          Auto editing with Claude: what it's sent, the edit it must answer with, checking that answer
+lib/ai.js          Auto editing with AI: Claude (Anthropic SDK) and OpenAI-compatible services, what they're sent, checking the answer
 public/js/formula.js  The spreadsheet formula engine (the browser and the server share it)
 public/js/slidekit.js Slide themes and layouts (the editor and the .pptx/PDF downloads share them)
 public/js/imagefx.js  The looks, adjustments and effects on the graphics card (WebGL), for both editors

@@ -3092,6 +3092,21 @@ a.btn { text-decoration: none; }
 .ai-model b { display: block; font-weight: 600; }
 .ai-model small { color: var(--text-2); font-size: 13px; }
 .ai-use .ad-tile { cursor: default; }
+.ai-provs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.ai-prov { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: 11px 13px; border-radius: 12px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-align: left; transition: box-shadow .2s, transform .2s var(--ease); }
+.ai-prov:hover { box-shadow: inset 0 0 0 1px var(--line-2); transform: translateY(-1px); }
+.ai-prov.on { box-shadow: inset 0 0 0 2px var(--accent); }
+.ai-prov b { font-weight: 600; }
+.ai-prov small { color: var(--text-3); font-size: 12px; line-height: 1.3; }
+.ai-prov i { margin-top: 6px; font-style: normal; }
+.ai-use-this { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.ai-modelrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ai-modelrow .input { flex: 1 1 240px; height: 40px; font-family: var(--mono, ui-monospace, monospace); font-size: 13.5px; }
+.ai-modelrow .btn { height: 40px; }
+.ai-frames { display: grid; grid-template-columns: 1fr 96px; align-items: center; gap: 4px 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ai-frames span { font-weight: 500; }
+.ai-frames .input { height: 38px; text-align: center; }
+.ai-frames small { grid-column: 1 / -1; color: var(--text-3); font-size: 12.5px; }
 
 /* ---------- Photo Editor ---------- */
 .pe-office .pf-top { display: none; }
@@ -3233,6 +3248,43 @@ a.btn { text-decoration: none; }
 @keyframes veGlitch { 0%, 60% { transform: none; filter: none; } 70% { transform: translateX(-4px); filter: hue-rotate(90deg) saturate(2); } 80% { transform: translateX(3px) skewX(8deg); filter: hue-rotate(-60deg); } 90% { transform: translateX(-1px); filter: invert(.15); } }
 @keyframes veFlash { 0% { filter: brightness(3); } 35%, 100% { filter: brightness(1); } }
 @keyframes veBlurIn { 0% { filter: blur(5px); } 45%, 100% { filter: blur(0); } }
+.fx-slow_zoom::before { animation-name: veSlowZoom !important; animation-duration: 3s !important; }
+.fx-pan_left::before { animation-name: vePanL !important; }
+.fx-pan_right::before { animation-name: vePanR !important; }
+.fx-pan_up::before { animation-name: vePanU !important; }
+.fx-pan_down::before { animation-name: vePanD !important; }
+.fx-heartbeat::before { animation-name: veHeart !important; animation-duration: 1s !important; }
+.fx-earthquake::before { animation-name: veQuake !important; animation-duration: .25s !important; filter: blur(.6px); }
+.fx-wobble::before { animation-name: veWobble !important; }
+.fx-spin_in::before { animation-name: veSpinIn !important; animation-duration: 1.6s !important; }
+.fx-vhs::before { animation-name: veGlitch !important; animation-duration: 1.2s !important; animation-timing-function: steps(1) !important; filter: saturate(.7) contrast(.85) brightness(1.08); }
+.fx-rgb_split::before { animation-name: veRgb !important; animation-duration: 1.4s !important; }
+.fx-film::before { animation-name: veFilm !important; animation-duration: .5s !important; animation-timing-function: steps(1) !important; filter: sepia(.55) contrast(1.1); }
+.fx-pixel_in::before { animation-name: vePixel !important; }
+.fx-strobe::before { animation-name: veStrobe !important; animation-duration: .25s !important; animation-timing-function: steps(1) !important; }
+.fx-invert_flash::before { animation-name: veInvert !important; animation-duration: 1s !important; animation-timing-function: steps(1) !important; }
+.fx-color_in::before { animation-name: veColorIn !important; }
+.fx-dream::before { animation-name: veDream !important; animation-duration: 3s !important; filter: blur(1.2px) brightness(1.15) saturate(1.2); }
+.fx-rainbow::before { animation-name: veRainbow !important; animation-duration: 3s !important; animation-timing-function: linear !important; }
+.fx-blur_out::before { animation-name: veBlurOut !important; }
+@keyframes veSlowZoom { from { transform: scale(1); } to { transform: scale(1.1); } }
+@keyframes vePanL { from { transform: scale(1.25) translateX(8%); } to { transform: scale(1.25) translateX(-8%); } }
+@keyframes vePanR { from { transform: scale(1.25) translateX(-8%); } to { transform: scale(1.25) translateX(8%); } }
+@keyframes vePanU { from { transform: scale(1.25) translateY(8%); } to { transform: scale(1.25) translateY(-8%); } }
+@keyframes vePanD { from { transform: scale(1.25) translateY(-8%); } to { transform: scale(1.25) translateY(8%); } }
+@keyframes veHeart { 0%, 40%, 100% { transform: scale(1); } 8% { transform: scale(1.12); } 28% { transform: scale(1.07); } }
+@keyframes veQuake { 0%, 100% { transform: scale(1.15) translate(0, 0); } 25% { transform: scale(1.15) translate(-5px, 3px); } 50% { transform: scale(1.15) translate(5px, -3px); } 75% { transform: scale(1.15) translate(-3px, -4px); } }
+@keyframes veWobble { 0%, 100% { transform: scale(1.12) rotate(-3deg); } 50% { transform: scale(1.12) rotate(3deg); } }
+@keyframes veSpinIn { 0% { transform: scale(1.5) rotate(-35deg); } 45%, 100% { transform: scale(1) rotate(0); } }
+@keyframes veRgb { 0%, 100% { filter: drop-shadow(2px 0 0 rgba(255, 0, 60, .8)) drop-shadow(-2px 0 0 rgba(0, 220, 255, .8)); } 50% { filter: drop-shadow(4px 0 0 rgba(255, 0, 60, .8)) drop-shadow(-4px 0 0 rgba(0, 220, 255, .8)); } }
+@keyframes veFilm { 0%, 50% { opacity: 1; } 25%, 75% { opacity: .82; } }
+@keyframes vePixel { 0% { filter: blur(4px) contrast(2); } 40%, 100% { filter: none; } }
+@keyframes veStrobe { 0% { filter: brightness(1.8); } 50% { filter: brightness(.85); } }
+@keyframes veInvert { 0% { filter: invert(1); } 12%, 100% { filter: none; } }
+@keyframes veColorIn { 0% { filter: grayscale(1); } 70%, 100% { filter: grayscale(0); } }
+@keyframes veDream { 0%, 100% { transform: scale(1.04); } 50% { transform: scale(1.09); } }
+@keyframes veRainbow { from { filter: hue-rotate(0); } to { filter: hue-rotate(360deg); } }
+@keyframes veBlurOut { 0%, 55% { filter: blur(0); } 100% { filter: blur(5px); } }
 @media (prefers-reduced-motion: reduce) { .ve-effi::before { animation: none !important; } }
 
 .ve-bar { display: flex; align-items: center; gap: 2px; padding: 4px 8px; background: var(--surface); box-shadow: inset 1px 0 0 var(--line), inset -1px 0 0 var(--line); border-top: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
@@ -3266,7 +3318,9 @@ a.btn { text-decoration: none; }
 .ve-up { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: rgba(0, 0, 0, .4); pointer-events: none; }
 .ve-up i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
 .ve-miss { position: absolute; left: 6px; top: 6px; color: #ffb3b8; font-size: 11px; pointer-events: none; }
-.ve-h { position: absolute; top: 0; bottom: 0; z-index: 2; width: 12px; cursor: ew-resize; }
+/* trim handles work once the clip (or title, or song) is selected, so short ones stay easy to tap */
+.ve-h { position: absolute; top: 0; bottom: 0; z-index: 2; width: 12px; cursor: ew-resize; pointer-events: none; }
+.on > .ve-h { pointer-events: auto; }
 .ve-h.l { left: 0; }
 .ve-h.r { right: 0; }
 .on > .ve-h { background: #fff; }
@@ -3300,7 +3354,47 @@ a.btn { text-decoration: none; }
 .tr-slide_up { background: linear-gradient(var(--a) 50%, var(--b) 50%); }
 .tr-zoom { background: radial-gradient(circle, var(--b) 0 34%, var(--a) 36%); }
 .tr-wipe { background: linear-gradient(110deg, var(--b) 48%, #fff 48% 52%, var(--a) 52%); }
+.tr-flash { background: linear-gradient(90deg, var(--a), #fff 40% 60%, var(--b)); }
+.tr-slide_right { background: linear-gradient(90deg, var(--b) 50%, var(--a) 50%); }
+.tr-slide_down { background: linear-gradient(var(--b) 50%, var(--a) 50%); }
+.tr-cover { background: linear-gradient(90deg, var(--a) 45%, rgba(0, 0, 0, .5) 45% 50%, var(--b) 50%); }
+.tr-zoom_out { background: radial-gradient(circle, var(--a) 0 34%, var(--b) 36%); }
+.tr-spin { background: conic-gradient(var(--a) 0 50%, var(--b) 50%); }
+.tr-wipe_up { background: linear-gradient(0deg, var(--b) 48%, #fff 48% 52%, var(--a) 52%); }
+.tr-wipe_diag { background: linear-gradient(135deg, var(--b) 48%, #fff 48% 52%, var(--a) 52%); }
+.tr-circle { background: radial-gradient(circle, var(--b) 0 40%, #fff 41% 46%, var(--a) 47%); }
+.tr-split { background: linear-gradient(90deg, var(--a) 28%, var(--b) 28% 72%, var(--a) 72%); }
+.tr-blur { background: linear-gradient(90deg, var(--a), color-mix(in srgb, var(--a) 50%, var(--b)), var(--b)); filter: blur(1.5px); }
+.tr-whip { background: linear-gradient(90deg, var(--a) 20%, color-mix(in srgb, var(--a) 50%, var(--b)) 50%, var(--b) 80%); filter: blur(.8px); }
+.tr-glitch { background: linear-gradient(var(--a) 0 30%, var(--b) 30% 45%, var(--a) 45% 70%, var(--b) 70%); }
+.tr-pixelate { background: conic-gradient(var(--a) 0 25%, var(--b) 0 50%, var(--a) 0 75%, var(--b) 0) 0 0 / 9px 9px; }
 
+.ve-trgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 6px 0 10px; }
+.ve-trgrid button { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border-radius: 8px; color: var(--text-2); font-size: 12.5px; text-align: left; box-shadow: inset 0 0 0 1px var(--line); }
+.ve-trgrid button:hover { background: var(--hover); color: var(--text); }
+.ve-trgrid button.on { color: var(--text); background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.ve-insp .pe-row .btn { gap: 6px; height: 34px; padding: 0 8px; font-size: 13px; }
+.ve-insp .pe-row .btn.on { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-ink); }
+.ve-insp .pe-row .btn-ghost { flex: 0 0 38px; }
+.ve-label small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.ve-freeze { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: 13px; }
+.ve-freeze .i { flex: none; width: 16px; height: 16px; color: var(--accent-ink); }
+.ve-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.ve-acts .btn { height: 34px; padding: 0 11px; font-size: 13px; }
+.ve-m button + button { color: var(--text-3); }
+.ve-tool:disabled { opacity: .35; cursor: default; }
+.ve-tool:disabled:hover { background: none; color: var(--text-2); }
+.ve-clear { max-width: 420px; text-align: left; }
+.ve-clist { display: grid; gap: 4px; margin: 12px 0 18px; }
+.ve-check { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; background: var(--surface-3); font-size: 14px; cursor: pointer; }
+.ve-check small { margin-left: auto; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ve-check:has(input:disabled) { opacity: .5; cursor: default; }
+.ve-card { cursor: pointer; }
+.ve-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }
+.ve-cmenu { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(0, 0, 0, .6); color: #fff; opacity: 0; transition: opacity .15s; }
+.ve-cmenu .i { width: 16px; height: 16px; }
+.ve-card:hover .ve-cmenu, .ve-cmenu:focus-visible, .ve-card:focus-within .ve-cmenu { opacity: 1; }
+@media (hover: none) { .ve-cmenu { opacity: 1; } }
 .ve-pick { max-width: 680px; text-align: left; }
 .ve-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; max-height: 56vh; margin: 12px 0 16px; overflow-y: auto; }
 .ve-pitem { display: flex; flex-direction: column; gap: 4px; cursor: pointer; }

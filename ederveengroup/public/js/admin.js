@@ -386,61 +386,138 @@
     }
 
     /* ---------- AI: auto editing with Claude, on the owner's own API key ---------- */
+    // how to get a key, per service
+    const AI_GUIDE = {
+        claude: ['Go to <b>console.anthropic.com</b> and sign in (or make an account).', 'Under <b>Billing</b>, add some credit. Auto edits are paid per use from that balance (separate from a Claude.ai subscription).', 'Under <b>API keys</b>, choose <b>Create key</b>, name it “EderveenGroup”, and copy it (it starts with <code>sk-ant-</code>).'],
+        gemini: ['Go to <b>aistudio.google.com/apikey</b> and sign in with a Google account.', 'Choose <b>Create API key</b> and copy it (it starts with <code>AIza</code>).', 'The free tier has daily limits; for more, turn on billing for its Google Cloud project.'],
+        groq: ['Go to <b>console.groq.com/keys</b> and sign in.', 'Choose <b>Create API Key</b> and copy it (it starts with <code>gsk_</code>).', 'Groq is very fast, but its vision models look at only a few pictures at a time, so video edits use fewer frames.'],
+        openai: ['Go to <b>platform.openai.com/api-keys</b> and sign in.', 'Under <b>Billing</b>, add some credit (separate from a ChatGPT subscription).', 'Choose <b>Create new secret key</b> and copy it.'],
+        openrouter: ['Go to <b>openrouter.ai/keys</b> and sign in.', 'Add credits, then choose <b>Create key</b> and copy it.', 'Pick a model below that can look at images (vision).'],
+        mistral: ['Go to <b>console.mistral.ai</b> → <b>API keys</b> and sign in.', 'Choose <b>Create new key</b> and copy it.', 'Pick a model below that can look at images.'],
+        xai: ['Go to <b>console.x.ai</b> and sign in.', 'Under <b>API keys</b>, create a key and copy it (it starts with <code>xai-</code>).', 'Pick a Grok model below that can look at images.'],
+        custom: ['Any service that speaks the OpenAI API works: Together, DeepSeek, Fireworks, a company proxy, or one on your own computer.', 'For <b>Ollama</b> use the address <code>http://localhost:11434/v1</code>, for <b>LM Studio</b> <code>http://localhost:1234/v1</code>, and type any word as the key.', 'Pick a model that can look at images (vision).']
+    };
+    let aiShown = null; // the service whose settings are open
     async function aiTab() {
         const s = await call('/api/admin/ai');
         const n = v => Number(v || 0).toLocaleString();
-        main.innerHTML = `<h1>AI</h1><p class="ad-sub">Auto editing in the Photo Editor and the Video Editor, made by Claude. Only admins see it. It runs on your own Anthropic API key, and Anthropic bills that account.</p>
-            <section class="ad-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>Claude API key</h2><small>${s.configured ? (s.source === 'env' ? `Set on the server (ANTHROPIC_API_KEY), ends in …${esc(s.hint)}` : `Saved, ends in …${esc(s.hint)}${s.savedBy ? ` · by ${esc(s.savedBy)}` : ''}${s.savedAt ? ` · ${esc(new Date(s.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet'}</small></div>${s.configured ? `<span class="ad-ok">${ic('check')} On</span>` : '<span class="ad-off">Off</span>'}</div>
-                ${s.source === 'env' ? '<p class="ad-muted">To change it, edit ANTHROPIC_API_KEY in Coolify.</p>' : `<details class="si-guide"${s.configured ? '' : ' open'}><summary>Get a key (2 minutes)</summary><ol class="si-steps"><li>Go to <b>console.anthropic.com</b> and sign in (or make an account).</li><li>Under <b>Billing</b>, add some credit. Auto edits are paid per use; a video edit costs a few cents.</li><li>Under <b>API keys</b>, choose <b>Create key</b>, name it “EderveenGroup”, and copy it (it starts with <code>sk-ant-</code>).</li><li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>
-                <form class="si-form" id="aiform" novalidate><label class="pf-field"><span>API key</span><input class="input" name="apiKey" type="password" placeholder="${s.configured ? `Saved, ends in …${esc(s.hint)}. Paste a new one to replace it.` : 'sk-ant-…'}" autocomplete="new-password" spellcheck="false"></label>
-                <div class="form-error hidden" role="alert"></div>
-                <div class="si-acts">${s.configured ? '<button type="button" class="btn btn-danger" data-clear>Remove key</button>' : ''}<span class="spacer"></span>${s.configured ? `<button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button>` : ''}<button class="btn btn-primary" type="submit">${ic('check')}<span>Save</span></button></div></form>`}
-                ${s.source === 'env' ? `<div class="si-acts"><span class="spacer"></span><button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button></div>` : ''}
+        const id = aiShown && s.providers.some(p => p.id === aiShown) ? aiShown : s.active;
+        const p = s.providers.find(x => x.id === id);
+        const active = s.providers.find(x => x.id === s.active);
+        const inUse = active.configured ? `<b>${esc(active.name)}</b> · ${esc(active.id === 'claude' ? (s.models.find(m => m.id === active.model) || { name: active.model }).name.split(' (')[0] : active.model || 'no model picked')}` : 'nothing yet (add a key below)';
+        const status = p.configured ? (p.source === 'env' ? `Set on the server (${esc(p.env)}), ends in …${esc(p.hint)}` : `Saved, ends in …${esc(p.hint)}${p.savedBy ? ` · by ${esc(p.savedBy)}` : ''}${p.savedAt ? ` · ${esc(new Date(p.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet';
+        main.innerHTML = `<h1>AI</h1><p class="ad-sub">Auto editing in the Photo Editor and the Video Editor. Only admins see it. It runs on your own API key, and that service bills it.</p>
+            <section class="ad-card"><h2>Service</h2><p class="ad-muted">In use for auto editing: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
+                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="ad-ok">${ic('check')} In use</i>` : x.configured ? '<i class="ad-off">Key saved</i>' : ''}</button>`).join('')}</div></section>
+            <section class="ad-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="ad-ok">${ic('check')} In use</span>` : '<span class="ad-off">Ready</span>') : '<span class="ad-off">Off</span>'}</div>
+                ${p.source === 'env' ? `<p class="ad-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
+                <form class="si-form" id="aiform" novalidate>
+                    ${p.custom ? `<label class="pf-field"><span>Address of the service’s API</span><input class="input" name="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://api.example.com/v1" spellcheck="false" autocomplete="off"></label>` : ''}
+                    ${p.source === 'env' ? '' : `<label class="pf-field"><span>API key</span><input class="input" name="apiKey" type="password" placeholder="${p.configured ? `Saved, ends in …${esc(p.hint)}. Paste a new one to replace it.` : esc(p.keyHint || 'Paste the key')}" autocomplete="new-password" spellcheck="false"></label>`}
+                    <div class="form-error hidden" role="alert"></div>
+                    <div class="si-acts">${p.configured && p.source !== 'env' ? '<button type="button" class="btn btn-danger" data-clear>Remove key</button>' : ''}<span class="spacer"></span>${p.configured ? `<button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button>` : ''}${p.source === 'env' && !p.custom ? '' : `<button class="btn btn-primary" type="submit">${ic('check')}<span>Save</span></button>`}</div>
+                </form>
+                ${p.configured && p.id !== s.active ? `<div class="ai-use-this"><span>${esc(p.name)} is ready.</span><button class="btn btn-primary" data-activate>${ic('check')}<span>Use ${esc(p.name)} for auto editing</span></button></div>` : ''}
             </section>
-            <section class="ad-card"><h2>Model</h2><p class="ad-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p>
-                <div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === s.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div></section>
-            <section class="ad-card"><h2>This month</h2><div class="ad-tiles ai-use"><div class="ad-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="ad-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="ad-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="ad-muted">The exact cost is on console.anthropic.com under Usage.</p></section>`;
+            <section class="ad-card"><h2>Model</h2>${
+                p.id === 'claude'
+                    ? `<p class="ad-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p><div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === p.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div>`
+                    : `<p class="ad-muted">The model must be able to look at pictures (vision). ${p.defaultModel ? `Suggested: <code>${esc(p.defaultModel)}</code>. ` : ''}${p.configured ? 'Load models shows what your key can use.' : 'Add the key first to see what it can use.'}</p>
+                        <div class="ai-modelrow"><input class="input" id="aimodel" list="aimodels" value="${esc(p.model)}" placeholder="model name" spellcheck="false" autocomplete="off"><datalist id="aimodels"></datalist>${p.configured ? `<button class="btn" data-load>${ic('refresh')}<span>Load models</span></button>` : ''}<button class="btn btn-primary" data-savemodel>${ic('check')}<span>Save</span></button></div>
+                        <p class="ad-muted" id="aimodelnote"></p>`
+            }
+                <label class="ai-frames"><span>Pictures per video auto edit</span><input class="input" type="number" min="1" max="90" id="aiframes" value="${p.maxImages}"><small>Frames from your clips that ${esc(p.name)} looks at. More gives better edits but costs more; some services take only a few.</small></label></section>
+            <section class="ad-card"><h2>This month</h2><div class="ad-tiles ai-use"><div class="ad-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="ad-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="ad-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="ad-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
+        const put = body => call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ provider: id, ...body }) });
+        $$('[data-prov]', main).forEach(b =>
+            b.addEventListener('click', () => {
+                aiShown = b.dataset.prov;
+                aiTab();
+            })
+        );
         const form = $('#aiform', main);
-        if (form)
-            form.addEventListener('submit', async e => {
-                e.preventDefault();
-                const err = $('.form-error', form);
-                err.classList.add('hidden');
-                try {
-                    await call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ apiKey: form.apiKey.value }) });
-                    toast('Saved. Auto editing is on for admins.');
-                    aiTab();
-                } catch (x) {
-                    err.textContent = x.message;
-                    err.classList.remove('hidden');
-                }
-            });
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const err = $('.form-error', form);
+            err.classList.add('hidden');
+            const body = {};
+            if (form.baseUrl) body.baseUrl = form.baseUrl.value;
+            if (form.apiKey && form.apiKey.value.trim()) body.apiKey = form.apiKey.value;
+            if (!Object.keys(body).length) return (err.textContent = 'Paste the key first.'), err.classList.remove('hidden');
+            try {
+                const r = await put(body);
+                toast(r.active === id ? `Saved. Auto editing uses ${p.name}.` : 'Saved.');
+                aiTab();
+            } catch (x) {
+                err.textContent = x.message;
+                err.classList.remove('hidden');
+            }
+        });
         $('[data-clear]', main)?.addEventListener('click', async () => {
-            if (!(await ask({ title: 'Remove the Claude API key?', text: 'Auto editing switches off until you add a key again.', ok: 'Remove', danger: true }))) return;
-            await call('/api/admin/ai', { method: 'DELETE' });
+            if (!(await ask({ title: `Remove the ${p.name} API key?`, text: id === s.active ? 'Auto editing switches off until you add a key again.' : 'You can add it again any time.', ok: 'Remove', danger: true }))) return;
+            await call(`/api/admin/ai?provider=${encodeURIComponent(id)}`, { method: 'DELETE' });
             aiTab();
         });
         $('[data-test]', main)?.addEventListener('click', async e => {
             const b = e.currentTarget;
             b.disabled = true;
             try {
-                const r = await call('/api/admin/ai/test', { method: 'POST', body: '{}' });
+                const r = await call('/api/admin/ai/test', { method: 'POST', body: JSON.stringify({ provider: id }) });
                 toast(`It works: ${r.model} answered “${r.reply}”`);
             } catch (x) {
                 toast(x.message, true);
             }
             b.disabled = false;
         });
+        $('[data-activate]', main)?.addEventListener('click', async () => {
+            try {
+                await put({ active: true });
+                toast(`Auto editing now uses ${p.name}`);
+                aiTab();
+            } catch (x) {
+                toast(x.message, true);
+            }
+        });
         $$('[name=model]', main).forEach(r =>
             r.addEventListener('change', async () => {
                 try {
-                    await call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ model: r.value }) });
+                    await put({ model: r.value });
                     toast('Model saved');
                 } catch (x) {
                     toast(x.message, true);
                 }
             })
         );
+        $('[data-load]', main)?.addEventListener('click', async e => {
+            const b = e.currentTarget;
+            b.disabled = true;
+            try {
+                const r = await call(`/api/admin/ai/models?provider=${encodeURIComponent(id)}`);
+                $('#aimodels', main).innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
+                $('#aimodelnote', main).textContent = r.models.length ? `${r.models.length} models found. Click the box to pick one, or type to search.` : 'The service listed no models. Type the name instead.';
+                $('#aimodel', main).focus();
+            } catch (x) {
+                toast(x.message, true);
+            }
+            b.disabled = false;
+        });
+        $('[data-savemodel]', main)?.addEventListener('click', async () => {
+            try {
+                await put({ model: $('#aimodel', main).value.trim() });
+                toast('Model saved');
+                aiTab();
+            } catch (x) {
+                toast(x.message, true);
+            }
+        });
+        $('#aiframes', main).addEventListener('change', async e => {
+            try {
+                await put({ maxImages: +e.target.value });
+                toast('Saved');
+            } catch (x) {
+                toast(x.message, true);
+            }
+        });
     }
 
     /* ---------- activity: sign-ins and admin actions ---------- */

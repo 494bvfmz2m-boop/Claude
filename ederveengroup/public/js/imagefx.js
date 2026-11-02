@@ -167,7 +167,7 @@ void main() {
             /**
              * source: an image, video, canvas or bitmap. o: { w, h } output size; p: merged params;
              * crop {x,y,w,h} (in the turned picture, 0…1); quarter (0…3, clockwise); angle (radians);
-             * flip [±1, ±1]; zoom (extra, ≥ 1, e.g. for video zoom effects); shift [x, y]; time (s)
+             * flip [±1, ±1]; zoom (extra; below 1 shrinks the picture); shift [x, y]; free (no straighten zoom); time (s)
              */
             render(source, o) {
                 const sw = source.videoWidth || source.naturalWidth || source.width;
@@ -189,7 +189,8 @@ void main() {
                 const rh = q % 2 ? sw : sh2;
                 const crop = o.crop || { x: 0, y: 0, w: 1, h: 1 };
                 const angle = o.angle || 0;
-                const zoom = straightenZoom(crop.w * rw, crop.h * rh, angle) * (o.zoom || 1);
+                // free: turned freely, corners and all (the Video Editor's rotate); otherwise zoomed in so no corner shows
+                const zoom = (o.free ? 1 : straightenZoom(crop.w * rw, crop.h * rh, angle)) * (o.zoom || 1);
                 const p = o.p || merge('none');
                 gl.uniform4f(u('u_crop'), crop.x, crop.y, crop.w, crop.h);
                 gl.uniform2f(u('u_rsize'), rw, rh);

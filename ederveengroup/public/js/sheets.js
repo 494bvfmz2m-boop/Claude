@@ -1,7 +1,7 @@
 // Spreadsheets: an Excel-like grid with formulas, formatting, several sheets, and downloads
 // as .xlsx, .csv or PDF. Formulas are worked out by public/js/formula.js (also on the server).
 (function () {
-    const { $, $$, esc, ic, call, toast, ask, debounce, ago } = window.EG;
+    const { $, $$, esc, ic, call, toast, ask, debounce, ago, typing: textBox, undoKey } = window.EG;
     const FX = window.EGFormula;
     const root = $('#sheets');
     let books = [];
@@ -837,6 +837,13 @@
     }
     const save = debounce(saveNow, 900);
     addEventListener('beforeunload', () => dirty && saveNow());
+    // Ctrl Z / Ctrl Y also work when the toolbar or a menu has the focus (the grid handles its own)
+    addEventListener('keydown', e => {
+        const u = undoKey(e);
+        if (!u || !wb || !$('#grid') || editing || textBox(e) || $('#grid').contains(e.target)) return;
+        e.preventDefault();
+        cmd(u);
+    });
 
     call('/api/docs?kind=sheet')
         .then(r => {

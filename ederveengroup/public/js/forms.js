@@ -2,7 +2,7 @@
 // responses as charts or one by one. Responses download as Excel (.xlsx) or CSV, or open in
 // Spreadsheets.
 (function () {
-    const { $, $$, esc, ic, call, toast, ask, debounce, ago } = window.EG;
+    const { $, $$, esc, ic, call, toast, ask, debounce, ago, typing: textBox, undoKey, undoable } = window.EG;
     const root = $('#forms');
     const TYPES = [
         ['choice', 'Choice', 'check'],
@@ -109,6 +109,7 @@
         active = null;
         responses = null;
         history.replaceState(null, '', `${location.pathname}#${id}`);
+        hist.reset();
         editor();
     }
 
@@ -603,9 +604,28 @@
         });
     }
 
-    /* ---------- saving ---------- */
+    /* ---------- undo (Ctrl Z, Ctrl Y) and saving ---------- */
+    const hist = undoable(
+        () => ({ title: open.title, body: open.body }),
+        s => {
+            open.title = s.title;
+            open.body = s.body;
+        }
+    );
+    addEventListener('keydown', e => {
+        const u = undoKey(e);
+        if (!u || !open || !open.canEdit || tab === 'responses' || textBox(e) || $('.pf-crop-back')) return;
+        e.preventDefault();
+        if (!(u === 'undo' ? hist.undo() : hist.redo())) return;
+        if ($('#name')) $('#name').value = open.title || '';
+        const y = $('#desk') ? $('#desk').scrollTop : 0;
+        draw();
+        if ($('#desk')) $('#desk').scrollTop = y;
+        changed();
+    });
     function changed() {
         if (!open || !open.canEdit) return;
+        hist.note();
         dirty = true;
         $('#saved') && ($('#saved').textContent = 'Saving…');
         save();

@@ -1,8 +1,10 @@
 'use strict';
 
-// Auto editing with Claude (the Anthropic API), for admins. Claude looks at a photo, or at frames
-// sampled from video clips, and answers with an edit as JSON (structured outputs) that the Photo
-// and Video Editors apply. Every value is checked here before it reaches an editor.
+// Auto editing for admins. An AI looks at a photo, or at frames sampled from video clips, and answers
+// with an edit as JSON that the Photo and Video Editors apply. Every value is checked here before it
+// reaches an editor. Claude goes through Anthropic's own SDK (with structured outputs); Gemini, Groq,
+// OpenAI, OpenRouter, Mistral, xAI and any other OpenAI-compatible service go through the
+// OpenAI-style chat completions API.
 
 const Anthropic = require('@anthropic-ai/sdk').default;
 
@@ -15,15 +17,41 @@ const DEFAULT_MODEL = 'claude-opus-5-5';
 // models whose refusals can be re-run on a fallback model by the API itself
 const FALLBACK = ['claude-opus-5-5', 'claude-sonnet-5-5'];
 
+// the services an admin can pick in Admin → AI (each with its own key)
+const PROVIDERS = {
+    claude: { name: 'Claude', by: 'Anthropic', kind: 'anthropic', env: 'ANTHROPIC_API_KEY', keys: 'https://console.anthropic.com/settings/keys', model: DEFAULT_MODEL, maxImages: 90, hint: 'sk-ant-…' },
+    gemini: { name: 'Gemini', by: 'Google', kind: 'openai', base: 'https://generativelanguage.googleapis.com/v1beta/openai', env: 'GEMINI_API_KEY', keys: 'https://aistudio.google.com/apikey', model: 'gemini-2.5-flash', maxImages: 90, hint: 'AIza…' },
+    groq: { name: 'Groq', by: 'Groq', kind: 'openai', base: 'https://api.groq.com/openai/v1', env: 'GROQ_API_KEY', keys: 'https://console.groq.com/keys', model: 'meta-llama/llama-4-scout-17b-16e-instruct', maxImages: 5, hint: 'gsk_…' },
+    openai: { name: 'OpenAI', by: 'OpenAI', kind: 'openai', base: 'https://api.openai.com/v1', env: 'OPENAI_API_KEY', keys: 'https://platform.openai.com/api-keys', model: 'gpt-4.1-mini', maxImages: 60, hint: 'sk-…' },
+    openrouter: { name: 'OpenRouter', by: 'OpenRouter', kind: 'openai', base: 'https://openrouter.ai/api/v1', env: 'OPENROUTER_API_KEY', keys: 'https://openrouter.ai/keys', model: '', maxImages: 30, hint: 'sk-or-…' },
+    mistral: { name: 'Mistral', by: 'Mistral AI', kind: 'openai', base: 'https://api.mistral.ai/v1', env: 'MISTRAL_API_KEY', keys: 'https://console.mistral.ai/api-keys', model: 'mistral-medium-latest', maxImages: 8, hint: '' },
+    xai: { name: 'Grok', by: 'xAI', kind: 'openai', base: 'https://api.x.ai/v1', env: 'XAI_API_KEY', keys: 'https://console.x.ai', model: '', maxImages: 10, hint: 'xai-…' },
+    custom: { name: 'Other', by: 'any OpenAI-compatible service (Ollama, LM Studio, Together, DeepSeek…)', kind: 'openai', base: '', env: 'AI_API_KEY', keys: '', model: '', maxImages: 10, hint: '', custom: true }
+};
+// an address for a self-hosted or other service: https anywhere, plain http only on this machine or
+// the local network (so a key never crosses the internet unencrypted)
+function checkBaseUrl(v) {
+    let u;
+    try {
+        u = new URL(String(v || '').trim());
+    } catch {
+        return null;
+    }
+    const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|host\.docker\.internal|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[a-z0-9-]+\.local)$/i.test(u.hostname);
+    if (u.username || u.password || !(u.protocol === 'https:' || (u.protocol === 'http:' && local))) return null;
+    return u.toString().replace(/\/+$/, '');
+}
+
 const FILTERS = ['none', 'vivid', 'warm', 'cool', 'golden', 'mono', 'noir', 'sepia', 'vintage', 'fade', 'dramatic', 'cinematic', 'pastel', 'teal'];
 const ADJUST = { exposure: [-100, 100], contrast: [-100, 100], highlights: [-100, 100], shadows: [-100, 100], saturation: [-100, 100], vibrance: [-100, 100], temperature: [-100, 100], tint: [-100, 100], fade: [0, 100], vignette: [0, 100], sharpen: [0, 100], grain: [0, 100] };
 const CROPS = ['none', '1:1', '4:5', '16:9', '9:16', '3:2', '2:3'];
 const ASPECTS = ['16:9', '9:16', '1:1', '4:5'];
-const EFFECTS = ['none', 'zoom_in', 'zoom_out', 'pulse', 'shake', 'glitch', 'flash', 'bw', 'blur_in'];
-const TRANSITIONS = ['none', 'fade', 'dip_black', 'dip_white', 'slide_left', 'slide_up', 'zoom', 'wipe'];
+// the Video Editor's effects, transitions and title looks (the editor and saved projects use these lists too)
+const EFFECTS = ['none', 'zoom_in', 'zoom_out', 'slow_zoom', 'pan_left', 'pan_right', 'pan_up', 'pan_down', 'pulse', 'heartbeat', 'shake', 'earthquake', 'wobble', 'spin_in', 'glitch', 'vhs', 'rgb_split', 'film', 'pixel_in', 'flash', 'strobe', 'invert_flash', 'bw', 'color_in', 'dream', 'rainbow', 'blur_in', 'blur_out'];
+const TRANSITIONS = ['none', 'fade', 'dip_black', 'dip_white', 'flash', 'slide_left', 'slide_right', 'slide_up', 'slide_down', 'cover', 'zoom', 'zoom_out', 'spin', 'wipe', 'wipe_up', 'wipe_diag', 'circle', 'split', 'blur', 'whip', 'glitch', 'pixelate'];
 const POSITIONS = ['top', 'center', 'bottom'];
-const TEXT_STYLES = ['plain', 'shadow', 'outline', 'box', 'title'];
-const TEXT_ANIMS = ['none', 'fade', 'pop', 'slide', 'type'];
+const TEXT_STYLES = ['plain', 'shadow', 'outline', 'box', 'title', 'neon', 'highlight', 'retro', 'gradient'];
+const TEXT_ANIMS = ['none', 'fade', 'pop', 'slide', 'slide_left', 'drop', 'bounce', 'zoom', 'type', 'wave', 'blur', 'flicker'];
 
 const clamp = (v, lo, hi, d = 0) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Number(v))) : d);
 const oneOf = (v, list, d) => (list.includes(v) ? v : d);
@@ -132,7 +160,7 @@ function checkVideo(r, { media, music }) {
     };
 }
 
-/* ---------- talking to Claude ---------- */
+/* ---------- talking to the AI ---------- */
 class AiError extends Error {
     constructor(message, status = 502) {
         super(message);
@@ -142,7 +170,11 @@ class AiError extends Error {
 function client(apiKey, baseURL) {
     return new Anthropic({ apiKey, maxRetries: 2, timeout: 5 * 60 * 1000, ...(baseURL ? { baseURL } : {}) });
 }
-async function ask({ apiKey, baseURL, model, system, content, schema, effort, maxTokens = 16000 }) {
+// one request, to whichever service is set up; answers { out (the JSON), usage, model }
+async function ask(o) {
+    return PROVIDERS[o.provider] && PROVIDERS[o.provider].kind === 'openai' ? askOpenAI(o) : askClaude(o);
+}
+async function askClaude({ apiKey, baseURL, model, system, content, schema, effort, maxTokens = 16000 }) {
     const c = client(apiKey, baseURL);
     const params = {
         model,
@@ -176,6 +208,111 @@ async function ask({ apiKey, baseURL, model, system, content, schema, effort, ma
     return { out, usage: msg.usage || {}, model: msg.model || model };
 }
 
+// the OpenAI-style chat completions API (Gemini, Groq, OpenAI, OpenRouter, Mistral, xAI, Ollama…)
+const toOpenAI = b => (b.type === 'image' ? { type: 'image_url', image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } } : { type: 'text', text: b.text });
+async function chat({ provider, apiKey, baseURL, model, messages, json, timeout = 5 * 60 * 1000 }) {
+    const name = (PROVIDERS[provider] || PROVIDERS.custom).name;
+    if (!baseURL) throw new AiError(`Set the address of the ${name} service in Admin → AI.`, 409);
+    if (!model) throw new AiError(`Pick a ${name} model in Admin → AI.`, 409);
+    const send = async withFormat => {
+        let res;
+        try {
+            res = await fetch(`${baseURL}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}`, ...(provider === 'openrouter' ? { 'X-Title': 'EderveenGroup' } : {}) },
+                body: JSON.stringify({ model, messages, ...(withFormat ? { response_format: { type: 'json_object' } } : {}) }),
+                signal: AbortSignal.timeout(timeout)
+            });
+        } catch (e) {
+            throw new AiError(e && e.name === 'TimeoutError' ? `${name} took too long to answer. Try fewer clips.` : `Couldn’t reach ${name}. Check the server’s internet connection${PROVIDERS[provider] && PROVIDERS[provider].custom ? ' and the address' : ''}.`, 502);
+        }
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+    };
+    let { res, data } = await send(json);
+    // not every model takes "answer in JSON": ask again without it (the answer is still checked)
+    if (json && res.status === 400 && /response_format|json/i.test(JSON.stringify(data))) ({ res, data } = await send(false));
+    if (!res.ok) {
+        const said = line((data.error && (data.error.message || data.error)) || data.message || '', 200);
+        if (res.status === 401 || res.status === 403) throw new AiError(`${name} doesn’t accept this API key. Check it in Admin → AI.`, 502);
+        if (res.status === 404) throw new AiError(`${name} doesn’t know the model “${model}”${said ? ` (${said})` : ''}. Pick another in Admin → AI.`, 400);
+        if (res.status === 429) throw new AiError(`${name} is busy or the key’s limit is reached. Try again in a minute.`, 429);
+        if (res.status === 400 || res.status === 413 || res.status === 422) throw new AiError(`${name} couldn’t take this request${said ? `: ${said}` : ''}.`, 400);
+        throw new AiError(`${name} had a problem (${res.status}). Try again.`, 502);
+    }
+    const choice = (data.choices || [])[0] || {};
+    const msg = choice.message || {};
+    const text = Array.isArray(msg.content) ? msg.content.map(x => x.text || '').join('') : String(msg.content || '');
+    if (choice.finish_reason === 'content_filter' || (!text && msg.refusal)) throw new AiError(`${name} declined to edit this.`, 422);
+    if (choice.finish_reason === 'length' && !text.trim().endsWith('}')) throw new AiError(`${name}’s answer was cut off. Try fewer clips.`, 502);
+    const u = data.usage || {};
+    return { text, usage: { input_tokens: u.prompt_tokens || u.input_tokens || 0, output_tokens: u.completion_tokens || u.output_tokens || 0 }, model: data.model || model };
+}
+// the JSON in an answer, also when it's wrapped in ```json fences or a sentence
+function jsonIn(text) {
+    const t = String(text || '').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '');
+    const a = t.indexOf('{');
+    const b = t.lastIndexOf('}');
+    if (a < 0 || b <= a) return null;
+    try {
+        return JSON.parse(t.slice(a, b + 1));
+    } catch {
+        return null;
+    }
+}
+async function askOpenAI({ provider, apiKey, baseURL, model, system, content, schema }) {
+    const r = await chat({
+        provider,
+        apiKey,
+        baseURL,
+        model,
+        json: true,
+        messages: [
+            { role: 'system', content: `${system}\n\nAnswer with one JSON object and nothing else. It must match this JSON Schema exactly (every property is required):\n${JSON.stringify(schema)}` },
+            { role: 'user', content: content.map(toOpenAI) }
+        ]
+    });
+    const out = jsonIn(r.text);
+    if (!out) throw new AiError(`${(PROVIDERS[provider] || PROVIDERS.custom).name}’s answer couldn’t be read. Try again, or pick a stronger model.`, 502);
+    return { out, usage: r.usage, model: r.model };
+}
+
+// "is this key working?": a one-word answer
+async function ping(cfg) {
+    if (PROVIDERS[cfg.provider] && PROVIDERS[cfg.provider].kind === 'openai') {
+        const r = await chat({ ...cfg, json: false, timeout: 60 * 1000, messages: [{ role: 'user', content: 'Reply with the single word: ready' }] });
+        return { model: r.model, reply: line(r.text, 60), usage: r.usage };
+    }
+    const c = new Anthropic({ apiKey: cfg.apiKey, maxRetries: 1, timeout: 60 * 1000, ...(cfg.baseURL ? { baseURL: cfg.baseURL } : {}) });
+    try {
+        const msg = await c.messages.create({ model: cfg.model, max_tokens: 400, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Reply with the single word: ready' }] });
+        return { model: msg.model, reply: line(msg.content.filter(x => x.type === 'text').map(x => x.text).join(''), 60), usage: msg.usage || {} };
+    } catch (e) {
+        if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new AiError('Anthropic doesn’t accept this key. Check it and try again.', 400);
+        if (e instanceof Anthropic.NotFoundError) throw new AiError('This key can’t use that model. Pick another model.', 400);
+        if (e instanceof Anthropic.RateLimitError) throw new AiError('The key works, but it’s rate limited right now.', 429);
+        if (e instanceof Anthropic.APIError) throw new AiError(`Anthropic answered with an error (${e.status || 'no answer'}).`, 502);
+        throw new AiError('Couldn’t reach Anthropic from the server. Check its internet connection.', 502);
+    }
+}
+// the models a key can use, to pick from (OpenAI-style services list them at /models)
+async function listModels(cfg) {
+    if (!PROVIDERS[cfg.provider] || PROVIDERS[cfg.provider].kind !== 'openai') return Object.keys(MODELS);
+    const name = PROVIDERS[cfg.provider].name;
+    if (!cfg.baseURL) throw new AiError(`Set the address of the ${name} service first.`, 409);
+    let res;
+    try {
+        res = await fetch(`${cfg.baseURL}/models`, { headers: { Authorization: `Bearer ${cfg.apiKey}` }, signal: AbortSignal.timeout(30 * 1000) });
+    } catch {
+        throw new AiError(`Couldn’t reach ${name}.`, 502);
+    }
+    if (res.status === 401 || res.status === 403) throw new AiError(`${name} doesn’t accept this API key.`, 400);
+    if (!res.ok) throw new AiError(`${name} didn’t list its models (${res.status}). Type the model’s name instead.`, 502);
+    const data = await res.json().catch(() => ({}));
+    const ids = [].concat(data.data || data.models || []).map(m => String((m && (m.id || m.name)) || '').replace(/^models\//, '')).filter(id => /^[A-Za-z0-9._:\/@+-]{1,120}$/.test(id));
+    return [...new Set(ids)].sort().slice(0, 400);
+}
+
 const IMAGE = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 const image = dataUrl => {
     const m = IMAGE.exec(String(dataUrl || ''));
@@ -183,31 +320,46 @@ const image = dataUrl => {
     return { type: 'image', source: { type: 'base64', media_type: `image/${m[1]}`, data: m[2] } };
 };
 
-async function editPhoto({ apiKey, baseURL, model, photo, wish, size }) {
+async function editPhoto({ photo, wish, size, ...svc }) {
     const img = image(photo);
     if (!img) throw new AiError('Send the photo as a JPEG, PNG or WebP picture.', 400);
     const content = [img, { type: 'text', text: `${size ? `The full photo is ${size.w} × ${size.h} pixels. ` : ''}${line(wish, 600) ? `The owner’s wish: “${line(wish, 600)}”` : 'Make it look its best.'}` }];
-    const r = await ask({ apiKey, baseURL, model, system: PHOTO_SYSTEM, content, schema: PHOTO_SCHEMA, effort: 'medium', maxTokens: 8000 });
+    const r = await ask({ ...svc, system: PHOTO_SYSTEM, content, schema: PHOTO_SCHEMA, effort: 'medium', maxTokens: 8000 });
     return { edit: checkPhoto(r.out), usage: r.usage, model: r.model };
 }
 
 const MAX_FRAMES = 90;
-async function editVideo({ apiKey, baseURL, model, brief, length, aspect, captions, media, music }) {
+// which frames to send when a service takes only so many pictures: spread over every clip
+function pickFrames(media, budget) {
+    const per = media.map(m => [].concat(m.frames || []).slice(0, 16));
+    const total = per.reduce((n, f) => n + f.length, 0);
+    if (total <= budget) return per;
+    const share = Math.max(1, Math.floor(budget / Math.max(1, media.length)));
+    let left = budget;
+    return per.map(f => {
+        const k = Math.min(f.length, share, left);
+        left -= k;
+        return Array.from({ length: k }, (_, i) => f[Math.floor(((i + 0.5) * f.length) / k)]);
+    });
+}
+async function editVideo({ brief, length, aspect, captions, media, music, ...svc }) {
     media = [].concat(media || []).slice(0, 40);
     music = [].concat(music || []).slice(0, 4);
     if (!media.length) throw new AiError('Add some clips first.', 400);
     const content = [];
     let frames = 0;
     const clean = [];
-    for (const m of media) {
+    const budget = Math.min(MAX_FRAMES, Math.max(1, Math.round(clamp(svc.maxImages, 1, MAX_FRAMES, MAX_FRAMES))));
+    const chosen = pickFrames(media, budget);
+    for (const [mi, m] of media.entries()) {
         const id = line(m.id, 40);
         const dur = clamp(m.dur, 0.1, 6 * 3600, 5);
         const kind = m.kind === 'image' ? 'image' : 'video';
         clean.push({ id, dur: kind === 'image' ? Math.max(dur, 30) : dur });
         const loud = [].concat(m.loud || []).slice(0, 600).map(v => Math.round(clamp(v, 0, 9))).join('');
         content.push({ type: 'text', text: `Clip ${id} (“${line(m.name, 80)}”): ${kind === 'image' ? 'a photo, use for up to 30 s' : `video, ${dur.toFixed(1)} s`}${m.w ? `, ${m.w}×${m.h}` : ''}${loud ? `. Loudness per second (0 quiet – 9 loud): ${loud}` : ''}` });
-        for (const f of [].concat(m.frames || []).slice(0, 16)) {
-            if (frames >= MAX_FRAMES) break;
+        for (const f of chosen[mi]) {
+            if (frames >= budget) break;
             const img = image(f.data);
             if (!img) continue;
             content.push({ type: 'text', text: `${id} at ${clamp(f.t, 0, dur).toFixed(1)} s:` }, img);
@@ -221,10 +373,10 @@ async function editVideo({ apiKey, baseURL, model, brief, length, aspect, captio
         text: `The brief: ${line(brief, 1500) || 'Make a good, watchable edit of the best moments.'}
 Length: ${Number(length) > 0 ? `about ${Math.round(clamp(length, 5, 600))} seconds` : 'your choice'}. Aspect: ${ASPECTS.includes(aspect) ? aspect : 'your choice'}. On-screen captions: ${captions ? 'yes, add titles/captions that fit' : 'only a title if it really helps'}. ${songs.length ? 'Music is available.' : 'No music was given: set music to null.'}`
     });
-    const r = await ask({ apiKey, baseURL, model, system: VIDEO_SYSTEM, content, schema: VIDEO_SCHEMA, effort: 'high', maxTokens: 24000 });
+    const r = await ask({ ...svc, system: VIDEO_SYSTEM, content, schema: VIDEO_SCHEMA, effort: 'high', maxTokens: 24000 });
     const plan = checkVideo(r.out, { media: clean, music: songs });
-    if (!plan.clips.length) throw new AiError('Claude didn’t pick any usable moments. Try another brief.', 502);
+    if (!plan.clips.length) throw new AiError(`${(PROVIDERS[svc.provider] || PROVIDERS.claude).name} didn’t pick any usable moments. Try another brief or a stronger model.`, 502);
     return { plan, usage: r.usage, model: r.model, frames };
 }
 
-module.exports = { MODELS, DEFAULT_MODEL, FILTERS, EFFECTS, TRANSITIONS, ASPECTS, editPhoto, editVideo, checkPhoto, checkVideo, AiError, PHOTO_SCHEMA, VIDEO_SCHEMA };
+module.exports = { PROVIDERS, checkBaseUrl, ping, listModels, MODELS, DEFAULT_MODEL, FILTERS, EFFECTS, TRANSITIONS, ASPECTS, TEXT_STYLES, TEXT_ANIMS, editPhoto, editVideo, checkPhoto, checkVideo, AiError, PHOTO_SCHEMA, VIDEO_SCHEMA };

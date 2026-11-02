@@ -2,7 +2,7 @@
 // Pen, highlighter, eraser, lines, arrows, shapes, text and sticky notes; pan and zoom (pinch on
 // a phone); undo; share a board to draw together; download as PNG or SVG.
 (function () {
-    const { $, $$, esc, ic, call, toast, ask, debounce, ago } = window.EG;
+    const { $, $$, esc, ic, call, toast, ask, debounce, ago, typing: textBox, undoKey } = window.EG;
     const root = $('#whiteboard');
     const NS = 'http://www.w3.org/2000/svg';
     const COLORS = ['#1f1f1f', '#e5484d', '#f08a24', '#e8b500', '#2fb36a', '#2f6bff', '#9b5de5', '#ffffff'];
@@ -748,6 +748,8 @@
     let spaceDown = false;
     addEventListener('keydown', e => {
         if (!open || !svg) return;
+        const u = undoKey(e);
+        if (u && open.canEdit && !textBox(e)) return (e.preventDefault(), u === 'undo' ? step(undo, redo) : step(redo, undo));
         if (e.target.closest && (e.target.closest('input, textarea, select') || e.target.isContentEditable)) return;
         const k = e.key.toLowerCase();
         const mod = e.ctrlKey || e.metaKey;

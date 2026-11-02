@@ -1525,7 +1525,7 @@ test('Video Editor: a project keeps only footage it knows, times and looks in ra
         clips: [
             { id: 'clp1', m: 'med1', in: 2, out: 6, speed: 9, vol: 500, filter: 'cinematic', strength: 70, adjust: { exposure: 300, nope: 5, saturation: -20 }, effect: 'zoom_in', fit: 'contain', tr: { type: 'fade', dur: 9 } },
             { id: 'clp2', m: 'ghost', in: 0, out: 3 },
-            { id: 'clp3', m: 'med1', in: 8, out: 1, speed: 1, filter: '<b>', effect: 'boom', tr: { type: 'spin' } }
+            { id: 'clp3', m: 'med1', in: 8, out: 1, speed: 1, filter: '<b>', effect: 'boom', tr: { type: 'teleport' } }
         ],
         texts: [{ id: 'txt1', text: 'Hello <script>', start: -4, dur: 2, x: 3, y: 0.2, size: 99, color: 'red', font: 'Comic', style: 'title', anim: 'pop' }, 'junk'],
         audio: [{ id: 'aud1', m: 'med2', start: 1, in: 5, out: 65, vol: 80, fadeIn: 1, fadeOut: 99 }, { id: 'aud2', m: 'nope', start: 0, in: 0, out: 5 }]
@@ -1547,10 +1547,28 @@ test('Video Editor: a project keeps only footage it knows, times and looks in ra
     assert.deepEqual([t1.start, t1.x, t1.size, t1.color, t1.font, t1.style, t1.anim], [0, 1, 40, '#ffffff', 'Geist', 'title', 'pop']);
     assert.equal(t1.text, 'Hello <script>'); // drawn on a canvas, never put in the page
     assert.deepEqual(p.audio.map(a => [a.id, a.fadeOut]), [['aud1', 10]]);
+    // position, rotation, fades, freeze frames, colour backgrounds and the newer effects are kept, in range
+    const more = JSON.parse(JSON.stringify(back.body));
+    Object.assign(more.clips[0], { effect: 'vhs', tr: { type: 'circle', dur: 0.8 }, fadeIn: 1.5, fadeOut: 99, freeze: 'yes', tf: { scale: 999, x: -50, y: 300, rot: 45, quarter: 7, flipH: true, flipV: 'no' } });
+    Object.assign(more.clips[1], { freeze: true, effect: 'spin_in', tr: { type: 'teleport' } });
+    more.texts[0].style = 'neon';
+    more.texts[0].anim = 'wave';
+    more.bg = '#9B5DE5';
+    const s2 = await jo('PUT', `/api/docs/${v.id}`, { title: 'Trip', body: more, version: saved.body.version });
+    assert.equal(s2.status, 200);
+    const q = (await jo('GET', `/api/docs/${v.id}`)).body.body;
+    assert.deepEqual([q.clips[0].effect, q.clips[0].tr.type, q.clips[0].fadeIn, q.clips[0].fadeOut, q.clips[0].freeze], ['vhs', 'circle', 1.5, 10, undefined]);
+    assert.deepEqual(q.clips[0].tf, { scale: 400, x: -50, y: 100, rot: 45, quarter: 3, flipH: true, flipV: false });
+    assert.deepEqual([q.clips[1].freeze, q.clips[1].effect, q.clips[1].tr.type, q.clips[1].tf], [true, 'spin_in', 'none', undefined]);
+    assert.deepEqual([q.texts[0].style, q.texts[0].anim, q.bg], ['neon', 'wave', '#9b5de5']);
     // the gallery card: shape, the first footage's picture, the length
     const listed = (await jo('GET', '/api/docs?kind=video')).body.find(d => d.id === v.id);
     assert.match(listed.cover, /^16:9\|abcdefgh12\|\d+$/);
     assert.equal((await jo('GET', '/api/apps-summary')).body.videos, 1);
+    // deleting the project
+    assert.equal((await jo('DELETE', `/api/docs/${v.id}`)).status, 200);
+    assert.equal((await jo('GET', `/api/docs/${v.id}`)).status, 404);
+    assert.equal((await jo('GET', '/api/apps-summary')).body.videos, 0);
     app.close();
 });
 
@@ -1662,5 +1680,99 @@ test('Auto editing with Claude: admins only, key sealed, the answer checked befo
     assert.equal((await jo('GET', '/api/ai/status')).body.on, false);
     fake.closeAllConnections();
     fake.close();
+    app.close();
+});
+
+test('Auto editing with other AI services: any OpenAI-compatible one, chosen in Admin → AI', async () => {
+    // a stand-in for an OpenAI-style service (Gemini, Groq, OpenAI, Ollama… all speak this)
+    const http = require('http');
+    const asked = [];
+    let answer = null;
+    let refuseFormat = false;
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            const key = String(req.headers.authorization || '').replace(/^Bearer /, '');
+            asked.push({ url: req.url, key, body: b });
+            const send = (status, data) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+            if (key === 'bad-key-123456') return send(401, { error: { message: 'Invalid API Key' } });
+            if (req.url === '/v1/models') return send(200, { data: [{ id: 'vision-large' }, { id: 'models/vision-small' }, { id: 'bad model!' }] });
+            if (refuseFormat && b.response_format) {
+                refuseFormat = false;
+                return send(400, { error: { message: 'response_format is not supported by this model' } });
+            }
+            const text = typeof answer === 'string' ? answer : '```json\n' + JSON.stringify(answer) + '\n```';
+            send(200, { id: 'c1', model: b.model, choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: text } }], usage: { prompt_tokens: 900, completion_tokens: 120 } });
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const base = `http://127.0.0.1:${fake.address().port}/v1`;
+    const app = await start({ ADMIN_EMAILS: USER });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const all = (await jo('GET', '/api/admin/ai')).body;
+    assert.deepEqual(all.providers.map(p => p.id), ['claude', 'gemini', 'groq', 'openai', 'openrouter', 'mistral', 'xai', 'custom']);
+    assert.equal(all.active, 'claude');
+    // an address: https anywhere, http only on this machine or the local network
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: 'http://example.com/v1' })).status, 400);
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'gemini', baseUrl: base })).status, 400);
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: base })).status, 200);
+    // a key: the first service with one is the one used
+    const set = (await jo('PUT', '/api/admin/ai', { provider: 'custom', apiKey: 'local-key-abcdef' })).body;
+    assert.deepEqual([set.active, set.configured, set.hint], ['custom', true, 'cdef']);
+    assert.equal(JSON.stringify(set).includes('local-key-abcdef'), false);
+    assert.equal(JSON.stringify(app.store.servers.getSignin('claude')).includes('local-key-abcdef'), false);
+    // the models it offers, cleaned up
+    const models = (await jo('GET', '/api/admin/ai/models?provider=custom')).body.models;
+    assert.deepEqual(models, ['vision-large', 'vision-small']);
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'custom', model: 'no spaces allowed' })).status, 400);
+    await jo('PUT', '/api/admin/ai', { provider: 'custom', model: 'vision-large', maxImages: 4 });
+    // a test request
+    answer = 'ready';
+    const t = (await jo('POST', '/api/admin/ai/test', { provider: 'custom' })).body;
+    assert.deepEqual([t.ok, t.reply, t.model], [true, 'ready', 'vision-large']);
+    assert.equal(asked[asked.length - 1].key, 'local-key-abcdef');
+    const st = (await jo('GET', '/api/ai/status')).body;
+    assert.deepEqual([st.on, st.provider, st.name, st.model], [true, 'custom', 'AI', 'vision-large']);
+    // a photo, with the service refusing "JSON mode" the first time: asked again without it
+    refuseFormat = true;
+    answer = { adjust: { exposure: 300, contrast: 10 }, filter: 'warm', filter_strength: 50, crop: { aspect: 'none', x: 0, y: 0, w: 1, h: 1 }, straighten: 0, note: 'Warmer.' };
+    const pic = 'data:image/jpeg;base64,' + Buffer.from('ffd8ffe000104a464946', 'hex').toString('base64');
+    const ph = await jo('POST', '/api/ai/photo', { photo: pic });
+    assert.equal(ph.status, 200);
+    assert.deepEqual([ph.body.edit.adjust.exposure, ph.body.edit.filter, ph.body.edit.crop, ph.body.model], [100, 'warm', null, 'vision-large']);
+    const req = asked[asked.length - 1];
+    assert.equal(req.url, '/v1/chat/completions');
+    assert.equal(req.body.response_format, undefined);
+    assert.equal(asked[asked.length - 2].body.response_format.type, 'json_object');
+    assert.equal(req.body.messages[0].role, 'system');
+    assert.match(req.body.messages[0].content, /JSON Schema/);
+    assert.equal(req.body.messages[1].content[0].type, 'image_url');
+    assert.match(req.body.messages[1].content[0].image_url.url, /^data:image\/jpeg;base64,/);
+    // a video: only as many frames as the service takes, spread over the clips
+    answer = { title: 'Trip', aspect: '16:9', clips: [{ media: 'c1', in: 0, out: 3, speed: 1, filter: 'none', effect: 'pan_left', transition: 'circle' }, { media: 'c2', in: 1, out: 2, speed: 1, filter: 'none', effect: 'none', transition: 'none' }], texts: [], music: null, clip_volume: 80, summary: 'Short.' };
+    const frames = [0, 1, 2, 3, 4, 5].map(t => ({ t, data: pic }));
+    const v = await jo('POST', '/api/ai/video', { brief: 'quick', media: [{ id: 'c1', name: 'a.mp4', kind: 'video', dur: 10, frames }, { id: 'c2', name: 'b.mp4', kind: 'video', dur: 6, frames }] });
+    assert.equal(v.status, 200);
+    assert.deepEqual(v.body.plan.clips.map(c => [c.media, c.effect, c.transition]), [['c1', 'pan_left', 'circle'], ['c2', 'none', 'none']]);
+    const parts = asked[asked.length - 1].body.messages[1].content;
+    assert.equal(parts.filter(x => x.type === 'image_url').length, 4);
+    // problems are said plainly
+    answer = 'Sorry, I can only chat.';
+    const bad = await jo('POST', '/api/ai/photo', { photo: pic });
+    assert.equal(bad.status, 502);
+    assert.match(bad.body.error, /couldn’t be read/);
+    await jo('PUT', '/api/admin/ai', { provider: 'custom', apiKey: 'bad-key-123456' });
+    const no = await jo('POST', '/api/admin/ai/test', { provider: 'custom' });
+    assert.match(no.body.error, /doesn’t accept this API key/);
+    // switching back to Claude needs a Claude key; removing a key
+    assert.equal((await jo('PUT', '/api/admin/ai', { active: 'claude' })).status, 409);
+    const gone = (await jo('DELETE', '/api/admin/ai?provider=custom')).body;
+    assert.equal(gone.providers.find(p => p.id === 'custom').configured, false);
+    assert.equal((await jo('GET', '/api/ai/status')).body.on, false);
     app.close();
 });

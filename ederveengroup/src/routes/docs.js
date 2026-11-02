@@ -22,6 +22,7 @@ const KINDS = ['doc', 'deck', 'sheet', 'form', 'board', 'wb', 'video'];
 const forms = require('../../lib/forms');
 const F = require('../../public/js/formula');
 const office = require('../../lib/office');
+const AI = require('../../lib/ai'); // the Video Editor's effect, transition and title lists
 const HEX = /^#[0-9a-f]{6}$/i;
 const FMTS = ['general', 'number', 'currency', 'percent', 'date', 'text'];
 // one cell's look, checked
@@ -149,10 +150,10 @@ const V = {
     aspects: ['16:9', '9:16', '1:1', '4:5'],
     bgs: ['blur', 'black', 'white'],
     filters: ['none', 'vivid', 'warm', 'cool', 'golden', 'mono', 'noir', 'sepia', 'vintage', 'fade', 'dramatic', 'cinematic', 'pastel', 'teal'],
-    effects: ['none', 'zoom_in', 'zoom_out', 'pulse', 'shake', 'glitch', 'flash', 'bw', 'blur_in'],
-    transitions: ['none', 'fade', 'dip_black', 'dip_white', 'slide_left', 'slide_up', 'zoom', 'wipe'],
-    styles: ['plain', 'shadow', 'outline', 'box', 'title'],
-    anims: ['none', 'fade', 'pop', 'slide', 'type'],
+    effects: AI.EFFECTS,
+    transitions: AI.TRANSITIONS,
+    styles: AI.TEXT_STYLES,
+    anims: AI.TEXT_ANIMS,
     fonts: ['Geist', 'Serif', 'Impact', 'Rounded', 'Mono', 'Script'],
     adjust: ['exposure', 'contrast', 'highlights', 'shadows', 'saturation', 'vibrance', 'temperature', 'tint', 'fade', 'vignette', 'sharpen', 'blur', 'grain', 'glitch', 'pixelate', 'sepia', 'teal', 'invert']
 };
@@ -202,7 +203,13 @@ function cleanVideo(b) {
             adjust: adjust(c.adjust),
             effect: pick(c.effect, V.effects, 'none'),
             fit: c.fit === 'contain' ? 'contain' : 'cover',
-            tr: { type: pick(c.tr && c.tr.type, V.transitions, 'none'), dur: t(c.tr && c.tr.dur, 0.1, 3, 0.5) }
+            tr: { type: pick(c.tr && c.tr.type, V.transitions, 'none'), dur: t(c.tr && c.tr.dur, 0.1, 3, 0.5) },
+            ...(t(c.fadeIn, 0, 10, 0) ? { fadeIn: t(c.fadeIn, 0, 10, 0) } : {}),
+            ...(t(c.fadeOut, 0, 10, 0) ? { fadeOut: t(c.fadeOut, 0, 10, 0) } : {}),
+            ...(c.freeze === true ? { freeze: true } : {}),
+            ...(c.tf && typeof c.tf === 'object'
+                ? { tf: { scale: t(c.tf.scale, 10, 400, 100), x: t(c.tf.x, -100, 100, 0), y: t(c.tf.y, -100, 100, 0), rot: t(c.tf.rot, -180, 180, 0), quarter: Math.round(t(c.tf.quarter, 0, 3, 0)), flipH: c.tf.flipH === true, flipV: c.tf.flipV === true } }
+                : {})
         };
     });
     const texts = [].concat(b.texts || []).slice(0, 300).filter(x => x && typeof x === 'object').map(x => ({
@@ -222,7 +229,7 @@ function cleanVideo(b) {
         const inn = t(a.in, 0, 6 * 3600, 0);
         return { id: shortId(a.id), m: a.m, start: t(a.start, 0, 6 * 3600, 0), in: inn, out: t(a.out, inn + 0.1, 6 * 3600, inn + 10), vol: t(a.vol, 0, 200, 100), fadeIn: t(a.fadeIn, 0, 10, 0), fadeOut: t(a.fadeOut, 0, 10, 0) };
     });
-    return { aspect: pick(b.aspect, V.aspects, '16:9'), bg: pick(b.bg, V.bgs, 'blur'), media, clips, texts, audio };
+    return { aspect: pick(b.aspect, V.aspects, '16:9'), bg: colour(b.bg) || pick(b.bg, V.bgs, 'blur'), media, clips, texts, audio };
 }
 
 // a project's card in the gallery: its shape, the first footage's picture and its length

@@ -53,9 +53,12 @@ function loadConfig(env = process.env) {
         secureCookies: env.SECURE_COOKIES === 'true',
         openBrowser: !!env.OPEN_BROWSER,
         // who can accept or reject requests to add other mail servers (comma-separated addresses)
-        // auto editing with Claude: a key can also be pasted into Admin → AI
+        // auto editing with Claude (the default AI): a key can also be pasted into Admin → AI
         anthropicApiKey: String(env.ANTHROPIC_API_KEY || '').trim(),
         anthropicBaseUrl: String(env.ANTHROPIC_BASE_URL || '').trim(),
+        // other AI services for auto editing (also pasted into Admin → AI); AI_API_KEY + AI_BASE_URL for any OpenAI-compatible one
+        aiKeys: { gemini: env.GEMINI_API_KEY || env.GOOGLE_API_KEY, groq: env.GROQ_API_KEY, openai: env.OPENAI_API_KEY, openrouter: env.OPENROUTER_API_KEY, mistral: env.MISTRAL_API_KEY, xai: env.XAI_API_KEY, custom: env.AI_API_KEY },
+        aiBaseUrl: String(env.AI_BASE_URL || '').trim(),
         adminEmails: String(env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
         // testing only: let requests point at mail servers on private networks
         allowPrivateMailHosts: env.ALLOW_PRIVATE_MAIL_HOSTS === '1',

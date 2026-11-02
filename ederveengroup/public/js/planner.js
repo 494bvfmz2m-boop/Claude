@@ -2,7 +2,7 @@
 // columns; open one for its labels, due date, checklist, who's on it and notes. Share a board
 // to plan together.
 (function () {
-    const { $, $$, esc, ic, call, toast, ask, debounce, ago, hue, initials, phone } = window.EG;
+    const { $, $$, esc, ic, call, toast, ask, debounce, ago, hue, initials, phone, typing: textBox, undoKey, undoable } = window.EG;
     const root = $('#planner');
     const LABELS = [['green', '#2fb36a'], ['yellow', '#e8b500'], ['orange', '#f08a24'], ['red', '#e5484d'], ['purple', '#9b5de5'], ['blue', '#3b82f6']];
     const COLOR = Object.fromEntries(LABELS);
@@ -67,6 +67,7 @@
             return toast(e.message, { bad: true });
         }
         history.replaceState(null, '', `${location.pathname}#${id}`);
+        hist.reset();
         board();
     }
 
@@ -509,9 +510,30 @@
         ]);
     }
 
-    /* ---------- saving, and others' changes ---------- */
+    /* ---------- undo (Ctrl Z, Ctrl Y), saving, and others' changes ---------- */
+    const hist = undoable(
+        () => ({ title: open.title, body: open.body }),
+        s => {
+            open.title = s.title;
+            open.body = s.body;
+        }
+    );
+    function undoRedo(which) {
+        if (!(which === 'undo' ? hist.undo() : hist.redo())) return;
+        const x = $('#cols') ? $('#cols').scrollLeft : 0;
+        board();
+        if ($('#cols')) $('#cols').scrollLeft = x;
+        changed();
+    }
+    addEventListener('keydown', e => {
+        const u = undoKey(e);
+        if (!u || !open || !open.canEdit || textBox(e) || $('.pf-crop-back') || drag) return;
+        e.preventDefault();
+        undoRedo(u);
+    });
     function changed() {
         if (!open || !open.canEdit) return;
+        hist.note();
         dirty = true;
         $('#saved') && ($('#saved').textContent = 'Saving…');
         save();
@@ -541,6 +563,7 @@
             const fresh = await call(`/api/docs/${open.id}`);
             if (fresh.version !== open.version && !dirty) {
                 open = fresh;
+                hist.reset();
                 drawCols();
             }
         } catch {
