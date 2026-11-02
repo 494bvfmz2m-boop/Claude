@@ -122,7 +122,7 @@ function cleanWhiteboard(b) {
         if (!it || typeof it !== 'object' || !WB_KINDS.includes(it.t)) return null;
         const o = { id: shortId(it.id), t: it.t, c: colour(it.c) || '#1f1f1f' };
         if (it.t === 'pen' || it.t === 'marker') {
-            const pts = [].concat(it.p || []).slice(0, 4000);
+            const pts = [].concat(it.p || []).slice(0, 20000);
             points += pts.length;
             if (points > 300000 || pts.length < 2) return null;
             o.p = pts.map(v => n(v));

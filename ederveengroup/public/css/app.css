@@ -3010,3 +3010,74 @@ a.btn { text-decoration: none; }
     .pl-item button { opacity: 1; }
     .pl-new, .pl-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
+
+/* ---------- Whiteboard ---------- */
+.wb-office .pf-top { display: none; }
+.wb-office .ea { max-width: none; padding: 10px 12px 0; }
+.wb { display: flex; flex-direction: column; height: calc(100vh - 12px); }
+.wb-app { background: #1f1f1f; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+.wb-stage { position: relative; flex: 1; min-height: 0; border-radius: 12px 12px 0 0; overflow: hidden; background: #fbfbfc; box-shadow: inset 0 0 0 1px var(--line); touch-action: none; user-select: none; -webkit-user-select: none; }
+.wb-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.wb-bg { fill: transparent; }
+.wb.bg-dots .wb-bg { fill: url(#pat-dots); }
+.wb.bg-grid .wb-bg { fill: url(#pat-grid); }
+.wb-dot { fill: #c7ccd6; }
+.wb-gridline { stroke: #e3e6ec; stroke-width: 1; }
+.wb-stage[data-tool='pen'], .wb-stage[data-tool='marker'], .wb-stage[data-tool='line'], .wb-stage[data-tool='arrow'], .wb-stage[data-tool='rect'], .wb-stage[data-tool='ellipse'] { cursor: crosshair; }
+.wb-stage[data-tool='text'] { cursor: text; }
+.wb-stage[data-tool='note'] { cursor: copy; }
+.wb-stage[data-tool='eraser'] { cursor: cell; }
+.wb-stage[data-tool='hand'], .wb-stage.pan { cursor: grab; }
+.wb-stage.grabbing { cursor: grabbing; }
+.wb-selbox { fill: rgba(47, 107, 255, .06); stroke: #2f6bff; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.wb-handle { fill: #fff; stroke: #2f6bff; cursor: nwse-resize; }
+.wb-marquee { fill: rgba(47, 107, 255, .08); stroke: #2f6bff; }
+.wb-tools { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 10px 30px -10px rgba(20, 24, 40, .35), 0 0 0 1px rgba(20, 24, 40, .08); }
+.wb-tools button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; color: #3a3f4a; }
+.wb-tools button:hover { background: #f0f2f6; }
+.wb-tools button.on { background: #e5edff; color: #2f6bff; }
+.wb-tools svg, .wb-tools .i { width: 21px; height: 21px; }
+.wb-tools i { height: 1px; margin: 4px 6px; background: #e3e6ec; }
+.wb-style { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 14px; background: #fff; box-shadow: 0 10px 30px -10px rgba(20, 24, 40, .35), 0 0 0 1px rgba(20, 24, 40, .08); }
+.wb-style[hidden] { display: none; }
+.wb-style i { width: 1px; height: 22px; margin: 0 4px; background: #e3e6ec; }
+.wb-sw { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18); }
+.wb-sw.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2f6bff; }
+.wb-w { display: grid; place-items: center; width: 32px; height: 30px; border-radius: 8px; }
+.wb-w span { width: 18px; border-radius: 9px; background: #3a3f4a; }
+.wb-w.on, .wb-fill.on { background: #e5edff; }
+.wb-style button:not(.wb-sw) { color: #3a3f4a; }
+.wb-style button:not(.wb-sw):not(.wb-w) { display: grid; place-items: center; width: 32px; height: 30px; border-radius: 8px; }
+.wb-style button:not(.wb-sw):hover { background: #f0f2f6; }
+.wb-style .i { width: 17px; height: 17px; }
+.wb-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; padding: 3px; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px -10px rgba(20, 24, 40, .35), 0 0 0 1px rgba(20, 24, 40, .08); }
+.wb-zoom button { min-width: 34px; height: 32px; padding: 0 6px; border-radius: 9px; color: #3a3f4a; font-size: 15px; font-variant-numeric: tabular-nums; }
+.wb-zoom #zlabel { font-size: 12.5px; min-width: 52px; }
+.wb-zoom button:hover { background: #f0f2f6; }
+.wb-editor { position: absolute; z-index: 5; margin: 0; padding: 0; border: 0; outline: 2px dashed rgba(47, 107, 255, .6); outline-offset: 4px; resize: none; overflow: hidden; font-family: Geist, system-ui, sans-serif; white-space: pre; }
+.wb-editor.note { padding: 0; white-space: pre-wrap; outline-offset: 10px; }
+.wb-editor[hidden] { display: none; }
+/* the start screen */
+.wb-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; margin-bottom: 26px; }
+.wb-card, .wb-first { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0; text-align: left; color: var(--text); animation: rowUp .4s var(--ease) both; }
+.wb-first { max-width: 340px; }
+.wb-thumb { display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 10px; color: #2f6bff; background: radial-gradient(circle, #c7ccd6 1px, transparent 1.4px) 0 0 / 14px 14px, #fbfbfc; box-shadow: inset 0 0 0 1px var(--line), 0 12px 26px -18px rgba(0, 0, 0, .7); transition: transform .3s var(--ease); }
+.wb-thumb .i { width: 34px; height: 34px; opacity: .8; }
+.wb-card:hover .wb-thumb, .wb-first:hover .wb-thumb { transform: translateY(-3px); }
+.wb-card > b, .wb-first > b { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-card > b .i { width: 13px; height: 13px; color: var(--accent-ink); flex: none; }
+.wb-card small, .wb-first small { margin-top: -4px; color: var(--text-3); font-size: 12.5px; }
+.wb-first small { white-space: normal; }
+@media (max-width: 760px) {
+    .wb { height: calc(100vh - var(--safe-t) - 8px); }
+    .wb-office .ea { padding: 8px 8px 0; }
+    .wb .of-title { flex-wrap: wrap; row-gap: 4px; }
+    .wb .of-name { flex: 1 1 calc(100% - 96px); }
+    .wb .of-title .spacer { display: none; }
+    .wb .of-share { flex: 1; }
+    .wb-tools { left: 50%; top: auto; bottom: 10px; transform: translateX(-50%); flex-direction: row; max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
+    .wb-tools button { width: 38px; height: 38px; flex: none; }
+    .wb-tools i { width: 1px; height: auto; margin: 6px 3px; }
+    .wb-style { top: 8px; max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
+    .wb-zoom { bottom: 72px; right: 8px; }
+}
