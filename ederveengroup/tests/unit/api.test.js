@@ -12,11 +12,12 @@ const { loadConfig } = require('../../src/config');
 const { createApp } = require('../../src/app');
 
 const USER = 'jo@example.com', PASS = 'correct horse';
+const USER2 = 'ann@example.com'; // a second person, for Chat
 
 function fakeMail() {
     return {
         sent: [],
-        verifyLogin: async (email, pw) => email === USER && pw === PASS,
+        verifyLogin: async (email, pw) => (email === USER || email === USER2) && pw === PASS,
         closeClient: async () => {},
         listFolders: async () => [{ path: 'INBOX', name: 'Inbox', specialUse: '\\Inbox', messages: 1, unseen: 1 }],
         listMessages: async () => ({ total: 1, page: 0, pageSize: 50, messages: [{ uid: 1, subject: 'Hi', from: [], to: [], flags: [], date: new Date().toISOString() }] }),
@@ -1385,5 +1386,85 @@ test('Forms: a link anyone can fill in, answers checked, responses as charts dat
     // the dashboard counts forms
     const sum = (await jo('GET', '/api/apps-summary')).body;
     assert.deepEqual([sum.forms, sum.formResponses], [1, 0]);
+    app.close();
+});
+
+test('Chat: one-to-one and groups, live, with pictures, reactions, replies, edits and unread counts', async () => {
+    const app = await start();
+    const jo = app.device();
+    const ann = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    // nobody to chat with yet: Ann has no username
+    assert.deepEqual((await jo('GET', '/api/chat/people')).body, []);
+    await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
+    await ann('POST', '/api/username', { username: 'ann' });
+    const people = (await jo('GET', '/api/chat/people')).body;
+    assert.deepEqual(people.map(p => p.username), ['ann']);
+    assert.equal((await jo('POST', '/api/chat', { with: ['nobody@example.com'] })).status, 400);
+    // a one-to-one chat is made once
+    const c = (await jo('POST', '/api/chat', { with: [USER2] })).body;
+    assert.equal(c.direct, true);
+    assert.equal((await ann('POST', '/api/chat', { with: [USER] })).body.id, c.id);
+    // Ann listens live
+    const live = await fetch(`${app.base}/api/chat/stream`, { headers: { Cookie: ann.cookies() } });
+    assert.match(live.headers.get('content-type'), /event-stream/);
+    const reader = live.body.getReader();
+    const got = [];
+    const pump = (async () => {
+        const dec = new TextDecoder();
+        for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            got.push(dec.decode(value));
+        }
+    })();
+    const m1 = (await jo('POST', `/api/chat/${c.id}`, { text: 'Hi Ann! See https://example.com <b>' })).body;
+    assert.equal(m1.text, 'Hi Ann! See https://example.com <b>');
+    const pic = 'data:image/png;base64,' + Buffer.from('89504e470d0a1a0a', 'hex').toString('base64');
+    const m2 = (await jo('POST', `/api/chat/${c.id}`, { img: pic })).body;
+    assert.match(m2.img, new RegExp(`^/api/chat/${c.id}/img/`));
+    assert.equal((await jo('POST', `/api/chat/${c.id}`, { text: '   ' })).status, 400);
+    await new Promise(r => setTimeout(r, 100));
+    assert.match(got.join(''), /event: msg[\s\S]*Hi Ann/);
+    // unread for Ann, on the dashboard too
+    const annList = (await ann('GET', '/api/chat')).body;
+    assert.equal(annList[0].unread, 2);
+    assert.equal((await ann('GET', '/api/apps-summary')).body.chat, 2);
+    const img = await fetch(`${app.base}${m2.img}`, { headers: { Cookie: ann.cookies() } });
+    assert.equal(img.headers.get('content-type'), 'image/png');
+    assert.equal((await app.device()('GET', m2.img)).status, 401);
+    // Ann replies, reacts, reads
+    const r1 = (await ann('POST', `/api/chat/${c.id}`, { text: 'Hey!', reply: m1.id })).body;
+    assert.equal(r1.reply.text, 'Hi Ann! See https://example.com <b>');
+    assert.deepEqual((await ann('PATCH', `/api/chat/${c.id}/m/${m1.id}`, { react: '👍' })).body.re, { '👍': [USER2] });
+    assert.equal((await ann('PATCH', `/api/chat/${c.id}/m/${m1.id}`, { react: '💩' })).status, 400);
+    assert.equal((await ann('GET', '/api/chat')).body[0].unread, 0); // sending reads
+    assert.equal((await jo('GET', '/api/chat')).body[0].unread, 1);
+    await jo('POST', `/api/chat/${c.id}/read`, {});
+    assert.equal((await jo('GET', '/api/chat')).body[0].unread, 0);
+    // only your own messages can be changed or deleted
+    assert.equal((await ann('PATCH', `/api/chat/${c.id}/m/${m1.id}`, { text: 'hacked' })).status, 403);
+    assert.equal((await jo('PATCH', `/api/chat/${c.id}/m/${m1.id}`, { text: 'Hi Ann!' })).body.edited > 0, true);
+    assert.equal((await ann('DELETE', `/api/chat/${c.id}/m/${m2.id}`)).status, 403);
+    const del = (await jo('DELETE', `/api/chat/${c.id}/m/${m2.id}`)).body;
+    assert.equal(del.deleted, true);
+    assert.equal((await jo('GET', m2.img)).status, 404);
+    const thread = (await ann('GET', `/api/chat/${c.id}`)).body;
+    assert.deepEqual(thread.msgs.map(m => m.text), ['Hi Ann!', '', 'Hey!']);
+    assert.ok(thread.read[USER2] > 0);
+    // a group: named, people added, someone leaves
+    const g = (await jo('POST', '/api/chat', { with: [USER2], name: 'Family' })).body;
+    assert.deepEqual([g.direct, g.name, g.members.length], [false, 'Family', 2]);
+    await jo('PATCH', `/api/chat/${g.id}`, { name: 'The Smiths' });
+    assert.equal((await ann('GET', `/api/chat/${g.id}`)).body.msgs[0].system, true);
+    await ann('POST', `/api/chat/${g.id}/leave`, {});
+    assert.equal((await ann('GET', `/api/chat/${g.id}`)).status, 404);
+    assert.equal((await jo('GET', `/api/chat/${g.id}`)).body.conv.members.length, 1);
+    // strangers see nothing
+    const eve = app.device();
+    assert.equal((await eve('GET', `/api/chat/${c.id}`)).status, 401);
+    reader.cancel();
+    await pump.catch(() => {});
     app.close();
 });
