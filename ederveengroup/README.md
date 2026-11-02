@@ -32,6 +32,9 @@ On a computer it wears **Midnight aurora**: a near-black sky with slow aurora li
 - **Chat, like Teams chat.** Talk with anyone on EderveenGroup, one to one or in a named group. Messages arrive live, with “… is typing”, “Seen”, pictures (paste or pick one), replies, reactions, editing (↑ in an empty box edits your last one) and deleting your own; links work and emoji-only messages show big. Groups can be renamed, and people added or leave. Unread counts show on the dashboard, and Chat can give a notice for new messages while it's open in the background. On a phone the list and the conversation are two screens, with a long press for a message's menu.
 - **Planner, like Microsoft Planner or Trello.** Boards with columns (start blank, or from a project, week planner or trip) and cards you drag from column to column, also with a long press on a phone. A card has labels (named per board), a due date (late, today and soon stand out), people on it, notes and a checklist; dropping it in Done marks it done. Filter cards or show only yours, pick a background, and share a board to plan together. The dashboard shows what's due for you this week.
 - **Whiteboard.** An endless canvas with pen, highlighter, eraser, lines, arrows, rectangles, circles, text and sticky notes; select, move, resize, duplicate and undo; pan and zoom (pinch on a phone). Share a whiteboard to draw on it together, and download it as PNG or SVG.
+- **Photo Editor.** Open a photo from your device, from Files, or with the pencil button in Photos. **Adjust** light and colour (exposure, contrast, highlights, shadows, saturation, vibrance, warmth, tint, fade, vignette, sharpen, blur, grain, with a one-tap Auto), pick one of 14 **Looks**, add **Effects** (glitch, pixelate, sepia, invert…), **Crop** to a shape, rotate, flip and straighten, and add **text** (fonts, colours, outline/box styles), **stickers** and **drawing**. Everything runs on the graphics card, so sliders are live even on a phone. Undo/redo, hold **Before** to compare, then download a full-size JPEG, PNG or WebP, or save it to Files → Edited photos.
+- **Video Editor, like CapCut.** Make a project in 16:9, 9:16 (TikTok, Reels, Shorts), 1:1 or 4:5 and import videos, photos and music (they're kept in Files → Video Editor, so a project opens on any device). On the timeline you drag clips to reorder them, drag their ends to trim, split at the playhead (S), copy and delete, change speed (0.25× to 4×) and volume, and choose Fill or Fit (on a blurred, black or white background). Each clip gets the Photo Editor's looks and adjustments, plus effects (zoom in/out, pulse, shake, glitch, flash, black & white, blur in) and a transition into the next clip (fade, dip to black or white, slide, zoom, wipe). Add titles and captions (styles, fonts, colours, fade/pop/slide/typewriter animations) and drag them on the video, and add music with fade in/out. **Export** plays the edit once while recording it into a 1080p or 720p video file (MP4 where the browser can make one, otherwise WebM) to download or save to Files. Undo/redo, keyboard shortcuts, autosave, and projects can be shared like docs.
+- **Auto edit with Claude (admins).** Admins get an **Auto edit** button in the Video Editor and an **AI edit** tool in the Photo Editor. For a video, Claude looks at frames from every clip, how loud each second is (cheering, laughter, speech) and the beat of your music, then builds the whole edit from your brief (“a fast 30-second recap of our holiday for Instagram, with a title”): the best moments, their order and speed, looks, effects, transitions, titles and the music, cut to the beat. You can change anything afterwards, and Undo takes it all back. For a photo it chooses the adjustments, a look, a crop and straightening. It runs on your own Claude API key; see [Auto editing with Claude](#auto-editing-with-claude).
 - **A username for everyone.** The first time someone signs in (Purelymail or an added mail server), they choose a username, checked live as they type, with free alternatives when a name is taken. Names are unique, and a few are reserved for the site.
 - **Profile.** Write your card once (name, what you do, company, location, bio, email with a show/hide switch, phone, website, and LinkedIn, X, Instagram, GitHub, TikTok or YouTube), with a live preview. The card can use your Mail photo, its own photo, or none. Anyone with your link gets Email/Call/Website buttons, **Save contact** (a vCard with your photo), Share and a QR code. Nothing is public until you save it, and you can make it private again at any time.
 - **New-mail chime** while the app is open (Settings, then General). On iPhone it starts working after your first tap, as Safari requires.
@@ -119,7 +122,7 @@ Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypt
 4. **Persistent Storage → Volume** mounted at **`/data`** (keeps sign-ins, settings, photos and 2FA across deploys).
 5. Deploy. No environment variables are needed: the image runs as a non-root user, trusts Coolify's proxy (`TRUST_PROXY=1`) and has a health check.
 
-**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.2*) shows which release is live.
+**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.3*) shows which release is live.
 
 ### Docker
 
@@ -217,6 +220,16 @@ Good to know: `https://mail.google.com/` is a *restricted* scope. While the app 
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from step 3 above |
 | `PUBLIC_URL` | optional: `https://yourdomain`, if the redirect address comes out wrong behind your proxy |
 
+## Auto editing with Claude
+
+Auto edit is only for admins (the addresses in `ADMIN_EMAILS` and people made admin in Admin → People), because it runs on your Anthropic account.
+
+1. Create an API key at [console.anthropic.com](https://console.anthropic.com) → **API keys** (it starts with `sk-ant-`), and add some credit under **Billing**.
+2. In EderveenGroup: **Admin → AI**, paste the key and press **Save**, then **Test**. The key is stored encrypted and is never shown again (only its last four characters). **Or** set it as the environment variable `ANTHROPIC_API_KEY` in Coolify and redeploy; a key set there wins over one saved in Admin.
+3. Choose the model under **Model**: **Claude Opus 5.5** (the default, best edits), Claude Sonnet 5.5 (faster, cheaper) or Claude Haiku 5.5 (fastest, cheapest). If Claude Opus or Sonnet declines a request, it's retried on Anthropic's recommended fallback model automatically.
+
+What it costs depends on the model and how much footage there is: a video auto edit sends 3 to 12 small frames (512 pixels) per clip, at most 90, plus some text, a photo one picture. **Admin → AI** shows this month's auto edits and tokens; the exact cost is on console.anthropic.com under **Usage**. Each admin can do 40 auto edits an hour. Only frames, loudness numbers and beat times leave your server, never the video files themselves.
+
 ## Two-step verification and Purelymail
 
 IMAP and SMTP have no way to ask for a second factor, so no mail app can show Purelymail's own 2FA prompt. If you enable 2FA in your Purelymail account, sign in here with a **Purelymail app password**, and enable EderveenGroup's two-step verification to protect this web login with your authenticator app.
@@ -232,6 +245,8 @@ IMAP and SMTP have no way to ask for a second factor, so no mail app can show Pu
 - The service worker only caches the app's own versioned files; mail and anything under `/api/` is never stored on the device
 - Strict Content-Security-Policy, HSTS over HTTPS, no framing, locked-down Permissions-Policy, cross-origin isolation
 - Incoming mail is sanitized server-side and rendered in a script-less sandbox; remote images are blocked by default
+- The Photo and Video Editors work in the browser: photos and video are edited and exported on the device, and the server only keeps the files and the edit (checked on save: known footage only, every number in range)
+- Auto edit with Claude is admin-only and rate-limited; the API key is stored encrypted (or kept in the server's environment) and never sent to the browser, and Claude's answer is checked before an editor uses it
 - Office files: documents are cleaned when saved (only allowed formatting, pictures only as embedded images), uploaded Word/Excel/PowerPoint files are read as data, never run, and a form's answers go into Excel and CSV downloads as plain values, so nothing anyone types into a form can turn into a formula. A form's public link answers only with its questions, and sending is rate-limited per address and per form
 - Sender photos are fetched by the server, so senders never see your IP
 - 2FA codes can't be replayed; recovery codes are single-use and stored hashed
@@ -249,7 +264,7 @@ src/               The app: config, security, pages, settings validation, 2FA, d
                    routes/ (hub = site-wide API for usernames and Profile; apps = Notes/Tasks/Contacts/Calendar
                    and the dashboard's summary; files = Files and Photos; dav = the network drive and app
                    passwords; docs = Docs, Spreadsheets, Slides, Planner and Whiteboard;
-                   chat = Chat;
+                   chat = Chat; ai = Auto edit with Claude (Admin → AI);
                    forms = Forms' responses and the public link;
                    oauth = Sign in with Microsoft/Google; servers = requests and the Admin API;
                    auth, twofa, account, mail, events)
@@ -258,8 +273,10 @@ lib/vault.js       File contents on disk, encrypted in 4 MB pieces (any range re
 lib/docs.js        Shared documents (docs index, news, activity log, share links), cached and written back
 lib/office.js      Word, Excel and PowerPoint files (and PDF): downloads and opening uploaded files
 lib/forms.js       Forms: questions, checking answers, responses for Excel/CSV/Spreadsheets
+lib/ai.js          Auto editing with Claude: what it's sent, the edit it must answer with, checking that answer
 public/js/formula.js  The spreadsheet formula engine (the browser and the server share it)
 public/js/slidekit.js Slide themes and layouts (the editor and the .pptx/PDF downloads share them)
+public/js/imagefx.js  The looks, adjustments and effects on the graphics card (WebGL), for both editors
 lib/exif.js        When a photo was taken (EXIF), for photos that arrive over WebDAV
 lib/ical.js        Shared calendars: fetching webcal/iCal links safely, repeats, exceptions and time zones
 lib/oauth.js       Sign in with Microsoft / Google (OAuth 2.0 + PKCE), token renewal, their mail servers
@@ -281,7 +298,8 @@ public/            Styles, icons and scripts (vanilla JS, no build step)
 public/css/        app.css (shared), desk.css (computers: Midnight aurora), phone.css (phones: Apple-style)
 public/js/app/     The webmail client as ES modules (main.js boots it; router.js = addresses, phone.js = phone app)
 public/js/         hub.js (the dashboard), login.js, profile.js, admin.js, and the apps on top of kit.js: notes, tasks,
-                   contacts, calendar, files, photos, docs, slides
+                   contacts, calendar, files, photos, docs, slides, sheets, forms, chat, planner, whiteboard,
+                   photoedit (Photo Editor) and videoedit (Video Editor)
 public/icons/apps/ The app icons
 tests/             npm test: unit + HTTP integration tests (no mail server needed)
 Start EderveenGroup (Windows).bat / (Mac).command / start.sh   Double-click launchers

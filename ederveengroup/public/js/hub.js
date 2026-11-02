@@ -42,6 +42,8 @@
         { id: 'slides', name: 'Slides', cat: 'create', href: '/slides/', blurb: 'Presentations you can show anywhere.' },
         { id: 'forms', name: 'Forms', cat: 'create', href: '/forms/', blurb: 'Sign-ups, polls and feedback, with a link to share.' },
         { id: 'whiteboard', name: 'Whiteboard', cat: 'create', href: '/whiteboard/', blurb: 'Draw, sketch and plan together.' },
+        { id: 'photoedit', name: 'Photo Editor', cat: 'create', href: '/photoedit/', blurb: 'Light, colour, looks, crop, text and stickers.' },
+        { id: 'videoedit', name: 'Video Editor', cat: 'create', href: '/videoedit/', blurb: 'Cut, add effects, text and music, export.' },
         { id: 'photos', name: 'Photos', cat: 'store', href: '/photos/', blurb: 'Every photo and video, by the day it was taken.' },
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
@@ -130,6 +132,7 @@
         if (sum.slides != null) stat('slides', sum.slides ? plural(sum.slides, 'deck') : 'No decks yet');
         if (sum.boards != null) stat('planner', sum.boardDue ? `<i>${sum.boardDue}</i> due this week` : sum.boards ? plural(sum.boards, 'board') : 'No boards yet', sum.boardDue);
         if (sum.whiteboards != null) stat('whiteboard', sum.whiteboards ? plural(sum.whiteboards, 'board') : 'Start drawing');
+        if (sum.videos != null) stat('videoedit', sum.videos ? plural(sum.videos, 'project') : 'Make your first video');
         if (sum.forms != null) stat('forms', sum.forms ? `${plural(sum.forms, 'form')} · ${plural(sum.formResponses || 0, 'response')}` : 'No forms yet');
         if (sum.chat != null) stat('chat', sum.chat ? `<i>${sum.chat}</i> unread` : 'All read', sum.chat);
         if (sum.mail != null) stat('mail', sum.mail ? `<i>${sum.mail}</i> unread` : 'All read', sum.mail);

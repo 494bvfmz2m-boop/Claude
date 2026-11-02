@@ -1,6 +1,6 @@
 {
   "name": "ederveengroup",
-  "version": "2026.11.2-2",
+  "version": "2026.11.3",
   "description": "EderveenGroup: webmail for Purelymail (IMAP/SMTP)",
   "main": "server.js",
   "scripts": {
@@ -11,6 +11,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "compression": "^1.8.2",
     "docx": "^9.15.1",
     "exceljs": "^4.4.0",

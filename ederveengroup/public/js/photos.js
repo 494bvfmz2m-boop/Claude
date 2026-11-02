@@ -124,6 +124,7 @@
             back.innerHTML = `<div class="ph-v-bar">
                     <button class="icon-btn" data-close aria-label="Close">${ic('x')}</button>
                     <span class="ph-v-title"><b>${esc(d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</b><small>${esc(d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }))} · ${esc(f.name)} · ${size(f.size)}</small></span>
+                    ${isVideo(f) || /^image\/(jpeg|png|webp|gif|avif|bmp)$/.test(f.type) ? `<a class="icon-btn" href="${isVideo(f) ? '/videoedit/' : '/photoedit/'}#file=${encodeURIComponent(f.id)}" aria-label="Edit" title="${isVideo(f) ? 'Edit in Video Editor' : 'Edit in Photo Editor'}">${ic('pen')}</a>` : ''}
                     <a class="icon-btn" href="/api/files/${encodeURIComponent(f.id)}/content" aria-label="Download" title="Download">${ic('download')}</a>
                     <button class="icon-btn" data-share aria-label="Share" title="Share link">${ic('link')}</button>
                     <button class="icon-btn" data-del aria-label="Delete" title="Delete">${ic('trash')}</button>

@@ -6,6 +6,7 @@ const cspFor = (scriptHashes = []) => [
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https: http:",
+    "media-src 'self' blob:",
     "frame-src 'self' about:",
     "worker-src 'self'",
     "manifest-src 'self'",

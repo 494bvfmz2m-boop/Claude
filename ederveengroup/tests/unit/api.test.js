@@ -1510,3 +1510,157 @@ test('Planner: boards of columns and cards, cleaned on save, with what’s due o
     assert.deepEqual([w.body.items[2].x, w.body.items[2].f], [0, '']);
     app.close();
 });
+
+test('Video Editor: a project keeps only footage it knows, times and looks in range, and shows on the dashboard', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const v = (await jo('POST', '/api/docs', { kind: 'video', title: 'Trip', body: { aspect: '9:16', bg: 'blur' } })).body;
+    assert.deepEqual([v.body.aspect, v.body.clips, v.cover], ['9:16', [], '9:16||0']);
+    const body = {
+        aspect: '21:9',
+        bg: 'rainbow',
+        media: [{ id: 'med1', file: 'abcdefgh12', name: 'beach.mp4', kind: 'video', dur: 12.3456, w: 1920, h: 1080 }, { id: 'med2', file: '../etc/passwd', name: 'song.mp3', kind: 'audio', dur: 200 }, { id: 'med3', kind: 'script' }],
+        clips: [
+            { id: 'clp1', m: 'med1', in: 2, out: 6, speed: 9, vol: 500, filter: 'cinematic', strength: 70, adjust: { exposure: 300, nope: 5, saturation: -20 }, effect: 'zoom_in', fit: 'contain', tr: { type: 'fade', dur: 9 } },
+            { id: 'clp2', m: 'ghost', in: 0, out: 3 },
+            { id: 'clp3', m: 'med1', in: 8, out: 1, speed: 1, filter: '<b>', effect: 'boom', tr: { type: 'spin' } }
+        ],
+        texts: [{ id: 'txt1', text: 'Hello <script>', start: -4, dur: 2, x: 3, y: 0.2, size: 99, color: 'red', font: 'Comic', style: 'title', anim: 'pop' }, 'junk'],
+        audio: [{ id: 'aud1', m: 'med2', start: 1, in: 5, out: 65, vol: 80, fadeIn: 1, fadeOut: 99 }, { id: 'aud2', m: 'nope', start: 0, in: 0, out: 5 }]
+    };
+    const saved = await jo('PUT', `/api/docs/${v.id}`, { title: 'Trip', body, version: v.version });
+    assert.equal(saved.status, 200);
+    const back = (await jo('GET', `/api/docs/${v.id}`)).body;
+    const p = back.body;
+    assert.deepEqual([p.aspect, p.bg], ['16:9', 'blur']);
+    assert.deepEqual(p.media.map(m => [m.id, m.file, m.kind]), [['med1', 'abcdefgh12', 'video'], ['med2', '', 'audio'], ['med3', '', 'video']]);
+    assert.deepEqual(p.clips.map(c => c.id), ['clp1', 'clp3']);
+    const [c1, c3] = p.clips;
+    assert.deepEqual([c1.speed, c1.vol, c1.filter, c1.strength, c1.effect, c1.fit, c1.tr.type, c1.tr.dur], [4, 200, 'cinematic', 70, 'zoom_in', 'contain', 'fade', 3]);
+    assert.deepEqual(c1.adjust, { exposure: 100, saturation: -20 });
+    assert.ok(c3.out > c3.in);
+    assert.deepEqual([c3.filter, c3.effect, c3.tr.type, c3.fit], ['none', 'none', 'none', 'cover']);
+    assert.equal(p.texts.length, 1);
+    const t1 = p.texts[0];
+    assert.deepEqual([t1.start, t1.x, t1.size, t1.color, t1.font, t1.style, t1.anim], [0, 1, 40, '#ffffff', 'Geist', 'title', 'pop']);
+    assert.equal(t1.text, 'Hello <script>'); // drawn on a canvas, never put in the page
+    assert.deepEqual(p.audio.map(a => [a.id, a.fadeOut]), [['aud1', 10]]);
+    // the gallery card: shape, the first footage's picture, the length
+    const listed = (await jo('GET', '/api/docs?kind=video')).body.find(d => d.id === v.id);
+    assert.match(listed.cover, /^16:9\|abcdefgh12\|\d+$/);
+    assert.equal((await jo('GET', '/api/apps-summary')).body.videos, 1);
+    app.close();
+});
+
+test('Auto editing with Claude: admins only, key sealed, the answer checked before the editors use it', async () => {
+    // a stand-in for the Anthropic API that records what it was asked
+    const http = require('http');
+    const asked = [];
+    let answer = null;
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            const key = req.headers['x-api-key'] || String(req.headers.authorization || '').replace(/^Bearer /, '');
+            asked.push({ url: req.url, key, beta: req.headers['anthropic-beta'] || '', body: b });
+            if (key === 'sk-ant-bad-key-0000000000000000000000') return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
+            const text = typeof answer === 'function' ? answer(b) : JSON.stringify(answer || 'ready');
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: b.model, content: [{ type: 'text', text: typeof answer === 'string' ? answer : text }], stop_reason: 'end_turn', usage: { input_tokens: 1200, output_tokens: 300 } }));
+        });
+    });
+    await new Promise(r => fake.listen(0, r));
+    fake.unref();
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${fake.address().port}` });
+    const jo = app.device();
+    const ann = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
+    await ann('POST', '/api/username', { username: 'ann' });
+    // off until a key is added; never for people who aren't admins
+    assert.deepEqual((await jo('GET', '/api/ai/status')).body.on, false);
+    assert.equal((await jo('POST', '/api/ai/photo', { photo: 'data:image/png;base64,AAAA' })).status, 409);
+    assert.equal((await ann('GET', '/api/admin/ai')).status, 403);
+    assert.equal((await ann('POST', '/api/ai/video', {})).status, 403);
+    assert.equal((await jo('PUT', '/api/admin/ai', { apiKey: 'hello' })).status, 400);
+    const set = (await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' })).body;
+    assert.deepEqual([set.configured, set.source, set.hint, set.model], [true, 'saved', 'ghij', 'claude-opus-5-5']);
+    assert.equal(JSON.stringify(set).includes('sk-ant-test'), false); // never sent back
+    assert.equal((await jo('GET', '/api/ai/status')).body.on, true);
+    assert.equal((await ann('GET', '/api/ai/status')).body.on, false);
+    // the key is sealed on disk
+    const registry = JSON.stringify(app.store.servers.getSignin('claude'));
+    assert.equal(registry.includes('sk-ant-test'), false);
+    // a test request
+    answer = 'ready';
+    const t = (await jo('POST', '/api/admin/ai/test', {})).body;
+    assert.deepEqual([t.ok, t.reply], [true, 'ready']);
+    assert.equal(asked[0].key, 'sk-ant-test-key-1234567890abcdefghij');
+    // a photo: Claude's answer comes back checked and clamped
+    answer = { adjust: { exposure: 250, contrast: 12, highlights: -20, shadows: 30, saturation: 8, vibrance: 10, temperature: 6, tint: 0, fade: -5, vignette: 12, sharpen: 15, grain: 0 }, filter: 'golden', filter_strength: 60, crop: { aspect: '4:5', x: 0.1, y: 0, w: 0.8, h: 1 }, straighten: 40, note: 'Lifted the shadows and warmed it up.' };
+    const pic = 'data:image/jpeg;base64,' + Buffer.from('ffd8ffe000104a464946', 'hex').toString('base64');
+    const ph = (await jo('POST', '/api/ai/photo', { photo: pic, wish: 'make it warm', size: { w: 4000, h: 3000 } })).body;
+    assert.equal(ph.edit.adjust.exposure, 100);
+    assert.equal(ph.edit.adjust.fade, 0);
+    assert.deepEqual([ph.edit.filter, ph.edit.strength, ph.edit.straighten, ph.edit.crop.aspect], ['golden', 60, 15, '4:5']);
+    const req1 = asked[asked.length - 1];
+    assert.equal(req1.body.model, 'claude-opus-5-5');
+    assert.equal(req1.body.output_config.format.type, 'json_schema');
+    assert.equal(req1.body.fallbacks, 'default');
+    assert.match(req1.beta, /server-side-fallback-2026-07-01/);
+    assert.equal(req1.body.messages[0].content[0].type, 'image');
+    assert.match(req1.body.messages[0].content[1].text, /make it warm/);
+    assert.equal((await jo('POST', '/api/ai/photo', { photo: 'javascript:alert(1)' })).status, 400);
+    // a video: only known clips, times inside each clip, enums kept to the list
+    answer = {
+        title: 'Summer',
+        aspect: '9:16',
+        clips: [
+            { media: 'c1', in: 2, out: 5.5, speed: 1, filter: 'warm', effect: 'zoom_in', transition: 'fade' },
+            { media: 'c2', in: 9, out: 99, speed: 9, filter: 'nope', effect: 'zoom_in', transition: 'none' },
+            { media: 'ghost', in: 0, out: 3, speed: 1, filter: 'none', effect: 'none', transition: 'none' }
+        ],
+        texts: [{ text: 'Summer 2026', start: 0, duration: 2.5, position: 'center', style: 'title', animation: 'pop' }],
+        music: { media: 'm1', offset: 12, volume: 70 },
+        clip_volume: 30,
+        summary: 'A quick summer recap.'
+    };
+    const frames = [0, 2, 4].map(t => ({ t, data: pic }));
+    const v = await jo('POST', '/api/ai/video', { brief: 'Fast summer recap for TikTok', length: 15, aspect: '9:16', captions: true, media: [{ id: 'c1', name: 'beach.mp4', kind: 'video', dur: 12, w: 1920, h: 1080, frames, loud: [1, 2, 9, 4] }, { id: 'c2', name: 'pier.mp4', kind: 'video', dur: 10, frames }], music: [{ id: 'm1', name: 'song.mp3', dur: 120, bpm: 120, beats: [0.5, 1, 1.5] }] });
+    assert.equal(v.status, 200);
+    const plan = v.body.plan;
+    assert.deepEqual(plan.clips.map(c => c.media), ['c1', 'c2']);
+    assert.deepEqual([plan.clips[1].out, plan.clips[1].speed, plan.clips[1].filter], [10, 4, 'none']);
+    assert.deepEqual([plan.aspect, plan.music.media, plan.clipVolume, plan.texts[0].style], ['9:16', 'm1', 30, 'title']);
+    const req2 = asked[asked.length - 1];
+    assert.equal(req2.body.output_config.effort, 'high');
+    assert.equal(req2.body.messages[0].content.filter(c => c.type === 'image').length, 6);
+    assert.match(JSON.stringify(req2.body.messages[0].content), /Loudness per second \(0 quiet – 9 loud\): 1294/);
+    assert.match(JSON.stringify(req2.body.messages[0].content), /about 120 BPM/);
+    assert.equal(v.body.model, 'Claude Opus 5.5');
+    // a cheaper model when the admin picks one (no fallback beta needed for Haiku)
+    await jo('PUT', '/api/admin/ai', { model: 'claude-haiku-5-5' });
+    await jo('POST', '/api/ai/photo', { photo: pic });
+    assert.equal(asked[asked.length - 1].body.model, 'claude-haiku-5-5');
+    assert.equal(asked[asked.length - 1].body.fallbacks, undefined);
+    assert.equal((await jo('PUT', '/api/admin/ai', { model: 'gpt-4' })).status, 400);
+    // usage this month, and the activity log
+    const after = (await jo('GET', '/api/admin/ai')).body;
+    assert.equal(after.usage.requests, 4);
+    assert.equal(after.usage.output, 1200);
+    const log = (await jo('GET', '/api/admin/activity')).body;
+    assert.ok(log.some(e => /Auto-edited a video/.test(e.text)));
+    // a key Anthropic doesn't accept is reported plainly
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-bad-key-0000000000000000000000' });
+    const bad = await jo('POST', '/api/ai/photo', { photo: pic });
+    assert.equal(bad.status, 502);
+    assert.match(bad.body.error, /isn’t accepted/);
+    await jo('DELETE', '/api/admin/ai');
+    assert.equal((await jo('GET', '/api/ai/status')).body.on, false);
+    fake.closeAllConnections();
+    fake.close();
+    app.close();
+});

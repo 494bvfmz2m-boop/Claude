@@ -18,7 +18,7 @@ module.exports = function hubRoutes(ctx) {
     // JSON bodies: 1 MB, except Docs and Slides (pictures are part of them)
     const small = express.json({ limit: '1mb' });
     const big = express.json({ limit: '8mb' });
-    r.use((req, res, next) => (req.path.startsWith('/docs') || req.path.startsWith('/chat') ? big : small)(req, res, next));
+    r.use((req, res, next) => (req.path.startsWith('/docs') || req.path.startsWith('/chat') || req.path.startsWith('/ai/') ? big : small)(req, res, next));
     r.use(csrfGuard);
     const checks = createLimiter({ max: 120, windowMs: 60 * 1000 });
 
@@ -131,6 +131,7 @@ module.exports = function hubRoutes(ctx) {
     r.use(require('./docs')(ctx));
     r.use(require('./forms')(ctx));
     r.use(require('./chat')(ctx));
+    r.use(require('./ai')(ctx));
     if (ctx.davApi) r.use(ctx.davApi);
 
     // the Admin app (only for ADMIN_EMAILS)
@@ -141,7 +142,7 @@ module.exports = function hubRoutes(ctx) {
     r.use((err, req, res, next) => {
         const status = err.status || (err.type === 'entity.too.large' ? 413 : err.type === 'entity.parse.failed' ? 400 : 500);
         if (status >= 500) console.error(err);
-        res.status(status).json({ error: status >= 500 ? 'Something went wrong' : err.message });
+        res.status(status).json({ error: status >= 500 && !err.expose ? 'Something went wrong' : err.message });
     });
     return r;
 };

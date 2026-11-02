@@ -18,7 +18,7 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const { sanitizeDocHtml } = require('../../lib/sanitize');
 
-const KINDS = ['doc', 'deck', 'sheet', 'form', 'board', 'wb'];
+const KINDS = ['doc', 'deck', 'sheet', 'form', 'board', 'wb', 'video'];
 const forms = require('../../lib/forms');
 const F = require('../../public/js/formula');
 const office = require('../../lib/office');
@@ -71,6 +71,7 @@ function cleanBody(kind, b) {
     if (kind === 'form') return forms.cleanForm(b);
     if (kind === 'board') return cleanBoard(b);
     if (kind === 'wb') return cleanWhiteboard(b);
+    if (kind === 'video') return cleanVideo(b);
     if (kind === 'doc') {
         const p = (b && b.page) || {};
         return {
@@ -142,6 +143,90 @@ function cleanWhiteboard(b) {
     }).filter(Boolean);
     return { bg: ['dots', 'grid', 'plain'].includes(b.bg) ? b.bg : 'dots', items };
 }
+
+/* ---------- Video Editor: a project (the footage stays in Files; this is the edit) ---------- */
+const V = {
+    aspects: ['16:9', '9:16', '1:1', '4:5'],
+    bgs: ['blur', 'black', 'white'],
+    filters: ['none', 'vivid', 'warm', 'cool', 'golden', 'mono', 'noir', 'sepia', 'vintage', 'fade', 'dramatic', 'cinematic', 'pastel', 'teal'],
+    effects: ['none', 'zoom_in', 'zoom_out', 'pulse', 'shake', 'glitch', 'flash', 'bw', 'blur_in'],
+    transitions: ['none', 'fade', 'dip_black', 'dip_white', 'slide_left', 'slide_up', 'zoom', 'wipe'],
+    styles: ['plain', 'shadow', 'outline', 'box', 'title'],
+    anims: ['none', 'fade', 'pop', 'slide', 'type'],
+    fonts: ['Geist', 'Serif', 'Impact', 'Rounded', 'Mono', 'Script'],
+    adjust: ['exposure', 'contrast', 'highlights', 'shadows', 'saturation', 'vibrance', 'temperature', 'tint', 'fade', 'vignette', 'sharpen', 'blur', 'grain', 'glitch', 'pixelate', 'sepia', 'teal', 'invert']
+};
+// how long a project plays: its clips one after another, less the transitions' overlaps
+function videoLength(b) {
+    let end = 0;
+    let at = 0;
+    b.clips.forEach((c, i) => {
+        const d = (c.out - c.in) / c.speed;
+        end = at + d;
+        const next = b.clips[i + 1];
+        const tr = next && c.tr.type !== 'none' ? Math.min(c.tr.dur, d / 2, (next.out - next.in) / next.speed / 2) : 0;
+        at = end - tr;
+    });
+    return end;
+}
+function cleanVideo(b) {
+    b = b && typeof b === 'object' ? b : {};
+    const t = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.round(Math.max(lo, Math.min(hi, Number(v))) * 1000) / 1000 : d);
+    const pick = (v, list, d) => (list.includes(v) ? v : d);
+    const media = [].concat(b.media || []).slice(0, 300).filter(m => m && typeof m === 'object').map(m => ({
+        id: shortId(m.id),
+        file: /^[A-Za-z0-9_-]{6,40}$/.test(String(m.file || '')) ? m.file : '',
+        name: line(m.name, 160),
+        kind: ['video', 'image', 'audio'].includes(m.kind) ? m.kind : 'video',
+        dur: t(m.dur, 0, 6 * 3600, 0),
+        w: Math.round(t(m.w, 0, 20000, 0)),
+        h: Math.round(t(m.h, 0, 20000, 0))
+    }));
+    const ids = new Set(media.map(m => m.id));
+    const adjust = a => {
+        const o = {};
+        for (const k of V.adjust) if (a && Number(a[k])) o[k] = t(a[k], -100, 100, 0);
+        return o;
+    };
+    const clips = [].concat(b.clips || []).slice(0, 500).filter(c => c && ids.has(c.m)).map(c => {
+        const inn = t(c.in, 0, 6 * 3600, 0);
+        return {
+            id: shortId(c.id),
+            m: c.m,
+            in: inn,
+            out: t(c.out, inn + 0.05, 6 * 3600, inn + 3),
+            speed: t(c.speed, 0.25, 4, 1),
+            vol: t(c.vol, 0, 200, 100),
+            filter: pick(c.filter, V.filters, 'none'),
+            strength: t(c.strength, 0, 100, 100),
+            adjust: adjust(c.adjust),
+            effect: pick(c.effect, V.effects, 'none'),
+            fit: c.fit === 'contain' ? 'contain' : 'cover',
+            tr: { type: pick(c.tr && c.tr.type, V.transitions, 'none'), dur: t(c.tr && c.tr.dur, 0.1, 3, 0.5) }
+        };
+    });
+    const texts = [].concat(b.texts || []).slice(0, 300).filter(x => x && typeof x === 'object').map(x => ({
+        id: shortId(x.id),
+        text: text(x.text, 400).trim() || 'Text',
+        start: t(x.start, 0, 6 * 3600, 0),
+        dur: t(x.dur, 0.2, 3600, 3),
+        x: t(x.x, 0, 1, 0.5),
+        y: t(x.y, 0, 1, 0.8),
+        size: t(x.size, 1, 40, 6),
+        color: colour(x.color) || '#ffffff',
+        font: pick(x.font, V.fonts, 'Geist'),
+        style: pick(x.style, V.styles, 'shadow'),
+        anim: pick(x.anim, V.anims, 'fade')
+    }));
+    const audio = [].concat(b.audio || []).slice(0, 50).filter(a => a && ids.has(a.m)).map(a => {
+        const inn = t(a.in, 0, 6 * 3600, 0);
+        return { id: shortId(a.id), m: a.m, start: t(a.start, 0, 6 * 3600, 0), in: inn, out: t(a.out, inn + 0.1, 6 * 3600, inn + 10), vol: t(a.vol, 0, 200, 100), fadeIn: t(a.fadeIn, 0, 10, 0), fadeOut: t(a.fadeOut, 0, 10, 0) };
+    });
+    return { aspect: pick(b.aspect, V.aspects, '16:9'), bg: pick(b.bg, V.bgs, 'blur'), media, clips, texts, audio };
+}
+
+// a project's card in the gallery: its shape, the first footage's picture and its length
+const videoCover = body => `${body.aspect}|${(body.media.find(x => x.kind !== 'audio' && x.file) || {}).file || ''}|${Math.round(videoLength(body))}`;
 
 /* ---------- a slide: its layout's text, and the boxes, shapes and pictures put on it ---------- */
 const colour = v => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : '');
@@ -239,7 +324,7 @@ module.exports = function docRoutes(ctx) {
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
         const body = cleanBody(kind, req.body.body || {});
-        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}), ...(kind === 'form' ? { token: formToken(), open: body.settings.open } : {}), ...(kind === 'board' ? { cover: body.bg } : {}) };
+        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}), ...(kind === 'form' ? { token: formToken(), open: body.settings.open } : {}), ...(kind === 'board' ? { cover: body.bg } : {}), ...(kind === 'video' ? { cover: videoCover(body) } : {}) };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);
@@ -270,6 +355,7 @@ module.exports = function docRoutes(ctx) {
         if (m.kind === 'deck') m.cover = `${body.theme}|${line(body.slides[0].title, 80)}`;
         if (m.kind === 'form') m.open = body.settings.open;
         if (m.kind === 'board') m.cover = body.bg;
+        if (m.kind === 'video') m.cover = videoCover(body);
         docs.save(`d:${req.params.id}`);
         docs.save('docs-index');
         res.json(view(req.params.id, m, email));
@@ -390,7 +476,8 @@ module.exports = function docRoutes(ctx) {
             formResponses: myForms.reduce((n, m) => n + (m.responses || 0), 0),
             boards: all.filter(m => m.kind === 'board' && canSee(m, email)).length,
             boardDue: m0.boardDue || 0,
-            whiteboards: all.filter(m => m.kind === 'wb' && canSee(m, email)).length
+            whiteboards: all.filter(m => m.kind === 'wb' && canSee(m, email)).length,
+            videos: all.filter(m => m.kind === 'video' && canSee(m, email)).length
         };
     };
     // for Forms (src/routes/forms.js): the same list, rules and a way to add a document

@@ -385,6 +385,64 @@
         });
     }
 
+    /* ---------- AI: auto editing with Claude, on the owner's own API key ---------- */
+    async function aiTab() {
+        const s = await call('/api/admin/ai');
+        const n = v => Number(v || 0).toLocaleString();
+        main.innerHTML = `<h1>AI</h1><p class="ad-sub">Auto editing in the Photo Editor and the Video Editor, made by Claude. Only admins see it. It runs on your own Anthropic API key, and Anthropic bills that account.</p>
+            <section class="ad-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>Claude API key</h2><small>${s.configured ? (s.source === 'env' ? `Set on the server (ANTHROPIC_API_KEY), ends in …${esc(s.hint)}` : `Saved, ends in …${esc(s.hint)}${s.savedBy ? ` · by ${esc(s.savedBy)}` : ''}${s.savedAt ? ` · ${esc(new Date(s.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet'}</small></div>${s.configured ? `<span class="ad-ok">${ic('check')} On</span>` : '<span class="ad-off">Off</span>'}</div>
+                ${s.source === 'env' ? '<p class="ad-muted">To change it, edit ANTHROPIC_API_KEY in Coolify.</p>' : `<details class="si-guide"${s.configured ? '' : ' open'}><summary>Get a key (2 minutes)</summary><ol class="si-steps"><li>Go to <b>console.anthropic.com</b> and sign in (or make an account).</li><li>Under <b>Billing</b>, add some credit. Auto edits are paid per use; a video edit costs a few cents.</li><li>Under <b>API keys</b>, choose <b>Create key</b>, name it “EderveenGroup”, and copy it (it starts with <code>sk-ant-</code>).</li><li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>
+                <form class="si-form" id="aiform" novalidate><label class="pf-field"><span>API key</span><input class="input" name="apiKey" type="password" placeholder="${s.configured ? `Saved, ends in …${esc(s.hint)}. Paste a new one to replace it.` : 'sk-ant-…'}" autocomplete="new-password" spellcheck="false"></label>
+                <div class="form-error hidden" role="alert"></div>
+                <div class="si-acts">${s.configured ? '<button type="button" class="btn btn-danger" data-clear>Remove key</button>' : ''}<span class="spacer"></span>${s.configured ? `<button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button>` : ''}<button class="btn btn-primary" type="submit">${ic('check')}<span>Save</span></button></div></form>`}
+                ${s.source === 'env' ? `<div class="si-acts"><span class="spacer"></span><button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button></div>` : ''}
+            </section>
+            <section class="ad-card"><h2>Model</h2><p class="ad-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p>
+                <div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === s.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div></section>
+            <section class="ad-card"><h2>This month</h2><div class="ad-tiles ai-use"><div class="ad-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="ad-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="ad-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="ad-muted">The exact cost is on console.anthropic.com under Usage.</p></section>`;
+        const form = $('#aiform', main);
+        if (form)
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+                const err = $('.form-error', form);
+                err.classList.add('hidden');
+                try {
+                    await call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ apiKey: form.apiKey.value }) });
+                    toast('Saved. Auto editing is on for admins.');
+                    aiTab();
+                } catch (x) {
+                    err.textContent = x.message;
+                    err.classList.remove('hidden');
+                }
+            });
+        $('[data-clear]', main)?.addEventListener('click', async () => {
+            if (!(await ask({ title: 'Remove the Claude API key?', text: 'Auto editing switches off until you add a key again.', ok: 'Remove', danger: true }))) return;
+            await call('/api/admin/ai', { method: 'DELETE' });
+            aiTab();
+        });
+        $('[data-test]', main)?.addEventListener('click', async e => {
+            const b = e.currentTarget;
+            b.disabled = true;
+            try {
+                const r = await call('/api/admin/ai/test', { method: 'POST', body: '{}' });
+                toast(`It works: ${r.model} answered “${r.reply}”`);
+            } catch (x) {
+                toast(x.message, true);
+            }
+            b.disabled = false;
+        });
+        $$('[name=model]', main).forEach(r =>
+            r.addEventListener('change', async () => {
+                try {
+                    await call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ model: r.value }) });
+                    toast('Model saved');
+                } catch (x) {
+                    toast(x.message, true);
+                }
+            })
+        );
+    }
+
     /* ---------- activity: sign-ins and admin actions ---------- */
     async function activity() {
         let kind = '';
@@ -445,7 +503,7 @@
     }
 
     /* ---------- apps: which apps everyone gets ---------- */
-    const APP_NAMES = { notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
+    const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
     async function apps() {
         const { pages, off } = await call('/api/admin/apps');
         main.innerHTML = `<h1>Apps</h1><p class="ad-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
@@ -467,7 +525,7 @@
     }
 
     /* ---------- address: #/, #/requests, #/people, #/access, #/signin, #/activity, #/news, #/apps ---------- */
-    const TABS = { overview, requests, people, access, signin, activity, news, apps };
+    const TABS = { overview, requests, people, access, signin, activity, news, apps, ai: aiTab };
     let first = true;
     async function route() {
         const tab = TABS[location.hash.replace(/^#\/?/, '')] ? location.hash.replace(/^#\/?/, '') : 'overview';
