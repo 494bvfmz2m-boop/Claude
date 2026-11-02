@@ -18,7 +18,7 @@
         <aside class="ea-list" aria-label="Contacts">
             <div class="ea-head"><h1>Contacts</h1><button class="btn btn-primary" id="new">${ic('plus')}<span>Add</span></button></div>
             <div class="seg ct-tabs" role="tablist"><button data-tab="mine" class="on">My contacts</button><button data-tab="people">EderveenGroup</button></div>
-            <div class="ad-search">${ic('search')}<input class="input" id="q" placeholder="Search" aria-label="Search contacts"></div>
+            <div class="cp-search">${ic('search')}<input class="input" id="q" placeholder="Search" aria-label="Search contacts"></div>
             <div id="list" class="ct-list"></div>
             <div class="ct-tools" id="tools"><button class="btn btn-ghost" id="import">${ic('mail')}<span>Add people I’ve emailed</span></button><button class="btn btn-ghost" id="export">${ic('download')}<span>Export (.vcf)</span></button></div>
         </aside>

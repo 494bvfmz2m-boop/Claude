@@ -281,10 +281,10 @@
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
         const webcal = url.replace(/^https?:/, 'webcal:');
-        back.innerHTML = `<div class="pf-crop ad-ask cal-subscribe" role="dialog" aria-modal="true"><h2>See it on your phone</h2>
+        back.innerHTML = `<div class="pf-crop cp-ask cal-subscribe" role="dialog" aria-modal="true"><h2>See it on your phone</h2>
             <p>Add this private address to your phone’s calendar (iPhone: Settings → Calendar → Accounts → Add Subscribed Calendar; Google Calendar: Other calendars → From URL; Outlook: Add calendar → Subscribe from web). It updates by itself.</p>
             <div class="si-copy"><code>${esc(url)}</code><button class="btn" data-copy>${ic('copy')}<span>Copy</span></button></div>
-            <p class="ad-muted">Anyone with this address can see your events. If it gets out, make a new one and the old one stops working.</p>
+            <p class="cp-muted">Anyone with this address can see your events. If it gets out, make a new one and the old one stops working.</p>
             <div class="pf-crop-acts"><button class="btn btn-ghost" data-reset>New address</button><span class="spacer"></span><a class="btn" href="${esc(webcal)}">Open in calendar app</a><button class="btn btn-primary" data-x>Done</button></div></div>`;
         document.body.append(back);
         const close = () => {
@@ -407,13 +407,13 @@
         const d = document.createElement('div');
         d.className = 'pf-crop-back';
         const day = e.start.slice(0, 10);
-        d.innerHTML = `<div class="pf-crop ad-ask cal-detail" role="dialog" aria-modal="true" data-color="${esc(e.color)}">
+        d.innerHTML = `<div class="pf-crop cp-ask cal-detail" role="dialog" aria-modal="true" data-color="${esc(e.color)}">
             <p class="cal-from">${ic('calendar')}${esc(e.ext)}</p>
             <h2>${esc(e.title)}</h2>
             <p class="cal-when-big">${esc(dayName(day, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${esc(when(e))}</p>
             ${e.location ? `<p>${ic('pin')} ${esc(e.location)}</p>` : ''}
             ${e.note ? `<p class="cal-note">${esc(e.note)}</p>` : ''}
-            <p class="ad-muted">This event comes from a shared calendar, so change it there.</p>
+            <p class="cp-muted">This event comes from a shared calendar, so change it there.</p>
             <div class="pf-crop-acts"><button class="btn btn-primary" data-x>Close</button></div></div>`;
         document.body.append(d);
         const close = () => {
@@ -446,12 +446,12 @@
     function panel() {
         const d = document.createElement('div');
         d.className = 'pf-crop-back';
-        d.innerHTML = `<div class="pf-crop ad-ask cal-panel" role="dialog" aria-modal="true">
+        d.innerHTML = `<div class="pf-crop cp-ask cal-panel" role="dialog" aria-modal="true">
             <h2>Calendars</h2>
             <div id="cal-list" class="cal-subs"></div>
             <form class="cal-add" id="cal-add" novalidate>
                 <h3>Add a calendar</h3>
-                <p class="ad-muted">Paste a webcal or iCal link. It shows up next to your own events and stays up to date; you can’t change those events here.</p>
+                <p class="cp-muted">Paste a webcal or iCal link. It shows up next to your own events and stays up to date; you can’t change those events here.</p>
                 <input class="input" name="url" placeholder="webcal://… or https://…/basic.ics" autocomplete="off" spellcheck="false" aria-label="Calendar link">
                 <div class="cal-add-row"><input class="input" name="name" maxlength="60" placeholder="Name (optional)" aria-label="Name"><button class="btn btn-primary" type="submit">${ic('plus')}<span>Add</span></button></div>
                 <div class="form-error hidden" role="alert"></div>

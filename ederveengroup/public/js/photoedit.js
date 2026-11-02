@@ -32,7 +32,7 @@
         root.innerHTML = `<div class="sl-home">
             <div class="ea-head"><h1>Photo Editor</h1><label class="btn btn-primary">${ic('image')}<span>Open a photo</span><input type="file" id="pick" accept="image/*" hidden></label></div>
             <label class="pe-drop" id="drop">${ic('image')}<b>Drop a photo here</b><small>or open one from your device. JPEG, PNG, WebP and (on Apple devices) HEIC.</small><input type="file" accept="image/*" hidden></label>
-            <h2 class="ea-sec">From your Photos</h2><div class="pe-recent" id="recent"><p class="ad-muted">Loading…</p></div>
+            <h2 class="ea-sec">From your Photos</h2><div class="pe-recent" id="recent"><p class="cp-muted">Loading…</p></div>
         </div>`;
         const onFile = e => e.target.files[0] && openFile(e.target.files[0]);
         $('#pick').onchange = onFile;
@@ -49,7 +49,7 @@
         try {
             const r = await call('/api/files');
             const pics = r.items.filter(f => f.kind === 'file' && /^image\/(jpeg|png|webp|gif|heic|heif)/.test(f.type)).sort((a, b) => (b.taken || b.createdAt) - (a.taken || a.createdAt)).slice(0, 30);
-            $('#recent').innerHTML = pics.length ? pics.map(f => `<button class="pe-thumb" data-file="${esc(f.id)}" data-name="${esc(f.name)}" title="${esc(f.name)}"><img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/${f.thumb ? 'thumb' : 'content?inline=1'}"></button>`).join('') : '<p class="ad-muted">No photos in Files yet.</p>';
+            $('#recent').innerHTML = pics.length ? pics.map(f => `<button class="pe-thumb" data-file="${esc(f.id)}" data-name="${esc(f.name)}" title="${esc(f.name)}"><img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/${f.thumb ? 'thumb' : 'content?inline=1'}"></button>`).join('') : '<p class="cp-muted">No photos in Files yet.</p>';
         } catch {
             $('#recent').innerHTML = '';
         }
@@ -485,20 +485,20 @@
                 <div class="pe-swatches">${COLORS.map(c => `<button data-color="${c}" class="${l.color === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>
                 <div class="pe-chips">${[['plain', 'Plain'], ['shadow', 'Shadow'], ['outline', 'Outline'], ['box', 'Box']].map(([k, n]) => `<button class="pe-chip${l.style === k ? ' on' : ''}" data-style="${k}">${n}</button>`).join('')}<button class="pe-chip${l.bold ? ' on' : ''}" data-bold><b>B</b></button><button class="pe-chip${l.italic ? ' on' : ''}" data-italic><i>I</i></button></div>
                 ${slider('lsize', 'Size', 2, 40, l.size, 'step="0.5"')}
-                <button class="btn btn-ghost danger pe-wide" data-dellayer>${ic('trash')}<span>Delete text</span></button>` : '<p class="ad-muted">Add text, then drag it into place. Double-click it to type; drag the round handle to resize.</p>'}`;
+                <button class="btn btn-ghost danger pe-wide" data-dellayer>${ic('trash')}<span>Delete text</span></button>` : '<p class="cp-muted">Add text, then drag it into place. Double-click it to type; drag the round handle to resize.</p>'}`;
         } else if (tool === 'stickers') {
             const l = sel && E.layers.find(x => x.id === sel && x.t === 'sticker');
             p.innerHTML = `<div class="pe-phead"><h3>Stickers</h3></div><div class="pe-stickers">${STICKERS.map(s => `<button data-sticker="${s}">${s}</button>`).join('')}</div>
                 ${l ? `${slider('lsize', 'Size', 3, 60, l.size, 'step="0.5"')}<button class="btn btn-ghost danger pe-wide" data-dellayer>${ic('trash')}<span>Delete sticker</span></button>` : ''}`;
         } else if (tool === 'draw') {
-            p.innerHTML = `<div class="pe-phead"><h3>Draw</h3></div><p class="ad-muted">Draw on the photo with your mouse, pen or finger.</p>
+            p.innerHTML = `<div class="pe-phead"><h3>Draw</h3></div><p class="cp-muted">Draw on the photo with your mouse, pen or finger.</p>
                 <div class="pe-swatches">${COLORS.map(c => `<button data-brush="${c}" class="${brush.color === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>
                 ${slider('brush', 'Brush size', 0.3, 6, brush.size, 'step="0.1"')}
                 <button class="btn btn-ghost danger pe-wide" data-cleardraw>${ic('eraser')}<span>Clear drawing</span></button>`;
         } else if (tool === 'ai') {
-            p.innerHTML = `<div class="pe-phead"><h3>AI edit</h3></div><p class="ad-muted">${esc(aiName)} looks at the photo and edits it: light, colour, a look, crop and straightening. Everything it changes stays adjustable, and Undo takes it back.</p>
+            p.innerHTML = `<div class="pe-phead"><h3>AI edit</h3></div><p class="cp-muted">${esc(aiName)} looks at the photo and edits it: light, colour, a look, crop and straightening. Everything it changes stays adjustable, and Undo takes it back.</p>
                 <textarea class="input pe-ta" id="wish" rows="3" placeholder="Optional: what you want, e.g. “warm and moody”, “make it pop for Instagram”, “fix the dark faces”">${esc(wish)}</textarea>
-                <button class="btn btn-primary pe-wide" data-ai>${ic('zap')}<span>Edit with ${esc(aiName)}</span></button><p class="ad-muted pe-note" id="ainote"></p>`;
+                <button class="btn btn-primary pe-wide" data-ai>${ic('zap')}<span>Edit with ${esc(aiName)}</span></button><p class="cp-muted pe-note" id="ainote"></p>`;
         }
     }
     // little previews of each look

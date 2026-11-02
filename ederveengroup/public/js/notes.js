@@ -14,7 +14,7 @@
     root.innerHTML = `<div class="ea-split notes">
         <aside class="ea-list" aria-label="Notes">
             <div class="ea-head"><h1>Notes</h1><button class="btn btn-primary" id="new">${ic('plus')}<span>New note</span></button></div>
-            <div class="ad-search">${ic('search')}<input class="input" id="q" placeholder="Search notes" aria-label="Search notes"></div>
+            <div class="cp-search">${ic('search')}<input class="input" id="q" placeholder="Search notes" aria-label="Search notes"></div>
             <div id="list" class="nt-list"></div>
         </aside>
         <section class="ea-detail" id="detail" aria-label="Note"></section>

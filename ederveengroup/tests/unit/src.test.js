@@ -75,3 +75,33 @@ test('settings patches are validated', () => {
     assert.equal(p.signatures[0].id, 'ab');
     assert.equal(p.signatures[0].html, '<b>hi</b>');
 });
+
+// Ad blockers (EasyList, Fanboy) hide elements by name: a page part called "ad-main" or "ad-card"
+// simply disappears for everyone using uBlock Origin, AdBlock or Edge's blocker. Admin did, once.
+test('no page part has a name ad blockers hide', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.join(__dirname, '..', '..');
+    const files = [];
+    const walk = dir => {
+        for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+            const p = path.join(dir, f.name);
+            if (f.isDirectory()) walk(p);
+            else if (/\.(css|js|html)$/.test(f.name)) files.push(p);
+        }
+    };
+    ['public/css', 'public/js', 'views', 'src'].forEach(d => walk(path.join(root, d)));
+    // names that start like an advert, and a few exact names the common lists hide
+    const risky = /(?<![\w-])(ad|ads|advert|advertisement|sponsor|sponsored|adbox|adbanner|banner-ad)[-_](?=[a-z0-9])/i;
+    const exact = ['sharelink', 'share-buttons', 'social-share', 'cookie-banner', 'newsletter-popup', 'ad', 'ads', 'advert'];
+    const bad = [];
+    for (const f of files) {
+        const src = fs.readFileSync(f, 'utf8');
+        for (const m of src.matchAll(/(?:class(?:Name)?\s*=\s*["'`]|classList\.(?:add|toggle|remove)\(\s*['"]|id\s*=\s*["'`]|[.#])([\w -]+)/g)) {
+            for (const name of m[1].split(/\s+/)) {
+                if (risky.test(name) || exact.includes(name)) bad.push(`${path.relative(root, f)}: ${name}`);
+            }
+        }
+    }
+    assert.deepEqual([...new Set(bad)], []);
+});

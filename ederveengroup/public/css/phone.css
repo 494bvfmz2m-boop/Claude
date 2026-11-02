@@ -413,14 +413,14 @@
 
 /* ---------- Admin app on a phone ---------- */
 @media (max-width: 760px) {
-    .ad { padding: 0 16px calc(var(--safe-b) + 28px); }
-    .ad-nav { background: var(--fill); border-radius: 10px; padding: 2px; }
-    .ad-nav a { height: 32px; padding: 0 12px; font-size: 13.5px; border-radius: 8px; }
-    .ad-nav a .i { display: none; }
-    .ad-nav a.on { background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12); }
-    .ad-main h1 { font: 700 30px/1.15 var(--display); }
-    .ad-tile, .ad-card, .ad-person { background: var(--cell); box-shadow: none; }
-    .ad-tile b { font: 700 30px/1 var(--display); }
+    .cp { padding: 0 16px calc(var(--safe-b) + 28px); }
+    .cp-nav { background: var(--fill); border-radius: 10px; padding: 2px; }
+    .cp-nav a { height: 32px; padding: 0 12px; font-size: 13.5px; border-radius: 8px; }
+    .cp-nav a .i { display: none; }
+    .cp-nav a.on { background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12); }
+    .cp-main h1 { font: 700 30px/1.15 var(--display); }
+    .cp-tile, .cp-card, .cp-person { background: var(--cell); box-shadow: none; }
+    .cp-tile b { font: 700 30px/1 var(--display); }
 }
 
 /* back to the hub from Mail on a phone */

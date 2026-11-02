@@ -394,7 +394,7 @@
         return new Promise(resolve => {
             const back = document.createElement('div');
             back.className = 'pf-crop-back';
-            back.innerHTML = `<div class="pf-crop ch-pick" role="dialog" aria-modal="true"><h2>${esc(heading)}</h2><p class="ad-muted">${esc(text)}</p><input class="input" maxlength="80" value="${esc(value)}"><div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div></div>`;
+            back.innerHTML = `<div class="pf-crop ch-pick" role="dialog" aria-modal="true"><h2>${esc(heading)}</h2><p class="cp-muted">${esc(text)}</p><input class="input" maxlength="80" value="${esc(value)}"><div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div></div>`;
             document.body.append(back);
             const done = v => (back.remove(), resolve(v));
             $('[data-x]', back).onclick = () => done(null);
@@ -446,7 +446,7 @@
                 const list = people.filter(p => !q || `${p.name} ${p.username}`.toLowerCase().includes(q));
                 $('#plist', back).innerHTML = list.length
                     ? list.map(p => `<label class="ch-prow"><input type="checkbox" value="${esc(p.email)}"${picked.has(p.email) ? ' checked' : ''}>${avatar(p)}<span><b>${esc(p.name || '@' + p.username)}</b><small>@${esc(p.username)}</small></span></label>`).join('')
-                    : `<p class="ad-muted">${people.length ? 'Nobody matches.' : 'Nobody else is on EderveenGroup yet.'}</p>`;
+                    : `<p class="cp-muted">${people.length ? 'Nobody matches.' : 'Nobody else is on EderveenGroup yet.'}</p>`;
             };
             draw();
             const done = v => {

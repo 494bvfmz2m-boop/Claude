@@ -35,7 +35,7 @@
             <div class="dw-new"><button class="dw-card" id="new"><span class="dw-thumb blank">${ic('plus')}</span><b>Blank document</b><small>Start writing</small></button></div>
             ${mine.length ? `<h2 class="ea-sec">My documents</h2><div class="dw-cards">${mine.map(card).join('')}</div>` : ''}
             ${shared.length ? `<h2 class="ea-sec">Shared with everyone</h2><div class="dw-cards">${shared.map(card).join('')}</div>` : ''}
-            ${mine.length || shared.length ? '' : `<p class="ad-muted dw-hint">Write letters, plans and guides like in Word, and download them as .docx or PDF. Share a doc with everyone and it becomes part of your knowledge base.</p>`}
+            ${mine.length || shared.length ? '' : `<p class="cp-muted dw-hint">Write letters, plans and guides like in Word, and download them as .docx or PDF. Share a doc with everyone and it becomes part of your knowledge base.</p>`}
         </div>`;
         $('#new').onclick = create;
         $('#open').onchange = async e => {

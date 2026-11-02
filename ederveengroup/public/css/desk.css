@@ -295,9 +295,9 @@ body::after {
 .pf-name, .pf-form h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* ---------- Admin app on a computer ---------- */
-.ad-tile, .ad-card, .ad-person { background: var(--glass); }
-.ad-main h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.ad-nav a.on { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--violet) 6%, transparent)); }
+.cp-tile, .cp-card, .cp-person { background: var(--glass); }
+.cp-main h1 { background: linear-gradient(180deg, var(--text) 35%, color-mix(in srgb, var(--text) 60%, var(--accent))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cp-nav a.on { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--violet) 6%, transparent)); }
 
 /* ---------- Notes, Tasks, Contacts on a computer ---------- */
 .ea-detail, .tk-add { background: var(--glass); }

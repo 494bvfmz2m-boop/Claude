@@ -100,7 +100,7 @@
             ? `<div class="ph-albums">${list.map(a => {
                   const cover = a.list.find(f => f.thumb);
                   return `<button class="ph-album" data-album="${esc(a.id)}"><span class="ph-cover">${cover ? `<img loading="lazy" alt="" src="${thumbUrl(cover)}">` : ic('image')}</span><b>${esc(a.name)}</b><small>${a.list.length}</small></button>`;
-              }).join('')}</div><p class="ad-muted ph-hint">Albums are your folders in Files. Make a folder there and move photos into it.</p>`
+              }).join('')}</div><p class="cp-muted ph-hint">Albums are your folders in Files. Make a folder there and move photos into it.</p>`
             : `<div class="ea-empty big">${ic('folder')}<p>No albums yet.</p></div>`;
     }
 

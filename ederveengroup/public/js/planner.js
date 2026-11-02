@@ -48,7 +48,7 @@
             <div class="pl-new">${Object.entries(TEMPLATES).map(([k, t]) => `<button class="pl-card bg-${k === 'blank' ? 'plain' : k === 'project' ? 'aurora' : k === 'week' ? 'ocean' : 'sunset'}" data-new="${k}"><span class="pl-thumb">${k === 'blank' ? ic('plus') : t.cols.slice(0, 4).map(() => '<i></i>').join('')}</span><b>${t.name}</b><small>${esc(t.cols.join(' · '))}</small></button>`).join('')}</div>
             ${mine.length ? `<h2 class="ea-sec">My boards</h2><div class="pl-cards">${mine.map(card).join('')}</div>` : ''}
             ${shared.length ? `<h2 class="ea-sec">Shared with me</h2><div class="pl-cards">${shared.map(card).join('')}</div>` : ''}
-            ${mine.length || shared.length ? '' : '<p class="ad-muted dw-hint">Plan a project, a move or a holiday on a board: a card for every job, moved along as it gets done. Share a board and plan it together.</p>'}
+            ${mine.length || shared.length ? '' : '<p class="cp-muted dw-hint">Plan a project, a move or a holiday on a board: a card for every job, moved along as it gets done. Share a board and plan it together.</p>'}
         </div>`;
         history.replaceState(null, '', location.pathname);
     }
@@ -458,7 +458,7 @@
             const back = document.createElement('div');
             back.className = 'pf-crop-back';
             back.style.zIndex = 96;
-            back.innerHTML = `<div class="pf-crop pl-names" role="dialog" aria-modal="true"><h2>Label names</h2><p class="ad-muted">For everyone on this board.</p>${LABELS.map(([l, c]) => `<label class="pl-nrow"><i style="background:${c}"></i><input class="input" data-l="${l}" maxlength="40" placeholder="${l[0].toUpperCase() + l.slice(1)}" value="${esc(open.body.labels[l] || '')}"></label>`).join('')}<div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div></div>`;
+            back.innerHTML = `<div class="pf-crop pl-names" role="dialog" aria-modal="true"><h2>Label names</h2><p class="cp-muted">For everyone on this board.</p>${LABELS.map(([l, c]) => `<label class="pl-nrow"><i style="background:${c}"></i><input class="input" data-l="${l}" maxlength="40" placeholder="${l[0].toUpperCase() + l.slice(1)}" value="${esc(open.body.labels[l] || '')}"></label>`).join('')}<div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div></div>`;
             document.body.append(back);
             const done = v => (back.remove(), resolve(v));
             $('[data-x]', back).onclick = () => done(null);

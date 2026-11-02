@@ -86,7 +86,7 @@
             <div class="fm-new">${Object.entries(TEMPLATES).map(([k, t]) => `<button class="fm-card" data-new="${k}"><span class="fm-thumb${k === 'blank' ? ' blank' : ''}">${k === 'blank' ? ic('plus') : `<b>${esc(t.title)}</b><i></i><i class="s"></i>`}</span><b>${t.name}</b></button>`).join('')}</div>
             ${mine.length ? `<h2 class="ea-sec">My forms</h2><div class="fm-cards">${mine.map(card).join('')}</div>` : ''}
             ${shared.length ? `<h2 class="ea-sec">Shared with me</h2><div class="fm-cards">${shared.map(card).join('')}</div>` : ''}
-            ${mine.length || shared.length ? '' : '<p class="ad-muted dw-hint">Make a sign-up sheet, a poll or a feedback form, and send its link to anyone: they don’t need an account. See the answers as charts, or download them for Excel.</p>'}
+            ${mine.length || shared.length ? '' : '<p class="cp-muted dw-hint">Make a sign-up sheet, a poll or a feedback form, and send its link to anyone: they don’t need an account. See the answers as charts, or download them for Excel.</p>'}
         </div>`;
         history.replaceState(null, '', location.pathname);
     }
@@ -550,7 +550,7 @@
             <p>${s.open ? (s.who === 'members' ? 'People sign in with their EderveenGroup account to fill it in.' : 'Anyone with this link can fill it in, no account needed.') : 'The form is closed: turn on “Accept responses” in Settings first.'}</p>
             <div class="fm-link"><input class="input" readonly value="${esc(link())}" aria-label="Link to the form"><button class="btn btn-primary" id="copylink">${ic('copy')}<span>Copy</span></button></div>
             <div class="fm-qr"><img alt="QR code for the form" src="/api/forms/${esc(open.id)}/qr"><small>Scan to open it on a phone</small></div>
-            <div class="fm-sendacts"><a class="btn btn-ghost" href="mailto:?subject=${encodeURIComponent(open.title || 'A form')}&body=${encodeURIComponent(`${open.title || 'Please fill in this form'}: ${link()}`)}">${ic('mail')}<span>Email it</span></a>${navigator.share ? `<button class="btn btn-ghost" id="sharelink">${ic('share')}<span>Share…</span></button>` : ''}</div>`;
+            <div class="fm-sendacts"><a class="btn btn-ghost" href="mailto:?subject=${encodeURIComponent(open.title || 'A form')}&body=${encodeURIComponent(`${open.title || 'Please fill in this form'}: ${link()}`)}">${ic('mail')}<span>Email it</span></a>${navigator.share ? `<button class="btn btn-ghost" id="fmsend-native">${ic('share')}<span>Share…</span></button>` : ''}</div>`;
         document.body.append(pop);
         const r = anchor.getBoundingClientRect();
         pop.style.top = `${Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 8)}px`;
@@ -567,7 +567,7 @@
                 toast('Press Ctrl C to copy');
             }
         };
-        $('#sharelink') && ($('#sharelink').onclick = () => navigator.share({ title: open.title || 'Form', url: link() }).catch(() => {}));
+        $('#fmsend-native') && ($('#fmsend-native').onclick = () => navigator.share({ title: open.title || 'Form', url: link() }).catch(() => {}));
     }
     function moreMenu(anchor) {
         $$('.fl-pop').forEach(x => x.remove());

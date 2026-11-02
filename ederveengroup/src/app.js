@@ -197,11 +197,11 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         Promise.race([admin.overview(), new Promise(resolve => setTimeout(() => resolve(null), 3000))])
             .catch(() => null)
             .then(o => {
-                const tile = (n, label, href) => `<a class="ad-tile" href="/admin/#/${href}"><b>${esc(n)}</b><span>${esc(label)}</span></a>`;
+                const tile = (n, label, href) => `<a class="cp-tile" href="/admin/#/${href}"><b>${esc(n)}</b><span>${esc(label)}</span></a>`;
                 const html = o
-                    ? `<h1>Overview</h1><p class="ad-sub">Everything about your EderveenGroup at a glance.</p><div class="ad-tiles">${tile(o.people, 'people', 'people')}${tile(o.activeWeek, 'active this week', 'people')}${tile(o.pending, o.pending === 1 ? 'request waiting' : 'requests waiting', 'requests')}${tile(o.publicProfiles, 'public profiles', 'people')}${tile(o.twofa, 'use two-step', 'people')}${tile(o.failedWeek, 'failed sign-ins this week', 'people')}</div>
-                       <section class="ad-card"><h2>Admins</h2><p class="ad-muted">${o.admins.map(esc).join(', ')}</p></section>`
-                    : '<h1>Admin</h1><p class="ad-sub">Loading…</p>';
+                    ? `<h1>Overview</h1><p class="cp-sub">Everything about your EderveenGroup at a glance.</p><div class="cp-tiles">${tile(o.people, 'people', 'people')}${tile(o.activeWeek, 'active this week', 'people')}${tile(o.pending, o.pending === 1 ? 'request waiting' : 'requests waiting', 'requests')}${tile(o.publicProfiles, 'public profiles', 'people')}${tile(o.twofa, 'use two-step', 'people')}${tile(o.failedWeek, 'failed sign-ins this week', 'people')}</div>
+                       <section class="cp-card"><h2>Admins</h2><p class="cp-muted">${o.admins.map(esc).join(', ')}</p></section>`
+                    : '<h1>Admin</h1><p class="cp-sub">Loading…</p>';
                 ctx.pages.send(res, 'admin.html', 200, { overview: html });
             });
     });

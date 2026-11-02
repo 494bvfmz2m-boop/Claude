@@ -25,7 +25,7 @@
         return new Promise(resolve => {
             const back = document.createElement('div');
             back.className = 'pf-crop-back';
-            back.innerHTML = `<div class="pf-crop ad-ask" role="alertdialog" aria-modal="true"><h2>${esc(title)}</h2>${text ? `<p>${esc(text)}</p>` : ''}
+            back.innerHTML = `<div class="pf-crop cp-ask" role="alertdialog" aria-modal="true"><h2>${esc(title)}</h2>${text ? `<p>${esc(text)}</p>` : ''}
                 <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-ok>${esc(ok)}</button></div></div>`;
             document.body.append(back);
             const done = v => {

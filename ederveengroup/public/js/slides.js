@@ -138,7 +138,7 @@
             <div class="pp-new">${Object.entries(K.THEMES).map(themeCard).join('')}</div>
             ${mine.length ? `<h2 class="ea-sec">My presentations</h2><div class="pp-cards">${mine.map(card).join('')}</div>` : ''}
             ${shared.length ? `<h2 class="ea-sec">Shared with everyone</h2><div class="pp-cards">${shared.map(card).join('')}</div>` : ''}
-            ${mine.length || shared.length ? '' : '<p class="ad-muted dw-hint">Make presentations like in PowerPoint and show them full screen. Download them as .pptx or PDF, or open a PowerPoint file to carry on here.</p>'}
+            ${mine.length || shared.length ? '' : '<p class="cp-muted dw-hint">Make presentations like in PowerPoint and show them full screen. Download them as .pptx or PDF, or open a PowerPoint file to carry on here.</p>'}
         </div>`;
         $$('.pp-thumb .sl', root).forEach(x => fit(x));
         $('#open').onchange = async e => {

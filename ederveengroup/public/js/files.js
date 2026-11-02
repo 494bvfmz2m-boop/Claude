@@ -63,7 +63,7 @@
         <div class="ea-head fl-head">
             <h1>Files</h1>
             <div class="fl-tools">
-                <div class="ad-search fl-search">${ic('search')}<input class="input" id="q" placeholder="Search all files" aria-label="Search files"></div>
+                <div class="cp-search fl-search">${ic('search')}<input class="input" id="q" placeholder="Search all files" aria-label="Search files"></div>
                 <div class="seg fl-layout" role="group" aria-label="View"><button data-l="grid" aria-label="Grid">${ic('grid')}</button><button data-l="list" aria-label="List">${ic('list')}</button></div>
                 <button class="btn" id="connect" title="Use Files on your computer or phone">${ic('laptop')}<span>Connect a device</span></button>
                 <button class="btn" id="newfolder">${ic('folder')}<span>New folder</span></button>
@@ -262,7 +262,7 @@
               : /^video\/(mp4|webm|ogg|quicktime)$/.test(f.type)
                 ? `<video controls playsinline src="${url}?inline=1"></video>`
                 : `<span class="fl-thumb big" data-k="${k}">${ic(GLYPH[k])}</span>`;
-        dialog(`<div class="fl-preview">${media}</div><h2 class="fl-pv-name">${esc(f.name)}</h2><p class="ad-muted">${esc(kindOf(f)[1])} · ${size(f.size)} · changed ${esc(ago(f.updatedAt))}</p>`,
+        dialog(`<div class="fl-preview">${media}</div><h2 class="fl-pv-name">${esc(f.name)}</h2><p class="cp-muted">${esc(kindOf(f)[1])} · ${size(f.size)} · changed ${esc(ago(f.updatedAt))}</p>`,
             [
                 ...(f.type === 'application/pdf' || f.type === 'text/plain' ? [['Open', 'btn', close => (window.open(`${url}?inline=1`, '_blank', 'noopener'), close())]] : []),
                 ['Share', 'btn', close => (close(), share(f))],
@@ -273,7 +273,7 @@
     function dialog(html, buttons, setup, cls = '') {
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
-        back.innerHTML = `<div class="pf-crop ad-ask ${cls}" role="dialog" aria-modal="true">${html}<div class="pf-crop-acts">${buttons.map(([l, c], i) => `<button class="${c}" data-x${i}>${esc(l)}</button>`).join('')}</div></div>`;
+        back.innerHTML = `<div class="pf-crop cp-ask ${cls}" role="dialog" aria-modal="true">${html}<div class="pf-crop-acts">${buttons.map(([l, c], i) => `<button class="${c}" data-x${i}>${esc(l)}</button>`).join('')}</div></div>`;
         document.body.append(back);
         const onKey = e => e.key === 'Escape' && close();
         const close = () => {
@@ -397,7 +397,7 @@
         const listHtml = list =>
             list.length
                 ? list.map(p => `<div class="row" data-id="${esc(p.id)}"><div class="lbl"><b>${esc(p.name)}</b><small>Made ${esc(ago(p.createdAt))}${p.lastUsed ? ` · last used ${esc(ago(p.lastUsed))}${p.lastDevice ? ` on ${esc(p.lastDevice)}` : ''}` : ' · not used yet'}</small></div><button class="btn btn-danger" data-revoke>Remove</button></div>`).join('')
-                : '<p class="ad-muted">No app passwords yet.</p>';
+                : '<p class="cp-muted">No app passwords yet.</p>';
         dialog(`<h2>Use Files on your computer or phone</h2>
             <p>Your files can show up as a drive in Windows and on a Mac, and in apps on your phone. They sign in with an <b>app password</b>: one per device, which you can remove at any time. Your own password is never used.</p>
             <div class="cn-grid"><span>Address</span><div class="si-copy"><code>${esc(info.url)}</code><button class="btn" data-copyv="${esc(info.url)}">${ic('copy')}<span>Copy</span></button></div>

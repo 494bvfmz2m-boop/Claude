@@ -73,7 +73,7 @@
             <div class="ve-new">${Object.entries(ASPECTS).map(([k, [a, b, l]]) => `<button class="ve-newcard" data-new="${k}"><span class="ve-shape"><i style="aspect-ratio:${a}/${b}"></i></span><b>${k}</b><small>${l}</small></button>`).join('')}</div>
             ${mine.length ? `<h2 class="ea-sec">My projects</h2><div class="ve-cards">${mine.map(card).join('')}</div>` : ''}
             ${shared.length ? `<h2 class="ea-sec">Shared with me</h2><div class="ve-cards">${shared.map(card).join('')}</div>` : ''}
-            ${mine.length || shared.length ? '' : '<p class="ad-muted dw-hint">Cut your clips together, add looks, effects, transitions, titles and music, and export a video to share. Your footage is kept in Files.</p>'}
+            ${mine.length || shared.length ? '' : '<p class="cp-muted dw-hint">Cut your clips together, add looks, effects, transitions, titles and music, and export a video to share. Your footage is kept in Files.</p>'}
         </div>`;
         history.replaceState(null, '', location.pathname);
     }
@@ -1224,9 +1224,9 @@
                 <p class="ve-label">Shape</p><div class="pe-chips">${Object.entries(ASPECTS).map(([k]) => `<button class="pe-chip${P.aspect === k ? ' on' : ''}" data-aspect="${k}" ${ro ? 'disabled' : ''}>${k}</button>`).join('')}</div>
                 <p class="ve-label">Background (for footage that doesn’t fill the frame)</p><div class="pe-chips">${[['blur', 'Blurred'], ['black', 'Black'], ['white', 'White']].map(([k, l]) => `<button class="pe-chip${P.bg === k ? ' on' : ''}" data-bg="${k}" ${ro ? 'disabled' : ''}>${l}</button>`).join('')}</div>
                 <div class="pe-swatches">${BG_COLORS.map(c => `<button data-bg="${c}" class="${P.bg === c ? 'on' : ''}" style="background:${c}" aria-label="Background ${c}" ${ro ? 'disabled' : ''}></button>`).join('')}</div>
-                <p class="ve-label">Media</p><div class="ve-media">${P.media.map(m => `<div class="ve-m" title="${esc(m.name)}">${m.kind === 'audio' ? ic('bell') : m.kind === 'image' ? `<img alt="" src="${esc(srcOf(m))}">` : thumbs.get(m.id) && thumbs.get(m.id)[0] ? `<img alt="" src="${thumbs.get(m.id)[0].url}">` : ic('play')}<span>${esc(m.name)}</span>${ro ? '' : `<button data-addmedia="${m.id}" title="Add to the timeline" aria-label="Add ${esc(m.name)} to the timeline">${ic('plus')}</button><button data-rmmedia="${m.id}" title="Remove from this project (it stays in Files)" aria-label="Remove ${esc(m.name)}">${ic('x')}</button>`}</div>`).join('') || '<p class="ad-muted">Nothing imported yet.</p>'}</div>
+                <p class="ve-label">Media</p><div class="ve-media">${P.media.map(m => `<div class="ve-m" title="${esc(m.name)}">${m.kind === 'audio' ? ic('bell') : m.kind === 'image' ? `<img alt="" src="${esc(srcOf(m))}">` : thumbs.get(m.id) && thumbs.get(m.id)[0] ? `<img alt="" src="${thumbs.get(m.id)[0].url}">` : ic('play')}<span>${esc(m.name)}</span>${ro ? '' : `<button data-addmedia="${m.id}" title="Add to the timeline" aria-label="Add ${esc(m.name)} to the timeline">${ic('plus')}</button><button data-rmmedia="${m.id}" title="Remove from this project (it stays in Files)" aria-label="Remove ${esc(m.name)}">${ic('x')}</button>`}</div>`).join('') || '<p class="cp-muted">Nothing imported yet.</p>'}</div>
                 ${ro ? '' : `<p class="ve-label">This project</p><div class="ve-acts"><button class="btn" data-dupproject>${ic('copy')}<span>Duplicate</span></button><button class="btn" data-clear>${ic('eraser')}<span>Clear timeline…</span></button>${doc.mine ? `<button class="btn btn-danger" data-delproject>${ic('trash')}<span>Delete project</span></button>` : ''}</div>`}
-                <p class="ad-muted ve-tip">Space plays and pauses. Click a clip to edit it, drag it to move it, drag its ends to trim. S splits at the playhead, F adds a freeze frame, Ctrl Z / Ctrl Y undo and redo.</p>`;
+                <p class="cp-muted ve-tip">Space plays and pauses. Click a clip to edit it, drag it to move it, drag its ends to trim. S splits at the playhead, F adds a freeze frame, Ctrl Z / Ctrl Y undo and redo.</p>`;
             return;
         }
         if (sel.kind === 'clip') {
@@ -1246,7 +1246,7 @@
                     <p class="ve-label">Fade</p>${slider('fadeIn', 'Fade in from black', 0, 3, c.fadeIn || 0, 0.1, ' s')}${slider('fadeOut', 'Fade out to black', 0, 3, c.fadeOut || 0, 0.1, ' s')}
                     <p class="ve-label">Transition to the next clip</p><div class="ve-trgrid">${TRANSITIONS.map(([k, l]) => `<button class="${c.tr.type === k ? 'on' : ''}" data-trk="${k}"><span class="ve-tri tr-${k}"></span>${l}</button>`).join('')}</div>
                     ${c.tr.type !== 'none' ? slider('trdur', 'Transition length', 0.2, 2, c.tr.dur, 0.1, ' s') : ''}
-                    <p class="ad-muted">${esc(m.name || '')} · from ${fmt(c.in)}${c.freeze ? '' : ` to ${fmt(c.out)}`}</p>`;
+                    <p class="cp-muted">${esc(m.name || '')} · from ${fmt(c.in)}${c.freeze ? '' : ` to ${fmt(c.out)}`}</p>`;
             } else if (tab === 'looks') {
                 body = `<div class="pe-looks">${Object.entries(FX.FILTERS).map(([k, [l]]) => `<button class="pe-look${c.filter === k ? ' on' : ''}" data-filter="${k}"><canvas width="120" height="68" data-thumb="${k}"></canvas><span>${l}</span></button>`).join('')}</div>${c.filter !== 'none' ? slider('strength', 'Strength', 0, 100, c.strength) : ''}`;
             } else if (tab === 'adjust') {
@@ -1266,11 +1266,11 @@
                 ${slider('size', 'Size', 2, 30, t.size, 0.5)}
                 <p class="ve-label">Place</p><div class="pe-chips"><button class="pe-chip" data-y="0.14">Top</button><button class="pe-chip" data-y="0.5">Middle</button><button class="pe-chip" data-y="0.84">Bottom</button></div>
                 ${slider('dur', 'Shows for', 0.5, 30, t.dur, 0.1, ' s')}
-                <p class="ad-muted">Or drag the text on the video.</p></div>`;
+                <p class="cp-muted">Or drag the text on the video.</p></div>`;
         } else {
             const a = it;
             const m = mediaOf(a.m) || {};
-            el.innerHTML = `<h3>Music</h3><p class="ad-muted">${esc(m.name || '')} · ${fmt(a.out - a.in)}</p><div class="${ro ? 've-ro' : ''}">
+            el.innerHTML = `<h3>Music</h3><p class="cp-muted">${esc(m.name || '')} · ${fmt(a.out - a.in)}</p><div class="${ro ? 've-ro' : ''}">
                 ${slider('vol', 'Volume', 0, 200, a.vol, 1, '%')}${slider('fadeIn', 'Fade in', 0, 5, a.fadeIn, 0.1, ' s')}${slider('fadeOut', 'Fade out', 0, 5, a.fadeOut, 0.1, ' s')}
                 <button class="btn pe-wide" data-fitmusic>${ic('maximize')}<span>Make it as long as the video</span></button>
                 ${slider('clipsvol', 'Clips’ own sound (all clips)', 0, 200, P.clips.length ? P.clips[0].vol : 100, 1, '%')}</div>`;
@@ -1560,7 +1560,7 @@
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
         const row = (k, label, n) => `<label class="ve-check"><input type="checkbox" data-c="${k}" ${n ? 'checked' : 'disabled'}> ${label} <small>${n}</small></label>`;
-        back.innerHTML = `<div class="pf-crop ve-clear" role="dialog" aria-modal="true"><h2>Clear the timeline</h2><p class="ad-muted">What should go? Undo (Ctrl Z) brings it back.</p>
+        back.innerHTML = `<div class="pf-crop ve-clear" role="dialog" aria-modal="true"><h2>Clear the timeline</h2><p class="cp-muted">What should go? Undo (Ctrl Z) brings it back.</p>
             <div class="ve-clist">${row('clips', 'All clips', P.clips.length)}${row('texts', 'All titles and captions', P.texts.length)}${row('audio', 'All music', P.audio.length)}${row('media', 'The imported footage list (it stays in Files)', P.media.length)}</div>
             <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-danger-solid" data-ok>${ic('eraser')}<span>Clear</span></button></div></div>`;
         document.body.append(back);
@@ -1705,7 +1705,7 @@
         const items = r.items.filter(f => f.kind === 'file' && /^(video|image|audio)\//.test(f.type)).sort((a, b) => (b.taken || b.createdAt) - (a.taken || a.createdAt)).slice(0, 200);
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
-        back.innerHTML = `<div class="pf-crop ve-pick" role="dialog" aria-modal="true"><h2>Add from Files</h2><div class="ve-pgrid">${items.map(f => `<label class="ve-pitem"><input type="checkbox" value="${esc(f.id)}"><span class="ve-pth">${f.type.startsWith('audio/') ? ic('bell') : f.thumb ? `<img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/thumb">` : f.type.startsWith('image/') ? `<img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/content?inline=1">` : ic('play')}</span><small>${esc(f.name)}</small></label>`).join('') || '<p class="ad-muted">No videos, photos or music in Files yet.</p>'}</div><div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Add</button></div></div>`;
+        back.innerHTML = `<div class="pf-crop ve-pick" role="dialog" aria-modal="true"><h2>Add from Files</h2><div class="ve-pgrid">${items.map(f => `<label class="ve-pitem"><input type="checkbox" value="${esc(f.id)}"><span class="ve-pth">${f.type.startsWith('audio/') ? ic('bell') : f.thumb ? `<img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/thumb">` : f.type.startsWith('image/') ? `<img alt="" loading="lazy" src="/api/files/${encodeURIComponent(f.id)}/content?inline=1">` : ic('play')}</span><small>${esc(f.name)}</small></label>`).join('') || '<p class="cp-muted">No videos, photos or music in Files yet.</p>'}</div><div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-ok>Add</button></div></div>`;
         document.body.append(back);
         const done = () => back.remove();
         $('[data-x]', back).onclick = done;
@@ -1783,9 +1783,9 @@
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
         back.innerHTML = `<div class="pf-crop ve-exp" role="dialog" aria-modal="true"><h2>Export video</h2>
-            <p class="ad-muted">${fmt(total).replace(/\.\d$/, '')} · ${esc(P.aspect)} · ${mime.includes('mp4') ? 'MP4' : 'WebM'}</p>
+            <p class="cp-muted">${fmt(total).replace(/\.\d$/, '')} · ${esc(P.aspect)} · ${mime.includes('mp4') ? 'MP4' : 'WebM'}</p>
             <div class="pe-chips"><button class="pe-chip on" data-res="1080">1080p (best)</button><button class="pe-chip" data-res="720">720p (smaller, faster on older devices)</button></div>
-            <p class="ad-muted">The video is played once while it’s recorded, so exporting takes as long as the video. Keep this tab in front until it’s done.</p>
+            <p class="cp-muted">The video is played once while it’s recorded, so exporting takes as long as the video. Keep this tab in front until it’s done.</p>
             <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-go>${ic('download')}<span>Export</span></button></div></div>`;
         document.body.append(back);
         let res = 1080;
@@ -1802,7 +1802,7 @@
         cv.height = h;
         const back = document.createElement('div');
         back.className = 'pf-crop-back ve-expback';
-        back.innerHTML = `<div class="pf-crop ve-exp"><h2>Exporting…</h2><div class="ve-expview"></div><div class="ve-bar2"><i id="expbar"></i></div><p class="ad-muted" id="expnote">0%</p><div class="pf-crop-acts"><button class="btn" data-x>Stop</button></div></div>`;
+        back.innerHTML = `<div class="pf-crop ve-exp"><h2>Exporting…</h2><div class="ve-expview"></div><div class="ve-bar2"><i id="expbar"></i></div><p class="cp-muted" id="expnote">0%</p><div class="pf-crop-acts"><button class="btn" data-x>Stop</button></div></div>`;
         $('.ve-expview', back).append(cv);
         document.body.append(back);
         target(cv);
@@ -1880,7 +1880,7 @@
         const url = URL.createObjectURL(blob);
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
-        back.innerHTML = `<div class="pf-crop ve-exp"><h2>Your video is ready</h2><video class="ve-result" src="${url}" controls playsinline></video><p class="ad-muted">${esc(name)} · ${(blob.size / 1048576).toFixed(1)} MB</p><div class="pf-crop-acts"><button class="btn" data-x>Close</button><button class="btn" data-files>${ic('folder')}<span>Save to Files</span></button><a class="btn btn-primary" href="${url}" download="${esc(name)}">${ic('download')}<span>Download</span></a></div></div>`;
+        back.innerHTML = `<div class="pf-crop ve-exp"><h2>Your video is ready</h2><video class="ve-result" src="${url}" controls playsinline></video><p class="cp-muted">${esc(name)} · ${(blob.size / 1048576).toFixed(1)} MB</p><div class="pf-crop-acts"><button class="btn" data-x>Close</button><button class="btn" data-files>${ic('folder')}<span>Save to Files</span></button><a class="btn btn-primary" href="${url}" download="${esc(name)}">${ic('download')}<span>Download</span></a></div></div>`;
         document.body.append(back);
         $('[data-x]', back).onclick = () => back.remove();
         $('[data-files]', back).onclick = async e => {
@@ -1904,14 +1904,14 @@
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
         back.innerHTML = `<div class="pf-crop ve-auto" role="dialog" aria-modal="true"><h2>${ic('zap')} Auto edit</h2>
-            <p class="ad-muted">${esc(aiName)} watches your clips, picks the best moments and builds the edit: cuts, order, speed, looks, effects, transitions, titles and music. You can change everything afterwards, and Undo takes it all back.</p>
+            <p class="cp-muted">${esc(aiName)} watches your clips, picks the best moments and builds the edit: cuts, order, speed, looks, effects, transitions, titles and music. You can change everything afterwards, and Undo takes it all back.</p>
             <textarea class="input pe-ta" id="brief" rows="3" placeholder="What should it be? e.g. “a fast, upbeat 30-second recap of our holiday for Instagram, with a title”"></textarea>
             <div class="pe-chips">${['Travel recap', 'Birthday', 'Highlight reel', 'Calm vlog', 'Funny moments', 'Product video'].map(x => `<button class="pe-chip" data-idea="${x}">${x}</button>`).join('')}</div>
             <div class="ve-arow"><label>Length <select class="input" id="alen"><option value="0">${esc(aiName)} decides</option><option value="15">15 s</option><option value="30" selected>30 s</option><option value="60">1 min</option><option value="90">1.5 min</option><option value="180">3 min</option></select></label>
             <label>Shape <select class="input" id="aasp">${Object.keys(ASPECTS).map(k => `<option${P.aspect === k ? ' selected' : ''}>${k}</option>`).join('')}</select></label>
             <label class="ve-check"><input type="checkbox" id="acap" checked> Titles &amp; captions</label></div>
             <p class="ve-label">Clips to use (${visual.length})</p><div class="ve-amedia">${visual.map(m => `<label><input type="checkbox" value="${m.id}" checked><span>${esc(m.name)}</span></label>`).join('')}</div>
-            ${songs.length ? `<p class="ve-label">Music</p><div class="ve-amedia">${songs.map(m => `<label><input type="checkbox" data-song value="${m.id}" checked><span>${esc(m.name)}</span></label>`).join('')}</div>` : `<p class="ad-muted">Tip: import a song first and ${esc(aiName)} cuts to its beat.</p>`}
+            ${songs.length ? `<p class="ve-label">Music</p><div class="ve-amedia">${songs.map(m => `<label><input type="checkbox" data-song value="${m.id}" checked><span>${esc(m.name)}</span></label>`).join('')}</div>` : `<p class="cp-muted">Tip: import a song first and ${esc(aiName)} cuts to its beat.</p>`}
             <p class="ve-astatus" id="astatus" hidden></p>
             <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" data-go>${ic('zap')}<span>Edit with ${esc(aiName)}</span></button></div></div>`;
         document.body.append(back);
@@ -2067,7 +2067,7 @@
     function summary(plan, model) {
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
-        back.innerHTML = `<div class="pf-crop ve-auto"><h2>${ic('zap')} ${esc(plan.title || 'Your edit')}</h2><p>${esc(plan.summary || 'Done.')}</p><p class="ad-muted">${plan.clips.length} cuts · ${fmt(total).replace(/\.\d$/, '')} · edited by ${esc(model || aiName)}</p><div class="pf-crop-acts"><button class="btn" data-undo>Undo it</button><button class="btn btn-primary" data-play>${ic('play')}<span>Watch it</span></button></div></div>`;
+        back.innerHTML = `<div class="pf-crop ve-auto"><h2>${ic('zap')} ${esc(plan.title || 'Your edit')}</h2><p>${esc(plan.summary || 'Done.')}</p><p class="cp-muted">${plan.clips.length} cuts · ${fmt(total).replace(/\.\d$/, '')} · edited by ${esc(model || aiName)}</p><div class="pf-crop-acts"><button class="btn" data-undo>Undo it</button><button class="btn btn-primary" data-play>${ic('play')}<span>Watch it</span></button></div></div>`;
         document.body.append(back);
         $('[data-undo]', back).onclick = () => (back.remove(), step(undo, redo));
         $('[data-play]', back).onclick = () => (back.remove(), seek(0), play());

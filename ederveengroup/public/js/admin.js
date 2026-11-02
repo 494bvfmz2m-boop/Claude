@@ -4,7 +4,7 @@
     const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const ic = n => window.icon(n);
-    let main = $('#ad-main'); // replaced per section, so old listeners go with it
+    let main = $('#cp-main'); // replaced per section, so old listeners go with it
     // every request says clearly what went wrong, and gives up after 25 seconds
     const call = async (url, opts = {}) => {
         let res;
@@ -33,7 +33,7 @@
     const srv = x => `${esc(x.host)}:${x.port} · ${x.security === 'tls' ? 'SSL/TLS' : 'STARTTLS'}`;
     const initials = s => (String(s || '?').replace(/[^\p{L} ]/gu, ' ').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2) || '?').toUpperCase();
     const hue = s => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-    const av = (name, email) => `<span class="ad-av" style="--h:${hue(email)}">${esc(initials(name || email))}</span>`;
+    const av = (name, email) => `<span class="cp-av" style="--h:${hue(email)}">${esc(initials(name || email))}</span>`;
 
     function toast(text, bad) {
         const t = document.createElement('div');
@@ -48,7 +48,7 @@
         return new Promise(resolve => {
             const back = document.createElement('div');
             back.className = 'pf-crop-back';
-            back.innerHTML = `<div class="pf-crop ad-ask" role="alertdialog" aria-modal="true"><h2>${esc(title)}</h2><p>${esc(text)}</p>
+            back.innerHTML = `<div class="pf-crop cp-ask" role="alertdialog" aria-modal="true"><h2>${esc(title)}</h2><p>${esc(text)}</p>
                 ${input ? `<input class="input" placeholder="${esc(input)}">` : ''}
                 <div class="pf-crop-acts"><button class="btn" data-x>Cancel</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-ok>${esc(ok)}</button></div></div>`;
             document.body.append(back);
@@ -65,7 +65,7 @@
         });
     }
     const setPending = n => {
-        const el = $('#ad-pending');
+        const el = $('#cp-pending');
         el.hidden = !n;
         el.textContent = n || '';
     };
@@ -74,11 +74,11 @@
     async function overview() {
         const o = await call('/api/admin/overview');
         setPending(o.pending);
-        const tile = (n, label, href, icon) => `<a class="ad-tile" ${href ? `href="/admin/${href}"` : ''}>${ic(icon)}<b>${n}</b><span>${label}</span></a>`;
-        const signIns = Object.entries(o.signIns).map(([k, n]) => `<span class="ad-chip">${esc(SIGNIN[k] || k)} <b>${n}</b></span>`).join('') || '<span class="ad-muted">No one yet</span>';
+        const tile = (n, label, href, icon) => `<a class="cp-tile" ${href ? `href="/admin/${href}"` : ''}>${ic(icon)}<b>${n}</b><span>${label}</span></a>`;
+        const signIns = Object.entries(o.signIns).map(([k, n]) => `<span class="cp-chip">${esc(SIGNIN[k] || k)} <b>${n}</b></span>`).join('') || '<span class="cp-muted">No one yet</span>';
         const provider = id => o.providers.some(p => p.id === id);
-        main.innerHTML = `<h1>Overview</h1><p class="ad-sub">Everything about your EderveenGroup at a glance.</p>
-            <div class="ad-tiles">
+        main.innerHTML = `<h1>Overview</h1><p class="cp-sub">Everything about your EderveenGroup at a glance.</p>
+            <div class="cp-tiles">
                 ${tile(o.people, 'people', '#/people', 'user')}
                 ${tile(o.activeWeek, 'active this week', '#/people', 'zap')}
                 ${tile(o.pending, o.pending === 1 ? 'request waiting' : 'requests waiting', '#/requests', 'inbox')}
@@ -86,22 +86,22 @@
                 ${tile(o.twofa, 'use two-step', '#/people', 'lock')}
                 ${tile(o.failedWeek, 'failed sign-ins this week', '#/people', 'alert')}
             </div>
-            <section class="ad-card"><h2>How people sign in</h2><div class="ad-chips">${signIns}</div></section>
-            <section class="ad-card"><h2>Setup</h2>
-                <div class="ad-row"><div><b>Sign in with Microsoft</b><small>Outlook.com, Hotmail and Microsoft 365</small></div>${provider('microsoft') ? '<span class="ad-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
-                <div class="ad-row"><div><b>Sign in with Google</b><small>Gmail and Google Workspace</small></div>${provider('google') ? '<span class="ad-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
-                <div class="ad-row"><div><b>Who may use Microsoft / Google</b><small>${o.settings.oauthPolicy === 'anyone' ? 'Anyone with an account' : 'Only approved addresses and domains'}</small></div><a class="btn" href="/admin/#/access">Change</a></div>
-                <div class="ad-row"><div><b>Storage</b><small>${o.database === 'mysql' ? 'MySQL / MariaDB database' : 'Files in the data folder'}</small></div><span class="ad-ok">${o.database === 'mysql' ? 'Database' : 'Files'}</span></div>
-                <div class="ad-row"><div><b>Admins</b><small>${o.admins.map(esc).join(', ')}</small></div><a class="btn" href="/admin/#/people">People</a></div>
+            <section class="cp-card"><h2>How people sign in</h2><div class="cp-chips">${signIns}</div></section>
+            <section class="cp-card"><h2>Setup</h2>
+                <div class="cp-row"><div><b>Sign in with Microsoft</b><small>Outlook.com, Hotmail and Microsoft 365</small></div>${provider('microsoft') ? '<span class="cp-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
+                <div class="cp-row"><div><b>Sign in with Google</b><small>Gmail and Google Workspace</small></div>${provider('google') ? '<span class="cp-ok">On</span>' : '<a class="btn btn-primary" href="/admin/#/signin">Set up</a>'}</div>
+                <div class="cp-row"><div><b>Who may use Microsoft / Google</b><small>${o.settings.oauthPolicy === 'anyone' ? 'Anyone with an account' : 'Only approved addresses and domains'}</small></div><a class="btn" href="/admin/#/access">Change</a></div>
+                <div class="cp-row"><div><b>Storage</b><small>${o.database === 'mysql' ? 'MySQL / MariaDB database' : 'Files in the data folder'}</small></div><span class="cp-ok">${o.database === 'mysql' ? 'Database' : 'Files'}</span></div>
+                <div class="cp-row"><div><b>Admins</b><small>${o.admins.map(esc).join(', ')}</small></div><a class="btn" href="/admin/#/people">People</a></div>
             </section>
-            <section class="ad-card"><h2>Recent activity</h2><div class="ad-log" id="ad-recent"><p class="ad-muted">Loading…</p></div><a class="btn btn-ghost" href="/admin/#/activity">See all activity</a></section>`;
+            <section class="cp-card"><h2>Recent activity</h2><div class="cp-log" id="cp-recent"><p class="cp-muted">Loading…</p></div><a class="btn btn-ghost" href="/admin/#/activity">See all activity</a></section>`;
         call('/api/admin/activity')
             .then(list => {
-                const el = $('#ad-recent', main);
+                const el = $('#cp-recent', main);
                 if (!el) return;
                 el.innerHTML = list.length
-                    ? list.slice(0, 6).map(e => `<div class="ad-ev ${e.kind === 'admin' ? 'admin' : e.ok ? 'ok' : 'bad'}"><span class="ad-ev-ic">${ic(e.kind === 'admin' ? 'shield' : e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.kind === 'admin' ? e.text : e.email)}</b><small>${e.kind === 'admin' ? `by ${esc(e.by)}` : e.ok ? 'Signed in' : 'Sign-in failed'}</small></div><time>${esc(ago(e.t))}</time></div>`).join('')
-                    : '<p class="ad-muted">Nothing yet.</p>';
+                    ? list.slice(0, 6).map(e => `<div class="cp-ev ${e.kind === 'admin' ? 'admin' : e.ok ? 'ok' : 'bad'}"><span class="cp-ev-ic">${ic(e.kind === 'admin' ? 'shield' : e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.kind === 'admin' ? e.text : e.email)}</b><small>${e.kind === 'admin' ? `by ${esc(e.by)}` : e.ok ? 'Signed in' : 'Sign-in failed'}</small></div><time>${esc(ago(e.t))}</time></div>`).join('')
+                    : '<p class="cp-muted">Nothing yet.</p>';
             })
             .catch(() => {});
     }
@@ -113,7 +113,7 @@
         const decided = list.filter(r => r.status !== 'pending').slice(0, 30);
         setPending(pending.length);
         const domain = e => e.split('@')[1];
-        main.innerHTML = `<h1>Requests</h1><p class="ad-sub">People who asked to use EderveenGroup. Accepting lets them in right away and emails them from your address.</p>
+        main.innerHTML = `<h1>Requests</h1><p class="cp-sub">People who asked to use EderveenGroup. Accepting lets them in right away and emails them from your address.</p>
             <div class="req-list">${pending.length ? pending.map((r, i) => `<div class="req" data-id="${esc(r.id)}" style="animation-delay:${i * 50}ms">
                 <div class="req-head">${av(r.name, r.email)}<div class="lbl"><b>${esc(r.name || r.email)}</b><small>${esc(r.email)} · ${esc(ago(r.createdAt))}${r.device ? ` · ${esc(r.device)}` : ''}</small></div>
                     ${r.provider ? `<span class="badge ok">${ic('check')} Signed in with ${esc(SIGNIN[r.provider] || r.provider)}</span>` : r.verified ? `<span class="badge ok">${ic('check')} Settings work</span>` : ''}</div>
@@ -121,7 +121,7 @@
                 ${r.note ? `<p class="req-note">“${esc(r.note)}”</p>` : ''}
                 <div class="req-actions"><div class="seg" data-scope><button data-v="address" class="on">Only ${esc(r.email)}</button><button data-v="domain">Everyone @${esc(domain(r.email))}</button></div>
                     <span class="spacer"></span><button class="btn btn-danger" data-reject>Reject</button><button class="btn btn-primary" data-accept>${ic('check')} Accept</button></div></div>`).join('') : `<div class="empty-note">${ic('sparkle')}<span>No open requests. People can ask at <b>${esc(location.host)}/mail/request</b>, or by signing in with Microsoft or Google.</span></div>`}</div>
-            ${decided.length ? `<h2 class="ad-h2">Decided</h2><ol class="act-list">${decided.map(r => `<li class="${r.status === 'accepted' ? 'ok' : 'bad'}"><span class="act-dot">${ic(r.status === 'accepted' ? 'check' : 'x')}</span><div class="lbl"><b>${esc(r.name || r.email)} · ${r.status}${r.scope === 'domain' ? ` (everyone @${esc(domain(r.email))})` : ''}</b><small>${esc(r.email)}${r.decidedBy ? ` · by ${esc(r.decidedBy)}` : ''}${r.reason ? ` · “${esc(r.reason)}”` : ''}</small></div><time>${esc(ago(r.decidedAt))}</time></li>`).join('')}</ol>` : ''}`;
+            ${decided.length ? `<h2 class="cp-h2">Decided</h2><ol class="act-list">${decided.map(r => `<li class="${r.status === 'accepted' ? 'ok' : 'bad'}"><span class="act-dot">${ic(r.status === 'accepted' ? 'check' : 'x')}</span><div class="lbl"><b>${esc(r.name || r.email)} · ${r.status}${r.scope === 'domain' ? ` (everyone @${esc(domain(r.email))})` : ''}</b><small>${esc(r.email)}${r.decidedBy ? ` · by ${esc(r.decidedBy)}` : ''}${r.reason ? ` · “${esc(r.reason)}”` : ''}</small></div><time>${esc(ago(r.decidedAt))}</time></li>`).join('')}</ol>` : ''}`;
         $$('.req [data-scope]', main).forEach(seg =>
             seg.addEventListener('click', e => {
                 const b = e.target.closest('button');
@@ -162,29 +162,29 @@
         let q = '';
         const draw = () => {
             const shown = list.filter(p => !q || [p.email, p.username, p.name].some(x => String(x || '').toLowerCase().includes(q)));
-            $('#ad-people', main).innerHTML = shown.length
-                ? shown.map((p, i) => `<div class="ad-person" data-email="${esc(p.email)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
+            $('#cp-people', main).innerHTML = shown.length
+                ? shown.map((p, i) => `<div class="cp-person" data-email="${esc(p.email)}" style="animation-delay:${Math.min(i, 12) * 30}ms">
                     ${av(p.name, p.email)}
-                    <div class="lbl"><b>${esc(p.name || p.email)}${p.username ? ` <span class="ad-handle">@${esc(p.username)}</span>` : ''}${p.role !== 'member' ? ` <span class="ad-role">${p.role === 'owner' ? 'Owner' : 'Admin'}</span>` : ''}${p.blocked ? ' <span class="ad-role bad">Blocked</span>' : ''}${p.you ? ' <span class="ad-handle">(you)</span>' : ''}</b>
+                    <div class="lbl"><b>${esc(p.name || p.email)}${p.username ? ` <span class="cp-handle">@${esc(p.username)}</span>` : ''}${p.role !== 'member' ? ` <span class="cp-role">${p.role === 'owner' ? 'Owner' : 'Admin'}</span>` : ''}${p.blocked ? ' <span class="cp-role bad">Blocked</span>' : ''}${p.you ? ' <span class="cp-handle">(you)</span>' : ''}</b>
                         <small>${esc(p.email)} · ${esc(SIGNIN[p.signIn] || p.signIn)} · last seen ${esc(ago(p.lastSeen))}</small>
-                        <span class="ad-tags">${p.twofa ? `<i class="t-ok">${ic('lock')}2FA</i>` : ''}${p.devices ? `<i>${p.devices} device${p.devices === 1 ? '' : 's'}</i>` : ''}${p.profile !== 'none' ? `<i class="${p.profile === 'hidden' ? 't-bad' : ''}">Profile ${p.profile}</i>` : ''}${p.failedWeek ? `<i class="t-bad">${p.failedWeek} failed</i>` : ''}</span></div>
-                    <div class="ad-person-acts">
+                        <span class="cp-tags">${p.twofa ? `<i class="t-ok">${ic('lock')}2FA</i>` : ''}${p.devices ? `<i>${p.devices} device${p.devices === 1 ? '' : 's'}</i>` : ''}${p.profile !== 'none' ? `<i class="${p.profile === 'hidden' ? 't-bad' : ''}">Profile ${p.profile}</i>` : ''}${p.failedWeek ? `<i class="t-bad">${p.failedWeek} failed</i>` : ''}</span></div>
+                    <div class="cp-person-acts">
                         ${p.username && p.profile === 'public' ? `<a class="btn btn-ghost" href="/profile/#/${esc(p.username)}" target="_blank" rel="noopener">${ic('external')}<span>Card</span></a>` : ''}
                         ${p.profile === 'public' || p.profile === 'hidden' ? `<button class="btn btn-ghost" data-hide="${p.profile === 'hidden' ? '0' : '1'}">${p.profile === 'hidden' ? 'Unhide card' : 'Hide card'}</button>` : ''}
                         ${p.devices && !p.you ? `<button class="btn btn-ghost" data-signout>Sign out</button>` : ''}
                         ${p.role !== 'owner' && !p.you && !p.blocked ? `<button class="btn btn-ghost" data-role="${p.role === 'admin' ? '0' : '1'}">${p.role === 'admin' ? 'Remove admin' : 'Make admin'}</button>` : ''}
                         ${p.role !== 'owner' && !p.you ? `<button class="btn ${p.blocked ? '' : 'btn-danger'}" data-block="${p.blocked ? '0' : '1'}">${p.blocked ? 'Unblock' : 'Block'}</button>` : ''}</div></div>`).join('')
-                : '<p class="ad-muted">Nobody matches that.</p>';
+                : '<p class="cp-muted">Nobody matches that.</p>';
         };
-        main.innerHTML = `<h1>People</h1><p class="ad-sub">${list.length} ${list.length === 1 ? 'person has' : 'people have'} an EderveenGroup account.</p>
-            <div class="ad-search">${ic('search')}<input class="input" placeholder="Search by name, email or username" aria-label="Search people"></div>
-            <div class="ad-people" id="ad-people"></div>`;
-        $('.ad-search input', main).addEventListener('input', e => {
+        main.innerHTML = `<h1>People</h1><p class="cp-sub">${list.length} ${list.length === 1 ? 'person has' : 'people have'} an EderveenGroup account.</p>
+            <div class="cp-search">${ic('search')}<input class="input" placeholder="Search by name, email or username" aria-label="Search people"></div>
+            <div class="cp-people" id="cp-people"></div>`;
+        $('.cp-search input', main).addEventListener('input', e => {
             q = e.target.value.trim().toLowerCase();
             draw();
         });
         main.addEventListener('click', async e => {
-            const row = e.target.closest('.ad-person');
+            const row = e.target.closest('.cp-person');
             if (!row) return;
             const p = list.find(x => x.email === row.dataset.email);
             if (e.target.closest('[data-signout]')) {
@@ -243,18 +243,18 @@
     /* ---------- access ---------- */
     async function access() {
         const [settings, allowed, servers, o] = await Promise.all([call('/api/admin/settings'), call('/api/admin/allowed'), call('/api/admin/servers'), call('/api/admin/overview')]);
-        main.innerHTML = `<h1>Access</h1><p class="ad-sub">Who can use EderveenGroup, and which mail servers they use.</p>
-            <section class="ad-card"><h2>Sign in with Microsoft / Google</h2>
-                <div class="seg ad-policy" id="ad-policy"><button data-v="approved" class="${settings.oauthPolicy !== 'anyone' ? 'on' : ''}">Only approved</button><button data-v="anyone" class="${settings.oauthPolicy === 'anyone' ? 'on' : ''}">Anyone</button></div>
-                <p class="ad-muted">${settings.oauthPolicy === 'anyone' ? 'Anyone with a Microsoft or Google account can sign in.' : 'Others who sign in with Microsoft or Google show up under Requests.'} ${o.providers.length ? '' : 'Neither is switched on yet: <a href="/admin/#/signin">set them up in Sign-in</a>.'}</p>
-                <form class="ad-add" id="ad-allow"><input class="input" placeholder="ava@gmail.com or @company.com" aria-label="Address or domain"><button class="btn btn-primary">${ic('plus')}<span>Allow</span></button></form>
-                <div class="srv-list">${allowed.length ? allowed.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${a.provider ? `${esc(SIGNIN[a.provider] || a.provider)} · ` : ''}added ${esc(ago(a.addedAt))}${a.addedBy ? ` by ${esc(a.addedBy)}` : ''}</small></div><button class="btn btn-danger" data-unallow>Remove</button></div>`).join('') : '<p class="ad-muted">No one approved yet.</p>'}</div>
+        main.innerHTML = `<h1>Access</h1><p class="cp-sub">Who can use EderveenGroup, and which mail servers they use.</p>
+            <section class="cp-card"><h2>Sign in with Microsoft / Google</h2>
+                <div class="seg cp-policy" id="cp-policy"><button data-v="approved" class="${settings.oauthPolicy !== 'anyone' ? 'on' : ''}">Only approved</button><button data-v="anyone" class="${settings.oauthPolicy === 'anyone' ? 'on' : ''}">Anyone</button></div>
+                <p class="cp-muted">${settings.oauthPolicy === 'anyone' ? 'Anyone with a Microsoft or Google account can sign in.' : 'Others who sign in with Microsoft or Google show up under Requests.'} ${o.providers.length ? '' : 'Neither is switched on yet: <a href="/admin/#/signin">set them up in Sign-in</a>.'}</p>
+                <form class="cp-add" id="cp-allow"><input class="input" placeholder="ava@gmail.com or @company.com" aria-label="Address or domain"><button class="btn btn-primary">${ic('plus')}<span>Allow</span></button></form>
+                <div class="srv-list">${allowed.length ? allowed.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${a.provider ? `${esc(SIGNIN[a.provider] || a.provider)} · ` : ''}added ${esc(ago(a.addedAt))}${a.addedBy ? ` by ${esc(a.addedBy)}` : ''}</small></div><button class="btn btn-danger" data-unallow>Remove</button></div>`).join('') : '<p class="cp-muted">No one approved yet.</p>'}</div>
             </section>
-            <section class="ad-card"><h2>Other mail servers</h2>
-                <p class="ad-muted">Mailboxes that aren’t on Purelymail, Microsoft or Google, added from requests.</p>
-                <div class="srv-list">${servers.length ? servers.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${srv(a.imap)} · ${srv(a.smtp)} · added ${esc(ago(a.addedAt))}</small></div><button class="btn btn-danger" data-remove>Remove</button></div>`).join('') : '<p class="ad-muted">None yet. Everyone else signs in with Purelymail.</p>'}</div>
+            <section class="cp-card"><h2>Other mail servers</h2>
+                <p class="cp-muted">Mailboxes that aren’t on Purelymail, Microsoft or Google, added from requests.</p>
+                <div class="srv-list">${servers.length ? servers.map(a => `<div class="row" data-key="${esc(a.key)}"><div class="lbl"><b>${esc(a.key.startsWith('@') ? `Everyone ${a.key}` : a.key)}</b><small>${srv(a.imap)} · ${srv(a.smtp)} · added ${esc(ago(a.addedAt))}</small></div><button class="btn btn-danger" data-remove>Remove</button></div>`).join('') : '<p class="cp-muted">None yet. Everyone else signs in with Purelymail.</p>'}</div>
             </section>`;
-        $('#ad-policy').addEventListener('click', async e => {
+        $('#cp-policy').addEventListener('click', async e => {
             const b = e.target.closest('button');
             if (!b) return;
             if (b.dataset.v === 'anyone' && !(await ask({ title: 'Let anyone sign in?', text: 'Anyone with a Microsoft or Google account will be able to use EderveenGroup without asking.', ok: 'Let anyone in' }))) return;
@@ -262,9 +262,9 @@
             toast(b.dataset.v === 'anyone' ? 'Anyone can sign in now' : 'Only approved people can sign in');
             access();
         });
-        $('#ad-allow').addEventListener('submit', async e => {
+        $('#cp-allow').addEventListener('submit', async e => {
             e.preventDefault();
-            const key = $('#ad-allow input').value.trim();
+            const key = $('#cp-allow input').value.trim();
             try {
                 await call('/api/admin/allowed', { method: 'POST', body: JSON.stringify({ key }) });
                 toast(`${key} can sign in now`);
@@ -318,21 +318,21 @@
     };
     async function signin() {
         const list = await call('/api/admin/signin');
-        main.innerHTML = `<h1>Sign-in</h1><p class="ad-sub">Let people sign in with their Microsoft or Google account. Mail then works without their password ever reaching this server.</p>
-            ${list.map(p => `<section class="ad-card si-card" data-id="${p.id}">
+        main.innerHTML = `<h1>Sign-in</h1><p class="cp-sub">Let people sign in with their Microsoft or Google account. Mail then works without their password ever reaching this server.</p>
+            ${list.map(p => `<section class="cp-card si-card" data-id="${p.id}">
                 <div class="si-head"><span class="si-logo">${LOGOS[p.id]}</span><div><h2>Sign in with ${esc(p.name)}</h2><small>${p.id === 'microsoft' ? 'Outlook.com, Hotmail, Live and Microsoft 365' : 'Gmail and Google Workspace'}</small></div>
-                    ${p.ready ? `<span class="ad-ok">${ic('check')} On</span>` : '<span class="ad-off">Not set up</span>'}</div>
+                    ${p.ready ? `<span class="cp-ok">${ic('check')} On</span>` : '<span class="cp-off">Not set up</span>'}</div>
                 ${p.source === 'env'
-                    ? `<p class="ad-muted">Switched on by the server’s environment variables (${p.id === 'microsoft' ? 'MICROSOFT_CLIENT_ID' : 'GOOGLE_CLIENT_ID'}). To change it, edit them in Coolify.</p>`
+                    ? `<p class="cp-muted">Switched on by the server’s environment variables (${p.id === 'microsoft' ? 'MICROSOFT_CLIENT_ID' : 'GOOGLE_CLIENT_ID'}). To change it, edit them in Coolify.</p>`
                     : `<details class="si-guide"${p.ready ? '' : ' open'}><summary>${p.ready ? 'How it was set up' : `Set it up (about 5 minutes)`}</summary><ol class="si-steps">${STEPS[p.id](p).map(x => `<li>${x}</li>`).join('')}</ol></details>
                     <form class="si-form" novalidate>
                         <label class="pf-field"><span>${p.id === 'microsoft' ? 'Application (client) ID' : 'Client ID'}</span><input class="input" name="clientId" value="${esc(p.clientId)}" placeholder="${p.id === 'microsoft' ? '1a2b3c4d-5e6f-7a8b-9c0d-…' : '123456789-abc….apps.googleusercontent.com'}" autocomplete="off" spellcheck="false"></label>
                         <label class="pf-field"><span>${p.id === 'microsoft' ? 'Client secret (its Value)' : 'Client secret'}</span><input class="input" name="clientSecret" type="password" placeholder="${p.secretSaved ? `Saved, ends in …${esc(p.secretHint)}. Paste a new one to replace it.` : 'Paste the secret'}" autocomplete="new-password" spellcheck="false"></label>
-                        ${p.id === 'microsoft' ? `<details class="si-adv"><summary>Advanced</summary><label class="pf-field"><span>Directory (tenant)</span><input class="input" name="tenant" value="${esc(p.tenant)}" spellcheck="false"><small class="ad-muted">Leave it on <b>common</b> for everyone. Your tenant ID or domain allows only your own organisation.</small></label></details>` : ''}
+                        ${p.id === 'microsoft' ? `<details class="si-adv"><summary>Advanced</summary><label class="pf-field"><span>Directory (tenant)</span><input class="input" name="tenant" value="${esc(p.tenant)}" spellcheck="false"><small class="cp-muted">Leave it on <b>common</b> for everyone. Your tenant ID or domain allows only your own organisation.</small></label></details>` : ''}
                         <div class="form-error hidden" role="alert"></div>
                         <div class="si-acts">${p.secretSaved ? '<button type="button" class="btn btn-danger" data-clear>Switch off</button>' : ''}<span class="spacer"></span><button class="btn btn-primary" type="submit">${ic('check')}<span>${p.ready ? 'Save' : 'Save and switch on'}</span></button></div>
                     </form>`}
-                <p class="ad-muted si-note">${NOTES[p.id]}</p>
+                <p class="cp-muted si-note">${NOTES[p.id]}</p>
                 <label class="si-show"><input type="checkbox" data-show ${p.hidden ? '' : 'checked'}> Show the button on the sign-in page${p.ready ? '' : ' (until it’s set up, it explains that it isn’t switched on yet)'}</label>
             </section>`).join('')}`;
         $$('[data-copy]', main).forEach(b =>
@@ -406,11 +406,11 @@
         const active = s.providers.find(x => x.id === s.active);
         const inUse = active.configured ? `<b>${esc(active.name)}</b> · ${esc(active.id === 'claude' ? (s.models.find(m => m.id === active.model) || { name: active.model }).name.split(' (')[0] : active.model || 'no model picked')}` : 'nothing yet (add a key below)';
         const status = p.configured ? (p.source === 'env' ? `Set on the server (${esc(p.env)}), ends in …${esc(p.hint)}` : `Saved, ends in …${esc(p.hint)}${p.savedBy ? ` · by ${esc(p.savedBy)}` : ''}${p.savedAt ? ` · ${esc(new Date(p.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet';
-        main.innerHTML = `<h1>AI</h1><p class="ad-sub">Auto editing in the Photo Editor and the Video Editor. Only admins see it. It runs on your own API key, and that service bills it.</p>
-            <section class="ad-card"><h2>Service</h2><p class="ad-muted">In use for auto editing: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
-                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="ad-ok">${ic('check')} In use</i>` : x.configured ? '<i class="ad-off">Key saved</i>' : ''}</button>`).join('')}</div></section>
-            <section class="ad-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="ad-ok">${ic('check')} In use</span>` : '<span class="ad-off">Ready</span>') : '<span class="ad-off">Off</span>'}</div>
-                ${p.source === 'env' ? `<p class="ad-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
+        main.innerHTML = `<h1>AI</h1><p class="cp-sub">Auto editing in the Photo Editor and the Video Editor. Only admins see it. It runs on your own API key, and that service bills it.</p>
+            <section class="cp-card"><h2>Service</h2><p class="cp-muted">In use for auto editing: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
+                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? '<i class="cp-off">Key saved</i>' : ''}</button>`).join('')}</div></section>
+            <section class="cp-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="cp-ok">${ic('check')} In use</span>` : '<span class="cp-off">Ready</span>') : '<span class="cp-off">Off</span>'}</div>
+                ${p.source === 'env' ? `<p class="cp-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
                 <form class="si-form" id="aiform" novalidate>
                     ${p.custom ? `<label class="pf-field"><span>Address of the service’s API</span><input class="input" name="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://api.example.com/v1" spellcheck="false" autocomplete="off"></label>` : ''}
                     ${p.source === 'env' ? '' : `<label class="pf-field"><span>API key</span><input class="input" name="apiKey" type="password" placeholder="${p.configured ? `Saved, ends in …${esc(p.hint)}. Paste a new one to replace it.` : esc(p.keyHint || 'Paste the key')}" autocomplete="new-password" spellcheck="false"></label>`}
@@ -419,15 +419,15 @@
                 </form>
                 ${p.configured && p.id !== s.active ? `<div class="ai-use-this"><span>${esc(p.name)} is ready.</span><button class="btn btn-primary" data-activate>${ic('check')}<span>Use ${esc(p.name)} for auto editing</span></button></div>` : ''}
             </section>
-            <section class="ad-card"><h2>Model</h2>${
+            <section class="cp-card"><h2>Model</h2>${
                 p.id === 'claude'
-                    ? `<p class="ad-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p><div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === p.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div>`
-                    : `<p class="ad-muted">The model must be able to look at pictures (vision). ${p.defaultModel ? `Suggested: <code>${esc(p.defaultModel)}</code>. ` : ''}${p.configured ? 'Load models shows what your key can use.' : 'Add the key first to see what it can use.'}</p>
+                    ? `<p class="cp-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p><div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === p.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div>`
+                    : `<p class="cp-muted">The model must be able to look at pictures (vision). ${p.defaultModel ? `Suggested: <code>${esc(p.defaultModel)}</code>. ` : ''}${p.configured ? 'Load models shows what your key can use.' : 'Add the key first to see what it can use.'}</p>
                         <div class="ai-modelrow"><input class="input" id="aimodel" list="aimodels" value="${esc(p.model)}" placeholder="model name" spellcheck="false" autocomplete="off"><datalist id="aimodels"></datalist>${p.configured ? `<button class="btn" data-load>${ic('refresh')}<span>Load models</span></button>` : ''}<button class="btn btn-primary" data-savemodel>${ic('check')}<span>Save</span></button></div>
-                        <p class="ad-muted" id="aimodelnote"></p>`
+                        <p class="cp-muted" id="aimodelnote"></p>`
             }
                 <label class="ai-frames"><span>Pictures per video auto edit</span><input class="input" type="number" min="1" max="90" id="aiframes" value="${p.maxImages}"><small>Frames from your clips that ${esc(p.name)} looks at. More gives better edits but costs more; some services take only a few.</small></label></section>
-            <section class="ad-card"><h2>This month</h2><div class="ad-tiles ai-use"><div class="ad-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="ad-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="ad-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="ad-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
+            <section class="cp-card"><h2>This month</h2><div class="cp-tiles ai-use"><div class="cp-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="cp-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="cp-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="cp-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
         const put = body => call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ provider: id, ...body }) });
         $$('[data-prov]', main).forEach(b =>
             b.addEventListener('click', () => {
@@ -523,27 +523,27 @@
     /* ---------- activity: sign-ins and admin actions ---------- */
     async function activity() {
         let kind = '';
-        main.innerHTML = `<h1>Activity</h1><p class="ad-sub">Every sign-in on EderveenGroup, and what admins changed.</p>
-            <div class="seg ad-kind" id="ad-kind"><button data-k="" class="on">Everything</button><button data-k="signin">Sign-ins</button><button data-k="failed">Failed</button><button data-k="admin">Admin changes</button></div>
-            <div class="ad-log" id="ad-log"><div class="pf-loading"><div class="spinner"></div></div></div>`;
+        main.innerHTML = `<h1>Activity</h1><p class="cp-sub">Every sign-in on EderveenGroup, and what admins changed.</p>
+            <div class="seg cp-kind" id="cp-kind"><button data-k="" class="on">Everything</button><button data-k="signin">Sign-ins</button><button data-k="failed">Failed</button><button data-k="admin">Admin changes</button></div>
+            <div class="cp-log" id="cp-log"><div class="pf-loading"><div class="spinner"></div></div></div>`;
         const METHOD = { password: 'password', 'trusted-device': 'password (trusted device)', '2fa': 'two-step code', totp: 'two-step code', recovery: 'recovery code', google: 'Google', microsoft: 'Microsoft', 'microsoft-work': 'Microsoft 365' };
         const REASON = { 'wrong-password': 'wrong password', 'wrong-code': 'wrong code', locked: 'too many tries', blocked: 'account blocked', 'no-imap': 'mailbox refused' };
         const draw = async () => {
             const list = await call(`/api/admin/activity${kind ? `?kind=${kind}` : ''}`);
-            $('#ad-log', main).innerHTML = list.length
+            $('#cp-log', main).innerHTML = list.length
                 ? list.map((e, i) => {
                       const when = new Date(e.t);
                       const time = `<time title="${esc(when.toLocaleString())}">${esc(ago(e.t))}</time>`;
-                      if (e.kind === 'admin') return `<div class="ad-ev admin" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="ad-ev-ic">${ic('shield')}</span><div><b>${esc(e.text)}</b><small>by ${esc(e.by)}</small></div>${time}</div>`;
-                      return `<div class="ad-ev ${e.ok ? 'ok' : 'bad'}" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="ad-ev-ic">${ic(e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.email)}</b><small>${e.ok ? 'Signed in' : `Sign-in failed (${esc(REASON[e.reason] || e.reason || 'refused')})`} with ${esc(METHOD[e.method] || e.method || 'password')}${e.device ? ` · ${esc(e.device)}` : ''}${e.ip ? ` · ${esc(e.ip)}` : ''}</small></div>${time}</div>`;
+                      if (e.kind === 'admin') return `<div class="cp-ev admin" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="cp-ev-ic">${ic('shield')}</span><div><b>${esc(e.text)}</b><small>by ${esc(e.by)}</small></div>${time}</div>`;
+                      return `<div class="cp-ev ${e.ok ? 'ok' : 'bad'}" style="animation-delay:${Math.min(i, 20) * 15}ms"><span class="cp-ev-ic">${ic(e.ok ? 'check' : 'alert')}</span><div><b>${esc(e.email)}</b><small>${e.ok ? 'Signed in' : `Sign-in failed (${esc(REASON[e.reason] || e.reason || 'refused')})`} with ${esc(METHOD[e.method] || e.method || 'password')}${e.device ? ` · ${esc(e.device)}` : ''}${e.ip ? ` · ${esc(e.ip)}` : ''}</small></div>${time}</div>`;
                   }).join('')
                 : `<div class="empty-note">${ic('sparkle')}<span>Nothing here yet.</span></div>`;
         };
-        $('#ad-kind', main).addEventListener('click', e => {
+        $('#cp-kind', main).addEventListener('click', e => {
             const b = e.target.closest('[data-k]');
             if (!b) return;
             kind = b.dataset.k;
-            $$('#ad-kind button', main).forEach(x => x.classList.toggle('on', x === b));
+            $$('#cp-kind button', main).forEach(x => x.classList.toggle('on', x === b));
             draw();
         });
         await draw();
@@ -552,14 +552,14 @@
     /* ---------- news: posts on everyone's dashboard ---------- */
     async function news() {
         const list = await call('/api/admin/news');
-        main.innerHTML = `<h1>News</h1><p class="ad-sub">Short posts everyone sees at the top of their dashboard.</p>
-            <form class="ad-card ad-news-form" id="ad-news">
+        main.innerHTML = `<h1>News</h1><p class="cp-sub">Short posts everyone sees at the top of their dashboard.</p>
+            <form class="cp-card cp-news-form" id="cp-news">
                 <label class="pf-field"><span>Title</span><input class="input" name="title" maxlength="120" placeholder="The mail server is down for maintenance on Saturday"></label>
                 <label class="pf-field"><span>Message</span><textarea class="input" name="body" rows="4" maxlength="2000" placeholder="A few more words, if needed"></textarea></label>
-                <div class="si-acts"><label class="pf-field ad-days"><span>Show it for</span><select class="input" name="days"><option value="3">3 days</option><option value="7" selected>a week</option><option value="30">a month</option><option value="0">until I take it down</option></select></label><span class="spacer"></span><button class="btn btn-primary">${ic('send')}<span>Post</span></button></div>
+                <div class="si-acts"><label class="pf-field cp-days"><span>Show it for</span><select class="input" name="days"><option value="3">3 days</option><option value="7" selected>a week</option><option value="30">a month</option><option value="0">until I take it down</option></select></label><span class="spacer"></span><button class="btn btn-primary">${ic('send')}<span>Post</span></button></div>
             </form>
-            <div class="ad-newslist">${list.length ? list.map(n => `<div class="ad-card ad-newsitem" data-id="${esc(n.id)}"><div><b>${esc(n.title)}</b>${n.body ? `<p>${esc(n.body)}</p>` : ''}<small>${esc(n.by)} · ${esc(ago(n.at))}${n.until ? (n.until > Date.now() ? ` · shown until ${esc(new Date(n.until).toLocaleDateString())}` : ' · no longer shown') : ''}</small></div><button class="btn btn-danger" data-del>Take down</button></div>`).join('') : '<p class="ad-muted">Nothing posted yet.</p>'}</div>`;
-        $('#ad-news', main).addEventListener('submit', async e => {
+            <div class="cp-newslist">${list.length ? list.map(n => `<div class="cp-card cp-newsitem" data-id="${esc(n.id)}"><div><b>${esc(n.title)}</b>${n.body ? `<p>${esc(n.body)}</p>` : ''}<small>${esc(n.by)} · ${esc(ago(n.at))}${n.until ? (n.until > Date.now() ? ` · shown until ${esc(new Date(n.until).toLocaleDateString())}` : ' · no longer shown') : ''}</small></div><button class="btn btn-danger" data-del>Take down</button></div>`).join('') : '<p class="cp-muted">Nothing posted yet.</p>'}</div>`;
+        $('#cp-news', main).addEventListener('submit', async e => {
             e.preventDefault();
             const f = e.target;
             try {
@@ -583,15 +583,15 @@
     const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
     async function apps() {
         const { pages, off } = await call('/api/admin/apps');
-        main.innerHTML = `<h1>Apps</h1><p class="ad-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
-            <section class="ad-card ad-apps">${pages.map(a => `<label class="ad-app"><img src="icons/apps/${a}.svg" alt=""><span><b>${esc(APP_NAMES[a] || a)}</b><small>${off.includes(a) ? 'Off' : 'On for everyone'}</small></span><input type="checkbox" class="ad-toggle" data-app="${a}" ${off.includes(a) ? '' : 'checked'}></label>`).join('')}
-            <p class="ad-muted">Mail, Profile and Admin are always on.</p></section>`;
+        main.innerHTML = `<h1>Apps</h1><p class="cp-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
+            <section class="cp-card cp-apps">${pages.map(a => `<label class="cp-app"><img src="icons/apps/${a}.svg" alt=""><span><b>${esc(APP_NAMES[a] || a)}</b><small>${off.includes(a) ? 'Off' : 'On for everyone'}</small></span><input type="checkbox" class="cp-toggle" data-app="${a}" ${off.includes(a) ? '' : 'checked'}></label>`).join('')}
+            <p class="cp-muted">Mail, Profile and Admin are always on.</p></section>`;
         $$('[data-app]', main).forEach(t =>
             t.addEventListener('change', async () => {
                 const offNow = $$('[data-app]', main).filter(x => !x.checked).map(x => x.dataset.app);
                 try {
                     await call('/api/admin/apps', { method: 'PUT', body: JSON.stringify({ off: offNow }) });
-                    t.closest('.ad-app').querySelector('small').textContent = t.checked ? 'On for everyone' : 'Off';
+                    t.closest('.cp-app').querySelector('small').textContent = t.checked ? 'On for everyone' : 'Off';
                     toast(`${APP_NAMES[t.dataset.app]} is ${t.checked ? 'on' : 'off'}`);
                 } catch (err) {
                     t.checked = !t.checked;
@@ -606,19 +606,19 @@
     let first = true;
     async function route() {
         const tab = TABS[location.hash.replace(/^#\/?/, '')] ? location.hash.replace(/^#\/?/, '') : 'overview';
-        $$('#ad-nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
+        $$('#cp-nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
         // the page arrives with the overview already in it: keep showing that until the full one is ready
         const keep = first && tab === 'overview' && $('h1', main);
         first = false;
         const fresh = main.cloneNode(false);
-        if (keep) [...main.childNodes].filter(n => !(n.classList && n.classList.contains('ad-stuck'))).forEach(n => fresh.append(n.cloneNode(true)));
+        if (keep) [...main.childNodes].filter(n => !(n.classList && n.classList.contains('cp-stuck'))).forEach(n => fresh.append(n.cloneNode(true)));
         main.replaceWith(fresh);
         main = fresh;
         const mine = main;
-        if (!keep) main.innerHTML = '<div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>';
+        if (!keep) main.innerHTML = '<div class="pf-loading cp-loading"><div class="spinner"></div><span>Loading…</span></div>';
         // never a silent blank: after a while, say it's still waiting
         const slow = setTimeout(() => {
-            if (main !== mine || !$('.ad-loading', mine)) return;
+            if (main !== mine || !$('.cp-loading', mine)) return;
             mine.innerHTML = `<div class="pf-empty"><h1>Still loading…</h1><p>The server hasn’t answered yet. It may be busy, or something between your browser and EderveenGroup is holding the request.</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
         }, 10000);
         try {
@@ -633,7 +633,7 @@
     }
     function showError(e) {
         const message = (e && e.message) || String(e);
-        main.innerHTML = `<div class="pf-empty ad-error"><h1>Couldn’t load this</h1><p>${esc(message)}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
+        main.innerHTML = `<div class="pf-empty cp-error"><h1>Couldn’t load this</h1><p>${esc(message)}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
         // and tell the server, so it shows up in its log too
         fetch('/api/admin/client-error', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-EG': '1' }, body: JSON.stringify({ message, where: location.hash || '#/' }) }).catch(() => {});
     }
