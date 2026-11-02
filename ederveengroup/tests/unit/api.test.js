@@ -1468,3 +1468,45 @@ test('Chat: one-to-one and groups, live, with pictures, reactions, replies, edit
     await pump.catch(() => {});
     app.close();
 });
+
+test('Planner: boards of columns and cards, cleaned on save, with what’s due on the dashboard', async () => {
+    const app = await start();
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const b = (await jo('POST', '/api/docs', { kind: 'board', title: 'Move house' })).body;
+    assert.deepEqual(b.body.cols.map(c => c.name), ['To do', 'Doing', 'Done']);
+    assert.equal(b.cover, 'aurora');
+    const soon = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+    const body = {
+        bg: 'ocean',
+        labels: { red: 'Urgent', pink: 'nope' },
+        cols: [
+            { id: 'col1', name: 'To pack', cards: [
+                { id: 'card1', title: 'Books', due: soon, labels: ['red', 'pink'], who: [USER, 'not-an-email'], check: [{ t: 'Boxes' }, { t: '' }], desc: 'Fragile <b>' },
+                { id: 'card2', title: '', due: 'tomorrow' },
+                { id: 'card3', title: 'Done already', due: soon, done: true }
+            ] },
+            { name: '' }
+        ]
+    };
+    assert.equal((await jo('PUT', `/api/docs/${b.id}`, { title: 'Move house', version: b.version, body })).status, 200);
+    const back = (await jo('GET', `/api/docs/${b.id}`)).body;
+    assert.equal(back.cover, 'ocean');
+    assert.equal(back.body.labels.red, 'Urgent');
+    assert.equal(back.body.labels.pink, undefined);
+    const [c1, c2] = back.body.cols[0].cards;
+    assert.deepEqual([c1.labels, c1.who, c1.check.length, c1.desc], [['red'], [USER], 1, 'Fragile <b>']);
+    assert.deepEqual([c2.title, c2.due], ['Untitled card', '']);
+    assert.equal(back.body.cols[1].name, 'Untitled');
+    const sum = (await jo('GET', '/api/apps-summary')).body;
+    assert.deepEqual([sum.boards, sum.boardDue], [1, 1]);
+    // a whiteboard keeps only what it can draw
+    const w = (await jo('POST', '/api/docs', { kind: 'wb', title: 'Ideas', body: { bg: 'grid', items: [{ t: 'pen', p: [0, 0, 10, 10, 20], c: '#FF0000', w: 4 }, { t: 'note', x: 5, y: 5, w: 200, h: 200, text: 'Hello' }, { t: 'script', x: 1 }, { t: 'text', x: 0, y: 0, text: '  ' }, { t: 'rect', x: 'a', y: 2, w: 30, h: 40, f: 'red' }] } })).body;
+    assert.equal(w.body.bg, 'grid');
+    assert.deepEqual(w.body.items.map(i => i.t), ['pen', 'note', 'rect']);
+    assert.deepEqual(w.body.items[0].p, [0, 0, 10, 10]);
+    assert.equal(w.body.items[0].c, '#ff0000');
+    assert.deepEqual([w.body.items[2].x, w.body.items[2].f], [0, '']);
+    app.close();
+});

@@ -35,11 +35,13 @@
         { id: 'contacts', name: 'Contacts', cat: 'communicate', href: '/contacts/', blurb: 'Your address book, and everyone here.' },
         { id: 'calendar', name: 'Calendar', cat: 'plan', href: '/calendar/', blurb: 'Appointments and deadlines.' },
         { id: 'tasks', name: 'Tasks', cat: 'plan', href: '/tasks/', blurb: 'To-dos and projects, with due dates.' },
+        { id: 'planner', name: 'Planner', cat: 'plan', href: '/planner/', blurb: 'Boards for projects: cards you move along.' },
         { id: 'notes', name: 'Notes', cat: 'create', href: '/notes/', blurb: 'Quick notes, saved as you type.' },
         { id: 'docs', name: 'Docs', cat: 'create', href: '/docs/', blurb: 'Documents, guides and how-tos.' },
         { id: 'sheets', name: 'Spreadsheets', cat: 'create', href: '/sheets/', blurb: 'Tables and sums, like Excel.' },
         { id: 'slides', name: 'Slides', cat: 'create', href: '/slides/', blurb: 'Presentations you can show anywhere.' },
         { id: 'forms', name: 'Forms', cat: 'create', href: '/forms/', blurb: 'Sign-ups, polls and feedback, with a link to share.' },
+        { id: 'whiteboard', name: 'Whiteboard', cat: 'create', href: '/whiteboard/', blurb: 'Draw, sketch and plan together.' },
         { id: 'photos', name: 'Photos', cat: 'store', href: '/photos/', blurb: 'Every photo and video, by the day it was taken.' },
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
@@ -126,6 +128,8 @@
         if (sum.docs != null) stat('docs', sum.docs ? plural(sum.docs, 'doc') : 'No docs yet');
         if (sum.sheets != null) stat('sheets', sum.sheets ? plural(sum.sheets, 'spreadsheet') : 'No spreadsheets yet');
         if (sum.slides != null) stat('slides', sum.slides ? plural(sum.slides, 'deck') : 'No decks yet');
+        if (sum.boards != null) stat('planner', sum.boardDue ? `<i>${sum.boardDue}</i> due this week` : sum.boards ? plural(sum.boards, 'board') : 'No boards yet', sum.boardDue);
+        if (sum.whiteboards != null) stat('whiteboard', sum.whiteboards ? plural(sum.whiteboards, 'board') : 'Start drawing');
         if (sum.forms != null) stat('forms', sum.forms ? `${plural(sum.forms, 'form')} · ${plural(sum.formResponses || 0, 'response')}` : 'No forms yet');
         if (sum.chat != null) stat('chat', sum.chat ? `<i>${sum.chat}</i> unread` : 'All read', sum.chat);
         if (sum.mail != null) stat('mail', sum.mail ? `<i>${sum.mail}</i> unread` : 'All read', sum.mail);

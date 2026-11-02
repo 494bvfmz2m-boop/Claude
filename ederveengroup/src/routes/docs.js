@@ -18,7 +18,7 @@ const express = require('express');
 const { wrap, httpError, requireAuth } = require('../http');
 const { sanitizeDocHtml } = require('../../lib/sanitize');
 
-const KINDS = ['doc', 'deck', 'sheet', 'form'];
+const KINDS = ['doc', 'deck', 'sheet', 'form', 'board', 'wb'];
 const forms = require('../../lib/forms');
 const F = require('../../public/js/formula');
 const office = require('../../lib/office');
@@ -69,6 +69,8 @@ const picture = v => (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/
 function cleanBody(kind, b) {
     if (kind === 'sheet') return cleanBook(b);
     if (kind === 'form') return forms.cleanForm(b);
+    if (kind === 'board') return cleanBoard(b);
+    if (kind === 'wb') return cleanWhiteboard(b);
     if (kind === 'doc') {
         const p = (b && b.page) || {};
         return {
@@ -78,6 +80,67 @@ function cleanBody(kind, b) {
     }
     const slides = [].concat((b && b.slides) || []).slice(0, 200).map(cleanSlide);
     return { theme: KIT.THEMES[b && b.theme] ? b.theme : 'midnight', slides: slides.length ? slides : [cleanSlide({ layout: 'title' })] };
+}
+
+/* ---------- Planner: a board of columns with cards ---------- */
+const LABELS = ['green', 'yellow', 'orange', 'red', 'purple', 'blue'];
+const BOARD_BGS = ['aurora', 'ocean', 'sunset', 'forest', 'berry', 'slate', 'plain'];
+const EMAIL = /^[^\s@]{1,64}@[^\s@]+\.[^\s@]+$/;
+const shortId = v => (/^[A-Za-z0-9_-]{4,24}$/.test(String(v || '')) ? String(v) : crypto.randomBytes(5).toString('base64url'));
+function cleanBoard(b) {
+    b = b && typeof b === 'object' ? b : {};
+    let cards = 0;
+    const labels = {};
+    for (const l of LABELS) labels[l] = line(b.labels && b.labels[l], 40);
+    const cols = [].concat(b.cols || []).slice(0, 30).map(c => ({
+        id: shortId(c && c.id),
+        name: line(c && c.name, 80) || 'Untitled',
+        cards: [].concat((c && c.cards) || [])
+            .filter(x => x && typeof x === 'object' && cards++ < 1000)
+            .map(x => ({
+                id: shortId(x.id),
+                title: line(x.title, 300) || 'Untitled card',
+                desc: text(x.desc, 8000),
+                due: /^\d{4}-\d{2}-\d{2}$/.test(String(x.due || '')) ? x.due : '',
+                labels: [...new Set([].concat(x.labels || []).filter(l => LABELS.includes(l)))],
+                check: [].concat(x.check || []).slice(0, 100).map(i => ({ id: shortId(i && i.id), t: line(i && i.t, 300), done: !!(i && i.done) })).filter(i => i.t),
+                who: [...new Set([].concat(x.who || []).map(e => String(e).trim().toLowerCase()).filter(e => EMAIL.test(e)))].slice(0, 20),
+                done: !!x.done,
+                created: Number(x.created) > 0 ? Math.round(Number(x.created)) : Date.now()
+            }))
+    }));
+    return { bg: BOARD_BGS.includes(b.bg) ? b.bg : 'aurora', labels, cols: cols.length ? cols : ['To do', 'Doing', 'Done'].map(name => ({ id: shortId(), name, cards: [] })) };
+}
+
+/* ---------- Whiteboard: strokes, shapes, text and sticky notes on an endless canvas ---------- */
+const WB_KINDS = ['pen', 'marker', 'line', 'arrow', 'rect', 'ellipse', 'text', 'note'];
+function cleanWhiteboard(b) {
+    b = b && typeof b === 'object' ? b : {};
+    const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.max(-1e6, Math.min(1e6, Math.round(Number(v) * 10) / 10)) : d);
+    let points = 0;
+    const items = [].concat(b.items || []).slice(0, 5000).map(it => {
+        if (!it || typeof it !== 'object' || !WB_KINDS.includes(it.t)) return null;
+        const o = { id: shortId(it.id), t: it.t, c: colour(it.c) || '#1f1f1f' };
+        if (it.t === 'pen' || it.t === 'marker') {
+            const pts = [].concat(it.p || []).slice(0, 4000);
+            points += pts.length;
+            if (points > 300000 || pts.length < 2) return null;
+            o.p = pts.map(v => n(v));
+            if (o.p.length % 2) o.p.pop();
+            o.w = Math.max(1, Math.min(60, n(it.w, 3)));
+            return o;
+        }
+        Object.assign(o, { x: n(it.x), y: n(it.y), w: n(it.w), h: n(it.h) });
+        if (it.t === 'line' || it.t === 'arrow' || it.t === 'rect' || it.t === 'ellipse') o.s = Math.max(1, Math.min(30, n(it.s, 3)));
+        if (it.t === 'rect' || it.t === 'ellipse') o.f = colour(it.f);
+        if (it.t === 'text' || it.t === 'note') {
+            o.text = text(it.text, 4000);
+            o.size = Math.max(8, Math.min(200, n(it.size, it.t === 'note' ? 18 : 24)));
+            if (!o.text.trim() && it.t === 'text') return null;
+        }
+        return o;
+    }).filter(Boolean);
+    return { bg: ['dots', 'grid', 'plain'].includes(b.bg) ? b.bg : 'dots', items };
 }
 
 /* ---------- a slide: its layout's text, and the boxes, shapes and pictures put on it ---------- */
@@ -176,7 +239,7 @@ module.exports = function docRoutes(ctx) {
         const id = crypto.randomBytes(9).toString('base64url');
         const now = Date.now();
         const body = cleanBody(kind, req.body.body || {});
-        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}), ...(kind === 'form' ? { token: formToken(), open: body.settings.open } : {}) };
+        all.items[id] = { kind, title: line(req.body.title, 160), owner: email, ownerName: nameOf(email), share: 'private', createdAt: now, updatedAt: now, updatedBy: nameOf(email), version: 1, size: JSON.stringify(body).length, ...(kind === 'deck' ? { cover: `${body.theme}|${line(body.slides[0].title, 80)}` } : {}), ...(kind === 'form' ? { token: formToken(), open: body.settings.open } : {}), ...(kind === 'board' ? { cover: body.bg } : {}) };
         const d = await docs.get(`d:${id}`, () => ({}));
         Object.assign(d, body);
         docs.save(`d:${id}`);
@@ -206,6 +269,7 @@ module.exports = function docRoutes(ctx) {
         // a small cover for the deck grid: the first slide's title and theme
         if (m.kind === 'deck') m.cover = `${body.theme}|${line(body.slides[0].title, 80)}`;
         if (m.kind === 'form') m.open = body.settings.open;
+        if (m.kind === 'board') m.cover = body.bg;
         docs.save(`d:${req.params.id}`);
         docs.save('docs-index');
         res.json(view(req.params.id, m, email));
@@ -309,13 +373,24 @@ module.exports = function docRoutes(ctx) {
     ctx.summaryExtras = async email => {
         const all = Object.values((await index()).items);
         const myForms = all.filter(m => m.kind === 'form' && canEdit(m, email));
+        // Planner: open cards for you (yours, or on your own boards with nobody on them) due within a week
+        const m0 = { boardDue: 0 };
+        const soon = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+        for (const [id, m] of Object.entries((await index()).items)) {
+            if (m.kind !== 'board' || !canSee(m, email)) continue;
+            const b = await docs.get(`d:${id}`, () => ({ cols: [] }));
+            for (const c of b.cols || []) for (const card of c.cards || []) if (!card.done && card.due && card.due <= soon && ((card.who || []).includes(email) || (!(card.who || []).length && m.owner === email))) m0.boardDue++;
+        }
         return {
             ...(before ? await before(email) : {}),
             docs: all.filter(m => m.kind === 'doc' && canSee(m, email)).length,
             slides: all.filter(m => m.kind === 'deck' && canSee(m, email)).length,
             sheets: all.filter(m => m.kind === 'sheet' && canSee(m, email)).length,
             forms: myForms.length,
-            formResponses: myForms.reduce((n, m) => n + (m.responses || 0), 0)
+            formResponses: myForms.reduce((n, m) => n + (m.responses || 0), 0),
+            boards: all.filter(m => m.kind === 'board' && canSee(m, email)).length,
+            boardDue: m0.boardDue || 0,
+            whiteboards: all.filter(m => m.kind === 'wb' && canSee(m, email)).length
         };
     };
     // for Forms (src/routes/forms.js): the same list, rules and a way to add a document
