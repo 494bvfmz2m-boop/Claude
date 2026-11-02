@@ -630,7 +630,35 @@
         }
         const h = $('h1', main);
         document.title = `${h ? h.textContent : 'Admin'} · Admin · EderveenGroup`;
+        requestAnimationFrame(() => requestAnimationFrame(checkShown));
     }
+    // Browser extensions can hide parts of a page (ad blockers, privacy tools, antivirus web
+    // shields). If Admin's content is there but can't be seen, say so where it can: under the menu.
+    function hiddenBy(el) {
+        for (let x = el; x && x !== document.body; x = x.parentElement) {
+            const cs = getComputedStyle(x);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse' || Number(cs.opacity) < 0.05) return x;
+        }
+        const r = el.getBoundingClientRect();
+        return r.width < 4 || r.height < 4 ? el : null;
+    }
+    const describe = el => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}${typeof el.className === 'string' && el.className.trim() ? `.${el.className.trim().split(/\s+/).join('.')}` : ''}`;
+    function checkShown() {
+        const kids = [...main.children].filter(c => c.textContent.trim());
+        const culprit = hiddenBy(main) || (kids.length && kids.every(c => hiddenBy(c)) ? hiddenBy(kids[0]) : null);
+        const note = document.getElementById('eg-hidden-note');
+        if (!culprit || !main.textContent.trim()) return note && note.remove();
+        if (note) return;
+        const cs = getComputedStyle(culprit);
+        const box = document.createElement('div');
+        box.id = 'eg-hidden-note';
+        box.setAttribute('role', 'alert');
+        box.style.cssText = 'margin:14px 4px 0;padding:12px 14px;border-radius:12px;background:#4a1d24;color:#ffdfe3;font:13px/1.45 system-ui,sans-serif;max-width:260px';
+        box.innerHTML = `<b style="display:block;margin-bottom:4px;color:#fff;font-size:14px">This page is being hidden</b>Admin loaded fine, but something in this browser hides it: almost always an ad blocker or privacy extension (uBlock, AdBlock, AdGuard, Ghostery…) or an antivirus web shield. Turn it off for this site, or open Admin in a private window, and reload.<small style="display:block;margin-top:6px;opacity:.7">Hidden: ${esc(describe(culprit))} (${esc(cs.display)}, ${esc(cs.visibility)}, opacity ${esc(cs.opacity)})</small>`;
+        $('#cp-nav').append(box);
+        fetch('/api/admin/client-error', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-EG': '1' }, body: JSON.stringify({ message: `Admin content is hidden by the browser: ${describe(culprit)} display=${cs.display} visibility=${cs.visibility} opacity=${cs.opacity}`, where: location.hash || '#/' }) }).catch(() => {});
+    }
+    addEventListener('load', () => setTimeout(checkShown, 1200));
     function showError(e) {
         const message = (e && e.message) || String(e);
         main.innerHTML = `<div class="pf-empty cp-error"><h1>Couldn’t load this</h1><p>${esc(message)}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;

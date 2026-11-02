@@ -93,7 +93,9 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
             res
                 .status(status)
                 .type('html')
-                .set('Cache-Control', 'no-cache')
+                // pages carry the signed-in person's things: never kept by a shared cache (a CDN, a proxy)
+                .set('Cache-Control', 'private, no-cache')
+                .set('Vary', 'Cookie')
                 .send(render(name).replaceAll('%ORIGIN%', originOf(res.req)).replace(/<!--slot:([a-z]+)-->/g, (_, k) => slots[k] || ''))
     };
 }

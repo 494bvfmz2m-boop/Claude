@@ -123,7 +123,7 @@ Optional: `DB_PORT` (default 3306), `DB_SSL=1` if your database supports encrypt
 4. **Persistent Storage → Volume** mounted at **`/data`** (keeps sign-ins, settings, photos and 2FA across deploys).
 5. Deploy. No environment variables are needed: the image runs as a non-root user, trusts Coolify's proxy (`TRUST_PROXY=1`) and has a health check.
 
-**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.5*) shows which release is live.
+**After an update:** use **Redeploy** (not Restart, which keeps the old code). The version at the bottom of the dashboard and in Admin (for example *Version 2026.11.6*) shows which release is live.
 
 ### Docker
 
