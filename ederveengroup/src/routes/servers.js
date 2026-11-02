@@ -81,10 +81,10 @@ function adminRoutes(ctx) {
     r.post('/admin/requests/:id/reject', wrap((req, res) => decide(req, res, 'rejected')));
 
     /* ---------- overview ---------- */
-    r.get('/admin/overview', wrap(async (req, res) => {
+    async function overviewData() {
         const people = await store.listPeople();
         const week = Date.now() - 7 * 864e5;
-        res.json({
+        return {
             people: people.length,
             activeWeek: people.filter(p => (p.lastSeen || 0) > week).length,
             publicProfiles: people.filter(p => p.profile === 'public').length,
@@ -98,8 +98,15 @@ function adminRoutes(ctx) {
             settings: store.servers.getSettings(),
             database: store.backend.kind,
             admins: [...new Set([...config.adminEmails, ...(store.servers.getSettings().admins || [])])]
-        });
-    }));
+        };
+    }
+    r.get('/admin/overview', wrap(async (req, res) => res.json(await overviewData())));
+    // a mistake in the Admin page, reported by the page itself: it goes in the server log
+    r.post('/admin/client-error', (req, res) => {
+        const line = s => String(s == null ? '' : s).replace(/[\u0000-\u001f]+/g, ' ').slice(0, 300);
+        console.warn(`Admin page problem for ${req.session.email}: ${line(req.body.message)} | ${line(req.body.where)} | ${line(req.get('user-agent'))}`);
+        res.json({ ok: true });
+    });
 
     /* ---------- people ---------- */
     r.get('/admin/people', wrap(async (req, res) =>
@@ -285,7 +292,7 @@ function adminRoutes(ctx) {
         res.json({ ok: true });
     }));
 
-    return { router: r, isAdmin, isBlocked: blocked };
+    return { router: r, isAdmin, isBlocked: blocked, overview: overviewData };
 }
 
 const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;

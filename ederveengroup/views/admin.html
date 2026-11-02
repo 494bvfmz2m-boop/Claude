@@ -35,9 +35,10 @@
             <a href="/admin/#/activity" data-tab="activity" data-icon="clock"><span>Activity</span></a>
             <a href="/admin/#/news" data-tab="news" data-icon="bell"><span>News</span></a>
             <a href="/admin/#/apps" data-tab="apps" data-icon="grid"><span>Apps</span></a>
+            <p class="ad-version">Version %RELEASE%</p>
         </nav>
-        <main class="ad-main" id="ad-main" aria-live="polite"><div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>
-            <p class="ad-stuck">The Admin app didn’t start. Reload the page (Ctrl+F5, or ⌘⇧R on a Mac). If it stays like this, an ad blocker or privacy extension may be stopping it: allow this site and reload.</p></main>
+        <main class="ad-main" id="ad-main" aria-live="polite"><!--slot:overview-->
+            <p class="ad-stuck">The rest of Admin didn’t start in this browser. Reload the page (Ctrl+F5, or ⌘⇧R on a Mac). If it stays like this, an ad blocker or privacy extension may be stopping it: allow this site and reload.</p></main>
     </div>
 </body>
 </html>

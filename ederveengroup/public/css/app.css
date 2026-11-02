@@ -2324,7 +2324,9 @@ button.ea-sec { cursor: pointer; }
 /* Admin: never a silent blank page */
 .ad-loading { gap: 12px; color: var(--text-2); font-size: 14px; }
 .ad-loading .spinner { width: 30px; height: 30px; border-width: 2.5px; }
-.ad-stuck { max-width: 460px; margin: -30vh auto 0; text-align: center; color: var(--text-2); line-height: 1.6; opacity: 0; animation: adStuck 0s 6s forwards; }
+.ad-version { margin: 14px 12px 0; color: var(--text-3); font-size: 12px; }
+.hub-ver { margin-left: 4px; opacity: .8; }
+.ad-stuck { max-width: 460px; margin: 28px 0 0; text-align: left; color: var(--text-2); line-height: 1.6; opacity: 0; animation: adStuck 0s 6s forwards; }
 @keyframes adStuck { to { opacity: 1; } }
 .ad-error p { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .ad-main .ad-stuck { animation: adStuck 0s 6s forwards !important; } }

@@ -32,6 +32,13 @@ function moduleImportMap({ publicDir, baseUrl, version }) {
 // HTML pages with <!--include:name--> partials and %BASE% / %V% / %IMPORTMAP% / %ORIGIN% placeholders.
 function createPages({ viewsDir, publicDir, baseUrl, version }) {
     const importMap = moduleImportMap({ publicDir, baseUrl, version });
+    // the release people can read (package.json), shown in Admin and on the dashboard
+    let release = '';
+    try {
+        release = JSON.parse(fs.readFileSync(path.join(publicDir, '..', 'package.json'), 'utf8')).version || '';
+    } catch {
+        release = '';
+    }
     const cache = {};
     function render(name) {
         if (!cache[name]) {
@@ -40,7 +47,8 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
                 .replace(/<!--include:([a-z-]+)-->/g, (_, part) => fs.readFileSync(path.join(viewsDir, 'partials', part + '.html'), 'utf8'))
                 .replace('%IMPORTMAP%', `<script type="importmap">${importMap.json}</script>`)
                 .replaceAll('%BASE%', baseUrl)
-                .replaceAll('%V%', version);
+                .replaceAll('%V%', version)
+                .replaceAll('%RELEASE%', release);
         }
         return cache[name];
     }
@@ -80,8 +88,13 @@ function createPages({ viewsDir, publicDir, baseUrl, version }) {
         scriptHashes: [importMap.hash],
         serviceWorker,
         manifest,
-        send: (res, name, status = 200) =>
-            res.status(status).type('html').set('Cache-Control', 'no-cache').send(render(name).replaceAll('%ORIGIN%', originOf(res.req)))
+        // slots: <!--slot:name--> filled in per request (already escaped HTML)
+        send: (res, name, status = 200, slots = {}) =>
+            res
+                .status(status)
+                .type('html')
+                .set('Cache-Control', 'no-cache')
+                .send(render(name).replaceAll('%ORIGIN%', originOf(res.req)).replace(/<!--slot:([a-z]+)-->/g, (_, k) => slots[k] || ''))
     };
 }
 

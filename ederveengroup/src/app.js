@@ -192,7 +192,18 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         if (!ctx.isAdmin(req.session.email)) return ctx.pages.send(res, 'notfound.html', 404);
         if (needsName(req)) return toWelcome(res, '/admin/');
         if (!req.path.endsWith('/')) return res.redirect(301, '/admin/');
-        ctx.pages.send(res, 'admin.html');
+        // the overview comes with the page, so Admin is never empty, even before (or without) its script
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+        Promise.race([admin.overview(), new Promise(resolve => setTimeout(() => resolve(null), 3000))])
+            .catch(() => null)
+            .then(o => {
+                const tile = (n, label, href) => `<a class="ad-tile" href="/admin/#/${href}"><b>${esc(n)}</b><span>${esc(label)}</span></a>`;
+                const html = o
+                    ? `<h1>Overview</h1><p class="ad-sub">Everything about your EderveenGroup at a glance.</p><div class="ad-tiles">${tile(o.people, 'people', 'people')}${tile(o.activeWeek, 'active this week', 'people')}${tile(o.pending, o.pending === 1 ? 'request waiting' : 'requests waiting', 'requests')}${tile(o.publicProfiles, 'public profiles', 'people')}${tile(o.twofa, 'use two-step', 'people')}${tile(o.failedWeek, 'failed sign-ins this week', 'people')}</div>
+                       <section class="ad-card"><h2>Admins</h2><p class="ad-muted">${o.admins.map(esc).join(', ')}</p></section>`
+                    : '<h1>Admin</h1><p class="ad-sub">Loading…</p>';
+                ctx.pages.send(res, 'admin.html', 200, { overview: html });
+            });
     });
     site.get('/login', (req, res) => (req.session ? res.redirect(safeNext(req.query.next, config.baseUrl)) : ctx.pages.send(res, 'login.html')));
     // installable as an app (Windows, Mac, Android, iPhone): it opens the hub

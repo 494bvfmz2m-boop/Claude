@@ -468,15 +468,19 @@
 
     /* ---------- address: #/, #/requests, #/people, #/access, #/signin, #/activity, #/news, #/apps ---------- */
     const TABS = { overview, requests, people, access, signin, activity, news, apps };
+    let first = true;
     async function route() {
         const tab = TABS[location.hash.replace(/^#\/?/, '')] ? location.hash.replace(/^#\/?/, '') : 'overview';
         $$('#ad-nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
+        // the page arrives with the overview already in it: keep showing that until the full one is ready
+        const keep = first && tab === 'overview' && $('h1', main);
+        first = false;
         const fresh = main.cloneNode(false);
+        if (keep) [...main.childNodes].filter(n => !(n.classList && n.classList.contains('ad-stuck'))).forEach(n => fresh.append(n.cloneNode(true)));
         main.replaceWith(fresh);
         main = fresh;
         const mine = main;
-        main.innerHTML = '<div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>';
-        main.classList.add('enter');
+        if (!keep) main.innerHTML = '<div class="pf-loading ad-loading"><div class="spinner"></div><span>Loading…</span></div>';
         // never a silent blank: after a while, say it's still waiting
         const slow = setTimeout(() => {
             if (main !== mine || !$('.ad-loading', mine)) return;
@@ -493,7 +497,10 @@
         document.title = `${h ? h.textContent : 'Admin'} · Admin · EderveenGroup`;
     }
     function showError(e) {
-        main.innerHTML = `<div class="pf-empty ad-error"><h1>Couldn’t load this</h1><p>${esc((e && e.message) || String(e))}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
+        const message = (e && e.message) || String(e);
+        main.innerHTML = `<div class="pf-empty ad-error"><h1>Couldn’t load this</h1><p>${esc(message)}</p><button class="btn btn-primary" data-retry>Try again</button></div>`;
+        // and tell the server, so it shows up in its log too
+        fetch('/api/admin/client-error', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-EG': '1' }, body: JSON.stringify({ message, where: location.hash || '#/' }) }).catch(() => {});
     }
     document.addEventListener('click', e => e.target.closest('[data-retry]') && route());
     // a mistake in this page shows up here instead of leaving it empty
