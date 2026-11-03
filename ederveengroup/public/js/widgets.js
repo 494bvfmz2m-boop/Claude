@@ -81,9 +81,11 @@
                 lock.firstChild.append(line);
                 lock.lastChild.append(circ, rect);
                 stage.replaceChildren(lock);
+                window.EGScriptable.settle(lock);
             } else {
                 const el = await window.EGScriptable.render(id, size);
                 stage.replaceChildren(fit(stage, el));
+                window.EGScriptable.settle(el);
             }
         } catch (e) {
             stage.innerHTML = `<p class="cp-muted">Couldn’t draw this preview: ${esc(e.message)}</p>`;

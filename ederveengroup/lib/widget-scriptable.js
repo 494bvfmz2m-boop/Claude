@@ -104,6 +104,22 @@ function icon(stack, name, size, color) {
     img.tintColor = color || A;
     return img;
 }
+// a widget's size in points on this iPhone (they differ a little per model), for layouts that must fit
+function dims(fam = family) {
+    let s = 390;
+    try {
+        const z = Device.screenSize();
+        s = Math.min(z.width, z.height);
+    } catch (e) {
+        s = 390;
+    }
+    const [sm, mw, mh, lh] = s >= 428 ? [170, 364, 170, 382] : s >= 414 ? [169, 360, 169, 379] : s >= 390 ? [158, 338, 158, 354] : s >= 375 ? [155, 329, 155, 345] : [141, 292, 141, 311];
+    if (fam === 'small') return { w: sm, h: sm };
+    if (fam === 'large' || fam === 'extraLarge') return { w: mw, h: lh };
+    return { w: mw, h: mh };
+}
+// note: an empty spacer always takes at least ~8 points, so things inside small fixed-size boxes are
+// centred by the box itself (a fixed size centres what's in it), never with spacers
 const tappable = () => family === 'medium' || family === 'large' || family === 'extraLarge';
 const lockScreen = () => family.startsWith('accessory');
 function gradient(top, bottom) {
@@ -205,10 +221,14 @@ function ringWith(parent, fraction, size, color, big, small, width) {
     s.backgroundImage = ring(fraction, size, color, width);
     s.layoutVertically();
     s.centerAlignContent();
-    s.addSpacer();
-    centered(s, r => text(r, big, size * 0.27, C.text, 'round'));
-    if (small) centered(s, r => text(r, small, Math.max(8, size * 0.1), C.dim, 'semibold'));
-    s.addSpacer();
+    const t = s.addStack();
+    t.size = new Size(size * 0.78, size * 0.3);
+    text(t, big, String(big).length > 3 ? size * 0.19 : size * 0.27, C.text, 'round');
+    if (small) {
+        const u = s.addStack();
+        u.size = new Size(size * 0.7, Math.max(10, size * 0.13));
+        text(u, small, Math.max(8, size * 0.1), C.dim, 'semibold');
+    }
     return s;
 }
 // bars, oldest first, with a label under each
@@ -258,7 +278,8 @@ function eventRow(stack, e, d, size) {
     bar.size = new Size(3, size + 5);
     bar.cornerRadius = 1.5;
     bar.backgroundColor = new Color(e.color || '#4c8dff');
-    text(r, `${e.day === d.date ? '' : `${dayLabel(e.day, d)} `}${e.allDay ? 'All day' : e.at}`, size - 1, C.dim, 'semibold');
+    const day = e.day === d.date ? '' : family === 'large' ? `${dayLabel(e.day, d)} ` : `${fmt(dateOf(e.day), 'EEE')} `;
+    text(r, `${day}${e.allDay ? 'All day' : e.at}`, size - 1, C.dim, 'semibold');
     text(r, e.title, size, C.text, 'semibold');
     return r;
 }
@@ -310,7 +331,7 @@ MAKERS.overview = {
         agenda(column(body, 5), d, 4, 12);
         body.addSpacer(12);
         const right = column(body, 5);
-        right.size = new Size(112, 0);
+        right.size = new Size(100, 0);
         section(right, 'Tasks');
         taskRows(right, d, 3, 11);
         body.addSpacer();
@@ -433,7 +454,9 @@ MAKERS.calendar = {
         w.addSpacer(10);
         section(w, 'Coming up', A);
         w.addSpacer(4);
-        agenda(column(w, 5), d, 4, 12);
+        const first = new Date(+d.date.slice(0, 4), +d.date.slice(5, 7) - 1, 1);
+        const weeks = Math.ceil((((first.getDay() + 6) % 7) + new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()) / 7);
+        agenda(column(w, 5), d, weeks > 5 ? 3 : 4, 12);
         w.addSpacer();
         return w;
     },
@@ -443,45 +466,40 @@ MAKERS.calendar = {
         const counts = (d.month && d.month.days) || {};
         const lead = (dateOf(first).getDay() + 6) % 7;
         const len = new Date(+first.slice(0, 4), +first.slice(5, 7), 0).getDate();
-        const cw = 40;
+        const gap = 2;
+        const cw = Math.floor((dims('large').w - 32 - gap * 6) / 7);
         const names = w.addStack();
-        names.spacing = 4;
+        names.spacing = gap;
         ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach((n, i) => {
             const c = names.addStack();
-            c.size = new Size(cw, 13);
-            c.addSpacer();
+            c.size = new Size(cw, 14);
             text(c, n, 9, i > 4 ? C.faint : C.dim, 'bold');
-            c.addSpacer();
         });
-        const grid = column(w, 2);
+        const grid = column(w, 1);
         for (let start = 0; start < lead + len; start += 7) {
             const r = grid.addStack();
-            r.spacing = 4;
+            r.spacing = gap;
             for (let i = start; i < start + 7; i++) {
                 const cell = r.addStack();
-                cell.size = new Size(cw, 24);
+                cell.size = new Size(cw, 25);
                 cell.layoutVertically();
                 const num = i - lead + 1;
                 if (num < 1 || num > len) continue;
                 const day = `${first.slice(0, 8)}${pad(num)}`;
                 const isToday = day === d.date;
                 const top = cell.addStack();
-                top.addSpacer();
-                const n = top.addStack();
-                n.size = new Size(20, 18);
-                n.cornerRadius = 9;
-                if (isToday) n.backgroundColor = A;
-                n.addSpacer();
-                text(n, num, 11, isToday ? Color.white() : day < d.date ? C.faint : C.text, isToday ? 'bold' : 'medium');
-                n.addSpacer();
-                top.addSpacer();
-                const dot = cell.addStack();
-                dot.addSpacer();
-                const dd = dot.addStack();
-                dd.size = new Size(4, 4);
-                dd.cornerRadius = 2;
-                if (counts[day]) dd.backgroundColor = day < d.date ? C.faint : A;
-                dot.addSpacer();
+                top.size = new Size(cw, 20);
+                const circle = top.addStack();
+                circle.size = new Size(20, 20);
+                circle.cornerRadius = 10;
+                if (isToday) circle.backgroundColor = A;
+                text(circle, num, 12, isToday ? Color.white() : day < d.date ? C.faint : C.text, isToday ? 'bold' : 'medium');
+                const dots = cell.addStack();
+                dots.size = new Size(cw, 5);
+                const dot = dots.addStack();
+                dot.size = new Size(4, 4);
+                dot.cornerRadius = 2;
+                if (counts[day]) dot.backgroundColor = day < d.date ? C.faint : A;
             }
         }
     },
@@ -503,8 +521,13 @@ MAKERS.calendar = {
         const w = base(d.links.calendar);
         w.addAccessoryWidgetBackground = true;
         const s = column(w, 0);
-        centered(s, r => text(r, fmt(dateOf(d.date), 'EEE').toUpperCase(), 10, Color.white(), 'bold'));
-        centered(s, r => text(r, +d.date.slice(8), 22, Color.white(), 'round'));
+        s.centerAlignContent();
+        const a = s.addStack();
+        a.size = new Size(50, 14);
+        text(a, fmt(dateOf(d.date), 'EEE').toUpperCase(), 10, Color.white(), 'bold');
+        const b = s.addStack();
+        b.size = new Size(54, 28);
+        text(b, +d.date.slice(8), 22, Color.white(), 'round');
         return w;
     }
 };
@@ -556,8 +579,9 @@ MAKERS.tasks = {
         w.addSpacer();
         section(w, 'Done this week', A);
         w.addSpacer(4);
-        const img = w.addImage(bars(d.tasks.week.map(x => x.done), d.tasks.week.map(x => fmt(dateOf(x.day), 'EEEEE')), 300, 58, A));
-        img.imageSize = new Size(300, 58);
+        const bw = dims('large').w - 32;
+        const img = w.addImage(bars(d.tasks.week.map(x => x.done), d.tasks.week.map(x => fmt(dateOf(x.day), 'EEEEE')), bw, 58, A));
+        img.imageSize = new Size(bw, 58);
         return w;
     },
     rectangular(d) {
@@ -578,9 +602,7 @@ MAKERS.tasks = {
         const s = w.addStack();
         s.size = new Size(60, 60);
         s.backgroundImage = ring(this.fraction(d), 60, Color.white(), 6, new Color('#ffffff', 0.3));
-        s.addSpacer();
         text(s, tasksDue(d), 20, Color.white(), 'round');
-        s.addSpacer();
         return w;
     }
 };
@@ -646,9 +668,8 @@ MAKERS.notes = {
         }
         const r = w.addStack();
         r.spacing = 10;
-        r.addSpacer();
-        notes.slice(0, 2).forEach(n => this.card(r, n, 150, 142));
-        r.addSpacer();
+        const m = dims('medium');
+        notes.slice(0, 2).forEach(n => this.card(r, n, Math.floor((m.w - 34) / 2), m.h - 24));
         return w;
     },
     large(d) {
@@ -665,9 +686,8 @@ MAKERS.notes = {
         for (let i = 0; i < Math.min(4, notes.length); i += 2) {
             const r = grid.addStack();
             r.spacing = 10;
-            r.addSpacer();
-            notes.slice(i, i + 2).forEach(n => this.card(r, n, 148, 140));
-            r.addSpacer();
+            const l = dims('large');
+            notes.slice(i, i + 2).forEach(n => this.card(r, n, Math.floor((l.w - 38) / 2), Math.floor((l.h - 74) / 2)));
         }
         w.addSpacer();
         return w;
@@ -936,9 +956,12 @@ MAKERS.nextup = {
     feed: true,
     theme: ['#0e2a3d', '#05111a', '#38bdf8'],
     // a timer that counts down on its own, to the second, without the widget refreshing
-    timer(stack, ts, size, color) {
-        const t = stack.addDate(new Date(ts));
+    timer(stack, ts, size, color, width) {
+        const box = stack.addStack();
+        if (width) box.size = new Size(width, size * 1.3);
+        const t = box.addDate(new Date(ts));
         t.applyTimerStyle();
+        t.leftAlignText();
         t.font = Font.boldRoundedSystemFont(size);
         t.textColor = color || C.text;
         t.minimumScaleFactor = 0.6;
@@ -961,7 +984,7 @@ MAKERS.nextup = {
         }
         w.refreshAfterDate = new Date(Math.min(e.ts + 60 * 1000, REFRESH().getTime()));
         text(w, 'in', 11, A, 'bold');
-        this.timer(w, e.ts, 26, C.text);
+        this.timer(w, e.ts, 26, C.text, dims('small').w - 28);
         w.addSpacer(4);
         text(w, e.title, 13, C.text, 'semibold', 2);
         text(w, this.when(e, d), 10, C.dim, 'medium');
@@ -986,8 +1009,9 @@ MAKERS.nextup = {
         text(left, `${this.when(e, d)}${e.location ? ` · ${e.location}` : ''}`, 11, C.dim, 'semibold');
         body.addSpacer(10);
         const right = column(body, 0);
+        right.size = new Size(104, 0);
         text(right, 'starts in', 10, A, 'bold');
-        this.timer(right, e.ts, 24, C.text);
+        this.timer(right, e.ts, 24, C.text, 104);
         body.addSpacer();
         w.addSpacer();
         const after = d.events.filter(x => !x.allDay && x.ts > e.ts)[0];
@@ -1016,7 +1040,7 @@ MAKERS.nextup = {
         w.addSpacer(6);
         const r = row(w, 6);
         text(r, 'starts in', 12, A, 'bold');
-        this.timer(r, e.ts, 30, C.text);
+        this.timer(r, e.ts, 30, C.text, 150);
         w.addSpacer(14);
         section(w, 'After that', A);
         w.addSpacer(4);
@@ -1048,7 +1072,7 @@ MAKERS.nextup = {
         text(w, e.title, 13, Color.white(), 'bold');
         const r = row(w, 4);
         text(r, 'in', 13, Color.white(), 'medium');
-        this.timer(r, e.ts, 15, Color.white());
+        this.timer(r, e.ts, 15, Color.white(), 90);
         return w;
     },
     inline(d) {
@@ -1181,13 +1205,18 @@ MAKERS.weather = {
     },
     days(w, d, n) {
         const r = w.addStack();
+        const cw = Math.floor((dims('medium').w - 30) / n);
         for (let i = 0; i < Math.min(n, d.w.daily.time.length); i++) {
-            const c = column(r, 3);
-            centered(c, x => text(x, i === 0 ? 'Today' : fmt(dateOf(d.w.daily.time[i]), 'EEE'), 10, new Color('#ffffff', 0.8), 'semibold'));
-            centered(c, x => icon(x, this.look(d.w.daily.weather_code[i], 1)[1], 16, Color.white()));
-            centered(c, x => text(x, `${Math.round(d.w.daily.temperature_2m_max[i])}°`, 12, Color.white(), 'bold'));
-            centered(c, x => text(x, `${Math.round(d.w.daily.temperature_2m_min[i])}°`, 10, new Color('#ffffff', 0.65), 'semibold'));
-            if (i < n - 1) r.addSpacer();
+            const c = column(r, 2);
+            const cell = (h, fill) => {
+                const x = c.addStack();
+                x.size = new Size(cw, h);
+                fill(x);
+            };
+            cell(13, x => text(x, i === 0 ? 'Today' : fmt(dateOf(d.w.daily.time[i]), 'EEE'), 10, new Color('#ffffff', 0.8), 'semibold'));
+            cell(18, x => icon(x, this.look(d.w.daily.weather_code[i], 1)[1], 16, Color.white()));
+            cell(15, x => text(x, `${Math.round(d.w.daily.temperature_2m_max[i])}°`, 12, Color.white(), 'bold'));
+            cell(13, x => text(x, `${Math.round(d.w.daily.temperature_2m_min[i])}°`, 10, new Color('#ffffff', 0.65), 'semibold'));
         }
     },
     medium(d) {
@@ -1226,8 +1255,9 @@ MAKERS.weather = {
         for (let i = 0; i < Math.min(7, d.w.daily.time.length); i++) {
             const x = row(w, 8);
             const dl = x.addStack();
-            dl.size = new Size(54, 0);
+            dl.size = new Size(78, 0);
             text(dl, i === 0 ? 'Today' : fmt(dateOf(d.w.daily.time[i]), 'EEEE'), 12, Color.white(), 'semibold');
+            dl.addSpacer();
             icon(x, this.look(d.w.daily.weather_code[i], 1)[1], 15, Color.white());
             x.addSpacer();
             text(x, `${d.w.daily.precipitation_probability_max[i] || 0}%`, 11, new Color('#bfe1ff'), 'semibold');
@@ -1301,11 +1331,16 @@ MAKERS.progress = {
         w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
         w.setPadding(14, 14, 12, 14);
         const r = w.addStack();
-        d.parts.forEach((p, i) => {
-            const c = column(r, 5);
-            ringWith(c, p.f, 70, new Color(p.color), this.pct(p.f), null, 8);
-            centered(c, x => text(x, p.name, 11, C.dim, 'semibold'));
-            if (i < 3) r.addSpacer();
+        const cw = Math.floor((dims('medium').w - 28) / 4);
+        const size = Math.min(70, cw - 8);
+        d.parts.forEach(p => {
+            const c = column(r, 4);
+            c.size = new Size(cw, 0);
+            c.centerAlignContent();
+            ringWith(c, p.f, size, new Color(p.color), this.pct(p.f), null, 8);
+            const t = c.addStack();
+            t.size = new Size(cw, 14);
+            text(t, p.name, 11, C.dim, 'semibold');
         });
         w.addSpacer();
         centered(w, x => text(x, `${d.daysLeft} days left in ${d.year}`, 11, C.faint, 'semibold'));
@@ -1350,9 +1385,7 @@ MAKERS.progress = {
         const s = w.addStack();
         s.size = new Size(60, 60);
         s.backgroundImage = ring(d.parts[3].f, 60, Color.white(), 6, new Color('#ffffff', 0.3));
-        s.addSpacer();
         text(s, this.pct(d.parts[3].f), 14, Color.white(), 'round');
-        s.addSpacer();
         return w;
     }
 };
@@ -1425,9 +1458,7 @@ MAKERS.inbox = {
             b.size = new Size(46, 46);
             b.cornerRadius = 14;
             b.backgroundColor = new Color('#ffffff', 0.1);
-            b.addSpacer();
             icon(b, sym, 20, A);
-            b.addSpacer();
             text(r, n == null ? '–' : n, 34, C.text, 'round');
             text(r, label, 13, C.dim, 'semibold');
             r.addSpacer();
@@ -1626,9 +1657,7 @@ MAKERS.storage = {
         const st = w.addStack();
         st.size = new Size(60, 60);
         st.backgroundImage = ring(room ? s.used / room : 0, 60, Color.white(), 6, new Color('#ffffff', 0.3));
-        st.addSpacer();
         text(st, `${room ? Math.round((s.used / room) * 100) : 0}%`, 14, Color.white(), 'round');
-        st.addSpacer();
         return w;
     },
     inline(d) {
@@ -1644,8 +1673,13 @@ function lockNumber(url, sym, value) {
     const w = base(url);
     w.addAccessoryWidgetBackground = true;
     const s = column(w, 0);
-    centered(s, r => icon(r, sym, 12, Color.white()));
-    centered(s, r => text(r, value, 18, Color.white(), 'round'));
+    s.centerAlignContent();
+    const a = s.addStack();
+    a.size = new Size(50, 16);
+    icon(a, sym, 12, Color.white());
+    const b = s.addStack();
+    b.size = new Size(54, 24);
+    text(b, value, 18, Color.white(), 'round');
     return w;
 }
 

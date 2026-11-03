@@ -2,7 +2,8 @@
 // /api/widget/previews.js) and draws what they build with HTML, the way iOS would show the widget.
 // Only for previews; the real thing runs in Scriptable on the iPhone.
 (function () {
-    const SIZES = { small: [170, 170], medium: [364, 170], large: [364, 382], extraLarge: [364, 382], accessoryCircular: [72, 72], accessoryRectangular: [172, 76], accessoryInline: [240, 22] };
+    // a 6.1-inch iPhone (the most common size): its widgets, in points
+    const SIZES = { small: [158, 158], medium: [338, 158], large: [338, 354], extraLarge: [338, 354], accessoryCircular: [72, 72], accessoryRectangular: [160, 72], accessoryInline: [240, 22] };
     // SF Symbols the widgets use, drawn with the site's own icons (or a close emoji)
     const SYMBOLS = { 'envelope.fill': 'mail', checklist: 'check', 'checkmark.circle.fill': 'check', 'bubble.left.and.bubble.right.fill': 'reply', 'rectangle.split.3x1.fill': 'grid', 'megaphone.fill': 'bell', calendar: 'calendar', timer: 'clock', hourglass: 'clock', 'note.text': 'note', 'pin.fill': 'pin', 'photo.on.rectangle': 'image', 'photo.fill': 'image', 'doc.fill': 'file', 'video.fill': 'play', 'externaldrive.fill': 'folder', 'tray.full.fill': 'inbox', 'chart.pie.fill': 'chart', 'arrow.turn.down.right': 'right', star: 'star', 'exclamationmark.circle': 'alert', 'wifi.slash': 'alert' };
     const EMOJI = { 'sun.max.fill': '☀️', 'moon.stars.fill': '🌙', 'cloud.sun.fill': '⛅', 'cloud.moon.fill': '☁️', 'cloud.fill': '☁️', 'cloud.fog.fill': '🌫️', 'cloud.drizzle.fill': '🌦️', 'cloud.rain.fill': '🌧️', 'cloud.snow.fill': '🌨️', 'cloud.bolt.rain.fill': '⛈️', 'sunrise.fill': '🌅', 'sunset.fill': '🌇', sparkles: '✨', 'quote.opening': '“' };
@@ -234,7 +235,7 @@
         return {
             ListWidget, Color, Font, Size, Point, Rect, LinearGradient, SFSymbol, DrawContext, Path, Image: { fromData: () => ({}) }, Request, FileManager, DateFormatter, Location, Alert,
             Script: { setWidget: w => done(w.__node), complete() {} },
-            Device: { locale: () => 'en_GB' },
+            Device: { locale: () => 'en_GB', screenSize: () => new Size(393, 852), isPad: () => false },
             config: { widgetFamily: family, runsInWidget: true },
             args: { widgetParameter: param || null },
             rgba
@@ -267,6 +268,7 @@
             const el = document.createElement('i');
             el.className = 'sw-spacer';
             el.style.flex = n.len == null ? '1 1 0' : `0 0 ${n.len}px`;
+            if (n.len == null) el.style[parentDir === 'h' ? 'minWidth' : 'minHeight'] = '8px';
             return el;
         }
         if (n.type === 'text' || n.type === 'date') {
@@ -283,6 +285,7 @@
             if (lines === 1) el.classList.add('one');
             else if (lines > 1) (el.classList.add('clamp'), (el.style.webkitLineClamp = lines));
             if (n.align) el.style.textAlign = n.align;
+            if (n.scale && n.scale < 1) el.dataset.shrink = n.scale;
             if (n.type === 'date') {
                 el.textContent = dateText(n);
                 if (n.style === 'timer') el.dataset.timer = n.date.getTime();
@@ -315,9 +318,18 @@
         const dir = n.type === 'widget' ? 'v' : n.dir;
         el.className = n.type === 'widget' ? 'sw-body' : `sw-stack ${dir === 'v' ? 'v' : 'h'}`;
         if (n.type !== 'widget') {
-            el.style.alignItems = { start: 'flex-start', center: 'center', end: 'flex-end' }[n.align || (dir === 'v' ? 'start' : 'center')];
+            const fixed = n.size && (n.size.width || n.size.height);
+            // a fixed size centres what's in it, like SwiftUI's frame
+            el.style.alignItems = { start: 'flex-start', center: 'center', end: 'flex-end' }[n.align || (fixed ? 'center' : dir === 'v' ? 'start' : 'center')];
+            if (fixed) el.style.justifyContent = 'center';
             if (n.size && n.size.width) (el.style.width = `${n.size.width}px`), (el.style.flex = 'none');
-            if (n.size && n.size.height) (el.style.height = `${n.size.height}px`), (el.style.justifyContent = 'center');
+            if (n.size && n.size.height) (el.style.height = `${n.size.height}px`), (el.style.flexShrink = '0');
+            // a stack with a flexible spacer takes all the room it's offered along that way
+            const grows = n.items.some(c => c.type === 'spacer' && c.len == null);
+            if (grows && !(n.size && (dir === 'h' ? n.size.width : n.size.height))) {
+                if (dir === parentDir) el.style.flex = '1 1 auto';
+                else el.style.alignSelf = 'stretch';
+            }
             if (n.radius) el.style.borderRadius = `${n.radius}px`;
             if (n.bg) el.style.background = css(n.bg);
             if (n.gradient) el.style.background = grad(n.gradient);
@@ -326,7 +338,6 @@
         }
         if (n.spacing) el.style.gap = `${n.spacing}px`;
         for (const c of n.items) el.append(draw(c, dir));
-        void parentDir;
         return el;
     }
     function drawWidget(w, family) {
@@ -358,5 +369,17 @@
         if (!built) throw new Error('The widget script made no widget');
         return drawWidget(built, family);
     }
-    window.EGScriptable = { render, SIZES };
+    /** once a widget is on the page: let text shrink (down to its minimum) before it's cut off */
+    function settle(rootEl) {
+        rootEl.querySelectorAll('.sw-text[data-shrink]').forEach(t => {
+            const base = parseFloat(t.style.fontSize) || 14;
+            const min = base * Number(t.dataset.shrink);
+            let size = base;
+            while (size > min && (t.scrollWidth > t.clientWidth + 0.5 || t.scrollHeight > t.clientHeight + 0.5)) {
+                size = Math.max(min, size * 0.95);
+                t.style.fontSize = `${size}px`;
+            }
+        });
+    }
+    window.EGScriptable = { render, settle, SIZES };
 })();

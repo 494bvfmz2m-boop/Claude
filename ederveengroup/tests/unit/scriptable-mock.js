@@ -175,7 +175,7 @@ function makeGlobals({ family, param, runsInWidget = true, fetchJSON, files = ne
         Location: { setAccuracyToThreeKilometers() {}, setAccuracyToKilometer() {}, async current() { return { latitude: 52.07, longitude: 5.65 }; }, async reverseGeocode() { return [{ locality: 'Ederveen' }]; } },
         Alert,
         Script: { setWidget(w) { shown = 'widget'; need(w && w._isWidget, 'setWidget needs a ListWidget'); }, complete() {} },
-        Device: { locale: () => 'nl_NL' },
+        Device: { locale: () => 'nl_NL', screenSize: () => new Size(390, 844), isPad: () => false },
         config: { widgetFamily: runsInWidget ? family : null, runsInWidget },
         args: { widgetParameter: param || null }
     };

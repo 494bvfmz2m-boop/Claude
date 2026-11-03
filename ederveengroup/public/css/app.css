@@ -3480,7 +3480,7 @@ a.btn { text-decoration: none; }
 .wg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; margin-bottom: 10px; }
 .wgc { display: grid; grid-template-columns: minmax(0, 1fr); border-radius: 20px; overflow: hidden; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
 .wgc-stage { display: grid; place-items: center; min-height: 230px; padding: 22px 12px; background: radial-gradient(110% 90% at 15% 0%, #2a3b74 0%, transparent 60%), radial-gradient(90% 80% at 100% 100%, #1b6a72 0%, transparent 60%), #0b0f1d; }
-.wgc-stage:has(.sw-large) { min-height: 430px; }
+.wgc-stage:has(.sw-large) { min-height: 400px; }
 .wgc-fit { position: relative; }
 .wgc-fit > .sw { position: absolute; top: 0; left: 0; transform-origin: top left; }
 .wgc-info { padding: 14px 18px 16px; }
@@ -3511,7 +3511,6 @@ a.btn { text-decoration: none; }
 .sw-stack { display: flex; min-width: 0; box-sizing: border-box; }
 .sw-stack.h { flex-direction: row; max-width: 100%; }
 .sw-stack.v { flex-direction: column; }
-.sw-body > .sw-stack.h { align-self: stretch; }
 .sw-spacer { display: block; min-width: 0; min-height: 0; }
 .sw-text { display: block; min-width: 0; max-width: 100%; line-height: 1.2; flex-shrink: 1; overflow-wrap: anywhere; }
 .sw-text.one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
