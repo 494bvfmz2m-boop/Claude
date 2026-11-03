@@ -15,6 +15,7 @@ const { wrap, httpError, requireAuth } = require('../http');
 const usernames = require('../../lib/usernames');
 const { seal, unseal } = require('../../lib/session');
 const ical = require('../../lib/ical');
+const { widgetScript } = require('../../lib/widget');
 
 const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
 
@@ -167,7 +168,7 @@ function ics(events, host) {
 module.exports = function appRoutes(ctx) {
     const { store } = ctx;
     const r = express.Router();
-    r.use(['/apps', '/apps-summary', '/directory', '/calendar'], requireAuth);
+    r.use(['/apps', '/apps-summary', '/directory', '/calendar', '/widget'], requireAuth);
 
     const doc = (email, app) => store.getApp(email, app) || { items: {} };
     const list = (email, app) => Object.entries(doc(email, app).items).map(([id, item]) => ({ id, ...item })).sort((a, b) => b.updatedAt - a.updatedAt);
@@ -408,6 +409,113 @@ module.exports = function appRoutes(ctx) {
         if (!v || v.n !== t.n || v.token !== req.params.token) return gone();
         res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=300', 'Content-Disposition': 'inline; filename="ederveengroup.ics"' });
         res.send(ics(list(t.e, 'calendar'), req.hostname));
+    });
+
+    /* ---------- Widgets: a private feed for home-screen widgets (Scriptable on iPhone) ---------- */
+    // like the calendar address: made once, kept, and replaced (the old one stops) on request
+    const widgetKey = ctx.sessions.deriveKey('widget-feed');
+    const siteOf = req => ctx.config.oauth.publicUrl || originOf(req);
+    const newWidget = (email, n) => {
+        const v = { n, token: seal(widgetKey, { e: email, n }) };
+        store.setApp(email, 'widgetfeed', { items: { v } });
+        return v;
+    };
+    const widgetUrl = (req, email) => `${siteOf(req)}/w/${(doc(email, 'widgetfeed').items.v || newWidget(email, 1)).token}.json`;
+    const HEX = { '': '#4c8dff', blue: '#4c8dff', green: '#34d399', yellow: '#f5c542', orange: '#fb923c', pink: '#f472b6', purple: '#a78bfa' };
+    const nextDay = d => new Date(dayMs(d) + 864e5).toISOString().slice(0, 10);
+    // what a widget shows: the coming week's agenda, tasks, and how much is waiting
+    async function widgetData(email, tzIn, site) {
+        const tz = ical.zoneOk(String(tzIn || '')) ? String(tzIn) : 'UTC';
+        const now = localOf(new Date().toISOString(), tz);
+        const today = now.slice(0, 10);
+        const days = [today];
+        while (days.length < 7) days.push(nextDay(days[days.length - 1]));
+        const last = days[days.length - 1];
+        const items = app => Object.entries(doc(email, app).items).map(([id, x]) => ({ id, ...x }));
+        const events = [];
+        const seen = new Set();
+        for (const day of days) {
+            for (const e of items('calendar')) {
+                if (!occursOn(e, day)) continue;
+                // an event over several days shows once, on the first day in view (repeats show each time)
+                if (!e.repeat && seen.has(e.id)) continue;
+                seen.add(e.id);
+                // a repeat starts afresh each time; a long event that began earlier is under way
+                const ongoing = !e.repeat && e.start.slice(0, 10) < day;
+                events.push({ title: e.title, day, at: e.allDay || ongoing ? null : e.start.slice(11, 16), end: e.allDay || !e.end ? null : e.end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[e.color] || HEX[''] });
+            }
+        }
+        for (const [id, sub] of Object.entries(subs(email).items)) {
+            if (sub.hidden) continue;
+            for (const e of (await ctx.docs.get(`calsub:${id}`, () => ({ events: [] }))).events || []) {
+                const start = e.allDay || e.floating ? e.start : localOf(e.start, tz);
+                const end = e.allDay || e.floating ? e.end || e.start : localOf(e.end || e.start, tz);
+                if (start.slice(0, 10) > last || end.slice(0, 10) < today) continue;
+                const day = start.slice(0, 10) < today ? today : start.slice(0, 10);
+                const ongoing = start.slice(0, 10) < day;
+                events.push({ title: e.title || 'Event', day, at: e.allDay || ongoing ? null : start.slice(11, 16), end: e.allDay ? null : end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[sub.color] || HEX.green });
+            }
+        }
+        const upcoming = events
+            // what's over today is left out (timed events that ended)
+            .filter(e => !(e.day === today && e.at && (e.end || e.at) < now.slice(11) && (e.end || e.at) !== '00:00'))
+            .sort((a, b) => a.day.localeCompare(b.day) || (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || String(a.at).localeCompare(String(b.at)))
+            .slice(0, 14);
+        const open = items('tasks').filter(t => !t.done);
+        const due = open.filter(t => (t.due && t.due <= today) || t.starred).sort((a, b) => (a.due || '9').localeCompare(b.due || '9')).slice(0, 8);
+        const extra = ctx.summaryExtras ? await ctx.summaryExtras(email) : {};
+        const mail = ((store.getApp(email, 'mailcount') || { items: {} }).items || {}).inbox || null;
+        const news = ctx.docs ? (await ctx.docs.get('news', () => ({ items: [] }))).items.filter(n => !n.until || n.until > Date.now())[0] : null;
+        const settings = store.getSettings(email) || {};
+        return {
+            v: 1,
+            name: settings.displayName || store.usernameOf(email) || email.split('@')[0],
+            date: today,
+            now: now.slice(11),
+            tz,
+            events: upcoming,
+            tasks: { open: open.length, today: open.filter(t => t.due === today).length, overdue: open.filter(t => t.due && t.due < today).length, list: due.map(t => ({ text: t.text, due: t.due || '', late: !!(t.due && t.due < today), today: t.due === today, starred: !!t.starred })) },
+            mail: mail ? { unread: mail.unread, at: mail.at } : null,
+            chat: typeof extra.chat === 'number' ? extra.chat : null,
+            planner: typeof extra.boardDue === 'number' ? extra.boardDue : null,
+            news: news ? { title: news.title || '', text: String(news.text || '').slice(0, 160) } : null,
+            links: { home: `${site}/`, calendar: `${site}/calendar/`, tasks: `${site}/tasks/`, mail: `${site}/mail/`, chat: `${site}/chat/`, planner: `${site}/planner/` }
+        };
+    }
+    const widgetsOn = () => !ctx.appOn || ctx.appOn('widgets');
+    r.get('/widget', wrap(async (req, res) => {
+        const email = req.session.email;
+        if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');
+        res.json({ feed: widgetUrl(req, email), preview: await widgetData(email, req.query.tz, siteOf(req)) });
+    }));
+    r.post('/widget', (req, res) => {
+        const v = doc(req.session.email, 'widgetfeed').items.v || { n: 0 };
+        newWidget(req.session.email, v.n + 1);
+        res.json({ feed: widgetUrl(req, req.session.email) });
+    });
+    // the Scriptable script, with this person's feed in it
+    r.get('/widget/script', (req, res) => {
+        const email = req.session.email;
+        const text = widgetScript({ feed: widgetUrl(req, email), site: siteOf(req) });
+        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store', ...(req.query.download ? { 'Content-Disposition': 'attachment; filename="EderveenGroup.js"' } : {}) }).send(text);
+    });
+    // GET /w/<token>.json?tz=Europe/Amsterdam, mounted on the site by src/app.js (no cookie: the widget has none)
+    const feedHits = new Map();
+    ctx.widgetFeed = wrap(async (req, res) => {
+        const token = String(req.params.token || '');
+        const t = unseal(widgetKey, token);
+        const gone = () => res.status(404).json({ error: 'This widget link no longer works. Copy the script again from EderveenGroup → Widgets.' });
+        if (!widgetsOn() || !t || !t.e || !(await store.ready(t.e))) return gone();
+        const v = doc(t.e, 'widgetfeed').items.v;
+        if (!v || v.n !== t.n || v.token !== token) return gone();
+        // iOS refreshes widgets a few times an hour; this is plenty
+        const hour = Math.floor(Date.now() / 3600e3);
+        const h = feedHits.get(token);
+        const n = h && h.hour === hour ? h.n + 1 : 1;
+        feedHits.set(token, { hour, n });
+        if (feedHits.size > 5000) feedHits.clear();
+        if (n > 240) return res.status(429).json({ error: 'Too many refreshes this hour' });
+        res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' }).json(await widgetData(t.e, req.query.tz, siteOf(req)));
     });
 
     // EderveenGroup people with a public profile (search by name, username, company)

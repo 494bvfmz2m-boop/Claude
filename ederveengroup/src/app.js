@@ -167,6 +167,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     site.use('/api', require('./routes/hub')(ctx));
     // a calendar subscription for phones (the address itself is the secret)
     site.get(/^\/cal\/([A-Za-z0-9_-]{20,400})\.ics$/, (req, res, next) => ((req.params.token = req.params[0]), ctx.calendarFeed(req, res, next)));
+    site.get(/^\/w\/([A-Za-z0-9_-]{20,400})\.json$/, (req, res, next) => ((req.params.token = req.params[0]), ctx.widgetFeed(req, res, next)));
     // a file someone shared from Files (the address itself is the secret)
     site.get('/s/:token', (req, res, next) => ctx.sharedFile(req, res, next));
     // a form to fill in (open to anyone with the link, unless the form asks to sign in)

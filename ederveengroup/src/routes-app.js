@@ -5,7 +5,7 @@
 const APP_ROUTE = /^\/(?:(?:inbox|sent|drafts|archive|junk|trash|snoozed|starred)(?:\/[A-Za-z0-9_-]{11})?|f\/[A-Za-z0-9_-]{8}(?:\/[A-Za-z0-9_-]{11})?|search\/[A-Za-z0-9_-]{6,16}(?:\/[A-Za-z0-9_-]{11})?|settings(?:\/[a-z]{2,20})?)\/?$/;
 
 // The hub apps that are a page of their own at /<name>/ (signed in, with a username)
-const APP_PAGES = ['notes', 'tasks', 'contacts', 'calendar', 'files', 'photos', 'docs', 'slides', 'sheets', 'forms', 'chat', 'planner', 'whiteboard', 'photoedit', 'videoedit'];
+const APP_PAGES = ['notes', 'tasks', 'contacts', 'calendar', 'files', 'photos', 'docs', 'slides', 'sheets', 'forms', 'chat', 'planner', 'whiteboard', 'photoedit', 'videoedit', 'widgets'];
 const PAGE_RE = new RegExp(`^/(profile|admin|${APP_PAGES.join('|')})/?$`);
 
 // Pages a sign-in may continue to (?next=): the hub, the username step, an app, or a mail

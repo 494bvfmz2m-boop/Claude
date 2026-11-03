@@ -12,9 +12,18 @@ module.exports = function mailRoutes({ store, mail, upload, wakeDue, links }) {
 
     /* ---------- folders ---------- */
 
+    // the inbox's unread count, remembered for home-screen widgets (they have no password to ask with)
+    function noteUnread(email, unread) {
+        const cur = ((store.getApp(email, 'mailcount') || {}).items || {}).inbox;
+        if (cur && cur.unread === unread && Date.now() - cur.at < 5 * 60 * 1000) return;
+        store.setApp(email, 'mailcount', { items: { inbox: { unread, at: Date.now() } } });
+    }
     r.get('/folders', wrap(async (req, res) => {
         await wakeDue(req.session).catch(() => {});
-        res.json((await mail.listFolders(req.session)).map(f => ({ ...f, id: links.folderId(req.session.email, f.path) })));
+        const folders = await mail.listFolders(req.session);
+        const inbox = folders.find(f => f.specialUse === '\\Inbox' || f.path === 'INBOX');
+        if (inbox) noteUnread(req.session.email, inbox.unseen || 0);
+        res.json(folders.map(f => ({ ...f, id: links.folderId(req.session.email, f.path) })));
     }));
 
     r.post('/folders', wrap(async (req, res) => {

@@ -1776,3 +1776,57 @@ test('Auto editing with other AI services: any OpenAI-compatible one, chosen in 
     assert.equal((await jo('GET', '/api/ai/status')).body.on, false);
     app.close();
 });
+
+test('Widgets: a private feed for iPhone widgets, the Scriptable script, a new link stops the old one', async () => {
+    const app = await start({ ADMIN_EMAILS: USER });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    await jo('PUT', '/api/apps/calendar/event-w1', { title: 'Dentist', start: `${day(1)}T09:00`, end: `${day(1)}T09:30`, color: 'pink' });
+    await jo('PUT', '/api/apps/calendar/event-w2', { title: 'Party', allDay: true, start: `${day(2)}T00:00`, end: `${day(2)}T23:59` });
+    await jo('PUT', '/api/apps/calendar/event-w3', { title: 'Next month', start: `${day(40)}T10:00`, end: `${day(40)}T11:00` });
+    await jo('PUT', '/api/apps/tasks/task-w1', { text: 'Pay the bill', due: day(-1) });
+    await jo('PUT', '/api/apps/tasks/task-w2', { text: 'Someday', due: day(9) });
+    await jo('PUT', '/api/apps/tasks/task-w3', { text: 'Starred thing', starred: true });
+    // the inbox count is remembered when Mail lists the folders (the widget has no password to ask with)
+    await jo('GET', '/mail/api/folders');
+    const w = (await jo('GET', '/api/widget?tz=UTC')).body;
+    const path = new URL(w.feed).pathname;
+    assert.match(path, /^\/w\/[A-Za-z0-9_-]+\.json$/);
+    assert.equal((await jo('GET', '/api/widget')).body.feed, w.feed); // kept until you ask for a new one
+    // the feed works without signing in
+    const f = await app.device()('GET', `${path}?tz=UTC`);
+    assert.equal(f.status, 200);
+    assert.match(f.headers.get('cache-control'), /no-store/);
+    const d = f.body;
+    assert.equal(d.date, day(0));
+    assert.deepEqual(d.events.map(e => [e.title, e.day, e.at, e.allDay]), [['Dentist', day(1), '09:00', false], ['Party', day(2), null, true]]);
+    assert.equal(d.events[0].color, '#f472b6');
+    assert.deepEqual(d.tasks.list.map(t => [t.text, t.late]), [['Pay the bill', true], ['Starred thing', false]]);
+    assert.deepEqual([d.tasks.open, d.tasks.overdue], [3, 1]);
+    assert.equal(d.mail.unread, 1);
+    assert.equal(d.name, 'jo.smith');
+    assert.match(d.links.calendar, /\/calendar\/$/);
+    // the Scriptable script carries this person's feed
+    const s = await jo('GET', '/api/widget/script?download=1');
+    assert.match(s.headers.get('content-disposition'), /EderveenGroup\.js/);
+    assert.ok(s.body.includes(`const FEED = '${w.feed}';`));
+    assert.ok(!s.body.includes('__FEED__'));
+    new (Object.getPrototypeOf(async function () {}).constructor)(s.body); // it parses (Scriptable runs it with top-level await)
+    // a new link: the old one stops
+    const fresh = (await jo('POST', '/api/widget', {})).body.feed;
+    assert.notEqual(fresh, w.feed);
+    const gone = await app.device()('GET', path);
+    assert.equal(gone.status, 404);
+    assert.match(gone.body.error, /no longer works/);
+    assert.equal((await app.device()('GET', new URL(fresh).pathname)).status, 200);
+    assert.equal((await app.device()('GET', '/w/' + 'A'.repeat(40) + '.json')).status, 404);
+    assert.equal((await app.device()('GET', '/api/widget')).status, 401);
+    // switched off in Admin → Apps: no feed
+    await jo('PUT', '/api/admin/apps', { off: ['widgets'] });
+    assert.equal((await app.device()('GET', new URL(fresh).pathname)).status, 404);
+    assert.equal((await jo('GET', '/api/widget')).status, 404);
+    await jo('PUT', '/api/admin/apps', { off: [] });
+    app.close();
+});

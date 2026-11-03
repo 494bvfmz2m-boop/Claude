@@ -580,7 +580,7 @@
     }
 
     /* ---------- apps: which apps everyone gets ---------- */
-    const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
+    const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', widgets: 'Widgets', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
     async function apps() {
         const { pages, off } = await call('/api/admin/apps');
         main.innerHTML = `<h1>Apps</h1><p class="cp-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
