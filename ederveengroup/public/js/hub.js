@@ -47,7 +47,7 @@
         { id: 'photos', name: 'Photos', cat: 'store', href: '/photos/', blurb: 'Every photo and video, by the day it was taken.' },
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
-        { id: 'widgets', name: 'Widgets', cat: 'you', href: '/widgets/', blurb: 'Your day on your iPhone’s home and lock screen.' },
+        { id: 'widgets', name: 'Widgets', cat: 'you', href: '/widgets/', blurb: 'Fun widgets for your iPhone: calendar, tasks, notes, weather…' },
         { id: 'admin', name: 'Admin', cat: 'you', href: '/admin/', blurb: 'People, sign-in and settings.', admin: true }
     ];
     // the Calendar icon shows today's date, like on a phone

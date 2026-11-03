@@ -1830,3 +1830,74 @@ test('Widgets: a private feed for iPhone widgets, the Scriptable script, a new l
     await jo('PUT', '/api/admin/apps', { off: [] });
     app.close();
 });
+
+test('Widget gallery: every widget’s Scriptable script runs in every size, and each feed gives only its part', async () => {
+    const { runScript, textOf } = require('./scriptable-mock');
+    const { GLOBALS, WIDGET_KINDS } = require('../../lib/widget');
+    const app = await start({ ADMIN_EMAILS: USER });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    await jo('PUT', '/api/apps/calendar/event-g1', { title: 'Dentist', start: `${day(1)}T09:00`, end: `${day(1)}T09:30`, color: 'pink' });
+    await jo('PUT', '/api/apps/calendar/event-g2', { title: 'Holiday', allDay: true, start: `${day(20)}T00:00`, end: `${day(20)}T23:59` });
+    await jo('PUT', '/api/apps/tasks/task-g1', { text: 'Pay the bill', due: day(-1) });
+    await jo('PUT', '/api/apps/tasks/task-g2', { text: 'Done thing', done: true });
+    await jo('PUT', '/api/apps/notes/note-g1', { title: 'Trip', body: '<p>Pack the <b>camera</b></p>', color: 'blue', pinned: true });
+    await jo('PUT', '/api/apps/notes/note-g2', { title: 'Ideas', body: 'A shared list' });
+    const { feed, kinds } = (await jo('GET', '/api/widget')).body;
+    assert.deepEqual(kinds.map(k => k.id).slice(0, 3), ['calendar', 'tasks', 'notes']);
+    const path = new URL(feed).pathname;
+    const part = async kind => (await app.device()('GET', `${path}?tz=UTC&kind=${kind}`)).body;
+    // each widget gets what it shows, and no more
+    const cal = await part('calendar');
+    assert.ok(cal.events.length && cal.month && !cal.notes && !cal.tasks);
+    assert.equal(cal.month.first, `${day(0).slice(0, 8)}01`);
+    assert.ok(cal.events[0].ts > Date.now());
+    const notes = await part('notes');
+    assert.deepEqual(notes.notes.map(n => [n.title, n.text, n.pinned]), [['Trip', 'Pack the camera', true], ['Ideas', 'A shared list', false]]);
+    assert.equal(notes.notes[0].color, '#bfdbfe');
+    assert.ok(!notes.events && !notes.mail);
+    const tasks = await part('tasks');
+    assert.equal(tasks.tasks.week.length, 7);
+    assert.equal(tasks.tasks.doneToday, 1);
+    const count = await part('countdown');
+    assert.ok(count.events.some(e => e.title === 'Holiday'));
+    const st = await part('storage');
+    assert.equal(st.storage.files, 0);
+    // every script, every size, in a strict stand-in for Scriptable (properties it doesn't have throw)
+    const weather = { current: { temperature_2m: 11, apparent_temperature: 9, weather_code: 61, is_day: 1, wind_speed_10m: 12 }, daily: { time: [day(0), day(1), day(2), day(3), day(4), day(5), day(6)], weather_code: [61, 3, 0, 2, 71, 95, 45], temperature_2m_max: [12, 10, 11, 13, 9, 4, 8], temperature_2m_min: [6, 5, 4, 3, 2, -1, 1], precipitation_probability_max: [80, 20, 0, 10, 40, 70, 5] } };
+    const fetchJSON = async url => {
+        if (url.startsWith('https://api.open-meteo.com/')) return { status: 200, body: weather };
+        const r = await app.device()('GET', new URL(url).pathname + new URL(url).search);
+        return { status: r.status, body: r.body };
+    };
+    const seen = {};
+    for (const k of WIDGET_KINDS) {
+        const src = (await jo('GET', `/api/widget/script?kind=${k.id}`)).body;
+        assert.ok(src.includes(`const KIND = '${k.id}';`));
+        assert.ok(src.includes(`const FEED = '${feed}';`));
+        // only its own part
+        for (const other of WIDGET_KINDS) if (other.id !== k.id) assert.ok(!src.includes(`MAKERS.${other.id} = {`), `${k.id} has ${other.id} in it`);
+        const files = new Map();
+        for (const family of ['small', 'medium', 'large', 'accessoryCircular', 'accessoryRectangular', 'accessoryInline']) {
+            const r = await runScript(src, GLOBALS, { family, param: '', fetchJSON, files });
+            assert.equal(r.shown, 'widget', `${k.id} ${family}`);
+            seen[`${k.id}:${family}`] = textOf(r.tree);
+        }
+        // opened in Scriptable itself, it shows a preview
+        assert.equal((await runScript(src, GLOBALS, { family: null, runsInWidget: false, fetchJSON })).shown, 'medium');
+    }
+    assert.match(seen['calendar:large'], /Dentist/);
+    assert.match(seen['notes:small'], /Trip/);
+    assert.match(seen['tasks:medium'], /Pay the bill/);
+    assert.match(seen['countdown:small'], /Holiday|Dentist/);
+    assert.match(seen['weather:medium'], /Rain/);
+    assert.match(seen['quote:small'], /\w/);
+    // a revoked link says so, in every widget
+    await jo('POST', '/api/widget', {});
+    const old = (await jo('GET', '/api/widget/script?kind=calendar')).body.replace(/const FEED = '[^']+';/, `const FEED = '${feed}';`);
+    const r = await runScript(old, GLOBALS, { family: 'medium', param: '', fetchJSON });
+    assert.match(textOf(r.tree), /no longer works/);
+    app.close();
+});

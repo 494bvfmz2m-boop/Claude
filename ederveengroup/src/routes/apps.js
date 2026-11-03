@@ -15,7 +15,7 @@ const { wrap, httpError, requireAuth } = require('../http');
 const usernames = require('../../lib/usernames');
 const { seal, unseal } = require('../../lib/session');
 const ical = require('../../lib/ical');
-const { widgetScript } = require('../../lib/widget');
+const { widgetScript, widgetPreviews, WIDGET_KINDS } = require('../../lib/widget');
 
 const originOf = req => `${req.protocol}://${String(req.get('host') || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '')}`;
 
@@ -412,7 +412,8 @@ module.exports = function appRoutes(ctx) {
     });
 
     /* ---------- Widgets: a private feed for home-screen widgets (Scriptable on iPhone) ---------- */
-    // like the calendar address: made once, kept, and replaced (the old one stops) on request
+    // like the calendar address: made once, kept, and replaced (the old one stops) on request.
+    // Each widget asks only for what it shows (?kind=calendar, tasks, notes…).
     const widgetKey = ctx.sessions.deriveKey('widget-feed');
     const siteOf = req => ctx.config.oauth.publicUrl || originOf(req);
     const newWidget = (email, n) => {
@@ -420,29 +421,35 @@ module.exports = function appRoutes(ctx) {
         store.setApp(email, 'widgetfeed', { items: { v } });
         return v;
     };
-    const widgetUrl = (req, email) => `${siteOf(req)}/w/${(doc(email, 'widgetfeed').items.v || newWidget(email, 1)).token}.json`;
+    const tokenOf = email => (doc(email, 'widgetfeed').items.v || newWidget(email, 1)).token;
+    const widgetUrl = (req, email) => `${siteOf(req)}/w/${tokenOf(email)}.json`;
     const HEX = { '': '#4c8dff', blue: '#4c8dff', green: '#34d399', yellow: '#f5c542', orange: '#fb923c', pink: '#f472b6', purple: '#a78bfa' };
     const nextDay = d => new Date(dayMs(d) + 864e5).toISOString().slice(0, 10);
-    // what a widget shows: the coming week's agenda, tasks, and how much is waiting
-    async function widgetData(email, tzIn, site) {
-        const tz = ical.zoneOk(String(tzIn || '')) ? String(tzIn) : 'UTC';
-        const now = localOf(new Date().toISOString(), tz);
-        const today = now.slice(0, 10);
+    // a wall-clock time in a zone ("2026-11-03T14:00", Europe/Amsterdam) as a moment (ms), for live countdowns
+    function momentOf(local, tz) {
+        const guess = Date.parse(`${local}:00Z`);
+        let t = guess;
+        for (let i = 0; i < 2; i++) t = guess - (Date.parse(`${localOf(new Date(t).toISOString(), tz)}:00Z`) - t);
+        return t;
+    }
+    // the events from today over the next `span` days: yours (with repeats) and from shared calendars
+    async function eventsAhead(email, tz, today, span) {
         const days = [today];
-        while (days.length < 7) days.push(nextDay(days[days.length - 1]));
+        while (days.length < span) days.push(nextDay(days[days.length - 1]));
         const last = days[days.length - 1];
-        const items = app => Object.entries(doc(email, app).items).map(([id, x]) => ({ id, ...x }));
-        const events = [];
+        const own = Object.entries(doc(email, 'calendar').items).map(([id, x]) => ({ id, ...x }));
+        const out = [];
         const seen = new Set();
         for (const day of days) {
-            for (const e of items('calendar')) {
+            for (const e of own) {
                 if (!occursOn(e, day)) continue;
                 // an event over several days shows once, on the first day in view (repeats show each time)
                 if (!e.repeat && seen.has(e.id)) continue;
                 seen.add(e.id);
                 // a repeat starts afresh each time; a long event that began earlier is under way
                 const ongoing = !e.repeat && e.start.slice(0, 10) < day;
-                events.push({ title: e.title, day, at: e.allDay || ongoing ? null : e.start.slice(11, 16), end: e.allDay || !e.end ? null : e.end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[e.color] || HEX[''] });
+                const at = e.allDay || ongoing ? null : e.start.slice(11, 16);
+                out.push({ title: e.title, day, at, end: e.allDay || !e.end ? null : e.end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[e.color] || HEX[''], ts: momentOf(`${day}T${at || '00:00'}`, tz) });
             }
         }
         for (const [id, sub] of Object.entries(subs(email).items)) {
@@ -453,69 +460,164 @@ module.exports = function appRoutes(ctx) {
                 if (start.slice(0, 10) > last || end.slice(0, 10) < today) continue;
                 const day = start.slice(0, 10) < today ? today : start.slice(0, 10);
                 const ongoing = start.slice(0, 10) < day;
-                events.push({ title: e.title || 'Event', day, at: e.allDay || ongoing ? null : start.slice(11, 16), end: e.allDay ? null : end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[sub.color] || HEX.green });
+                const at = e.allDay || ongoing ? null : start.slice(11, 16);
+                out.push({ title: e.title || 'Event', day, at, end: e.allDay ? null : end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[sub.color] || HEX.green, ts: momentOf(`${day}T${at || '00:00'}`, tz) });
             }
         }
-        const upcoming = events
-            // what's over today is left out (timed events that ended)
-            .filter(e => !(e.day === today && e.at && (e.end || e.at) < now.slice(11) && (e.end || e.at) !== '00:00'))
-            .sort((a, b) => a.day.localeCompare(b.day) || (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || String(a.at).localeCompare(String(b.at)))
-            .slice(0, 14);
-        const open = items('tasks').filter(t => !t.done);
-        const due = open.filter(t => (t.due && t.due <= today) || t.starred).sort((a, b) => (a.due || '9').localeCompare(b.due || '9')).slice(0, 8);
-        const extra = ctx.summaryExtras ? await ctx.summaryExtras(email) : {};
-        const mail = ((store.getApp(email, 'mailcount') || { items: {} }).items || {}).inbox || null;
-        const news = ctx.docs ? (await ctx.docs.get('news', () => ({ items: [] }))).items.filter(n => !n.until || n.until > Date.now())[0] : null;
+        return out.sort((a, b) => a.day.localeCompare(b.day) || (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || String(a.at).localeCompare(String(b.at)));
+    }
+    const plain = v => String(v || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
+    // what a widget shows; `kind` picks the parts (no kind: the overview)
+    async function widgetData(email, tzIn, site, kind = 'overview', token = '') {
+        const tz = ical.zoneOk(String(tzIn || '')) ? String(tzIn) : 'UTC';
+        const now = localOf(new Date().toISOString(), tz);
+        const today = now.slice(0, 10);
+        const items = app => Object.entries(doc(email, app).items).map(([id, x]) => ({ id, ...x }));
         const settings = store.getSettings(email) || {};
-        return {
-            v: 1,
+        const out = {
+            v: 2,
+            kind,
             name: settings.displayName || store.usernameOf(email) || email.split('@')[0],
             date: today,
             now: now.slice(11),
             tz,
-            events: upcoming,
-            tasks: { open: open.length, today: open.filter(t => t.due === today).length, overdue: open.filter(t => t.due && t.due < today).length, list: due.map(t => ({ text: t.text, due: t.due || '', late: !!(t.due && t.due < today), today: t.due === today, starred: !!t.starred })) },
-            mail: mail ? { unread: mail.unread, at: mail.at } : null,
-            chat: typeof extra.chat === 'number' ? extra.chat : null,
-            planner: typeof extra.boardDue === 'number' ? extra.boardDue : null,
-            news: news ? { title: news.title || '', text: String(news.text || '').slice(0, 160) } : null,
-            links: { home: `${site}/`, calendar: `${site}/calendar/`, tasks: `${site}/tasks/`, mail: `${site}/mail/`, chat: `${site}/chat/`, planner: `${site}/planner/` }
+            links: { home: `${site}/`, calendar: `${site}/calendar/`, tasks: `${site}/tasks/`, notes: `${site}/notes/`, mail: `${site}/mail/`, chat: `${site}/chat/`, planner: `${site}/planner/`, photos: `${site}/photos/`, files: `${site}/files/` }
         };
+        const has = (...k) => k.includes(kind);
+        if (has('overview', 'calendar', 'today', 'nextup', 'countdown')) {
+            const evs = await eventsAhead(email, tz, today, kind === 'countdown' ? 366 : kind === 'calendar' ? 14 : 7);
+            // what's over today is left out (timed events that ended)
+            const ahead = evs.filter(e => !(e.day === today && e.at && (e.end || e.at) < out.now && (e.end || e.at) !== '00:00'));
+            if (kind === 'countdown') {
+                // the first time each thing comes up, for counting down to
+                const first = new Map();
+                for (const e of ahead) if (!first.has(e.title.toLowerCase())) first.set(e.title.toLowerCase(), e);
+                out.events = [...first.values()].slice(0, 60);
+            } else out.events = ahead.slice(0, kind === 'calendar' ? 24 : 14);
+            if (kind === 'calendar') {
+                // this month at a glance: how many events each day
+                const month = today.slice(0, 8) + '01';
+                const counts = {};
+                const all = await eventsAhead(email, tz, month, 31);
+                for (const e of all) if (e.day.slice(0, 7) === today.slice(0, 7)) counts[e.day] = (counts[e.day] || 0) + 1;
+                out.month = { first: month, days: counts };
+            }
+        }
+        if (has('overview', 'tasks', 'today')) {
+            const all = items('tasks');
+            const open = all.filter(t => !t.done);
+            const due = open.filter(t => (t.due && t.due <= today) || t.starred).sort((a, b) => (a.due || '9').localeCompare(b.due || '9')).slice(0, 12);
+            // done on each of the last 7 days (oldest first), in the phone's time zone
+            const week = [];
+            for (let i = 6; i >= 0; i--) week.push(new Date(dayMs(today) - i * 864e5).toISOString().slice(0, 10));
+            const doneDays = all.filter(t => t.done && t.doneAt).map(t => localOf(new Date(t.doneAt).toISOString(), tz).slice(0, 10));
+            out.tasks = {
+                open: open.length,
+                today: open.filter(t => t.due === today).length,
+                overdue: open.filter(t => t.due && t.due < today).length,
+                doneToday: doneDays.filter(d => d === today).length,
+                week: week.map(d => ({ day: d, done: doneDays.filter(x => x === d).length })),
+                list: due.map(t => ({ text: t.text, due: t.due || '', late: !!(t.due && t.due < today), today: t.due === today, starred: !!t.starred }))
+            };
+        }
+        if (has('notes')) {
+            const NOTE = { '': '#e5e7eb', yellow: '#fde68a', green: '#bbf7d0', blue: '#bfdbfe', purple: '#ddd6fe', pink: '#fbcfe8', orange: '#fed7aa' };
+            out.notes = items('notes')
+                .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
+                .slice(0, 8)
+                .map(n => ({ title: n.title || '', text: plain(n.body).slice(0, 320), color: NOTE[n.color] || NOTE[''], pinned: !!n.pinned, updatedAt: n.updatedAt || 0 }));
+            out.noteCount = Object.keys(doc(email, 'notes').items).length;
+        }
+        if (has('overview', 'inbox', 'today')) {
+            const extra = ctx.summaryExtras ? await ctx.summaryExtras(email) : {};
+            const mail = ((store.getApp(email, 'mailcount') || { items: {} }).items || {}).inbox || null;
+            out.mail = mail ? { unread: mail.unread, at: mail.at } : null;
+            out.chat = typeof extra.chat === 'number' ? extra.chat : null;
+            out.planner = typeof extra.boardDue === 'number' ? extra.boardDue : null;
+        }
+        if (has('overview')) {
+            const news = ctx.docs ? (await ctx.docs.get('news', () => ({ items: [] }))).items.filter(n => !n.until || n.until > Date.now())[0] : null;
+            out.news = news ? { title: news.title || '', text: String(news.text || '').slice(0, 160) } : null;
+        }
+        if (has('memories')) {
+            // a photo from this day in earlier years, like Memories on a phone; otherwise one for today
+            const pics = items('files').filter(f => f.kind === 'file' && /^image\//.test(f.type || '') && f.thumb);
+            const md = today.slice(5);
+            const dayOfPic = f => localOf(new Date(f.taken || f.createdAt || 0).toISOString(), tz).slice(0, 10);
+            const onThisDay = pics.filter(f => dayOfPic(f).slice(5) === md && dayOfPic(f) < today);
+            const pool = onThisDay.length ? onThisDay : pics;
+            const seed = [...today].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+            const pick = pool.length ? pool.sort((a, b) => a.id.localeCompare(b.id))[seed % pool.length] : null;
+            out.photos = pics.length;
+            out.photo = pick ? { url: `${site}/w/${token}/photo/${pick.id}.jpg`, day: dayOfPic(pick), years: onThisDay.length ? +today.slice(0, 4) - +dayOfPic(pick).slice(0, 4) : 0, onThisDay: onThisDay.length, name: pick.name } : null;
+        }
+        if (has('storage')) {
+            const files = items('files').filter(f => f.kind === 'file');
+            const used = files.reduce((n, f) => n + (f.size || 0), 0);
+            const disk = ctx.vault && ctx.vault.disk ? await ctx.vault.disk().catch(() => null) : null;
+            out.storage = { used, quota: (ctx.config.files && ctx.config.files.quota) || 0, free: disk ? disk.free : 0, files: files.length, photos: files.filter(f => /^image\//.test(f.type || '')).length, videos: files.filter(f => /^video\//.test(f.type || '')).length };
+        }
+        if (kind === 'overview') {
+            // the first widget's shape (v1), kept for scripts copied before there were more kinds
+            out.events = out.events || [];
+        }
+        return out;
     }
     const widgetsOn = () => !ctx.appOn || ctx.appOn('widgets');
     r.get('/widget', wrap(async (req, res) => {
-        const email = req.session.email;
         if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');
-        res.json({ feed: widgetUrl(req, email), preview: await widgetData(email, req.query.tz, siteOf(req)) });
+        res.json({ feed: widgetUrl(req, req.session.email), kinds: WIDGET_KINDS });
     }));
     r.post('/widget', (req, res) => {
         const v = doc(req.session.email, 'widgetfeed').items.v || { n: 0 };
         newWidget(req.session.email, v.n + 1);
         res.json({ feed: widgetUrl(req, req.session.email) });
     });
-    // the Scriptable script, with this person's feed in it
+    // the Scriptable script for one widget, with this person's feed in it
     r.get('/widget/script', (req, res) => {
-        const email = req.session.email;
-        const text = widgetScript({ feed: widgetUrl(req, email), site: siteOf(req) });
-        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store', ...(req.query.download ? { 'Content-Disposition': 'attachment; filename="EderveenGroup.js"' } : {}) }).send(text);
+        if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');
+        const kind = WIDGET_KINDS.some(k => k.id === req.query.kind) ? req.query.kind : 'overview';
+        const meta = WIDGET_KINDS.find(k => k.id === kind);
+        const text = widgetScript({ feed: widgetUrl(req, req.session.email), site: siteOf(req), kind });
+        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store', ...(req.query.download ? { 'Content-Disposition': `attachment; filename="${meta.script.replace(/[^A-Za-z0-9 -]/g, '')}.js"` } : {}) }).send(text);
     });
-    // GET /w/<token>.json?tz=Europe/Amsterdam, mounted on the site by src/app.js (no cookie: the widget has none)
+    // every widget's script, wrapped so the Widgets page can draw live previews with them
+    r.get('/widget/previews.js', (req, res) => {
+        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store' }).send(widgetPreviews({ feed: widgetUrl(req, req.session.email), site: siteOf(req) }));
+    });
+    // GET /w/<token>.json?tz=Europe/Amsterdam&kind=calendar, mounted on the site by src/app.js (no cookie: a widget has none)
     const feedHits = new Map();
-    ctx.widgetFeed = wrap(async (req, res) => {
-        const token = String(req.params.token || '');
+    async function feedOwner(token) {
         const t = unseal(widgetKey, token);
-        const gone = () => res.status(404).json({ error: 'This widget link no longer works. Copy the script again from EderveenGroup → Widgets.' });
-        if (!widgetsOn() || !t || !t.e || !(await store.ready(t.e))) return gone();
+        if (!widgetsOn() || !t || !t.e || !(await store.ready(t.e))) return null;
         const v = doc(t.e, 'widgetfeed').items.v;
-        if (!v || v.n !== t.n || v.token !== token) return gone();
-        // iOS refreshes widgets a few times an hour; this is plenty
+        return v && v.n === t.n && v.token === token ? t.e : null;
+    }
+    function busy(token) {
+        // iOS refreshes widgets a few times an hour; this is plenty, even for a dozen widgets
         const hour = Math.floor(Date.now() / 3600e3);
         const h = feedHits.get(token);
         const n = h && h.hour === hour ? h.n + 1 : 1;
         feedHits.set(token, { hour, n });
         if (feedHits.size > 5000) feedHits.clear();
-        if (n > 240) return res.status(429).json({ error: 'Too many refreshes this hour' });
-        res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' }).json(await widgetData(t.e, req.query.tz, siteOf(req)));
+        return n > 600;
+    }
+    ctx.widgetFeed = wrap(async (req, res) => {
+        const token = String(req.params.token || '');
+        const email = await feedOwner(token);
+        if (!email) return res.status(404).json({ error: 'This widget link no longer works. Copy the script again from EderveenGroup → Widgets.' });
+        if (busy(token)) return res.status(429).json({ error: 'Too many refreshes this hour' });
+        const kind = WIDGET_KINDS.some(k => k.id === req.query.kind) ? String(req.query.kind) : 'overview';
+        res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' }).json(await widgetData(email, req.query.tz, siteOf(req), kind, token));
+    });
+    // GET /w/<token>/photo/<id>.jpg: the preview picture of one of your photos, for the Memories widget
+    ctx.widgetPhoto = wrap(async (req, res) => {
+        const token = String(req.params.token || '');
+        const email = await feedOwner(token);
+        const f = email && doc(email, 'files').items[req.params.id];
+        if (!f || f.kind !== 'file' || !/^image\//.test(f.type || '') || !f.thumb || !ctx.vault) return res.status(404).end();
+        if (busy(token)) return res.status(429).end();
+        res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' }).end(await ctx.vault.readAll(f.thumb));
     });
 
     // EderveenGroup people with a public profile (search by name, username, company)
