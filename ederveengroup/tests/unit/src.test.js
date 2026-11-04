@@ -123,7 +123,8 @@ test('the sign-in headline letters have a class of their own (not the Chat appâ€
     const fx = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'js', 'fx.js'), 'utf8');
     const css = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'css', 'app.css'), 'utf8');
     assert.match(fx, /s\.className = 'fx-ch'/);
-    // the letters are only ever styled as part of an animated headline
+    // the letters are only ever styled as part of an animated headline (.stagger, or one of its variants)
     const rules = [...css.matchAll(/^([^{}\n]*\.fx-ch\b[^{]*)\{/gm)].map(m => m[1].trim());
-    assert.deepEqual(rules, ['.stagger .fx-ch']);
+    assert.ok(rules.includes('.stagger .fx-ch'));
+    for (const r of rules) assert.match(r, /^\.stagger(\[data-fx='\w+'\])? \.fx-ch$/, r);
 });
