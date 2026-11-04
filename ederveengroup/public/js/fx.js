@@ -175,7 +175,7 @@
         el.setAttribute('aria-label', text);
         for (const ch of text) {
             const s = document.createElement('span');
-            s.className = 'ch';
+            s.className = 'fx-ch'; // (not .ch: that's the Chat app's layout)
             s.setAttribute('aria-hidden', 'true');
             s.textContent = ch;
             s.style.setProperty('--i', i++);

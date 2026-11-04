@@ -116,3 +116,14 @@ test('the Jarvis button is on every signed-in app page, and not on the sign-in, 
         assert.equal(has, !without.includes(f), `${f} ${has ? 'shouldn’t' : 'should'} load the Jarvis button`);
     }
 });
+
+test('the sign-in headline letters have a class of their own (not the Chat app’s .ch layout)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const fx = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'js', 'fx.js'), 'utf8');
+    const css = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'css', 'app.css'), 'utf8');
+    assert.match(fx, /s\.className = 'fx-ch'/);
+    // the letters are only ever styled as part of an animated headline
+    const rules = [...css.matchAll(/^([^{}\n]*\.fx-ch\b[^{]*)\{/gm)].map(m => m[1].trim());
+    assert.deepEqual(rules, ['.stagger .fx-ch']);
+});

@@ -172,7 +172,8 @@ kbd {
 .login-note { margin-top: 26px; display: flex; gap: 9px; color: var(--text-3); font-size: 12.5px; line-height: 1.5; }
 .login-note .i { width: 15px; height: 15px; margin-top: 2px; }
 @media (max-width: 900px) {
-    .login-split { grid-template-columns: 1fr; }
+    /* one column that's at least the screen tall and grows with the form, so a small phone scrolls to Sign in */
+    .login-split { grid-template-columns: 1fr; grid-auto-rows: minmax(100%, max-content); }
     .login-art { display: none; }
     .login-form .brand { display: flex; }
 }
@@ -700,7 +701,7 @@ kbd {
 
 /* phones: no artwork panel, so give the form its own glow */
 @media (max-width: 900px) {
-    .login-main { position: relative; overflow: hidden; }
+    .login-main { position: relative; overflow: hidden; overflow: clip visible; }
     .login-main::before {
         content: ''; position: absolute; width: 140vw; height: 140vw; left: -20vw; top: -90vw; border-radius: 50%; pointer-events: none;
         background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%); animation: float 18s ease-in-out infinite alternate;
@@ -924,7 +925,7 @@ body.landing { overflow: hidden; height: 100%; display: grid; grid-template-rows
 
 /* ---------- headline letters, cursor glow, magnetic buttons ---------- */
 .stagger .split { animation: none; }
-.stagger .ch { display: inline-block; white-space: pre; animation: charIn .9s cubic-bezier(.2, .9, .25, 1.15) both; animation-delay: calc(var(--i, 0) * 32ms + 80ms); }
+.stagger .fx-ch { display: inline-block; white-space: pre; animation: charIn .9s cubic-bezier(.2, .9, .25, 1.15) both; animation-delay: calc(var(--i, 0) * 32ms + 80ms); }
 @keyframes charIn { from { opacity: 0; transform: translateY(.42em) rotate(8deg) scale(.9); } }
 .cursor-glow {
     position: fixed; left: 0; top: 0; width: 560px; height: 560px; margin: -280px 0 0 -280px; border-radius: 50%; pointer-events: none; z-index: 0;
