@@ -33,4 +33,40 @@
     } catch (e) {
         root.dataset.theme = phone ? 'light' : 'dark';
     }
+
+    // Motion. Each app plays its own entrance when it first opens (html.m-intro), not on every later
+    // update: the class goes once the page has its content and the entrance has had time to play.
+    root.classList.add('m-intro');
+    var started = Date.now();
+    (function settle() {
+        var loading = document.readyState === 'loading' || document.querySelector('main > .pf-loading, main > .spinner, .ea > .pf-loading');
+        if (!loading || Date.now() - started > 8000) return setTimeout(function () {
+            root.classList.remove('m-intro');
+        }, 2200);
+        setTimeout(settle, 120);
+    })();
+    // Page to page: tell the transition which way we're going (into an app, back to the dashboard,
+    // or in from the sign-in page), so it can zoom in, out, or open up. The page we leave notes where
+    // it was; the page we arrive on reads it.
+    addEventListener('pageswap', function (e) {
+        if (!e.viewTransition) return;
+        try {
+            sessionStorage.setItem('eg-from', location.pathname);
+        } catch (x) {
+            /* private window: just the plain glide */
+        }
+    });
+    addEventListener('pagereveal', function (e) {
+        var from = '';
+        try {
+            from = sessionStorage.getItem('eg-from') || '';
+            sessionStorage.removeItem('eg-from');
+        } catch (x) {
+            from = '';
+        }
+        if (!e.viewTransition || !e.viewTransition.types) return;
+        var to = location.pathname;
+        var type = /^\/(login|welcome)/.test(from) ? 'eg-signin' : to === '/' && from && from !== '/' ? 'eg-back' : from === '/' && to !== '/' ? 'eg-open' : '';
+        if (type) e.viewTransition.types.add(type);
+    });
 })();

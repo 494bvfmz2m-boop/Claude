@@ -10,6 +10,10 @@
 
     // shared artwork motion (also used by the landing page)
     window.egFx.splitChars(document.querySelector('.login-art h1 .split'));
+    // the headline comes in a different way every visit: rising, out of a blur, a wave, dropping, spinning, typed, or zooming
+    const fx = ['rise', 'blur', 'wave', 'drop', 'spin', 'type', 'zoom'];
+    const head = document.querySelector('.login-art h1');
+    if (head) head.dataset.fx = new URLSearchParams(location.search).get('fx') || fx[Math.floor(Math.random() * fx.length)];
     window.egFx.parallax(document.getElementById('rings'));
     window.egFx.starfield(document.getElementById('stars'));
     window.egFx.magnetic(document.querySelectorAll('[data-magnetic]'));

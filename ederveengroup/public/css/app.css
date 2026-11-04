@@ -3736,3 +3736,210 @@ span.jv-act:hover { background: var(--surface-3); }
 .jv-title-acts { display: flex; align-items: center; gap: 2px; }
 .jv-title-acts a.icon-btn { color: #8cecff; }
 .jv-title-acts .icon-btn:hover { background: rgba(63, 220, 255, .12); color: #fff; }
+
+
+/* ================= motion: every app its own entrance ================= */
+/* Page to page (cross-document View Transitions): opening an app from the dashboard zooms in, going
+   back zooms out, signing in opens up, anything else glides. boot.js says which way we're going. */
+@view-transition { navigation: auto; types: eg-page; }
+:root:active-view-transition-type(eg-page)::view-transition-old(root) { animation: egPageOut .24s cubic-bezier(.4, 0, 1, 1) both; }
+:root:active-view-transition-type(eg-page)::view-transition-new(root) { animation: egPageIn .4s cubic-bezier(.2, .8, .2, 1) both; }
+:root:active-view-transition-type(eg-open)::view-transition-old(root) { animation: egOpenOut .28s cubic-bezier(.4, 0, 1, 1) both; }
+:root:active-view-transition-type(eg-open)::view-transition-new(root) { animation: egOpenIn .46s cubic-bezier(.2, .85, .2, 1) both; }
+:root:active-view-transition-type(eg-back)::view-transition-old(root) { animation: egBackOut .26s cubic-bezier(.4, 0, 1, 1) both; }
+:root:active-view-transition-type(eg-back)::view-transition-new(root) { animation: egBackIn .44s cubic-bezier(.2, .85, .2, 1) both; }
+:root:active-view-transition-type(eg-signin)::view-transition-old(root) { animation: egSignOut .4s cubic-bezier(.4, 0, 1, 1) both; }
+:root:active-view-transition-type(eg-signin)::view-transition-new(root) { animation: egSignIn .7s cubic-bezier(.2, .85, .2, 1) both; }
+@keyframes egPageOut { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes egPageIn { from { opacity: 0; transform: translateY(12px); } }
+@keyframes egOpenOut { to { opacity: 0; transform: scale(1.07); } }
+@keyframes egOpenIn { from { opacity: 0; transform: scale(.93); } }
+@keyframes egBackOut { to { opacity: 0; transform: scale(.94); } }
+@keyframes egBackIn { from { opacity: 0; transform: scale(1.06); } }
+@keyframes egSignOut { to { opacity: 0; transform: scale(1.12); } }
+@keyframes egSignIn { from { opacity: 0; transform: scale(.88) translateY(20px); } }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+
+/* Each app's own entrance. Lists that already played one on every update keep doing so (with their
+   new motion); the others play theirs only when the app first opens (html.m-intro, set by boot.js). */
+.notes-body .nt-row { animation: paperDrop .62s cubic-bezier(.25, .9, .3, 1.1) both; }
+.fl-item { animation: depthRise .5s cubic-bezier(.2, .85, .25, 1) both; }
+.pp-card { transform-origin: 0 100%; animation: fanIn .6s cubic-bezier(.25, .9, .3, 1.15) both; }
+.fm-card { animation: springPop .6s cubic-bezier(.3, 1.4, .5, 1) both; }
+.pl-card { animation: dealIn .62s cubic-bezier(.22, .9, .3, 1.08) both; }
+.wb-card, .wb-first { animation: sketchIn .75s cubic-bezier(.6, 0, .2, 1) both; }
+.hub-app { animation-name: tiltIn; animation-duration: .85s; }
+.m-intro .tk-row { animation: tickIn .55s cubic-bezier(.25, .9, .3, 1.15) both; }
+.m-intro .tk-row .tk-check { animation: checkPop .5s cubic-bezier(.34, 1.56, .64, 1) both; animation-delay: inherit; }
+.m-intro .ct-row { transform-origin: 0 50%; animation: swingIn .6s cubic-bezier(.2, .85, .25, 1) both; }
+.m-intro .cal-day { transform-origin: 50% 0; animation: flipDown .55s cubic-bezier(.2, .85, .25, 1) both; }
+.m-intro .cal-row { animation: slideLeft .5s cubic-bezier(.2, .85, .25, 1) both; }
+.m-intro .ph-tile { animation: bloom .55s cubic-bezier(.25, .9, .3, 1.15) both; }
+.m-intro .ch-conv { animation: bubbleIn .5s cubic-bezier(.3, 1.35, .5, 1) both; }
+.m-intro .wgc { animation: floatIn .75s cubic-bezier(.25, .9, .3, 1.1) both; }
+.m-intro .cp-tile { animation: zoomPop .55s cubic-bezier(.3, 1.4, .5, 1) both; }
+.m-intro .pl-cardx { animation: dropIn .45s cubic-bezier(.3, 1.3, .5, 1) both; }
+.m-intro .dw-card { transform-origin: 50% 100%; animation: foldIn .65s cubic-bezier(.2, .85, .25, 1) both; }
+.m-intro .sx-card { animation: fillIn .6s cubic-bezier(.6, 0, .2, 1) both; }
+.m-intro .ve-card { animation: reelIn .6s cubic-bezier(.2, .85, .25, 1) both; }
+@keyframes paperDrop { from { opacity: 0; transform: translateY(-16px) rotate(-1.8deg); } 60% { opacity: 1; transform: translateY(2px) rotate(.5deg); } }
+@keyframes depthRise { from { opacity: 0; transform: translateY(22px) scale(.94); } }
+@keyframes fanIn { from { opacity: 0; transform: rotate(-9deg) translate(-14px, 18px); } }
+@keyframes springPop { from { opacity: 0; transform: scale(.82); } 60% { opacity: 1; transform: scale(1.04); } 80% { transform: scale(.99); } }
+@keyframes dealIn { from { opacity: 0; transform: translate(-40px, -26px) rotate(-12deg); } 70% { opacity: 1; } }
+@keyframes sketchIn { from { opacity: .2; clip-path: inset(0 100% 0 0 round 16px); } to { opacity: 1; clip-path: inset(0 0 0 0 round 16px); } }
+@keyframes tiltIn { from { opacity: 0; transform: perspective(900px) rotateX(26deg) translateY(28px) scale(.95); } }
+@keyframes tickIn { from { opacity: 0; transform: translateX(-24px); } 70% { opacity: 1; transform: translateX(3px); } }
+@keyframes checkPop { from { transform: scale(0) rotate(-90deg); } 70% { transform: scale(1.2) rotate(8deg); } }
+@keyframes swingIn { from { opacity: 0; transform: perspective(700px) rotateY(-60deg); } }
+@keyframes flipDown { from { opacity: 0; transform: perspective(600px) rotateX(-88deg); } }
+@keyframes slideLeft { from { opacity: 0; transform: translateX(26px); } }
+@keyframes bloom { from { opacity: 0; transform: scale(.55); } 70% { opacity: 1; transform: scale(1.04); } }
+@keyframes bubbleIn { from { opacity: 0; transform: scale(.86) translateX(-10px); } 65% { opacity: 1; transform: scale(1.03); } }
+@keyframes floatIn { from { opacity: 0; transform: translateY(36px) scale(.96); } 70% { opacity: 1; transform: translateY(-4px); } }
+@keyframes zoomPop { from { opacity: 0; transform: scale(.7); } 70% { opacity: 1; transform: scale(1.05); } }
+@keyframes dropIn { from { opacity: 0; transform: translateY(-12px) scale(.96); } }
+@keyframes foldIn { from { opacity: 0; transform: perspective(800px) rotateX(40deg) translateY(16px); } }
+@keyframes fillIn { from { opacity: .3; clip-path: inset(0 0 100% 0 round 14px); transform: translateY(8px); } to { opacity: 1; clip-path: inset(0 0 0 0 round 14px); } }
+@keyframes reelIn { from { opacity: 0; transform: translateX(34px) skewX(-8deg); } }
+/* one after the other */
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(2) { animation-delay: 38ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(3) { animation-delay: 76ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(4) { animation-delay: 114ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(5) { animation-delay: 152ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(6) { animation-delay: 190ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(7) { animation-delay: 228ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(8) { animation-delay: 266ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(9) { animation-delay: 304ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(10) { animation-delay: 342ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(11) { animation-delay: 380ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(12) { animation-delay: 418ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(13) { animation-delay: 456ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(14) { animation-delay: 494ms; }
+:is(.nt-row, .fl-item, .pp-card, .fm-card, .pl-card, .wb-card, .wb-first):nth-child(n+15) { animation-delay: 532ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(2) { animation-delay: 38ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(3) { animation-delay: 76ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(4) { animation-delay: 114ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(5) { animation-delay: 152ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(6) { animation-delay: 190ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(7) { animation-delay: 228ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(8) { animation-delay: 266ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(9) { animation-delay: 304ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(10) { animation-delay: 342ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(11) { animation-delay: 380ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(12) { animation-delay: 418ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(13) { animation-delay: 456ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(14) { animation-delay: 494ms; }
+.m-intro :is(.tk-row, .ct-row, .cal-row, .ch-conv, .wgc, .cp-tile, .pl-cardx, .dw-card, .sx-card, .ve-card):nth-child(n+15) { animation-delay: 532ms; }
+.m-intro :is(.ph-tile):nth-child(2) { animation-delay: 22ms; }
+.m-intro :is(.ph-tile):nth-child(3) { animation-delay: 44ms; }
+.m-intro :is(.ph-tile):nth-child(4) { animation-delay: 66ms; }
+.m-intro :is(.ph-tile):nth-child(5) { animation-delay: 88ms; }
+.m-intro :is(.ph-tile):nth-child(6) { animation-delay: 110ms; }
+.m-intro :is(.ph-tile):nth-child(7) { animation-delay: 132ms; }
+.m-intro :is(.ph-tile):nth-child(8) { animation-delay: 154ms; }
+.m-intro :is(.ph-tile):nth-child(9) { animation-delay: 176ms; }
+.m-intro :is(.ph-tile):nth-child(10) { animation-delay: 198ms; }
+.m-intro :is(.ph-tile):nth-child(11) { animation-delay: 220ms; }
+.m-intro :is(.ph-tile):nth-child(12) { animation-delay: 242ms; }
+.m-intro :is(.ph-tile):nth-child(13) { animation-delay: 264ms; }
+.m-intro :is(.ph-tile):nth-child(14) { animation-delay: 286ms; }
+.m-intro :is(.ph-tile):nth-child(15) { animation-delay: 308ms; }
+.m-intro :is(.ph-tile):nth-child(16) { animation-delay: 330ms; }
+.m-intro :is(.ph-tile):nth-child(17) { animation-delay: 352ms; }
+.m-intro :is(.ph-tile):nth-child(18) { animation-delay: 374ms; }
+.m-intro :is(.ph-tile):nth-child(19) { animation-delay: 396ms; }
+.m-intro :is(.ph-tile):nth-child(20) { animation-delay: 418ms; }
+.m-intro :is(.ph-tile):nth-child(21) { animation-delay: 440ms; }
+.m-intro :is(.ph-tile):nth-child(22) { animation-delay: 462ms; }
+.m-intro :is(.ph-tile):nth-child(23) { animation-delay: 484ms; }
+.m-intro :is(.ph-tile):nth-child(24) { animation-delay: 506ms; }
+.m-intro :is(.ph-tile):nth-child(n+25) { animation-delay: 528ms; }
+.m-intro .cal-day:nth-child(1) { animation-delay: 0ms; }
+.m-intro .cal-day:nth-child(2) { animation-delay: 28ms; }
+.m-intro .cal-day:nth-child(3) { animation-delay: 56ms; }
+.m-intro .cal-day:nth-child(4) { animation-delay: 84ms; }
+.m-intro .cal-day:nth-child(5) { animation-delay: 112ms; }
+.m-intro .cal-day:nth-child(6) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(7) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(8) { animation-delay: 28ms; }
+.m-intro .cal-day:nth-child(9) { animation-delay: 56ms; }
+.m-intro .cal-day:nth-child(10) { animation-delay: 84ms; }
+.m-intro .cal-day:nth-child(11) { animation-delay: 112ms; }
+.m-intro .cal-day:nth-child(12) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(13) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(14) { animation-delay: 196ms; }
+.m-intro .cal-day:nth-child(15) { animation-delay: 56ms; }
+.m-intro .cal-day:nth-child(16) { animation-delay: 84ms; }
+.m-intro .cal-day:nth-child(17) { animation-delay: 112ms; }
+.m-intro .cal-day:nth-child(18) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(19) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(20) { animation-delay: 196ms; }
+.m-intro .cal-day:nth-child(21) { animation-delay: 224ms; }
+.m-intro .cal-day:nth-child(22) { animation-delay: 84ms; }
+.m-intro .cal-day:nth-child(23) { animation-delay: 112ms; }
+.m-intro .cal-day:nth-child(24) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(25) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(26) { animation-delay: 196ms; }
+.m-intro .cal-day:nth-child(27) { animation-delay: 224ms; }
+.m-intro .cal-day:nth-child(28) { animation-delay: 252ms; }
+.m-intro .cal-day:nth-child(29) { animation-delay: 112ms; }
+.m-intro .cal-day:nth-child(30) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(31) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(32) { animation-delay: 196ms; }
+.m-intro .cal-day:nth-child(33) { animation-delay: 224ms; }
+.m-intro .cal-day:nth-child(34) { animation-delay: 252ms; }
+.m-intro .cal-day:nth-child(35) { animation-delay: 280ms; }
+.m-intro .cal-day:nth-child(36) { animation-delay: 140ms; }
+.m-intro .cal-day:nth-child(37) { animation-delay: 168ms; }
+.m-intro .cal-day:nth-child(38) { animation-delay: 196ms; }
+.m-intro .cal-day:nth-child(39) { animation-delay: 224ms; }
+.m-intro .cal-day:nth-child(40) { animation-delay: 252ms; }
+.m-intro .cal-day:nth-child(41) { animation-delay: 280ms; }
+.m-intro .cal-day:nth-child(42) { animation-delay: 308ms; }
+
+/* The dashboard: every app's icon moves its own way when you point at it */
+.hub-app:hover .hub-icon { transform: none; animation: icBounce .7s var(--ease); }
+.hub-app[data-app='mail']:hover .hub-icon { animation-name: icFly; }
+.hub-app[data-app='chat']:hover .hub-icon { animation-name: icWiggle; }
+.hub-app[data-app='contacts']:hover .hub-icon, .hub-app[data-app='profile']:hover .hub-icon { animation-name: icTurn; animation-duration: .8s; }
+.hub-app[data-app='calendar']:hover .hub-icon { animation-name: icFlip; animation-duration: .8s; }
+.hub-app[data-app='tasks']:hover .hub-icon, .hub-app[data-app='forms']:hover .hub-icon { animation-name: icPop; }
+.hub-app[data-app='planner']:hover .hub-icon { animation-name: icSlide; }
+.hub-app[data-app='notes']:hover .hub-icon, .hub-app[data-app='docs']:hover .hub-icon { animation-name: icTilt; }
+.hub-app[data-app='sheets']:hover .hub-icon, .hub-app[data-app='widgets']:hover .hub-icon { animation-name: icJelly; }
+.hub-app[data-app='slides']:hover .hub-icon { transform-origin: 50% 0; animation-name: icSwing; animation-duration: .9s; }
+.hub-app[data-app='whiteboard']:hover .hub-icon { animation-name: icScribble; }
+.hub-app[data-app='photos']:hover .hub-icon, .hub-app[data-app='photoedit']:hover .hub-icon { animation-name: icZoom; }
+.hub-app[data-app='videoedit']:hover .hub-icon, .hub-app[data-app='admin']:hover .hub-icon { animation-name: icSpin; animation-duration: .9s; }
+.hub-app[data-app='files']:hover .hub-icon { animation-name: icDrop; }
+.hub-app[data-app='jarvis']:hover .hub-icon { animation-name: icCore; animation-duration: 1s; }
+@keyframes icBounce { 30% { transform: translateY(-8px) scale(1.06); } 55% { transform: scale(1.03, .97); } 75% { transform: translateY(-2px); } }
+@keyframes icFly { 35% { transform: translate(7px, -9px) rotate(9deg) scale(1.05); } 65% { transform: translate(-2px, 1px) rotate(-3deg); } }
+@keyframes icWiggle { 20% { transform: rotate(-11deg) scale(1.05); } 40% { transform: rotate(9deg) scale(1.05); } 60% { transform: rotate(-5deg); } 80% { transform: rotate(3deg); } }
+@keyframes icTurn { to { transform: perspective(300px) rotateY(360deg); } }
+@keyframes icFlip { to { transform: perspective(300px) rotateX(360deg); } }
+@keyframes icPop { 30% { transform: scale(.86); } 60% { transform: scale(1.14); } 80% { transform: scale(.98); } }
+@keyframes icSlide { 30% { transform: translateX(-6px); } 60% { transform: translateX(6px); } 80% { transform: translateX(-2px); } }
+@keyframes icTilt { 40% { transform: rotate(-9deg) translateY(-4px); } 75% { transform: rotate(4deg); } }
+@keyframes icJelly { 25% { transform: scale(1.14, .88); } 50% { transform: scale(.9, 1.1); } 75% { transform: scale(1.05, .97); } }
+@keyframes icSwing { 25% { transform: rotate(13deg); } 50% { transform: rotate(-9deg); } 75% { transform: rotate(4deg); } }
+@keyframes icScribble { 20% { transform: rotate(-7deg) translate(-3px, 1px); } 40% { transform: rotate(6deg) translate(3px, -2px); } 60% { transform: rotate(-4deg) translate(-1px, 1px); } 80% { transform: rotate(2deg); } }
+@keyframes icZoom { 50% { transform: scale(1.16) rotate(5deg); } }
+@keyframes icSpin { to { transform: rotate(360deg); } }
+@keyframes icDrop { 30% { transform: translateY(-9px); } 55% { transform: translateY(2px) scale(1.05, .95); } 75% { transform: translateY(-2px); } }
+@keyframes icCore { 50% { transform: rotate(-200deg) scale(1.1); } to { transform: rotate(-360deg); } }
+
+/* The sign-in headline: a different entrance every visit (login.js picks one) */
+.stagger[data-fx='blur'] .fx-ch { animation-name: chBlur; animation-duration: 1.1s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+.stagger[data-fx='wave'] .fx-ch { animation-name: chWave; animation-duration: .9s; }
+.stagger[data-fx='drop'] .fx-ch { animation-name: chDrop; animation-timing-function: cubic-bezier(.3, 1.5, .5, 1); }
+.stagger[data-fx='spin'] .fx-ch { animation-name: chSpin; animation-duration: 1s; }
+.stagger[data-fx='type'] .fx-ch { animation: chType .05s steps(1) both; animation-delay: calc(var(--i, 0) * 60ms + 200ms); }
+.stagger[data-fx='zoom'] .fx-ch { animation-name: chZoom; animation-duration: .8s; }
+@keyframes chBlur { from { opacity: 0; filter: blur(14px); transform: scale(1.35); } }
+@keyframes chWave { 0% { opacity: 0; transform: translateY(.6em); } 55% { opacity: 1; transform: translateY(-.2em); } }
+@keyframes chDrop { from { opacity: 0; transform: translateY(-1.1em) rotate(-14deg); } }
+@keyframes chSpin { from { opacity: 0; transform: perspective(420px) rotateY(-110deg); } }
+@keyframes chType { from { opacity: 0; } }
+@keyframes chZoom { from { opacity: 0; transform: scale(2.4); } }
