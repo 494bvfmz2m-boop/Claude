@@ -6,7 +6,7 @@
 //   POST   /api/ai/photo             { photo: data URL, wish?, size? } → an edit for the Photo Editor
 //   POST   /api/ai/video             { brief, length, aspect, captions, media[], music[] } → an edit plan
 //   GET    /api/admin/ai             the setup of every service (never a key itself)
-//   PUT    /api/admin/ai             { provider?, apiKey?, model?, baseUrl?, maxImages?, active? }
+//   PUT    /api/admin/ai             { provider?, apiKey?, model?, baseUrl?, maxImages?, active?, fallback? }
 //   DELETE /api/admin/ai?provider=   forget that service's key
 //   POST   /api/admin/ai/test        { provider? } a tiny request, to check the key works
 //   GET    /api/admin/ai/models?provider=   the models that key can use
@@ -36,9 +36,9 @@ module.exports = function aiRoutes(ctx) {
         const providers = { ...(s.providers || {}) };
         // the first version kept Claude's key and model at the top
         if (s.key || s.model) providers.claude = { ...(s.key ? { key: s.key, hint: s.hint, savedAt: s.savedAt, savedBy: s.savedBy } : {}), ...(s.model ? { model: s.model } : {}), ...(providers.claude || {}) };
-        return { active: P[s.active] ? s.active : 'claude', providers, usage: s.usage || null };
+        return { active: P[s.active] ? s.active : 'claude', providers, usage: s.usage || null, fallback: s.fallback !== false };
     }
-    const keep = st => store.servers.setSignin('claude', { active: st.active, providers: st.providers, usage: st.usage });
+    const keep = st => store.servers.setSignin('claude', { active: st.active, providers: st.providers, usage: st.usage, fallback: st.fallback !== false });
     // one service's settings, ready to use
     function service(id, st = load()) {
         const def = P[id];
@@ -76,6 +76,9 @@ module.exports = function aiRoutes(ctx) {
         const a = list.find(x => x.id === st.active);
         return {
             active: st.active,
+            // Jarvis's backups: when the service in use stops working, the next one with a key takes over
+            fallback: st.fallback,
+            backups: st.fallback ? list.filter(x => x.id !== st.active && x.configured && x.model).map(x => x.name) : [],
             activeName: a.name,
             // the service in use (as before, when there was only Claude)
             configured: a.configured,
@@ -112,12 +115,17 @@ module.exports = function aiRoutes(ctx) {
         throw e;
     };
     const use = s => ({ provider: s.provider, apiKey: s.apiKey, baseURL: s.baseURL, model: s.model, maxImages: s.maxImages });
-    // for Jarvis: the service in use (or null when no key is set), and the monthly count
-    ctx.aiService = () => {
+    // for Jarvis: the services he may use, in order: the one in use, then (if backups are on) every
+    // other one with a key and a model, in the order Admin → AI shows them
+    ctx.aiServices = () => {
         const st = load();
-        const s = service(st.active, st);
-        return s.apiKey ? { ...use(s), name: P[st.active].custom ? 'AI' : P[st.active].name, label: named(st.active, s.model) } : null;
+        const order = [st.active, ...(st.fallback ? ids.filter(id => id !== st.active) : [])];
+        return order
+            .map(id => service(id, st))
+            .filter(s => s.apiKey && s.model && (s.baseURL || s.provider === 'claude'))
+            .map(s => ({ ...use(s), name: P[s.provider].custom ? s.model : P[s.provider].name, label: named(s.provider, s.model) })); // (another service is named by its model)
     };
+    ctx.aiService = () => ctx.aiServices()[0] || null;
     ctx.aiCount = count;
     ctx.aiNamed = named;
 
@@ -181,6 +189,10 @@ module.exports = function aiRoutes(ctx) {
             p.maxImages = n;
         }
         st.providers[id] = p;
+        if (b.fallback !== undefined) {
+            st.fallback = b.fallback !== false;
+            said.push(`Turned ${st.fallback ? 'on' : 'off'} backup AI services for Jarvis`);
+        }
         if (b.active !== undefined && b.active !== false) {
             const want = b.active === true ? id : pickProvider(b.active);
             if (!service(want, st).apiKey) throw httpError(409, `Add a ${P[want].name} API key first`);

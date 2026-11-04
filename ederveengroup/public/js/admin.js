@@ -408,7 +408,8 @@
         const status = p.configured ? (p.source === 'env' ? `Set on the server (${esc(p.env)}), ends in …${esc(p.hint)}` : `Saved, ends in …${esc(p.hint)}${p.savedBy ? ` · by ${esc(p.savedBy)}` : ''}${p.savedAt ? ` · ${esc(new Date(p.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet';
         main.innerHTML = `<h1>AI</h1><p class="cp-sub">Auto editing in the Photo Editor and the Video Editor, and Jarvis, your assistant. Only admins see it. It runs on your own API key, and that service bills it.</p>
             <section class="cp-card"><h2>Service</h2><p class="cp-muted">In use for auto editing and Jarvis: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
-                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? '<i class="cp-off">Key saved</i>' : ''}</button>`).join('')}</div></section>
+                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? `<i class="cp-off">${s.fallback && x.model ? 'Backup' : 'Key saved'}</i>` : ''}</button>`).join('')}</div>
+                <label class="ai-backup"><span><b>Backups for Jarvis</b><small>If the service in use stops working (key refused, free limit reached, down or too slow), Jarvis switches to the next service with a key, in the order above, and carries on where he was, remembering everything. ${s.fallback ? (s.backups.length ? `Backups now: ${esc(s.backups.join(', '))}.` : 'Add a key for another service (Groq is free too) to have a backup.') : 'Off: Jarvis only uses the service in use.'}</small></span><input type="checkbox" class="cp-toggle" data-fallback${s.fallback ? ' checked' : ''}></label></section>
             <section class="cp-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="cp-ok">${ic('check')} In use</span>` : '<span class="cp-off">Ready</span>') : '<span class="cp-off">Off</span>'}</div>
                 ${p.source === 'env' ? `<p class="cp-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
                 <form class="si-form" id="aiform" novalidate>
@@ -468,6 +469,16 @@
                 toast(x.message, true);
             }
             b.disabled = false;
+        });
+        $('[data-fallback]', main).addEventListener('change', async e => {
+            try {
+                await call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ fallback: e.target.checked }) });
+                toast(e.target.checked ? 'Backups on: Jarvis switches service if one stops working' : 'Backups off');
+                aiTab();
+            } catch (x) {
+                e.target.checked = !e.target.checked;
+                toast(x.message, true);
+            }
         });
         $('[data-activate]', main)?.addEventListener('click', async () => {
             try {

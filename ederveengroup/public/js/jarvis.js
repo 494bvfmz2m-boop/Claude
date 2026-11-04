@@ -24,22 +24,20 @@
             }
         }
     };
-    const LOG = 'eg-jarvis-log';
     const PREFS = 'eg-jarvis';
     let status = null;
-    let log = [].concat(keep.get(sessionStorage, LOG, [])).filter(m => m && typeof m.content === 'string').slice(-40);
+    let log = []; // the conversation: kept on the server, so it's the same on every device
     const prefs = { speak: true, wake: false, lang: 'auto', voice: '', ...keep.get(localStorage, PREFS, {}) };
     let state = 'idle'; // idle · listening · thinking · speaking
     let busy = false;
     let where = keep.get(sessionStorage, 'eg-jarvis-where', null);
-    const save = () => keep.set(sessionStorage, LOG, log.slice(-40));
     const savePrefs = () => keep.set(localStorage, PREFS, prefs);
     const lang = () => (prefs.lang === 'auto' ? navigator.language || 'en-GB' : prefs.lang);
     const dutch = () => /^nl/i.test(lang());
     const NL = /\b(de|het|een|ik|je|jij|jouw|niet|van|en|dat|op|voor|met|zijn|er|maar|ook|nog|wat|vandaag|morgen|heb|hebt|heeft|staat|geen|uw|taak|taken|alle|nieuwe|graag|meneer|mevrouw)\b/gi;
     const EN = /\b(the|you|a|to|and|of|your|it|for|on|today|tomorrow|have|has|are|no|what|there|with|all|new|sir|ma'am)\b/gi;
     const isDutch = t => (String(t).match(NL) || []).length > (String(t).match(EN) || []).length;
-    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note' };
+    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note', memory: 'sparkle', forget: 'eraser' };
     const WEATHERY = /weather|weer|rain|regen|umbrella|paraplu|temperat|forecast|outside|buiten|cold|warm|koud|jas|coat|snow|sneeuw|wind|brief|ochtend|morning|today|vandaag/i;
 
     /* ---------- the page ---------- */
@@ -72,7 +70,7 @@
                 </form>
             </section>
         </div>`;
-        $('#jv-sys').textContent = status && status.on ? `Online · ${status.model || status.service}` : 'Offline';
+        $('#jv-sys').textContent = status && status.on ? `Online · ${status.model || status.service}${status.backups && status.backups.length ? ` · ${status.backups.length === 1 ? '1 backup' : `${status.backups.length} backups`}` : ''}` : 'Offline';
         muteButton();
         chips();
         drawLog();
@@ -107,8 +105,9 @@
     function bubble(m, i = Infinity) {
         const seen = i < drawn ? ' seen' : '';
         if (m.role === 'user') return `<div class="jv-msg me${seen}"><p>${esc(m.content)}</p></div>`;
-        const acts = (m.actions || []).filter(a => a && /^\/[a-z]/.test(String(a.href || '')));
-        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(a => `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>`).join('')}</div>` : ''}</div>`;
+        const acts = (m.actions || []).filter(a => a && a.text);
+        const act = a => (/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`);
+        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
     }
     function setup() {
         return `<div class="jv-setup">
@@ -195,7 +194,6 @@
         pauseWake();
         log.push({ role: 'user', content: text });
         busy = true;
-        save();
         drawLog();
         setState('thinking');
         let reply = null;
@@ -204,7 +202,7 @@
             const res = await fetch('/api/jarvis/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-EG': '1' },
-                body: JSON.stringify({ messages: log.filter(m => !m.error).slice(-16).map(m => ({ role: m.role, content: m.content })), tz: tz(), where })
+                body: JSON.stringify({ message: text, tz: tz(), where })
             });
             if (res.status === 401) return location.replace('/login?next=%2Fjarvis%2F');
             const data = await res.json().catch(() => ({}));
@@ -214,18 +212,26 @@
             }
             if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
             reply = String(data.reply || '…');
-            log.push({ role: 'assistant', content: reply, actions: data.actions || [] });
+            log.push({ role: 'assistant', content: reply, actions: data.actions || [], via: data.service, note: handedOver(data) });
+            if (data.memories) status.memories = data.memories;
         } catch (e) {
             log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
         } finally {
             busy = false;
-            save();
             if (status && !status.on) page();
             else drawLog();
         }
         setState('idle');
         if (reply && prefs.speak && synth) speak(reply);
         else resumeWake();
+    }
+
+    // when a backup service answered: say so, quietly
+    function handedOver(data) {
+        const failed = (data.switched || []).map(x => x.name);
+        if (failed.length && data.service) return `${failed.join(' and ')} didn’t answer, so ${data.service} took over. He remembers everything.`;
+        if (data.service && status.service && data.service !== status.service) return `${data.service} answered, while ${status.service} has a short rest.`;
+        return '';
     }
 
     /* ---------- his voice ---------- */
@@ -474,6 +480,7 @@
     document.addEventListener('visibilitychange', () => (document.hidden ? (rec && rec.wake ? stopRec(true) : null) : setTimeout(startWake, 400)));
 
     /* ---------- settings ---------- */
+    const memories = () => ((status.memories || []).length ? status.memories.map(f => `<li><span>${esc(f.text)}</span><button type="button" class="icon-btn" data-mem="${esc(f.id)}" aria-label="Forget this" title="Forget this">${ic('x')}</button></li>`).join('') : '<li class="jv-mem-none">Nothing yet.</li>');
     function settings() {
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
@@ -486,7 +493,8 @@
             ${synth ? `<label class="jv-row"><span><b>Voice</b><small>The voices this device has. Automatic picks a British one (or Dutch, for Dutch answers).</small></span><select class="input" data-voice><option value="">Automatic</option>${vs.map(v => `<option value="${esc(v.name)}"${v.name === prefs.voice ? ' selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label><div class="jv-row jv-row-end"><button type="button" class="btn" data-try>${ic('volume')}<span>Hear it</span></button></div>` : ''}
             <label class="jv-row"><span><b>I speak</b></span><select class="input" data-lang>${[['auto', 'Like this browser'], ['en-GB', 'English (UK)'], ['en-US', 'English (US)'], ['nl-NL', 'Nederlands']].map(([v, l]) => `<option value="${v}"${prefs.lang === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
             ${SR ? `<label class="jv-row"><span><b>Wake word “Jarvis”</b><small>Keeps listening while this page is open, so you can say “Jarvis, what’s on today?” without tapping. Your browser turns speech into text (Chrome and Edge do that on their servers).</small></span><input type="checkbox" class="cp-toggle" data-p="wake"${prefs.wake ? ' checked' : ''}></label>` : ''}
-            <p class="cp-muted">Thinking with ${esc(status.model || status.service || 'the AI service')}. Change it in <a href="/admin/#/ai">Admin → AI</a>.</p>
+            <div class="jv-mem"><b>What he remembers</b><small>Things you asked him to remember, or told him for later. Say “Jarvis, remember that…” or “forget…”.</small><ul id="jv-mem">${memories()}</ul></div>
+            <p class="cp-muted">Thinking with ${esc(status.model || status.service || 'the AI service')}${status.backups && status.backups.length ? `, with ${esc(status.backups.join(', '))} as backup` : ''}. Change it in <a href="/admin/#/ai">Admin → AI</a>.</p>
             <div class="pf-crop-acts"><button type="button" class="btn btn-danger" data-forget>Forget this conversation</button><button type="button" class="btn btn-primary" data-x>Done</button></div>
         </div>`;
         document.body.append(back);
@@ -512,13 +520,29 @@
                 speak(dutch() ? `Tot uw dienst, ${who()}.` : `At your service, ${who()}.`);
                 return;
             }
+            const m = e.target.closest('[data-mem]');
+            if (m) {
+                try {
+                    const r = await window.EG.call(`/api/jarvis/memory/${encodeURIComponent(m.dataset.mem)}`, { method: 'DELETE' });
+                    status.memories = r.memories;
+                    $('#jv-mem', back).innerHTML = memories();
+                } catch (err) {
+                    toast(err.message, { bad: true });
+                }
+                return;
+            }
             if (e.target.closest('[data-forget]')) {
+                try {
+                    await window.EG.call('/api/jarvis/history', { method: 'DELETE' });
+                } catch (err) {
+                    return toast(err.message, { bad: true });
+                }
                 log = [];
-                save();
+                drawn = 0;
                 stopSpeaking();
                 drawLog();
                 close();
-                toast('Forgotten. A fresh start.');
+                toast('The conversation is forgotten. What he was asked to remember stays.');
             }
         });
         back.addEventListener('change', e => {
@@ -592,6 +616,7 @@
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Jarvis isn’t available');
             status = data;
+            log = (data.history || []).filter(m => m && typeof m.content === 'string');
             page();
             resumeWake();
         })

@@ -1902,7 +1902,7 @@ test('Widget gallery: every widget’s Scriptable script runs in every size, and
     app.close();
 });
 
-test('Jarvis: admins only, talks with tools over Claude and OpenAI-style services, adds tasks, events and notes', async () => {
+test('Jarvis: admins only, talks with tools, remembers on the server, and switches to a backup AI service when one stops', async () => {
     // a stand-in AI that calls tools: Anthropic (/v1/messages) and OpenAI-style (/v1/chat/completions)
     const http = require('http');
     const ai = require('../../lib/ai');
@@ -1935,12 +1935,13 @@ test('Jarvis: admins only, talks with tools over Claude and OpenAI-style service
     await jo('POST', '/api/username', { username: 'jo.smith' });
     await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
     await ann('POST', '/api/username', { username: 'ann' });
-    const talk = (who, messages, extra = {}) => who('POST', '/api/jarvis/chat', { messages, tz: 'Europe/Amsterdam', ...extra });
+    const talk = (who, message, extra = {}) => who('POST', '/api/jarvis/chat', { message, tz: 'Europe/Amsterdam', ...extra });
+    const status = async () => (await jo('GET', '/api/jarvis/status')).body;
 
     // only for admins: everyone else gets "not found" for the page and "no" from the api
     assert.equal((await ann('GET', '/jarvis/')).status, 404);
     assert.equal((await ann('GET', '/api/jarvis/status')).status, 403);
-    assert.equal((await talk(ann, [{ role: 'user', content: 'hi' }])).status, 403);
+    assert.equal((await talk(ann, 'hi')).status, 403);
     const pageRes = await jo('GET', '/jarvis/');
     assert.equal(pageRes.status, 200);
     assert.match(pageRes.body, /js\/jarvis\.js/);
@@ -1948,29 +1949,31 @@ test('Jarvis: admins only, talks with tools over Claude and OpenAI-style service
     assert.ok((await jo('GET', '/api/apps-summary')).body.pages.includes('jarvis'));
 
     // without an AI service he says what to do
-    let st = (await jo('GET', '/api/jarvis/status')).body;
-    assert.deepEqual([st.on, st.name, st.address], [false, 'Jo', 'name']);
-    const none = await talk(jo, [{ role: 'user', content: 'hi' }]);
+    let st = await status();
+    assert.deepEqual([st.on, st.name, st.address, st.history, st.memories], [false, 'Jo', 'name', [], []]);
+    const none = await talk(jo, 'hi');
     assert.equal(none.status, 409);
     assert.match(none.body.error, /Admin → AI/);
+    assert.equal((await talk(jo, '   ')).status, 409); // (no service is checked first)
 
     // with Claude: he calls tools, then answers in words
     await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
-    st = (await jo('GET', '/api/jarvis/status')).body;
-    assert.deepEqual([st.on, st.service], [true, 'Claude']);
+    st = await status();
+    assert.deepEqual([st.on, st.service, st.backups], [true, 'Claude', []]);
+    assert.equal((await talk(jo, '   ')).status, 400);
     const tomorrow = new Date(Date.now() + 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
     script = [{ text: 'On it.', calls: [['add_task', { text: 'Buy milk', due: tomorrow, starred: true }], ['get_tasks', {}], ['delete_everything', {}]] }, { text: 'Added, Jo. Milk tomorrow.' }];
-    const r1 = await talk(jo, [{ role: 'user', content: 'Remind me to buy milk tomorrow' }], { where: { lat: 52.07, lon: 5.62 } });
+    const r1 = await talk(jo, 'Remind me to buy milk tomorrow', { where: { lat: 52.07, lon: 5.62 } });
     assert.equal(r1.status, 200);
-    assert.equal(r1.body.reply, 'Added, Jo. Milk tomorrow.');
+    assert.deepEqual([r1.body.reply, r1.body.service, r1.body.switched], ['Added, Jo. Milk tomorrow.', 'Claude', []]);
     assert.deepEqual(r1.body.used, ['add_task', 'get_tasks', 'delete_everything']);
     assert.deepEqual(r1.body.actions, [{ kind: 'task', text: 'Added task “Buy milk” (due tomorrow)', href: '/tasks/' }]);
-    const tasks = (await jo('GET', '/api/apps/tasks')).body.items;
-    assert.ok(tasks.some(t => t.text === 'Buy milk' && t.due === tomorrow && t.starred));
+    assert.ok((await jo('GET', '/api/apps/tasks')).body.items.some(t => t.text === 'Buy milk' && t.due === tomorrow && t.starred));
     // what Claude was sent: the tools, the persona, then the tool results for the right calls
     const first = asked[asked.length - 2].body;
     assert.equal(asked[asked.length - 2].url, '/v1/messages');
     assert.ok(first.tools.some(t => t.name === 'add_event' && t.input_schema.required.includes('date')));
+    assert.ok(first.tools.some(t => t.name === 'remember'));
     assert.match(first.system, /Jarvis/);
     assert.match(first.system, /"Jo"/);
     assert.match(first.system, /Europe\/Amsterdam/);
@@ -1983,38 +1986,60 @@ test('Jarvis: admins only, talks with tools over Claude and OpenAI-style service
     assert.equal(back[2].is_error, true); // there is no such tool
     assert.match(back[2].content, /No tool called delete_everything/);
 
-    // the way he addresses you
+    // his memory of the conversation is on the server (the same on every device)
+    st = await status();
+    assert.deepEqual(st.history.map(m => [m.role, m.content]), [['user', 'Remind me to buy milk tomorrow'], ['assistant', 'Added, Jo. Milk tomorrow.']]);
+    assert.equal(st.history[1].via, 'Claude');
+    assert.equal(st.history[1].actions[0].kind, 'task');
+
+    // the way he addresses you (and that doesn't wipe his memory)
     assert.equal((await jo('PUT', '/api/jarvis/prefs', { address: 'your majesty' })).status, 400);
     assert.equal((await jo('PUT', '/api/jarvis/prefs', { address: 'sir' })).body.address, 'sir');
-    assert.equal((await jo('GET', '/api/jarvis/status')).body.address, 'sir');
+    st = await status();
+    assert.deepEqual([st.address, st.history.length], ['sir', 2]);
 
-    // the conversation: roles alternate (two in a row are joined), and it must end with you
+    // remembering for later: kept, shown, in his instructions next time; forgotten when asked
+    script = [{ calls: [['remember', { fact: 'Jo’s sister Ava has her birthday on 12 March' }]] }, { text: 'I’ll remember that, sir.' }];
+    const r2 = await talk(jo, 'Remember that Ava’s birthday is on 12 March');
+    assert.deepEqual(r2.body.actions, [{ kind: 'memory', text: 'Remembered: Jo’s sister Ava has her birthday on 12 March' }]);
+    assert.equal(r2.body.memories.length, 1);
     script = [{ text: 'Very good, sir.' }];
-    const r2 = await talk(jo, [{ role: 'assistant', content: 'Hello' }, { role: 'user', content: 'One' }, { role: 'user', content: 'Two' }, { role: 'assistant', content: 'Yes?' }, { role: 'user', content: 'Thanks' }]);
-    assert.equal(r2.body.reply, 'Very good, sir.');
+    await talk(jo, 'Thanks');
     const sent = asked[asked.length - 1].body;
-    assert.deepEqual(sent.messages.map(m => m.role), ['user', 'assistant', 'user']);
-    assert.equal(sent.messages[0].content, 'One\nTwo');
+    assert.match(sent.system, /What you remember about them[\s\S]*Ava has her birthday on 12 March/);
     assert.match(sent.system, /"sir"/);
-    assert.equal((await talk(jo, [{ role: 'assistant', content: 'Hi' }])).status, 400);
+    // the conversation he's sent: from his memory, alternating, ending with what was just said
+    assert.deepEqual(sent.messages.map(m => m.role), ['user', 'assistant', 'user', 'assistant', 'user']);
+    assert.deepEqual([sent.messages[0].content, sent.messages[4].content], ['Remind me to buy milk tomorrow', 'Thanks']);
+    script = [{ calls: [['forget', { about: 'ava birthday' }]] }, { text: 'Forgotten.' }];
+    const r3 = await talk(jo, 'Forget Ava’s birthday');
+    assert.deepEqual([r3.body.actions[0].kind, r3.body.memories], ['forget', []]);
+    script = [{ calls: [['remember', { fact: 'Jo takes their coffee black' }], ['remember', { fact: 'Jo takes their coffee black' }]] }, { text: 'Noted.' }];
+    const r4 = await talk(jo, 'I take my coffee black, remember that');
+    assert.equal(r4.body.memories.length, 1); // the same thing only once
+    const fact = (await status()).memories[0];
+    assert.equal((await jo('DELETE', '/api/jarvis/memory/nope')).status, 404);
+    assert.deepEqual((await jo('DELETE', `/api/jarvis/memory/${fact.id}`)).body.memories, []);
 
     // an event and ticking off a task
     script = [{ calls: [['add_event', { title: 'Dentist', date: tomorrow, time: '09:30', minutes: 45 }], ['complete_task', { text: 'milk' }]] }, { text: 'Done.' }];
-    const r3 = await talk(jo, [{ role: 'user', content: 'Dentist tomorrow at half nine, and I bought the milk' }]);
-    assert.deepEqual(r3.body.actions.map(a => a.kind), ['event', 'done']);
+    const r5 = await talk(jo, 'Dentist tomorrow at half nine, and I bought the milk');
+    assert.deepEqual(r5.body.actions.map(a => a.kind), ['event', 'done']);
     const ev = (await jo('GET', '/api/apps/calendar')).body.items.find(e => e.title === 'Dentist');
     assert.deepEqual([ev.start, ev.end], [`${tomorrow}T09:30`, `${tomorrow}T10:15`]);
     assert.equal((await jo('GET', '/api/apps/tasks')).body.items.find(t => t.text === 'Buy milk').done, true);
 
-    // over an OpenAI-style service (Gemini, Groq…): function calls, the same tools
+    // over an OpenAI-style service (Gemini, Groq…): function calls, the same tools; Claude is now the backup
     await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: `http://127.0.0.1:${port}/v1` });
     await jo('PUT', '/api/admin/ai', { provider: 'custom', apiKey: 'local-key-abcdef', model: 'tool-model' });
     await jo('PUT', '/api/admin/ai', { provider: 'custom', active: true });
-    assert.equal((await jo('GET', '/api/jarvis/status')).body.service, 'AI');
+    st = await status();
+    assert.deepEqual([st.service, st.backups], ['tool-model', ['Claude']]);
+    assert.deepEqual([(await jo('GET', '/api/admin/ai')).body.fallback, (await jo('GET', '/api/admin/ai')).body.backups], [true, ['Claude']]);
     script = [{ calls: [['add_note', { title: 'Suit ideas', text: 'Make it red and gold.' }], ['check_mail', {}]] }, { text: 'Noted, sir. One unread email.' }];
-    const r4 = await talk(jo, [{ role: 'user', content: 'Note: make it red and gold. Any mail?' }]);
-    assert.equal(r4.body.reply, 'Noted, sir. One unread email.');
-    assert.deepEqual(r4.body.actions.map(a => a.kind), ['note']);
+    const r6 = await talk(jo, 'Note: make it red and gold. Any mail?');
+    assert.deepEqual([r6.body.reply, r6.body.service], ['Noted, sir. One unread email.', 'tool-model']);
+    assert.deepEqual(r6.body.actions.map(a => a.kind), ['note']);
     const o1 = asked[asked.length - 2];
     assert.equal(o1.url, '/v1/chat/completions');
     assert.deepEqual([o1.body.tool_choice, o1.body.messages[0].role, o1.body.tools[0].type], ['auto', 'system', 'function']);
@@ -2023,11 +2048,41 @@ test('Jarvis: admins only, talks with tools over Claude and OpenAI-style service
     assert.equal(o2[o2.length - 2].tool_call_id, o2[o2.length - 3].tool_calls[0].id);
     assert.match(o2[o2.length - 1].content, /"unread":1/);
     assert.ok((await jo('GET', '/api/apps/notes')).body.items.some(n => n.title === 'Suit ideas'));
-    // a service that fails: its own words, not a crash
-    script = [{ status: 429, body: { error: { message: 'Rate limit reached' } } }];
-    const busy = await talk(jo, [{ role: 'user', content: 'Hello?' }]);
-    assert.equal(busy.status, 429);
-    assert.match(busy.body.error, /busy|limit/i);
+
+    // the service in use stops (free limit reached): the backup answers, with the whole conversation
+    script = [{ status: 429, body: { error: { message: 'Rate limit reached' } } }, { text: 'Claude here, sir. Nothing lost.' }];
+    const f1 = await talk(jo, 'Still there?');
+    assert.equal(f1.status, 200);
+    assert.deepEqual([f1.body.reply, f1.body.service, f1.body.switched.map(x => x.name)], ['Claude here, sir. Nothing lost.', 'Claude', ['tool-model']]);
+    assert.match(f1.body.switched[0].error, /busy|limit/i);
+    const c1 = asked[asked.length - 1];
+    assert.equal(c1.url, '/v1/messages');
+    assert.ok(c1.body.messages.some(m => m.content === 'Note: make it red and gold. Any mail?'));
+    assert.equal(c1.body.messages[c1.body.messages.length - 1].content, 'Still there?');
+    // while it rests, the backup goes first
+    script = [{ text: 'Still me.' }];
+    const f2 = await talk(jo, 'And now?');
+    assert.deepEqual([f2.body.service, f2.body.switched, asked[asked.length - 1].url], ['Claude', [], '/v1/messages']);
+    // stopping halfway (the key refused after a tool ran): the next one carries on, without doing it again
+    script = [{ calls: [['add_task', { text: 'Water the plants' }]] }, { status: 401, body: { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } } }, { text: 'The plants are on your list, sir.' }];
+    const f3 = await talk(jo, 'Remind me to water the plants');
+    assert.deepEqual([f3.body.reply, f3.body.service, f3.body.switched.map(x => x.name)], ['The plants are on your list, sir.', 'tool-model', ['Claude']]);
+    assert.match(f3.body.switched[0].error, /isn’t accepted/);
+    assert.deepEqual(f3.body.actions.map(a => a.text), ['Added task “Water the plants”']);
+    assert.equal((await jo('GET', '/api/apps/tasks')).body.items.filter(t => t.text === 'Water the plants').length, 1);
+    const handed = asked[asked.length - 1].body.messages[0].content;
+    assert.match(handed, /started on another AI service[\s\S]*add_task\(\{"text":"Water the plants"\}\)/);
+    assert.equal((await status()).history.slice(-1)[0].via, 'tool-model');
+    // every service down: a clear message, and nothing half-said is kept
+    const kept = (await status()).history.length;
+    script = [{ status: 503, body: { error: { message: 'down' } } }, { status: 401, body: { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } } }];
+    const f4 = await talk(jo, 'Hello?');
+    assert.equal(f4.status, 502);
+    assert.match(f4.body.error, /None of the AI services answered\. tool-model: .*Claude: /);
+    assert.equal((await status()).history.length, kept);
+    // backups off: only the service in use
+    await jo('PUT', '/api/admin/ai', { fallback: false });
+    assert.deepEqual([(await status()).backups, (await jo('GET', '/api/admin/ai')).body.fallback], [[], false]);
 
     // Gemini: tools without parameters go without; Groq: a broken tool call is asked again once
     const run = async name => ({ ok: name });
@@ -2040,6 +2095,13 @@ test('Jarvis: admins only, talks with tools over Claude and OpenAI-style service
     script = [{ status: 400, body: { error: { message: 'Failed to call a function', code: 'tool_use_failed' } } }, { calls: [['get_time', {}]] }, { text: 'It is late.' }];
     const g = await ai.converse({ provider: 'groq', apiKey: 'k', baseURL: `http://127.0.0.1:${port}/v1`, model: 'llama', system: 's', messages: [{ role: 'user', content: 'time?' }], tools, run });
     assert.deepEqual([g.text, g.used.map(u => u.name)], ['It is late.', ['get_time']]);
+
+    // forgetting the conversation keeps what he was asked to remember
+    script = [{ calls: [['remember', { fact: 'Jo likes jazz' }]] }, { text: 'Noted.' }];
+    await talk(jo, 'I like jazz, remember it');
+    await jo('DELETE', '/api/jarvis/history');
+    st = await status();
+    assert.deepEqual([st.history, st.memories.map(f => f.text)], [[], ['Jo likes jazz']]);
 
     // switched off in Admin → Apps: gone
     await jo('PUT', '/api/admin/apps', { off: ['jarvis'] });

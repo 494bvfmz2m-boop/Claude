@@ -297,7 +297,7 @@ async function runTool(run, used, name, input) {
         return { out: { error: (e && e.message) || 'That didn’t work' }, error: true };
     }
 }
-async function converseClaude({ apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6, effort = 'low' }) {
+async function converseClaude({ apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6, effort = 'low', timeoutMs = 120 * 1000, retries = 2 }) {
     const c = client(apiKey, baseURL);
     const msgs = messages.map(m => ({ role: m.role, content: m.content }));
     const usage = { input_tokens: 0, output_tokens: 0 };
@@ -306,7 +306,7 @@ async function converseClaude({ apiKey, baseURL, model, system, messages, tools,
     for (let step = 0; step < maxSteps; step++) {
         let msg;
         try {
-            msg = await c.messages.create({ model, max_tokens: 8000, system, messages: msgs, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters })), output_config: { effort } });
+            msg = await c.messages.create({ model, max_tokens: 8000, system, messages: msgs, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters })), output_config: { effort } }, { timeout: timeoutMs, maxRetries: retries });
         } catch (e) {
             throw claudeError(e);
         }
@@ -333,7 +333,7 @@ async function converseClaude({ apiKey, baseURL, model, system, messages, tools,
     return { text: 'That took more steps than I allow myself. Could you ask it more simply?', used, usage, model: served };
 }
 // the same over the OpenAI-style API, with function calling
-async function converseOpenAI({ provider, apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6 }) {
+async function converseOpenAI({ provider, apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6, timeoutMs = 120 * 1000 }) {
     const name = (PROVIDERS[provider] || PROVIDERS.custom).name;
     if (!baseURL) throw new AiError(`Set the address of the ${name} service in Admin → AI.`, 409);
     if (!model) throw new AiError(`Pick a ${name} model in Admin → AI.`, 409);
@@ -351,7 +351,7 @@ async function converseOpenAI({ provider, apiKey, baseURL, model, system, messag
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}`, ...(provider === 'openrouter' ? { 'X-Title': 'EderveenGroup' } : {}) },
                 body: JSON.stringify({ model, messages: msgs, tools: fns, tool_choice: 'auto' }),
-                signal: AbortSignal.timeout(120 * 1000)
+                signal: AbortSignal.timeout(timeoutMs)
             });
         } catch (e) {
             throw new AiError(e && e.name === 'TimeoutError' ? `${name} took too long to answer.` : `Couldn’t reach ${name}. Check the server’s internet connection.`, 502);
