@@ -27,7 +27,9 @@
     const PREFS = 'eg-jarvis';
     let status = null;
     let log = []; // the conversation: kept on the server, so it's the same on every device
-    const prefs = { speak: true, wake: false, lang: 'auto', voice: '', ...keep.get(localStorage, PREFS, {}) };
+    const prefs = { speak: true, wake: false, lang: 'auto', voice: '', rate: 1, pitch: 0.9, ...keep.get(localStorage, PREFS, {}) };
+    prefs.rate = Math.min(1.3, Math.max(0.7, Number(prefs.rate) || 1));
+    prefs.pitch = Math.min(1.2, Math.max(0.6, Number(prefs.pitch) || 0.9));
     let state = 'idle'; // idle · listening · thinking · speaking
     let busy = false;
     let where = keep.get(sessionStorage, 'eg-jarvis-where', null);
@@ -241,23 +243,51 @@
         loadVoices();
         if (synth.addEventListener) synth.addEventListener('voiceschanged', loadVoices);
     }
-    // the most Jarvis-like voices there are: British and male, or Dutch
+    // The closest to Jarvis that's free: the voices on the device, ranked. British and male first, and
+    // their natural-sounding versions (Edge's "Online (Natural)", Apple's "Enhanced"/"Premium") above
+    // the plain ones; the joke voices never.
     const PREFER = {
-        en: ['Daniel', 'Arthur', 'Google UK English Male', 'Microsoft Ryan', 'Microsoft George', 'Microsoft Thomas', 'Oliver', 'Malcolm', 'Rishi', 'Google UK English Female'],
-        nl: ['Xander', 'Google Nederlands', 'Microsoft Maarten', 'Microsoft Colette', 'Ellen', 'Claire']
+        en: ['Microsoft Ryan', 'Arthur', 'Daniel', 'Microsoft Thomas', 'Google UK English Male', 'Jamie', 'Oliver', 'Malcolm', 'Microsoft George', 'en-gb-x-rjs', 'en-gb-x-gbd', 'en-gb-x-gbb', 'Rishi'],
+        nl: ['Microsoft Maarten', 'Xander', 'Google Nederlands', 'nl-nl-x-bmh', 'nl-nl-x-dma', 'Microsoft Frank']
     };
+    const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Ralph|Fred|Kathy|Grandma|Grandpa|Eddy|Flo|Reed|Rocko|Sandy|Shelley)\b/i;
+    const FEMALE = /female|Libby|Sonia|Maisie|Hazel|Susan|Serena|Kate|Stephanie|Martha|Fiona|Moira|Karen|Samantha|Tessa|Victoria|Allison|Ava|Zoe|Colette|Fenna|Ellen|Claire|Hanna|Femke/i;
+    const QUALITY = v => (/Natural|Neural/i.test(v.name) ? 30 : /Premium/i.test(v.name) ? 26 : /Enhanced/i.test(v.name) ? 22 : /Online/i.test(v.name) ? 15 : 0);
+    function score(v, nl) {
+        const id = `${v.name} ${v.voiceURI || ''}`;
+        if (NOVELTY.test(v.name)) return -1;
+        let s = nl ? (/^nl/i.test(v.lang) ? 100 : -1) : /^en[-_]GB/i.test(v.lang) ? 100 : /^en/i.test(v.lang) ? 40 : -1;
+        if (s < 0) return -1;
+        const i = PREFER[nl ? 'nl' : 'en'].findIndex(n => id.includes(n));
+        if (i >= 0) s += 60 - i * 3;
+        s += QUALITY(v);
+        if (FEMALE.test(v.name)) s -= 45;
+        return s;
+    }
+    const ranked = nl => voices.map(v => [v, score(v, nl)]).filter(([, n]) => n >= 0).sort((a, b) => b[1] - a[1]).map(([v]) => v);
     function voiceFor(text) {
         if (prefs.voice) {
-            const v = voices.find(x => x.name === prefs.voice);
+            const v = voices.find(x => (x.voiceURI || x.name) === prefs.voice) || voices.find(x => x.name === prefs.voice);
             if (v) return v;
         }
+        return ranked(isDutch(text))[0] || null;
+    }
+    // what he says, made for speaking: no symbols or addresses, units in words
+    function speakable(text) {
         const nl = isDutch(text);
-        const pool = voices.filter(v => (nl ? /^nl/i : /^en/i).test(v.lang));
-        for (const n of PREFER[nl ? 'nl' : 'en']) {
-            const v = pool.find(x => x.name.includes(n));
-            if (v) return v;
-        }
-        return pool.find(v => /en[-_]GB/i.test(v.lang)) || pool[0] || null;
+        return String(text)
+            .replace(/https?:\/\/\S+/g, '')
+            .replace(/^\s*(?:[-•*]|\d+[.)])\s+/gm, '')
+            .replace(/[*_#`~|]+/g, '')
+            .replace(/\p{Extended_Pictographic}/gu, '')
+            .replace(/\s*(?:→|->)\s*/g, nl ? ' naar ' : ' to ')
+            .replace(/(\d)\s*°\s*C\b/g, nl ? '$1 graden' : '$1 degrees')
+            .replace(/(\d)\s*km\/h\b/g, nl ? '$1 kilometer per uur' : '$1 kilometres an hour')
+            .replace(/(\d)\s*%/g, nl ? '$1 procent' : '$1 percent')
+            .replace(/\s*&\s*/g, nl ? ' en ' : ' and ')
+            .replace(/\n+/g, '. ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
     }
     // short pieces: some browsers stop a long one halfway
     function pieces(text) {
@@ -274,7 +304,7 @@
         stopSpeaking();
         const run = ++speakingRun;
         const v = voiceFor(text);
-        const parts = pieces(text);
+        const parts = pieces(speakable(text));
         pauseWake();
         parts.forEach((p, i) => {
             const u = new SpeechSynthesisUtterance(p);
@@ -282,8 +312,9 @@
                 u.voice = v;
                 u.lang = v.lang;
             } else u.lang = isDutch(text) ? 'nl-NL' : 'en-GB';
-            u.rate = 1.03;
-            u.pitch = 0.92;
+            // measured and a touch deep, like Jarvis (both can be set in his settings)
+            u.rate = prefs.rate;
+            u.pitch = prefs.pitch;
             u.onstart = () => run === speakingRun && setState('speaking');
             u.onboundary = () => (kick = 1);
             if (i === parts.length - 1)
@@ -480,17 +511,37 @@
     document.addEventListener('visibilitychange', () => (document.hidden ? (rec && rec.wake ? stopRec(true) : null) : setTimeout(startWake, 400)));
 
     /* ---------- settings ---------- */
+    const short = v => v.name.replace(/^Microsoft (\w+) Online \(Natural\) - .*$/, 'Microsoft $1 (Natural)').replace(/ - English \(United Kingdom\)| - Dutch \(Netherlands\)/, '');
+    // a better free voice is often one download or one browser away
+    function tip() {
+        const best = ranked(dutch())[0];
+        if (best && QUALITY(best) >= 22) return ''; // already a natural-sounding one
+        const ua = navigator.userAgent;
+        if (/iPhone|iPad|Macintosh/.test(ua) && !/Windows|Android/.test(ua))
+            return /iPhone|iPad/.test(ua) || navigator.maxTouchPoints > 1
+                ? 'For a smoother voice: iPhone Settings → Accessibility → Spoken Content → Voices → English → English (UK), download <b>Arthur</b> or <b>Daniel (Enhanced)</b>, then reload this page.'
+                : 'For a smoother voice: System Settings → Accessibility → Spoken Content → System voice → Manage Voices → English (UK), download <b>Arthur</b> or <b>Daniel (Enhanced)</b>, then reload this page.';
+        if (/Windows/.test(ua) && !/Edg\//.test(ua)) return 'The most Jarvis-like free voice is <b>Microsoft Ryan (Natural)</b>, which comes with Microsoft Edge: open Jarvis in Edge to hear it.';
+        if (/Android/.test(ua)) return 'For another voice: Android Settings → Text-to-speech → Google → English (United Kingdom), and pick a male voice.';
+        return '';
+    }
     const memories = () => ((status.memories || []).length ? status.memories.map(f => `<li><span>${esc(f.text)}</span><button type="button" class="icon-btn" data-mem="${esc(f.id)}" aria-label="Forget this" title="Forget this">${ic('x')}</button></li>`).join('') : '<li class="jv-mem-none">Nothing yet.</li>');
     function settings() {
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
         const addr = { name: status.name, sir: 'Sir', "ma'am": 'Ma’am', boss: 'Boss' };
-        const vs = voices.filter(v => /^(en|nl)/i.test(v.lang)).sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+        // best first: the British (or Dutch) male voices, natural-sounding ones on top
+        const vs = [...ranked(dutch()), ...ranked(!dutch())];
+        const auto = ranked(dutch())[0];
         back.innerHTML = `<div class="pf-crop jv-set" role="dialog" aria-modal="true" aria-labelledby="jv-set-h">
             <h2 id="jv-set-h">Jarvis</h2>
             <div class="jv-row"><span><b>He calls you</b></span><div class="seg" data-address>${status.addresses.map(a => `<button type="button" data-a="${esc(a)}" class="${status.address === a ? 'on' : ''}">${esc(addr[a] || a)}</button>`).join('')}</div></div>
             <label class="jv-row"><span><b>Speak answers out loud</b></span><input type="checkbox" class="cp-toggle" data-p="speak"${prefs.speak ? ' checked' : ''}></label>
-            ${synth ? `<label class="jv-row"><span><b>Voice</b><small>The voices this device has. Automatic picks a British one (or Dutch, for Dutch answers).</small></span><select class="input" data-voice><option value="">Automatic</option>${vs.map(v => `<option value="${esc(v.name)}"${v.name === prefs.voice ? ' selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></label><div class="jv-row jv-row-end"><button type="button" class="btn" data-try>${ic('volume')}<span>Hear it</span></button></div>` : ''}
+            ${synth ? `<label class="jv-row"><span><b>Voice</b><small>Free voices on this device, the most Jarvis-like first. Automatic picks a British man (or a Dutch one, for Dutch answers).</small></span><select class="input" data-voice><option value="">Automatic${auto ? ` (${esc(short(auto))})` : ''}</option>${vs.map(v => `<option value="${esc(v.voiceURI || v.name)}"${(v.voiceURI || v.name) === prefs.voice ? ' selected' : ''}>${esc(short(v))} (${esc(v.lang)})</option>`).join('')}</select></label>
+            ${tip() ? `<p class="jv-tip">${ic('sparkle')}<span>${tip()}</span></p>` : ''}
+            <label class="jv-row"><span><b>Speed</b></span><input type="range" class="jv-range" data-r="rate" min="0.7" max="1.3" step="0.05" value="${prefs.rate}"></label>
+            <label class="jv-row"><span><b>Depth</b><small>Further right is deeper. Not every voice can change it.</small></span><input type="range" class="jv-range jv-depth" data-r="pitch" min="0.6" max="1.2" step="0.05" value="${prefs.pitch}"></label>
+            <div class="jv-row jv-row-end"><button type="button" class="btn btn-ghost" data-reset>Like Jarvis</button><button type="button" class="btn" data-try>${ic('volume')}<span>Hear it</span></button></div>` : ''}
             <label class="jv-row"><span><b>I speak</b></span><select class="input" data-lang>${[['auto', 'Like this browser'], ['en-GB', 'English (UK)'], ['en-US', 'English (US)'], ['nl-NL', 'Nederlands']].map(([v, l]) => `<option value="${v}"${prefs.lang === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
             ${SR ? `<label class="jv-row"><span><b>Wake word “Jarvis”</b><small>Keeps listening while this page is open, so you can say “Jarvis, what’s on today?” without tapping. Your browser turns speech into text (Chrome and Edge do that on their servers).</small></span><input type="checkbox" class="cp-toggle" data-p="wake"${prefs.wake ? ' checked' : ''}></label>` : ''}
             <div class="jv-mem"><b>What he remembers</b><small>Things you asked him to remember, or told him for later. Say “Jarvis, remember that…” or “forget…”.</small><ul id="jv-mem">${memories()}</ul></div>
@@ -517,7 +568,17 @@
             }
             if (e.target.closest('[data-try]')) {
                 unlockSpeech();
-                speak(dutch() ? `Tot uw dienst, ${who()}.` : `At your service, ${who()}.`);
+                speak(dutch() ? `Tot uw dienst, ${who()}. Alle systemen draaien naar behoren.` : `At your service, ${who()}. All systems are running as they should.`);
+                return;
+            }
+            if (e.target.closest('[data-reset]')) {
+                Object.assign(prefs, { voice: '', rate: 1, pitch: 0.9 });
+                savePrefs();
+                $('[data-voice]', back).value = '';
+                $('[data-r="rate"]', back).value = 1;
+                $('[data-r="pitch"]', back).value = 0.9;
+                unlockSpeech();
+                speak(dutch() ? `Zo beter, ${who()}?` : `Better, ${who()}?`);
                 return;
             }
             const m = e.target.closest('[data-mem]');
@@ -562,6 +623,7 @@
                 }
             }
             if (e.target.matches('[data-voice]')) prefs.voice = e.target.value;
+            if (e.target.dataset.r) prefs[e.target.dataset.r] = Number(e.target.value);
             if (e.target.matches('[data-lang]')) {
                 prefs.lang = e.target.value;
                 stopRec(true);

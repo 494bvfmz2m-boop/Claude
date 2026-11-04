@@ -3622,7 +3622,11 @@ span.jv-act:hover { background: var(--surface-3); }
 .jv-row small { font-size: 12.5px; line-height: 1.4; color: var(--text-3); }
 .jv-row select.input { width: 230px; max-width: 55%; height: 38px; }
 .jv-row .seg { flex-wrap: wrap; justify-content: flex-end; }
-.jv-row-end { justify-content: flex-end; padding-top: 0; border-bottom: 0; }
+.jv-row-end { justify-content: flex-end; gap: 8px; padding-top: 0; }
+.jv-range { width: 230px; max-width: 55%; accent-color: #2ccfff; }
+.jv-depth { direction: rtl; }
+.jv-tip { display: flex; gap: 8px; margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.45; color: var(--text-2); background: color-mix(in srgb, #2ccfff 9%, transparent); }
+.jv-tip .i { flex: none; width: 16px; height: 16px; margin-top: 1px; color: #2ccfff; }
 @media (max-width: 1000px) and (min-width: 761px) {
     .jv { grid-template-columns: 300px minmax(0, 1fr); }
 }
@@ -3642,6 +3646,7 @@ span.jv-act:hover { background: var(--surface-3); }
     .jv-bar .input { font-size: 16px; }
     .jv-row { flex-wrap: wrap; }
     .jv-row select.input { width: 100%; max-width: none; }
+    .jv-range { width: 100%; max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) {
     .jv-r, .jv-halo, .jv-orb::after { animation: none !important; }
