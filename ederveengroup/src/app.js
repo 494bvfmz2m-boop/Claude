@@ -22,7 +22,7 @@ const { createSecondFactor } = require('./twofa');
 const { createSnoozeWaker } = require('./snooze');
 const { createLinks } = require('../lib/links');
 const { createOAuth } = require('../lib/oauth');
-const { APP_ROUTE, APP_PAGES, safeNext } = require('./routes-app');
+const { APP_ROUTE, APP_PAGES, ADMIN_ONLY, safeNext } = require('./routes-app');
 const { adminRoutes, requestRoutes } = require('./routes/servers');
 
 function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
@@ -110,6 +110,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
     if (mail.useOAuth) mail.useOAuth({ servers: p => ctx.oauth.servers(p), token: tokenFor });
     const admin = adminRoutes(ctx);
     ctx.isAdmin = admin.isAdmin;
+    ctx.adminOverview = admin.overview;
     ctx.isBlocked = admin.isBlocked;
     ctx.appOn = name => !(store.servers.getSettings().appsOff || []).includes(name);
     ctx.adminRouter = admin.router; // served at /api/admin (the Admin app)
@@ -183,6 +184,7 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
         site.get(`/${app}`, (req, res) => {
             if (!req.session) return toLogin(res, `/${app}/`);
             if (!ctx.appOn(app)) return ctx.pages.send(res, 'notfound.html', 404); // switched off in Admin
+            if (ADMIN_ONLY.includes(app) && !ctx.isAdmin(req.session.email)) return ctx.pages.send(res, 'notfound.html', 404);
             if (needsName(req)) return toWelcome(res, `/${app}/`);
             if (!req.path.endsWith('/')) return res.redirect(301, `/${app}/`);
             ctx.pages.send(res, `${app}.html`);

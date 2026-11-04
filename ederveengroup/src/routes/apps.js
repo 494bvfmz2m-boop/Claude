@@ -228,6 +228,24 @@ module.exports = function appRoutes(ctx) {
         res.json({ added, known: learned.length });
     });
 
+    // for Jarvis: add or change one of someone's items, checked exactly like the apps' own saves
+    ctx.appItems = {
+        list: (email, app) => list(email, app),
+        put(email, app, value, id = null) {
+            const a = APPS[app];
+            const d = doc(email, app);
+            const key = id || `j${require('crypto').randomBytes(6).toString('base64url')}`;
+            const before = d.items[key];
+            if (!before && Object.keys(d.items).length >= a.max) throw httpError(413, `There are already ${a.max} here`);
+            const now = Date.now();
+            const item = { ...a.clean({ ...(before || {}), ...value }), createdAt: before ? before.createdAt : now, updatedAt: now };
+            const next = { items: { ...d.items, [key]: item } };
+            if (JSON.stringify(next).length > MAX_BYTES) throw httpError(413, 'That’s more than can be saved');
+            store.setApp(email, app, next);
+            return { id: key, ...item };
+        }
+    };
+
     /* ---------- the hub's glance at every app ---------- */
     r.get('/apps-summary', wrap(async (req, res) => {
         const email = req.session.email;
@@ -563,6 +581,8 @@ module.exports = function appRoutes(ctx) {
         }
         return out;
     }
+    ctx.agendaFor = (email, tz, from, span) => eventsAhead(email, tz, from, span);
+    ctx.localOf = localOf;
     const widgetsOn = () => !ctx.appOn || ctx.appOn('widgets');
     r.get('/widget', wrap(async (req, res) => {
         if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');

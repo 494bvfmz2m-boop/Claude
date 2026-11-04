@@ -190,11 +190,7 @@ async function askClaude({ apiKey, baseURL, model, system, content, schema, effo
             ? await c.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
             : await c.messages.create(params);
     } catch (e) {
-        if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new AiError('The Claude API key isn’t accepted. Check it in Admin → AI.', 502);
-        if (e instanceof Anthropic.RateLimitError) throw new AiError('Claude is busy (rate limit). Try again in a minute.', 429);
-        if (e instanceof Anthropic.BadRequestError) throw new AiError(`Claude couldn’t take this request: ${e.message}`, 400);
-        if (e instanceof Anthropic.APIError) throw new AiError(`Claude had a problem (${e.status || 'no answer'}). Try again.`, 502);
-        throw new AiError('Couldn’t reach Claude. Check the server’s internet connection.', 502);
+        throw claudeError(e);
     }
     if (msg.stop_reason === 'refusal') throw new AiError('Claude declined to edit this.', 422);
     if (msg.stop_reason === 'max_tokens') throw new AiError('Claude’s answer was cut off. Try fewer clips.', 502);
@@ -275,6 +271,134 @@ async function askOpenAI({ provider, apiKey, baseURL, model, system, content, sc
     const out = jsonIn(r.text);
     if (!out) throw new AiError(`${(PROVIDERS[provider] || PROVIDERS.custom).name}’s answer couldn’t be read. Try again, or pick a stronger model.`, 502);
     return { out, usage: r.usage, model: r.model };
+}
+
+/* ---------- a conversation with tools (Jarvis) ---------- */
+// The AI may call tools (look things up, add a task…) before it answers. `run(name, input)` does
+// the work and returns what it found; the loop goes on until the AI answers in words.
+function claudeError(e) {
+    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return new AiError('The Claude API key isn’t accepted. Check it in Admin → AI.', 502);
+    if (e instanceof Anthropic.RateLimitError) return new AiError('Claude is busy (rate limit). Try again in a minute.', 429);
+    if (e instanceof Anthropic.BadRequestError) return new AiError(`Claude couldn’t take this request: ${e.message}`, 400);
+    if (e instanceof Anthropic.APIError) return new AiError(`Claude had a problem (${e.status || 'no answer'}). Try again.`, 502);
+    return new AiError('Couldn’t reach Claude. Check the server’s internet connection.', 502);
+}
+const asText = out => {
+    const t = JSON.stringify(out === undefined ? null : out);
+    return t.length > 24000 ? `${t.slice(0, 24000)}…` : t;
+};
+async function runTool(run, used, name, input) {
+    try {
+        const out = await run(name, input || {});
+        used.push({ name, input, ok: true });
+        return { out, error: false };
+    } catch (e) {
+        used.push({ name, input, ok: false });
+        return { out: { error: (e && e.message) || 'That didn’t work' }, error: true };
+    }
+}
+async function converseClaude({ apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6, effort = 'low' }) {
+    const c = client(apiKey, baseURL);
+    const msgs = messages.map(m => ({ role: m.role, content: m.content }));
+    const usage = { input_tokens: 0, output_tokens: 0 };
+    const used = [];
+    let served = model;
+    for (let step = 0; step < maxSteps; step++) {
+        let msg;
+        try {
+            msg = await c.messages.create({ model, max_tokens: 8000, system, messages: msgs, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters })), output_config: { effort } });
+        } catch (e) {
+            throw claudeError(e);
+        }
+        served = msg.model || model;
+        usage.input_tokens += (msg.usage && msg.usage.input_tokens) || 0;
+        usage.output_tokens += (msg.usage && msg.usage.output_tokens) || 0;
+        const said = msg.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+        if (msg.stop_reason === 'refusal') return { text: said || 'I’m afraid I can’t help with that one.', used, usage, model: served };
+        if (msg.stop_reason === 'pause_turn') {
+            msgs.push({ role: 'assistant', content: msg.content });
+            continue;
+        }
+        const calls = msg.content.filter(b => b.type === 'tool_use');
+        if (msg.stop_reason !== 'tool_use' || !calls.length) return { text: said || (msg.stop_reason === 'max_tokens' ? 'I lost my train of thought there. Could you ask that again?' : '…'), used, usage, model: served };
+        // the turn goes back as it came (thinking included), then what each tool found
+        msgs.push({ role: 'assistant', content: msg.content });
+        const results = [];
+        for (const call of calls) {
+            const r = await runTool(run, used, call.name, call.input);
+            results.push({ type: 'tool_result', tool_use_id: call.id, content: asText(r.out), ...(r.error ? { is_error: true } : {}) });
+        }
+        msgs.push({ role: 'user', content: results });
+    }
+    return { text: 'That took more steps than I allow myself. Could you ask it more simply?', used, usage, model: served };
+}
+// the same over the OpenAI-style API, with function calling
+async function converseOpenAI({ provider, apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6 }) {
+    const name = (PROVIDERS[provider] || PROVIDERS.custom).name;
+    if (!baseURL) throw new AiError(`Set the address of the ${name} service in Admin → AI.`, 409);
+    if (!model) throw new AiError(`Pick a ${name} model in Admin → AI.`, 409);
+    const msgs = [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))];
+    // (Gemini turns down a tool with an empty list of parameters, so those go without)
+    const fns = tools.map(t => ({ type: 'function', function: { name: t.name, description: t.description, ...(provider === 'gemini' && !Object.keys(t.parameters.properties || {}).length ? {} : { parameters: t.parameters }) } }));
+    const usage = { input_tokens: 0, output_tokens: 0 };
+    const used = [];
+    let served = model;
+    let retried = false;
+    for (let step = 0; step < maxSteps; step++) {
+        let res;
+        try {
+            res = await fetch(`${baseURL}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}`, ...(provider === 'openrouter' ? { 'X-Title': 'EderveenGroup' } : {}) },
+                body: JSON.stringify({ model, messages: msgs, tools: fns, tool_choice: 'auto' }),
+                signal: AbortSignal.timeout(120 * 1000)
+            });
+        } catch (e) {
+            throw new AiError(e && e.name === 'TimeoutError' ? `${name} took too long to answer.` : `Couldn’t reach ${name}. Check the server’s internet connection.`, 502);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const said = line((data.error && (data.error.message || data.error)) || data.message || '', 200);
+            if (res.status === 401 || res.status === 403) throw new AiError(`${name} doesn’t accept this API key. Check it in Admin → AI.`, 502);
+            if (res.status === 404) throw new AiError(`${name} doesn’t know the model “${model}”. Pick another in Admin → AI.`, 400);
+            if (res.status === 429) throw new AiError(`${name} is busy or the free limit is reached for now. Try again in a minute.`, 429);
+            // the model wrote a broken tool call (Groq says so): one more go usually works
+            if (res.status === 400 && data.error && data.error.code === 'tool_use_failed') {
+                if (!retried) {
+                    retried = true;
+                    step--;
+                    continue;
+                }
+                throw new AiError(`${name}’s model “${model}” got muddled using its tools. Try again, or pick a bigger model in Admin → AI.`, 502);
+            }
+            if (res.status === 400 && /tool|function/i.test(said)) throw new AiError(`${name}’s model “${model}” can’t use tools. Pick another model in Admin → AI.`, 400);
+            throw new AiError(`${name} had a problem (${res.status})${said ? `: ${said}` : ''}.`, res.status >= 500 ? 502 : 400);
+        }
+        served = data.model || model;
+        const u = data.usage || {};
+        usage.input_tokens += u.prompt_tokens || u.input_tokens || 0;
+        usage.output_tokens += u.completion_tokens || u.output_tokens || 0;
+        const choice = (data.choices || [])[0] || {};
+        const m = choice.message || {};
+        const said = (Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '')).trim();
+        const calls = Array.isArray(m.tool_calls) ? m.tool_calls.filter(c => c && c.function && c.function.name) : [];
+        if (!calls.length) return { text: said || (choice.finish_reason === 'content_filter' ? 'I’m afraid I can’t help with that one.' : '…'), used, usage, model: served };
+        msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls });
+        for (const call of calls) {
+            let input = {};
+            try {
+                input = JSON.parse(call.function.arguments || '{}') || {};
+            } catch {
+                input = {};
+            }
+            const r = await runTool(run, used, call.function.name, input);
+            msgs.push({ role: 'tool', tool_call_id: call.id, content: asText(r.out) });
+        }
+    }
+    return { text: 'That took more steps than I allow myself. Could you ask it more simply?', used, usage, model: served };
+}
+function converse(o) {
+    return PROVIDERS[o.provider] && PROVIDERS[o.provider].kind === 'openai' ? converseOpenAI(o) : converseClaude(o);
 }
 
 // "is this key working?": a one-word answer
@@ -379,4 +503,4 @@ Length: ${Number(length) > 0 ? `about ${Math.round(clamp(length, 5, 600))} secon
     return { plan, usage: r.usage, model: r.model, frames };
 }
 
-module.exports = { PROVIDERS, checkBaseUrl, ping, listModels, MODELS, DEFAULT_MODEL, FILTERS, EFFECTS, TRANSITIONS, ASPECTS, TEXT_STYLES, TEXT_ANIMS, editPhoto, editVideo, checkPhoto, checkVideo, AiError, PHOTO_SCHEMA, VIDEO_SCHEMA };
+module.exports = { PROVIDERS, checkBaseUrl, ping, listModels, converse, MODELS, DEFAULT_MODEL, FILTERS, EFFECTS, TRANSITIONS, ASPECTS, TEXT_STYLES, TEXT_ANIMS, editPhoto, editVideo, checkPhoto, checkVideo, AiError, PHOTO_SCHEMA, VIDEO_SCHEMA };

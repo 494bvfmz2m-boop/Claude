@@ -406,8 +406,8 @@
         const active = s.providers.find(x => x.id === s.active);
         const inUse = active.configured ? `<b>${esc(active.name)}</b> · ${esc(active.id === 'claude' ? (s.models.find(m => m.id === active.model) || { name: active.model }).name.split(' (')[0] : active.model || 'no model picked')}` : 'nothing yet (add a key below)';
         const status = p.configured ? (p.source === 'env' ? `Set on the server (${esc(p.env)}), ends in …${esc(p.hint)}` : `Saved, ends in …${esc(p.hint)}${p.savedBy ? ` · by ${esc(p.savedBy)}` : ''}${p.savedAt ? ` · ${esc(new Date(p.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet';
-        main.innerHTML = `<h1>AI</h1><p class="cp-sub">Auto editing in the Photo Editor and the Video Editor. Only admins see it. It runs on your own API key, and that service bills it.</p>
-            <section class="cp-card"><h2>Service</h2><p class="cp-muted">In use for auto editing: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
+        main.innerHTML = `<h1>AI</h1><p class="cp-sub">Auto editing in the Photo Editor and the Video Editor, and Jarvis, your assistant. Only admins see it. It runs on your own API key, and that service bills it.</p>
+            <section class="cp-card"><h2>Service</h2><p class="cp-muted">In use for auto editing and Jarvis: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
                 <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? '<i class="cp-off">Key saved</i>' : ''}</button>`).join('')}</div></section>
             <section class="cp-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="cp-ok">${ic('check')} In use</span>` : '<span class="cp-off">Ready</span>') : '<span class="cp-off">Off</span>'}</div>
                 ${p.source === 'env' ? `<p class="cp-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
@@ -417,17 +417,17 @@
                     <div class="form-error hidden" role="alert"></div>
                     <div class="si-acts">${p.configured && p.source !== 'env' ? '<button type="button" class="btn btn-danger" data-clear>Remove key</button>' : ''}<span class="spacer"></span>${p.configured ? `<button type="button" class="btn" data-test>${ic('zap')}<span>Test</span></button>` : ''}${p.source === 'env' && !p.custom ? '' : `<button class="btn btn-primary" type="submit">${ic('check')}<span>Save</span></button>`}</div>
                 </form>
-                ${p.configured && p.id !== s.active ? `<div class="ai-use-this"><span>${esc(p.name)} is ready.</span><button class="btn btn-primary" data-activate>${ic('check')}<span>Use ${esc(p.name)} for auto editing</span></button></div>` : ''}
+                ${p.configured && p.id !== s.active ? `<div class="ai-use-this"><span>${esc(p.name)} is ready.</span><button class="btn btn-primary" data-activate>${ic('check')}<span>Use ${esc(p.name)} for auto editing and Jarvis</span></button></div>` : ''}
             </section>
             <section class="cp-card"><h2>Model</h2>${
                 p.id === 'claude'
                     ? `<p class="cp-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p><div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === p.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div>`
-                    : `<p class="cp-muted">The model must be able to look at pictures (vision). ${p.defaultModel ? `Suggested: <code>${esc(p.defaultModel)}</code>. ` : ''}${p.configured ? 'Load models shows what your key can use.' : 'Add the key first to see what it can use.'}</p>
+                    : `<p class="cp-muted">The model must be able to look at pictures (vision), and for Jarvis use tools (function calling); most can. ${p.defaultModel ? `Suggested: <code>${esc(p.defaultModel)}</code>. ` : ''}${p.configured ? 'Load models shows what your key can use.' : 'Add the key first to see what it can use.'}</p>
                         <div class="ai-modelrow"><input class="input" id="aimodel" list="aimodels" value="${esc(p.model)}" placeholder="model name" spellcheck="false" autocomplete="off"><datalist id="aimodels"></datalist>${p.configured ? `<button class="btn" data-load>${ic('refresh')}<span>Load models</span></button>` : ''}<button class="btn btn-primary" data-savemodel>${ic('check')}<span>Save</span></button></div>
                         <p class="cp-muted" id="aimodelnote"></p>`
             }
                 <label class="ai-frames"><span>Pictures per video auto edit</span><input class="input" type="number" min="1" max="90" id="aiframes" value="${p.maxImages}"><small>Frames from your clips that ${esc(p.name)} looks at. More gives better edits but costs more; some services take only a few.</small></label></section>
-            <section class="cp-card"><h2>This month</h2><div class="cp-tiles ai-use"><div class="cp-tile"><b>${n(s.usage.requests)}</b><span>auto edits and tests</span></div><div class="cp-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="cp-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="cp-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
+            <section class="cp-card"><h2>This month</h2><div class="cp-tiles ai-use"><div class="cp-tile"><b>${n(s.usage.requests)}</b><span>auto edits, Jarvis and tests</span></div><div class="cp-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="cp-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="cp-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
         const put = body => call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ provider: id, ...body }) });
         $$('[data-prov]', main).forEach(b =>
             b.addEventListener('click', () => {
@@ -580,18 +580,18 @@
     }
 
     /* ---------- apps: which apps everyone gets ---------- */
-    const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', widgets: 'Widgets', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
+    const APP_NAMES = { photoedit: 'Photo Editor', videoedit: 'Video Editor', widgets: 'Widgets', jarvis: 'Jarvis', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard' };
     async function apps() {
         const { pages, off } = await call('/api/admin/apps');
         main.innerHTML = `<h1>Apps</h1><p class="cp-sub">Switch apps off that you don’t use. They disappear from everyone’s dashboard; nobody’s data is deleted.</p>
-            <section class="cp-card cp-apps">${pages.map(a => `<label class="cp-app"><img src="icons/apps/${a}.svg" alt=""><span><b>${esc(APP_NAMES[a] || a)}</b><small>${off.includes(a) ? 'Off' : 'On for everyone'}</small></span><input type="checkbox" class="cp-toggle" data-app="${a}" ${off.includes(a) ? '' : 'checked'}></label>`).join('')}
+            <section class="cp-card cp-apps">${pages.map(a => `<label class="cp-app"><img src="icons/apps/${a}.svg" alt=""><span><b>${esc(APP_NAMES[a] || a)}</b><small>${off.includes(a) ? 'Off' : a === 'jarvis' ? 'On for admins' : 'On for everyone'}</small></span><input type="checkbox" class="cp-toggle" data-app="${a}" ${off.includes(a) ? '' : 'checked'}></label>`).join('')}
             <p class="cp-muted">Mail, Profile and Admin are always on.</p></section>`;
         $$('[data-app]', main).forEach(t =>
             t.addEventListener('change', async () => {
                 const offNow = $$('[data-app]', main).filter(x => !x.checked).map(x => x.dataset.app);
                 try {
                     await call('/api/admin/apps', { method: 'PUT', body: JSON.stringify({ off: offNow }) });
-                    t.closest('.cp-app').querySelector('small').textContent = t.checked ? 'On for everyone' : 'Off';
+                    t.closest('.cp-app').querySelector('small').textContent = t.checked ? (t.dataset.app === 'jarvis' ? 'On for admins' : 'On for everyone') : 'Off';
                     toast(`${APP_NAMES[t.dataset.app]} is ${t.checked ? 'on' : 'off'}`);
                 } catch (err) {
                     t.checked = !t.checked;

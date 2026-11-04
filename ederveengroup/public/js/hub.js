@@ -48,6 +48,7 @@
         { id: 'files', name: 'Files', cat: 'store', href: '/files/', blurb: 'Your own cloud drive, with share links.' },
         { id: 'profile', name: 'Profile', cat: 'you', href: '/profile/', blurb: 'Your contact card, shared with a link.' },
         { id: 'widgets', name: 'Widgets', cat: 'you', href: '/widgets/', blurb: 'Fun widgets for your iPhone: calendar, tasks, notes, weather…' },
+        { id: 'jarvis', name: 'Jarvis', cat: 'you', href: '/jarvis/', blurb: 'Your AI assistant. Just talk.', admin: true },
         { id: 'admin', name: 'Admin', cat: 'you', href: '/admin/', blurb: 'People, sign-in and settings.', admin: true }
     ];
     // the Calendar icon shows today's date, like on a phone

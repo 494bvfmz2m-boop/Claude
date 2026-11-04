@@ -132,6 +132,7 @@ module.exports = function hubRoutes(ctx) {
     r.use(require('./forms')(ctx));
     r.use(require('./chat')(ctx));
     r.use(require('./ai')(ctx));
+    r.use(require('./jarvis')(ctx));
     if (ctx.davApi) r.use(ctx.davApi);
 
     // the Admin app (only for ADMIN_EMAILS)

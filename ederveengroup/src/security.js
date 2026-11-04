@@ -26,7 +26,7 @@ function createSecurityHeaders({ scriptHashes } = {}) {
             'Referrer-Policy': 'no-referrer',
             'Cross-Origin-Opener-Policy': 'same-origin',
             'Cross-Origin-Resource-Policy': 'same-origin',
-            'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+            'Permissions-Policy': 'camera=(), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()',
             'Content-Security-Policy': csp
         });
         next();

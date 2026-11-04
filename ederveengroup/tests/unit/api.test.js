@@ -1901,3 +1901,149 @@ test('Widget gallery: every widget’s Scriptable script runs in every size, and
     assert.match(textOf(r.tree), /no longer works/);
     app.close();
 });
+
+test('Jarvis: admins only, talks with tools over Claude and OpenAI-style services, adds tasks, events and notes', async () => {
+    // a stand-in AI that calls tools: Anthropic (/v1/messages) and OpenAI-style (/v1/chat/completions)
+    const http = require('http');
+    const ai = require('../../lib/ai');
+    const asked = [];
+    let script = []; // what to answer, one per request
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            asked.push({ url: req.url, body: b });
+            const next = script.shift() || {};
+            const send = (status, data) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+            if (next.status) return send(next.status, next.body);
+            if (req.url.startsWith('/v1/messages')) {
+                const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${asked.length}_${i}`, name, input }))];
+                return send(200, { id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 100, output_tokens: 20 } });
+            }
+            const message = { role: 'assistant', content: next.calls ? null : next.text, ...(next.calls ? { tool_calls: next.calls.map(([name, input], i) => ({ id: `call_${asked.length}_${i}`, type: 'function', function: { name, arguments: JSON.stringify(input) } })) } : {}) };
+            send(200, { id: 'c', model: b.model, choices: [{ index: 0, finish_reason: next.calls ? 'tool_calls' : 'stop', message }], usage: { prompt_tokens: 100, completion_tokens: 20 } });
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const port = fake.address().port;
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}` });
+    const jo = app.device();
+    const ann = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
+    await ann('POST', '/api/username', { username: 'ann' });
+    const talk = (who, messages, extra = {}) => who('POST', '/api/jarvis/chat', { messages, tz: 'Europe/Amsterdam', ...extra });
+
+    // only for admins: everyone else gets "not found" for the page and "no" from the api
+    assert.equal((await ann('GET', '/jarvis/')).status, 404);
+    assert.equal((await ann('GET', '/api/jarvis/status')).status, 403);
+    assert.equal((await talk(ann, [{ role: 'user', content: 'hi' }])).status, 403);
+    const pageRes = await jo('GET', '/jarvis/');
+    assert.equal(pageRes.status, 200);
+    assert.match(pageRes.body, /js\/jarvis\.js/);
+    assert.match(pageRes.headers.get('permissions-policy'), /microphone=\(self\)/);
+    assert.ok((await jo('GET', '/api/apps-summary')).body.pages.includes('jarvis'));
+
+    // without an AI service he says what to do
+    let st = (await jo('GET', '/api/jarvis/status')).body;
+    assert.deepEqual([st.on, st.name, st.address], [false, 'Jo', 'name']);
+    const none = await talk(jo, [{ role: 'user', content: 'hi' }]);
+    assert.equal(none.status, 409);
+    assert.match(none.body.error, /Admin → AI/);
+
+    // with Claude: he calls tools, then answers in words
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
+    st = (await jo('GET', '/api/jarvis/status')).body;
+    assert.deepEqual([st.on, st.service], [true, 'Claude']);
+    const tomorrow = new Date(Date.now() + 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    script = [{ text: 'On it.', calls: [['add_task', { text: 'Buy milk', due: tomorrow, starred: true }], ['get_tasks', {}], ['delete_everything', {}]] }, { text: 'Added, Jo. Milk tomorrow.' }];
+    const r1 = await talk(jo, [{ role: 'user', content: 'Remind me to buy milk tomorrow' }], { where: { lat: 52.07, lon: 5.62 } });
+    assert.equal(r1.status, 200);
+    assert.equal(r1.body.reply, 'Added, Jo. Milk tomorrow.');
+    assert.deepEqual(r1.body.used, ['add_task', 'get_tasks', 'delete_everything']);
+    assert.deepEqual(r1.body.actions, [{ kind: 'task', text: 'Added task “Buy milk” (due tomorrow)', href: '/tasks/' }]);
+    const tasks = (await jo('GET', '/api/apps/tasks')).body.items;
+    assert.ok(tasks.some(t => t.text === 'Buy milk' && t.due === tomorrow && t.starred));
+    // what Claude was sent: the tools, the persona, then the tool results for the right calls
+    const first = asked[asked.length - 2].body;
+    assert.equal(asked[asked.length - 2].url, '/v1/messages');
+    assert.ok(first.tools.some(t => t.name === 'add_event' && t.input_schema.required.includes('date')));
+    assert.match(first.system, /Jarvis/);
+    assert.match(first.system, /"Jo"/);
+    assert.match(first.system, /Europe\/Amsterdam/);
+    const second = asked[asked.length - 1].body;
+    const back = second.messages[second.messages.length - 1].content;
+    assert.equal(second.messages[second.messages.length - 2].role, 'assistant');
+    assert.deepEqual(back.map(b => b.type), ['tool_result', 'tool_result', 'tool_result']);
+    assert.equal(back[0].tool_use_id, second.messages[second.messages.length - 2].content.find(b => b.type === 'tool_use').id);
+    assert.match(back[1].content, /Buy milk/);
+    assert.equal(back[2].is_error, true); // there is no such tool
+    assert.match(back[2].content, /No tool called delete_everything/);
+
+    // the way he addresses you
+    assert.equal((await jo('PUT', '/api/jarvis/prefs', { address: 'your majesty' })).status, 400);
+    assert.equal((await jo('PUT', '/api/jarvis/prefs', { address: 'sir' })).body.address, 'sir');
+    assert.equal((await jo('GET', '/api/jarvis/status')).body.address, 'sir');
+
+    // the conversation: roles alternate (two in a row are joined), and it must end with you
+    script = [{ text: 'Very good, sir.' }];
+    const r2 = await talk(jo, [{ role: 'assistant', content: 'Hello' }, { role: 'user', content: 'One' }, { role: 'user', content: 'Two' }, { role: 'assistant', content: 'Yes?' }, { role: 'user', content: 'Thanks' }]);
+    assert.equal(r2.body.reply, 'Very good, sir.');
+    const sent = asked[asked.length - 1].body;
+    assert.deepEqual(sent.messages.map(m => m.role), ['user', 'assistant', 'user']);
+    assert.equal(sent.messages[0].content, 'One\nTwo');
+    assert.match(sent.system, /"sir"/);
+    assert.equal((await talk(jo, [{ role: 'assistant', content: 'Hi' }])).status, 400);
+
+    // an event and ticking off a task
+    script = [{ calls: [['add_event', { title: 'Dentist', date: tomorrow, time: '09:30', minutes: 45 }], ['complete_task', { text: 'milk' }]] }, { text: 'Done.' }];
+    const r3 = await talk(jo, [{ role: 'user', content: 'Dentist tomorrow at half nine, and I bought the milk' }]);
+    assert.deepEqual(r3.body.actions.map(a => a.kind), ['event', 'done']);
+    const ev = (await jo('GET', '/api/apps/calendar')).body.items.find(e => e.title === 'Dentist');
+    assert.deepEqual([ev.start, ev.end], [`${tomorrow}T09:30`, `${tomorrow}T10:15`]);
+    assert.equal((await jo('GET', '/api/apps/tasks')).body.items.find(t => t.text === 'Buy milk').done, true);
+
+    // over an OpenAI-style service (Gemini, Groq…): function calls, the same tools
+    await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: `http://127.0.0.1:${port}/v1` });
+    await jo('PUT', '/api/admin/ai', { provider: 'custom', apiKey: 'local-key-abcdef', model: 'tool-model' });
+    await jo('PUT', '/api/admin/ai', { provider: 'custom', active: true });
+    assert.equal((await jo('GET', '/api/jarvis/status')).body.service, 'AI');
+    script = [{ calls: [['add_note', { title: 'Suit ideas', text: 'Make it red and gold.' }], ['check_mail', {}]] }, { text: 'Noted, sir. One unread email.' }];
+    const r4 = await talk(jo, [{ role: 'user', content: 'Note: make it red and gold. Any mail?' }]);
+    assert.equal(r4.body.reply, 'Noted, sir. One unread email.');
+    assert.deepEqual(r4.body.actions.map(a => a.kind), ['note']);
+    const o1 = asked[asked.length - 2];
+    assert.equal(o1.url, '/v1/chat/completions');
+    assert.deepEqual([o1.body.tool_choice, o1.body.messages[0].role, o1.body.tools[0].type], ['auto', 'system', 'function']);
+    const o2 = asked[asked.length - 1].body.messages;
+    assert.deepEqual(o2.slice(-3).map(m => m.role), ['assistant', 'tool', 'tool']);
+    assert.equal(o2[o2.length - 2].tool_call_id, o2[o2.length - 3].tool_calls[0].id);
+    assert.match(o2[o2.length - 1].content, /"unread":1/);
+    assert.ok((await jo('GET', '/api/apps/notes')).body.items.some(n => n.title === 'Suit ideas'));
+    // a service that fails: its own words, not a crash
+    script = [{ status: 429, body: { error: { message: 'Rate limit reached' } } }];
+    const busy = await talk(jo, [{ role: 'user', content: 'Hello?' }]);
+    assert.equal(busy.status, 429);
+    assert.match(busy.body.error, /busy|limit/i);
+
+    // Gemini: tools without parameters go without; Groq: a broken tool call is asked again once
+    const run = async name => ({ ok: name });
+    const tools = require('../../src/routes/jarvis').TOOLS;
+    script = [{ text: 'Hi.' }];
+    await ai.converse({ provider: 'gemini', apiKey: 'k', baseURL: `http://127.0.0.1:${port}/v1`, model: 'gemini-x', system: 's', messages: [{ role: 'user', content: 'hi' }], tools, run });
+    const gem = asked[asked.length - 1].body.tools;
+    assert.equal(gem.find(t => t.function.name === 'get_time').function.parameters, undefined);
+    assert.ok(gem.find(t => t.function.name === 'add_task').function.parameters);
+    script = [{ status: 400, body: { error: { message: 'Failed to call a function', code: 'tool_use_failed' } } }, { calls: [['get_time', {}]] }, { text: 'It is late.' }];
+    const g = await ai.converse({ provider: 'groq', apiKey: 'k', baseURL: `http://127.0.0.1:${port}/v1`, model: 'llama', system: 's', messages: [{ role: 'user', content: 'time?' }], tools, run });
+    assert.deepEqual([g.text, g.used.map(u => u.name)], ['It is late.', ['get_time']]);
+
+    // switched off in Admin → Apps: gone
+    await jo('PUT', '/api/admin/apps', { off: ['jarvis'] });
+    assert.equal((await jo('GET', '/api/jarvis/status')).status, 404);
+    assert.equal((await jo('GET', '/jarvis/')).status, 404);
+    app.close();
+});

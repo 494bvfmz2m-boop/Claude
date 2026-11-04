@@ -112,6 +112,14 @@ module.exports = function aiRoutes(ctx) {
         throw e;
     };
     const use = s => ({ provider: s.provider, apiKey: s.apiKey, baseURL: s.baseURL, model: s.model, maxImages: s.maxImages });
+    // for Jarvis: the service in use (or null when no key is set), and the monthly count
+    ctx.aiService = () => {
+        const st = load();
+        const s = service(st.active, st);
+        return s.apiKey ? { ...use(s), name: P[st.active].custom ? 'AI' : P[st.active].name, label: named(st.active, s.model) } : null;
+    };
+    ctx.aiCount = count;
+    ctx.aiNamed = named;
 
     r.post('/ai/photo', wrap(async (req, res) => {
         const s = ready(req);
