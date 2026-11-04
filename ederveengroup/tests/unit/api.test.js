@@ -1930,6 +1930,8 @@ test('Jarvis: admins only, talks with tools, remembers on the server, and switch
             const next = script.shift() || {};
             const send = (status, data) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
             if (next.status) return send(next.status, next.body);
+            // like Gemini: an empty piece of text anywhere is refused
+            if (!req.url.startsWith('/v1/messages') && (b.messages || []).some(m => m.content === '')) return send(400, { error: { message: 'Unable to submit request because it has an empty text parameter. Add a value to the parameter and try again.' } });
             if (req.url.startsWith('/v1/messages')) {
                 const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${asked.length}_${i}`, name, input }))];
                 return send(200, { id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 100, output_tokens: 20 } });

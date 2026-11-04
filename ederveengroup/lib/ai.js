@@ -387,7 +387,7 @@ async function converseOpenAI({ provider, apiKey, baseURL, model, system, messag
                 }
                 throw new AiError(`${name}’s model “${model}” got muddled using its tools. Try again, or pick a bigger model in Admin → AI.`, 502);
             }
-            if (res.status === 400 && /tool|function/i.test(said)) throw new AiError(`${name}’s model “${model}” can’t use tools. Pick another model in Admin → AI.`, 400);
+            if (res.status === 400 && /tool|function/i.test(said)) throw new AiError(`${name}’s model “${model}” can’t use tools (${name} said: ${said}). Pick another model in Admin → AI.`, 400);
             throw new AiError(`${name} had a problem (${res.status})${said ? `: ${said}` : ''}.`, res.status >= 500 ? 502 : 400);
         }
         served = data.model || model;
@@ -399,7 +399,8 @@ async function converseOpenAI({ provider, apiKey, baseURL, model, system, messag
         const said = unthink(Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '')).trim();
         const calls = Array.isArray(m.tool_calls) ? m.tool_calls.filter(c => c && c.function && c.function.name) : [];
         if (!calls.length) return { text: said || (choice.finish_reason === 'content_filter' ? 'I’m afraid I can’t help with that one.' : '…'), used, usage, model: served };
-        msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls });
+        // (no words with the tool calls is null, never '': Gemini refuses an empty piece of text)
+        msgs.push({ role: 'assistant', content: typeof m.content === 'string' && m.content.trim() ? m.content : null, tool_calls: calls });
         for (const call of calls) {
             let input = {};
             try {
