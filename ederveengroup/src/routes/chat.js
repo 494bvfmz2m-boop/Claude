@@ -290,6 +290,30 @@ module.exports = function chatRoutes(ctx) {
 
     // the dashboard: how many unread messages
     const before = ctx.summaryExtras;
+    // for Jarvis: send a chat message (after the person tapped Send on his draft), and who can be chatted with
+    ctx.chatPeople = async me => (await store.listPeople()).filter(p => p.email !== me && p.username && canChat(p.email)).map(p => ({ email: p.email, name: p.name || '', username: p.username }));
+    ctx.chatSend = async (me, others, text) => {
+        others = [...new Set(others.map(e => String(e).trim().toLowerCase()))].filter(e => e && e !== me);
+        if (!others.length) throw httpError(400, 'Pick someone to send it to');
+        for (const e of others) if (!canChat(e)) throw httpError(400, `${e} isn’t on EderveenGroup`);
+        if (sending.blocked(me)) throw httpError(429, 'Slow down a little');
+        const all = await index();
+        let hit = others.length === 1 ? Object.entries(all.convs).find(([, c]) => c.direct && c.members.length === 2 && c.members.includes(me) && c.members.includes(others[0])) : null;
+        if (!hit) {
+            const cid = id(9);
+            all.convs[cid] = { members: [me, ...others], name: '', direct: others.length === 1, createdBy: me, createdAt: Date.now(), lastAt: Date.now(), last: null };
+            docs.save('chat-index');
+            tell(all.convs[cid].members, 'conv', { id: cid });
+            hit = [cid, all.convs[cid]];
+        }
+        sending.hit(me);
+        const m = await post(hit[0], hit[1], me, { text });
+        const read = readOf(me);
+        read.items[hit[0]] = m.at;
+        store.setApp(me, 'chatread', read);
+        return { cid: hit[0] };
+    };
+
     ctx.summaryExtras = async email => {
         const all = await index();
         let unread = 0;

@@ -46,7 +46,7 @@
     const NL = /\b(de|het|een|ik|je|jij|jouw|niet|van|en|dat|op|voor|met|zijn|er|maar|ook|nog|wat|vandaag|morgen|heb|hebt|heeft|staat|geen|uw|taak|taken|alle|nieuwe|graag|meneer|mevrouw)\b/gi;
     const EN = /\b(the|you|a|to|and|of|your|it|for|on|today|tomorrow|have|has|are|no|what|there|with|all|new|sir|ma'am)\b/gi;
     const isDutch = t => (String(t).match(NL) || []).length > (String(t).match(EN) || []).length;
-    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note', memory: 'sparkle', forget: 'eraser' };
+    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note', memory: 'sparkle', forget: 'eraser', type: 'pen', email: 'mail', chat: 'send' };
     const WEATHERY = /weather|weer|rain|regen|umbrella|paraplu|temperat|forecast|outside|buiten|cold|warm|koud|jas|coat|snow|sneeuw|wind|brief|ochtend|morning|today|vandaag/i;
 
     /* ---------- the page ---------- */
@@ -114,9 +114,50 @@
     function bubble(m, i = Infinity) {
         const seen = i < drawn ? ' seen' : '';
         if (m.role === 'user') return `<div class="jv-msg me${seen}"><p>${esc(m.content)}</p></div>`;
-        const acts = (m.actions || []).filter(a => a && a.text);
+        const acts = (m.actions || []).filter(a => a && a.text && !a.draft);
+        const drafts = (m.actions || []).filter(a => a && a.draft);
         const act = a => (/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`);
-        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
+        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
+    }
+    // an email or chat message he wrote: change it if you like, then Send (nothing goes out before that)
+    const rows = t => Math.min(14, Math.max(3, String(t || '').split('\n').length + Math.floor(String(t || '').length / 60)));
+    const addr = list => (list || []).map(a => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ');
+    function draftCard(a) {
+        const d = a.draft;
+        const done = a.sent ? 'sent' : a.discarded ? 'discarded' : '';
+        const off = done ? ' disabled' : '';
+        const head = d.kind === 'email' ? `${ic('mail')}<b>Email</b>` : `${ic('send')}<b>Chat message</b><span>to ${esc(d.to.map(t => t.name).join(', '))}</span>`;
+        return `<div class="jv-draft${done ? ` ${done}` : ''}" data-draft="${esc(d.id)}">
+            <div class="jv-draft-head">${head}${done ? `<i>${a.sent ? `${ic('check')} Sent` : 'Discarded'}</i>` : ''}</div>
+            ${d.kind === 'email' ? `<label class="jv-d-row"><span>To</span><input class="jv-d-to" value="${esc(addr(d.to))}"${off} spellcheck="false"></label>${d.cc && d.cc.length ? `<label class="jv-d-row"><span>Cc</span><input value="${esc(addr(d.cc))}" disabled></label>` : ''}<label class="jv-d-row"><span>Subject</span><input class="jv-d-subject" value="${esc(d.subject)}"${off}></label>` : ''}
+            <textarea class="jv-d-text" rows="${rows(d.body || d.text)}"${off}>${esc(d.kind === 'email' ? d.body : d.text)}</textarea>
+            ${done ? '' : `<div class="jv-draft-acts"><button type="button" class="btn btn-ghost" data-discard>Discard</button><button type="button" class="btn btn-primary" data-send>${ic('send')}<span>Send</span></button></div>`}
+        </div>`;
+    }
+    const draftById = id => {
+        for (const m of log) for (const a of m.actions || []) if (a.draft && a.draft.id === id) return a;
+        return null;
+    };
+    async function sendDraft(card, discard) {
+        const a = draftById(card.dataset.draft);
+        if (!a) return;
+        const d = a.draft;
+        const b = card.querySelector('[data-send]');
+        if (b) b.disabled = true;
+        try {
+            if (discard) await window.EG.call(`/api/jarvis/drafts/${encodeURIComponent(d.id)}`, { method: 'DELETE' });
+            else {
+                const body = d.kind === 'email' ? { to: $('.jv-d-to', card).value, subject: $('.jv-d-subject', card).value, text: $('.jv-d-text', card).value } : { text: $('.jv-d-text', card).value };
+                const r = await window.EG.call(`/api/jarvis/drafts/${encodeURIComponent(d.id)}/send`, { method: 'POST', body });
+                a.href = r.href;
+                toast(d.kind === 'email' ? 'Email sent' : 'Message sent');
+            }
+            a[discard ? 'discarded' : 'sent'] = Date.now();
+            drawLog();
+        } catch (err) {
+            if (b) b.disabled = false;
+            toast(err.message, { bad: true });
+        }
     }
     function setup() {
         return `<div class="jv-setup">
@@ -211,7 +252,7 @@
             const res = await fetch('/api/jarvis/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-EG': '1' },
-                body: JSON.stringify({ message: text, tz: tz(), where })
+                body: JSON.stringify({ message: text, tz: tz(), where, screen: screenNow() })
             });
             if (res.status === 401) return location.replace('/login?next=%2Fjarvis%2F');
             const data = await res.json().catch(() => ({}));
@@ -222,6 +263,7 @@
             if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
             reply = String(data.reply || '…');
             log.push({ role: 'assistant', content: reply, actions: data.actions || [], via: data.service, note: handedOver(data) });
+            for (const a of data.actions || []) if (a.kind === 'type' && a.type) typeIntoApp(a);
             if (data.memories) status.memories = data.memories;
         } catch (e) {
             log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
@@ -233,6 +275,28 @@
         setState('idle');
         if (reply && prefs.speak && synth) speak(reply);
         else resumeWake();
+    }
+
+    // the app behind the pop-up: what's on it, and typing his text into it, bit by bit
+    function screenNow() {
+        if (!mini) return undefined;
+        try {
+            return window.parent.EGJarvisDock.screen();
+        } catch {
+            return undefined;
+        }
+    }
+    function typeIntoApp(a) {
+        try {
+            window.parent.EGJarvisDock.type(a.type, {
+                onDone: ok => {
+                    a.text = ok ? a.text.replace(/^Writing in/, 'Wrote in') : 'Stopped writing';
+                    drawLog();
+                }
+            });
+        } catch {
+            a.text = 'Couldn’t write there';
+        }
     }
 
     // when a backup service answered: say so, quietly
@@ -656,6 +720,9 @@
             muteButton();
             return;
         }
+        const card = e.target.closest('[data-draft]');
+        if (card && e.target.closest('[data-send]')) return sendDraft(card, false);
+        if (card && e.target.closest('[data-discard]')) return sendDraft(card, true);
         const c = e.target.closest('[data-say]');
         if (c) {
             const say = c.dataset.say;
@@ -666,6 +733,14 @@
                 input.setSelectionRange(say.length, say.length);
             } else send(say);
         }
+    });
+    root.addEventListener('input', e => {
+        const card = e.target.closest('[data-draft]');
+        const a = card && draftById(card.dataset.draft);
+        if (!a) return;
+        if (e.target.matches('.jv-d-text')) a.draft[a.draft.kind === 'email' ? 'body' : 'text'] = e.target.value;
+        if (e.target.matches('.jv-d-subject')) a.draft.subject = e.target.value;
+        if (e.target.matches('.jv-d-to')) a.draft.to = e.target.value.split(',').map(x => ({ name: '', address: x.trim() })).filter(x => x.address);
     });
     root.addEventListener('submit', e => {
         e.preventDefault();

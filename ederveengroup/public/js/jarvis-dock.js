@@ -36,6 +36,112 @@
         <g fill="currentColor" opacity=".85">${Array.from({ length: 8 }, (_, i) => `<rect x="22.6" y="9.5" width="2.8" height="4.6" rx="1" transform="rotate(${i * 45} 24 24)"/>`).join('')}</g>
         <circle cx="24" cy="24" r="9" fill="url(#jvdCore)"/><circle cx="24" cy="24" r="4.2" fill="#effeff"/></svg>`;
 
+    /* ---------- the page behind the pop-up: what's on it, and typing into it ---------- */
+    // the field you were last in (so Jarvis can type there even though you're talking to him)
+    let field = null;
+    let range = null;
+    const writable = el =>
+        el && el !== document.body && !el.closest('.jvd-panel') &&
+        (el.isContentEditable || (el.tagName === 'TEXTAREA' && !el.readOnly && !el.disabled) || (el.tagName === 'INPUT' && /^(text|search|email|url|)$/i.test(el.type) && !el.readOnly && !el.disabled));
+    document.addEventListener('focusin', e => {
+        const el = e.target.isContentEditable ? e.target.closest('[contenteditable=""], [contenteditable="true"]') || e.target : e.target;
+        if (writable(el)) field = el;
+    });
+    document.addEventListener('selectionchange', () => {
+        const sel = getSelection();
+        if (field && field.isContentEditable && sel.rangeCount && field.contains(sel.anchorNode)) range = sel.getRangeAt(0).cloneRange();
+    });
+    const APP_NAMES = { hub: 'dashboard', app: 'Mail', notes: 'Notes', tasks: 'Tasks', contacts: 'Contacts', calendar: 'Calendar', files: 'Files', photos: 'Photos', docs: 'Docs', slides: 'Slides', sheets: 'Spreadsheets', forms: 'Forms', chat: 'Chat', planner: 'Planner', whiteboard: 'Whiteboard', photoedit: 'Photo Editor', videoedit: 'Video Editor', widgets: 'Widgets', admin: 'Admin', profile: 'Profile' };
+    function appName() {
+        if (/^\/mail\//.test(location.pathname)) return 'Mail';
+        // (every app page is also a "hub-body app-body": the app is the other one, like "docs-body")
+        const own = [...document.body.classList].map(c => /^([a-z]+)-body$/.exec(c)).filter(m => m && m[1] !== 'hub' && m[1] !== 'app').map(m => m[1])[0];
+        if (own) return APP_NAMES[own] || own;
+        return location.pathname === '/' ? 'dashboard' : document.title.split(' · ')[0];
+    }
+    function labelOf(el) {
+        const l = el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.getAttribute('title') || (el.labels && el.labels[0] && el.labels[0].textContent) || el.name || '';
+        return l.trim().slice(0, 100);
+    }
+    function screen() {
+        const main = document.querySelector('main') || document.body;
+        const copy = main.cloneNode(true);
+        copy.querySelectorAll('script, style, svg, .jvd-panel, .jvd-btn, [aria-hidden="true"]').forEach(x => x.remove());
+        let selected = '';
+        try {
+            selected = String(range && field && field.isContentEditable ? range.toString() : getSelection()).trim();
+            if (!selected && field && field.selectionEnd > field.selectionStart) selected = field.value.slice(field.selectionStart, field.selectionEnd);
+        } catch {
+            selected = '';
+        }
+        const alive = field && document.contains(field);
+        return {
+            app: appName(),
+            title: document.title,
+            path: location.pathname,
+            focused: alive ? { kind: field.isContentEditable ? 'text editor' : field.tagName === 'TEXTAREA' ? 'text box' : 'text field', label: labelOf(field) } : null,
+            selected: selected.slice(0, 4000),
+            text: (copy.innerText || copy.textContent || '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 12000)
+        };
+    }
+    // type text where the cursor was, a few letters at a time (so you see it being written)
+    let typing = null;
+    function type(text, { onDone } = {}) {
+        if (typing) typing.stop();
+        const el = field && document.contains(field) ? field : null;
+        if (!el) return onDone && onDone(false), null;
+        el.focus({ preventScroll: false });
+        if (el.isContentEditable && range) {
+            const sel = getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        const rich = el.isContentEditable;
+        const oneLine = el.tagName === 'INPUT';
+        const pieces = String(text).replace(/\r/g, '').split(/(\n+)/).filter(Boolean);
+        const per = Math.max(1, Math.ceil(text.length / 650)); // long texts type faster, so it never takes more than ~12 s
+        let i = 0;
+        let pos = 0;
+        let stopped = false;
+        const insert = t => {
+            if (document.execCommand('insertText', false, t)) return;
+            // (a browser that won't: put it in by hand, and tell the app)
+            if (!rich) {
+                el.setRangeText(t, el.selectionStart, el.selectionEnd, 'end');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+        const step = () => {
+            if (stopped) return;
+            if (i >= pieces.length) return finish(true);
+            const piece = pieces[i];
+            if (piece[0] === '\n') {
+                if (oneLine) insert(' ');
+                else if (rich) document.execCommand(piece.length > 1 ? 'insertParagraph' : 'insertLineBreak');
+                else insert(piece.length > 1 ? '\n\n' : '\n');
+                i++;
+            } else {
+                insert(piece.slice(pos, pos + per));
+                pos += per;
+                if (pos >= piece.length) (i++, (pos = 0));
+            }
+            setTimeout(step, 16);
+        };
+        const finish = ok => {
+            typing = null;
+            btn && btn.classList.remove('typing');
+            if (!rich) el.dispatchEvent(new Event('change', { bubbles: true }));
+            onDone && onDone(ok);
+        };
+        const btn = document.querySelector('.jvd-btn');
+        btn && btn.classList.add('typing');
+        typing = { stop: () => ((stopped = true), finish(false)) };
+        step();
+        return typing;
+    }
+    const stopTyping = () => typing && typing.stop();
+    document.addEventListener('keydown', e => e.key === 'Escape' && typing && stopTyping(), true);
+
     function mount() {
         const btn = document.createElement('button');
         btn.className = 'jvd-btn';
@@ -170,7 +276,7 @@
             btn.focus({ preventScroll: true });
         }
         const toggle = () => (open ? close() : show());
-        window.EGJarvisDock = { open: show, close, toggle };
+        window.EGJarvisDock = { open: show, close, toggle, screen, type, stopTyping };
         document.addEventListener('keydown', e => {
             if (e.altKey && e.code === 'KeyJ' && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();

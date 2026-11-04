@@ -3943,3 +3943,24 @@ span.jv-act:hover { background: var(--surface-3); }
 @keyframes chSpin { from { opacity: 0; transform: perspective(420px) rotateY(-110deg); } }
 @keyframes chType { from { opacity: 0; } }
 @keyframes chZoom { from { opacity: 0; transform: scale(2.4); } }
+
+/* Jarvis's drafts: an email or chat message to check, change and send */
+.jv-draft { margin-top: 10px; padding: 10px 12px 12px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2); }
+.jv-draft-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 13px; }
+.jv-draft-head .i { width: 15px; height: 15px; color: #2ccfff; }
+.jv-draft-head span { color: var(--text-3); }
+.jv-draft-head i { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.jv-draft.sent .jv-draft-head i { color: var(--success); }
+.jv-draft.sent .jv-draft-head i .i { color: var(--success); }
+.jv-d-row { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.jv-d-row span { color: var(--text-3); }
+.jv-d-row input { min-width: 0; height: 30px; padding: 0 4px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; outline: 0; }
+.jv-d-text { display: block; width: 100%; margin-top: 8px; padding: 8px 10px; border: 0; border-radius: 10px; resize: vertical; background: var(--surface-2); color: var(--text); font: 14px/1.5 var(--ui); box-shadow: inset 0 0 0 1px var(--line); }
+.jv-d-text:focus, .jv-d-row input:focus { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.jv-draft :disabled { opacity: .7; cursor: default; }
+.jv-draft-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.jv-draft-acts .btn { height: 34px; }
+.jv-draft.discarded { opacity: .55; }
+/* the button glows while he's writing into the app */
+.jvd-btn.typing { animation: jvd-typing 1s ease-in-out infinite; }
+@keyframes jvd-typing { 50% { box-shadow: 0 0 0 2px #5fe3ff, 0 0 34px 2px rgba(63, 220, 255, .85); } }

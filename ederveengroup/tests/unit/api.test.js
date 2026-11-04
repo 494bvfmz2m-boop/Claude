@@ -2133,3 +2133,98 @@ test('Jarvis: admins only, talks with tools, remembers on the server, and switch
     assert.equal((await jo('GET', '/jarvis/')).status, 404);
     app.close();
 });
+
+test('Jarvis writes emails and chat messages as drafts (sent only with a tap), and types into the app he is over', async () => {
+    const http = require('http');
+    const asked = [];
+    let script = [];
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            asked.push(b);
+            const next = script.shift() || { text: 'Done.' };
+            const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${asked.length}_${i}`, name, input }))];
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }));
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${fake.address().port}` });
+    const jo = app.device();
+    const ann = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
+    await ann('POST', '/api/username', { username: 'ann' });
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
+    await jo('PUT', '/api/apps/contacts/ct-pepper1', { name: 'Pepper Potts', emails: ['pepper@example.com'] });
+    const talk = (message, extra = {}) => jo('POST', '/api/jarvis/chat', { message, tz: 'Europe/Amsterdam', ...extra });
+    const resultOf = (n = 1) => asked[asked.length - n].messages.slice(-1)[0].content.map(c => JSON.parse(c.content));
+
+    // an email: names become addresses, and it's a draft (nothing is sent)
+    script = [{ calls: [['find_people', { name: 'pepper' }]] }, { calls: [['write_email', { to: ['Pepper'], subject: 'Dinner', body: 'Hi Pepper,\n\nDinner at eight?\n\nJo' }]] }, { text: 'Your email to Pepper is ready to send.' }];
+    const sentBefore = app.mail.sent.length;
+    const r1 = await talk('Email Pepper about dinner at eight');
+    const found = JSON.parse(asked[asked.length - 2].messages.slice(-1)[0].content[0].content);
+    assert.deepEqual(found.people.map(p => [p.name, p.email, p.from]), [['Pepper Potts', 'pepper@example.com', ['contacts']]]);
+    const draft = r1.body.actions[0];
+    assert.equal(draft.kind, 'email');
+    assert.deepEqual(draft.draft.to, [{ name: 'Pepper Potts', address: 'pepper@example.com' }]);
+    assert.equal(app.mail.sent.length, sentBefore); // not sent by itself
+    assert.match(asked[asked.length - 1].system, /you never send anything yourself/);
+    // you send it (here with a better subject); then it's gone, and his memory shows it as sent
+    const s1 = await jo('POST', `/api/jarvis/drafts/${draft.draft.id}/send`, { subject: 'Dinner tonight?' });
+    assert.deepEqual(s1.body, { ok: true, href: '/mail/' });
+    const mailed = app.mail.sent[app.mail.sent.length - 1];
+    assert.deepEqual([mailed.to[0].address, mailed.subject], ['pepper@example.com', 'Dinner tonight?']);
+    assert.match(mailed.text, /Dinner at eight\?/);
+    assert.match(mailed.html, /^<p>Hi Pepper,<\/p><p>Dinner at eight\?<\/p>/);
+    assert.equal((await jo('POST', `/api/jarvis/drafts/${draft.draft.id}/send`, {})).status, 404);
+    assert.ok((await jo('GET', '/api/jarvis/status')).body.history.slice(-1)[0].actions[0].sent);
+    // someone he can't find: he asks, nothing is drafted
+    script = [{ calls: [['write_email', { to: ['Bruce'], subject: 'Hi', body: 'Hello' }]] }, { text: 'What is Bruce’s email address?' }];
+    const r2 = await talk('Email Bruce hello');
+    assert.deepEqual(r2.body.actions, []);
+    assert.match(resultOf()[0].note, /No address found for “Bruce”/);
+
+    // a chat message to someone on EderveenGroup
+    script = [{ calls: [['write_chat', { to: 'ann', text: 'Coffee at three?' }]] }, { text: 'Your message to Ann is ready.' }];
+    const r3 = await talk('Ask Ann on chat if she wants coffee at three');
+    const chat = r3.body.actions[0];
+    assert.deepEqual([chat.kind, chat.draft.to[0].address], ['chat', USER2]);
+    assert.deepEqual((await ann('GET', '/api/chat')).body, []); // nothing yet
+    const s3 = await jo('POST', `/api/jarvis/drafts/${chat.draft.id}/send`, {});
+    assert.match(s3.body.href, /^\/chat\/#/);
+    const annChats = (await ann('GET', '/api/chat')).body;
+    assert.equal(annChats.length, 1);
+    assert.equal(annChats[0].last.text, 'Coffee at three?');
+    // not on EderveenGroup: no chat message
+    script = [{ calls: [['write_chat', { to: 'pepper', text: 'Hi' }]] }, { text: 'Pepper isn’t on EderveenGroup.' }];
+    assert.deepEqual((await talk('Chat Pepper hi')).body.actions, []);
+    // a draft you don't want
+    script = [{ calls: [['write_email', { to: ['pepper@example.com'], subject: 'Nope', body: 'Never mind' }]] }, { text: 'Ready.' }];
+    const r4 = await talk('Email Pepper never mind');
+    assert.deepEqual((await jo('DELETE', `/api/jarvis/drafts/${r4.body.actions[0].draft.id}`)).body, { ok: true });
+    assert.equal((await jo('POST', `/api/jarvis/drafts/${r4.body.actions[0].draft.id}/send`, {})).status, 404);
+
+    // the app behind the pop-up: only from there can he look at it and type into it
+    script = [{ text: 'Hello.' }];
+    await talk('Hi');
+    assert.equal(asked[asked.length - 1].tools.some(t => t.name === 'type_here'), false);
+    const screen = { app: 'Docs', title: 'Cars · Docs', path: '/docs/', focused: { kind: 'text editor', label: 'Document' }, selected: '', text: 'Cars\nA short history.' };
+    script = [{ calls: [['look_at_screen', {}], ['type_here', { text: 'Cars changed the world.\n\nThey made travel easy.' }]] }, { text: 'Writing it now, sir.' }];
+    const r5 = await talk('Write a bit about cars in my document', { screen });
+    const sent5 = asked[asked.length - 2];
+    assert.ok(sent5.tools.some(t => t.name === 'type_here') && sent5.tools.some(t => t.name === 'look_at_screen'));
+    assert.match(sent5.system, /small Jarvis window over the Docs app/);
+    assert.equal(resultOf()[0].title, 'Cars · Docs');
+    assert.deepEqual(r5.body.actions, [{ kind: 'type', text: 'Writing in Docs', type: 'Cars changed the world.\n\nThey made travel easy.' }]);
+    // nowhere to type: he asks you to click there first
+    script = [{ calls: [['type_here', { text: 'Hello' }]] }, { text: 'Click where it should go first.' }];
+    const r6 = await talk('Write hello', { screen: { ...screen, focused: null } });
+    assert.deepEqual(r6.body.actions, []);
+    assert.match(resultOf()[0].note, /click where the text should go/);
+    app.close();
+});

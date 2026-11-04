@@ -11,9 +11,13 @@
 //   POST   /api/jarvis/chat          { message, tz, where: { lat, lon } } → { reply, actions, service, switched }
 //   DELETE /api/jarvis/history       forget the conversation
 //   DELETE /api/jarvis/memory/:id    forget one thing he remembered
+//   POST   /api/jarvis/drafts/:id/send   { to?, subject?, text? }  send an email or chat message he wrote, once you tap Send
+//   DELETE /api/jarvis/drafts/:id        throw that draft away
+// He never sends anything himself: emails and chat messages are drafts you send with a tap. From the
+// pop-up in another app he can also look at that page and type into the field you were in.
 
 const express = require('express');
-const { wrap, httpError, requireAuth } = require('../http');
+const { wrap, httpError, requireAuth, parseAddresses } = require('../http');
 const { createLimiter } = require('../security');
 const ai = require('../../lib/ai');
 
@@ -38,8 +42,17 @@ const TOOLS = [
     { name: 'get_weather', description: 'The weather where the user is now and the next three days.', parameters: { type: 'object', properties: {} } },
     { name: 'site_status', description: 'How the user’s EderveenGroup site is doing (they are its admin): people, who was active this week, sign-in requests waiting, failed sign-ins, the version, storage.', parameters: { type: 'object', properties: {} } },
     { name: 'remember', description: 'Keep something about the user for later conversations: a preference, a birthday, a name, a plan, or anything they ask you to remember. One short fact per call, written so it makes sense on its own later.', parameters: { type: 'object', properties: { fact: { type: 'string' } }, required: ['fact'] } },
-    { name: 'forget', description: 'Forget something you remembered, when the user asks you to. Give (part of) what you remembered.', parameters: { type: 'object', properties: { about: { type: 'string' } }, required: ['about'] } }
+    { name: 'forget', description: 'Forget something you remembered, when the user asks you to. Give (part of) what you remembered.', parameters: { type: 'object', properties: { about: { type: 'string' } }, required: ['about'] } },
+    { name: 'find_people', description: 'Look up people by name: the user’s contacts, people they have emailed, and people on EderveenGroup (who can be sent chat messages). Gives their email addresses and usernames.', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } },
+    { name: 'write_email', description: 'Write an email for the user. It is shown to them as a draft they can change and send with a tap: you can’t send it yourself. Use email addresses (find_people turns names into addresses).', parameters: { type: 'object', properties: { to: { type: 'array', items: { type: 'string' }, description: 'Email addresses' }, cc: { type: 'array', items: { type: 'string' } }, subject: { type: 'string' }, body: { type: 'string', description: 'The whole email, plain text, with a greeting and a sign-off in their name.' } }, required: ['to', 'subject', 'body'] } },
+    { name: 'write_chat', description: 'Write a chat message on EderveenGroup for the user to someone there. It is shown as a draft they send with a tap: you can’t send it yourself.', parameters: { type: 'object', properties: { to: { type: 'string', description: 'Their username, email address or name.' }, text: { type: 'string' } }, required: ['to', 'text'] } }
 ];
+// only when he's the pop-up over another app: what's on that page, and writing into it
+const SCREEN_TOOLS = [
+    { name: 'look_at_screen', description: 'What the user has open right now in the app behind you: the app, the page title, the field they were typing in, any selected text and the text on the page.', parameters: { type: 'object', properties: {} } },
+    { name: 'type_here', description: 'Write text into the app behind you, where the user’s cursor was (a document, a note, an email, a chat box, a field). It appears there letter by letter. Plain text in their language; separate paragraphs with a blank line; no markdown or symbols.', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } }
+];
+const EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]{2,}$/;
 const MAX_LOG = 40; // messages kept (the AI is sent the last 16)
 const MAX_FACTS = 60;
 
@@ -56,13 +69,14 @@ module.exports = function jarvisRoutes(ctx) {
     // his memory, one record per admin: { prefs, log: [{ role, content, actions, via, at }], facts: [{ id, text, at }] }
     const mind = email => {
         const items = (store.getApp(email, 'jarvis') || {}).items || {};
-        return { prefs: items.prefs || {}, log: Array.isArray(items.log) ? items.log : [], facts: Array.isArray(items.facts) ? items.facts : [] };
+        return { prefs: items.prefs || {}, log: Array.isArray(items.log) ? items.log : [], facts: Array.isArray(items.facts) ? items.facts : [], drafts: Array.isArray(items.drafts) ? items.drafts : [] };
     };
     const change = (email, fn) => {
         const m = mind(email);
         fn(m);
         m.log = m.log.slice(-MAX_LOG);
         m.facts = m.facts.slice(-MAX_FACTS);
+        m.drafts = m.drafts.filter(d => Date.now() - d.at < 3 * 864e5).slice(-20); // drafts keep three days
         store.setApp(email, 'jarvis', { items: m });
         return m;
     };
@@ -109,8 +123,52 @@ module.exports = function jarvisRoutes(ctx) {
         res.json({ ok: true, memories: m.facts });
     });
 
+    /* ---------- people, for emails and chat messages ---------- */
+    // everyone matching a name: their contacts, people they've emailed, and people on EderveenGroup
+    async function peopleFor(email, q, chatOnly = false) {
+        const out = new Map();
+        const add = (p, source) => {
+            const k = String(p.email || '').toLowerCase();
+            if (!k) return;
+            const cur = out.get(k) || { name: '', email: k, username: '', from: [] };
+            if (p.name && !cur.name) cur.name = p.name;
+            if (p.username) cur.username = p.username;
+            if (!cur.from.includes(source)) cur.from.push(source);
+            out.set(k, cur);
+        };
+        const match = (...xs) => xs.some(x => String(x || '').toLowerCase().includes(q));
+        const onSite = ctx.chatPeople ? await ctx.chatPeople(email) : [];
+        for (const p of onSite) if (match(p.name, p.username, p.email)) add(p, 'EderveenGroup');
+        if (!chatOnly) {
+            for (const c of ctx.appItems.list(email, 'contacts')) if (match(c.name, c.company, c.username, ...(c.emails || []))) for (const e of c.emails || []) add({ name: c.name, email: e }, 'contacts');
+            for (const c of store.searchContacts(email, q, 20)) add({ name: c.name, email: c.address }, 'mailed before');
+        }
+        const exact = p => [p.name, p.username, p.email].some(x => String(x || '').toLowerCase() === q) || String(p.name || '').toLowerCase().split(/\s+/)[0] === q;
+        const list = [...out.values()].map(p => ({ ...p, onEderveenGroup: onSite.some(x => x.email === p.email), exact: exact(p) }));
+        return (chatOnly ? list.filter(p => p.onEderveenGroup) : list).slice(0, 10);
+    }
+    // addresses for an email: given as addresses, or names looked up (asking back when it's unclear)
+    async function addressesFor(email, list, optional = false) {
+        const out = [];
+        for (const raw of [].concat(list || []).map(x => clip(x, 254)).filter(Boolean).slice(0, 20)) {
+            const m = /<([^>]+)>/.exec(raw);
+            const addr = (m ? m[1] : raw).trim().toLowerCase();
+            if (EMAIL_RE.test(addr)) {
+                out.push({ name: m ? raw.replace(/<[^>]+>/, '').replace(/"/g, '').trim() : '', address: addr });
+                continue;
+            }
+            const found = await peopleFor(email, raw.toLowerCase());
+            const sure = found.length === 1 ? found[0] : found.filter(p => p.exact).length === 1 ? found.find(p => p.exact) : null;
+            if (sure) out.push({ name: sure.name, address: sure.email });
+            else return { list: [], unclear: found.length ? `More than one address matches “${raw}”: ask which (${found.slice(0, 5).map(p => `${p.name || p.email} <${p.email}>`).join(', ')}).` : `No address found for “${raw}”: ask for their email address.` };
+        }
+        if (!optional && !out.length) return { list: [], unclear: 'Who should it go to? Ask for a name or an email address.' };
+        return { list: out };
+    }
+    const escHtml = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
     /* ---------- the tools ---------- */
-    function toolsFor(req, tz, where) {
+    function toolsFor(req, tz, where, screen) {
         const email = req.session.email;
         const now = () => ctx.localOf(new Date().toISOString(), tz);
         const today = () => now().slice(0, 10);
@@ -220,6 +278,48 @@ module.exports = function jarvisRoutes(ctx) {
                     }
                     return { people: o.people, activeThisWeek: o.activeWeek, signInRequestsWaiting: o.pending, failedSignInsThisWeek: o.failedWeek, usingTwoStep: o.twofa, publicProfiles: o.publicProfiles, storage: o.database, version, signInWith: o.signIns };
                 }
+                case 'find_people': {
+                    const q = clip(input.name, 80).toLowerCase().replace(/^@/, '');
+                    if (!q) throw new Error('Say whose name to look up');
+                    return { people: await peopleFor(email, q) };
+                }
+                case 'write_email': {
+                    const to = await addressesFor(email, input.to);
+                    const cc = await addressesFor(email, input.cc || [], true);
+                    if (to.unclear) return { draft: null, note: to.unclear };
+                    if (cc.unclear) return { draft: null, note: cc.unclear };
+                    const subject = clip(input.subject, 200);
+                    const body = String(input.body || '').replace(/\r/g, '').slice(0, 20000).trim();
+                    if (!to.list.length || !body) throw new Error('An email needs someone to send it to and some text');
+                    const d = { id: newId(), kind: 'email', to: to.list, cc: cc.list, subject, body, at: Date.now() };
+                    change(email, m => m.drafts.push(d));
+                    actions.push({ kind: 'email', text: `Email to ${d.to.map(a => a.name || a.address).join(', ')}`, draft: d });
+                    return { draft: { to: d.to, subject }, note: 'It’s shown to them as a draft with a Send button; it is not sent until they tap Send.' };
+                }
+                case 'write_chat': {
+                    const people = await peopleFor(email, clip(input.to, 120).toLowerCase().replace(/^@/, ''), true);
+                    const text = String(input.text || '').slice(0, 4000).trim();
+                    if (!text) throw new Error('A chat message needs some text');
+                    if (!people.length) return { draft: null, note: 'Nobody on EderveenGroup matches that name, so a chat message can’t be sent to them (maybe write an email instead).' };
+                    if (people.length > 1 && !people.some(p => p.exact)) return { draft: null, note: 'More than one person matches: ask which', matches: people.slice(0, 6).map(p => ({ name: p.name, username: p.username })) };
+                    const who = people.find(p => p.exact) || people[0];
+                    const d = { id: newId(), kind: 'chat', to: [{ name: who.name || `@${who.username}`, address: who.email, username: who.username }], text, at: Date.now() };
+                    change(email, m => m.drafts.push(d));
+                    actions.push({ kind: 'chat', text: `Chat message to ${d.to[0].name}`, draft: d });
+                    return { draft: { to: d.to[0].name }, note: 'It’s shown to them as a draft with a Send button; it is not sent until they tap Send.' };
+                }
+                case 'look_at_screen': {
+                    if (!screen) return { note: 'You can only see their screen from the small Jarvis window in another app.' };
+                    return screen;
+                }
+                case 'type_here': {
+                    if (!screen) return { typed: false, note: 'Typing into an app only works from the small Jarvis window in that app.' };
+                    if (!screen.focused) return { typed: false, note: 'They haven’t clicked into anything to write in: ask them to click where the text should go, then ask again.' };
+                    const text = String(input.text || '').replace(/\r/g, '').slice(0, 20000);
+                    if (!text.trim()) throw new Error('Nothing to type');
+                    actions.push({ kind: 'type', text: `Writing in ${screen.app || 'the app'}`, type: text });
+                    return { typed: true, where: `${screen.focused.kind}${screen.focused.label ? ` “${screen.focused.label}”` : ''} in ${screen.app}`, note: 'It’s being typed there now, letter by letter. Just say so in a few words; don’t repeat the text.' };
+                }
                 case 'remember': {
                     const text = clip(input.fact, 300);
                     if (!text) throw new Error('Say what to remember');
@@ -254,7 +354,7 @@ module.exports = function jarvisRoutes(ctx) {
     }
 
     /* ---------- talking ---------- */
-    function system(email, tz, where, done = []) {
+    function system(email, tz, where, done = [], screen = null) {
         const t = ctx.localOf(new Date().toISOString(), tz);
         const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${t.slice(0, 10)}T12:00:00Z`));
         const address = addressOf(email);
@@ -265,11 +365,15 @@ Your replies are often read aloud, so:
 - No markdown, no emoji, no web addresses; a short list only when it really helps.
 - Reply in the language they use (often Dutch or English).
 
-Use your tools for anything about their agenda, tasks, notes, mail, chats, the weather or the site: never guess or make things up. When asked to add or tick off something, do it with a tool, then confirm in a few words. If something is unclear (which task, what time, which day), ask one short question first. You cannot delete any of their things (events, tasks, notes, mail) or send messages to other people; say so politely if asked. For a briefing, look at today's agenda, tasks due, unread mail and chats${where ? ', the weather' : ''} and the site, and sum up what matters.
+Use your tools for anything about their agenda, tasks, notes, mail, chats, the weather or the site: never guess or make things up. When asked to add or tick off something, do it with a tool, then confirm in a few words. If something is unclear (which task, what time, which day), ask one short question first. You cannot delete any of their things (events, tasks, notes, mail). You can write emails and chat messages for them (write_email, write_chat; find_people turns names into addresses), but you never send anything yourself: they're shown as drafts with a Send button. Say in a few words what you wrote and that it's ready to send; don't read the whole message out. For a briefing, look at today's agenda, tasks due, unread mail and chats${where ? ', the weather' : ''} and the site, and sum up what matters.
 
-You remember the recent conversation. For anything worth keeping longer (a preference, a birthday, a name, a plan) or when they ask you to remember something, save it with remember; when they ask you to forget something, use forget.${memoryOf(email)}${handover(done)}
+You remember the recent conversation. For anything worth keeping longer (a preference, a birthday, a name, a plan) or when they ask you to remember something, save it with remember; when they ask you to forget something, use forget.${memoryOf(email)}${screenOf(screen)}${handover(done)}
 
 Now: ${weekday}, ${t.slice(11)} (${tz}).`;
+    }
+    function screenOf(screen) {
+        if (!screen) return '';
+        return `\n\nThey're talking to you from the small Jarvis window over the ${screen.app || 'an'} app (“${screen.title}”).${screen.focused ? ` Their cursor was in: ${screen.focused.kind}${screen.focused.label ? ` “${screen.focused.label}”` : ''}.` : ''} When they ask you to write something there (in a document, a note, a field), write it with type_here: it's typed where their cursor is. Use look_at_screen when you need to see what they have open.`;
     }
     function memoryOf(email) {
         const facts = mind(email).facts;
@@ -292,6 +396,52 @@ Now: ${weekday}, ${t.slice(11)} (${tz}).`;
         const now = Date.now();
         return [...list.filter(s => !(resting.get(s.provider) > now)), ...list.filter(s => resting.get(s.provider) > now)];
     };
+
+    /* ---------- his drafts: sent only when you tap Send ---------- */
+    const sends = createLimiter({ max: 30, windowMs: 60 * 60 * 1000 });
+    const markDraft = (email, id, what) =>
+        change(email, m => {
+            m.drafts = m.drafts.filter(x => x.id !== id);
+            for (const e of m.log) for (const a of e.actions || []) if (a.draft && a.draft.id === id) a[what] = Date.now();
+        });
+    r.post('/jarvis/drafts/:id/send', wrap(async (req, res) => {
+        const email = req.session.email;
+        const d = mind(email).drafts.find(x => x.id === req.params.id);
+        if (!d) throw httpError(404, 'That draft isn’t here any more');
+        if (sends.blocked(email)) throw httpError(429, 'That’s a lot of messages this hour');
+        const b = req.body || {};
+        let href;
+        if (d.kind === 'email') {
+            const to = b.to !== undefined ? parseAddresses(b.to) : d.to;
+            if (!to.length || to.some(a => !EMAIL_RE.test(a.address))) throw httpError(400, 'Check the email addresses');
+            const subject = b.subject !== undefined ? clip(b.subject, 200) : d.subject;
+            const text = (b.text !== undefined ? String(b.text) : d.body).replace(/\r/g, '').slice(0, 20000);
+            if (!text.trim()) throw httpError(400, 'The email is empty');
+            const settings = store.getSettings(email) || {};
+            const html = text.split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g, '<br>')}</p>`).join('');
+            sends.hit(email);
+            try {
+                await ctx.mail.sendMessage(req.session, { fromName: settings.displayName || '', to, cc: d.cc || [], bcc: [], subject, html, text, attachments: [] }, { saveSentCopy: settings.saveSentCopy !== false });
+            } catch (e) {
+                throw Object.assign(httpError(e.status && e.status < 500 ? e.status : 502, `The email couldn’t be sent: ${e.message}`), { expose: true });
+            }
+            store.rememberContacts(email, [...to, ...(d.cc || [])]);
+            href = '/mail/';
+        } else {
+            const text = (b.text !== undefined ? String(b.text) : d.text).slice(0, 4000).trim();
+            if (!text) throw httpError(400, 'The message is empty');
+            if (!ctx.chatSend) throw httpError(404, 'Chat isn’t available');
+            sends.hit(email);
+            const sent = await ctx.chatSend(email, d.to.map(a => a.address), text);
+            href = `/chat/#${sent.cid}`;
+        }
+        markDraft(email, d.id, 'sent');
+        res.json({ ok: true, href });
+    }));
+    r.delete('/jarvis/drafts/:id', (req, res) => {
+        markDraft(req.session.email, req.params.id, 'discarded');
+        res.json({ ok: true });
+    });
 
     r.post('/jarvis/chat', wrap(async (req, res) => {
         const email = req.session.email;
@@ -321,7 +471,10 @@ Now: ${weekday}, ${t.slice(11)} (${tz}).`;
             else turns.push({ role: m.role, content });
         }
         while (turns.length && turns[0].role !== 'user') turns.shift();
-        const { run, actions } = toolsFor(req, tz, where);
+        // from the pop-up in another app: what's on that page (only sent from there)
+        const sc = b.screen && typeof b.screen === 'object' ? b.screen : null;
+        const screen = sc ? { app: clip(sc.app, 40), title: clip(sc.title, 200), path: clip(sc.path, 200), focused: sc.focused && typeof sc.focused === 'object' ? { kind: clip(sc.focused.kind, 40), label: clip(sc.focused.label, 120) } : null, selected: String(sc.selected || '').slice(0, 4000), text: String(sc.text || '').slice(0, 12000) } : null;
+        const { run, actions } = toolsFor(req, tz, where, screen);
         // what the tools did, so a backup service can carry on without doing it again
         const done = [];
         const called = [];
@@ -337,7 +490,7 @@ Now: ${weekday}, ${t.slice(11)} (${tz}).`;
         let last = null;
         for (const s of ordered(list)) {
             try {
-                out = await ai.converse({ provider: s.provider, apiKey: s.apiKey, baseURL: s.baseURL, model: s.model, system: system(email, tz, where, done), messages: turns, tools: TOOLS, run: tracked, timeoutMs: 45 * 1000, retries: 1 });
+                out = await ai.converse({ provider: s.provider, apiKey: s.apiKey, baseURL: s.baseURL, model: s.model, system: system(email, tz, where, done, screen), messages: turns, tools: screen ? TOOLS.concat(SCREEN_TOOLS) : TOOLS, run: tracked, timeoutMs: 45 * 1000, retries: 1 });
                 by = s;
                 resting.delete(s.provider);
                 break;
