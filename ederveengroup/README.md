@@ -227,16 +227,28 @@ Good to know: `https://mail.google.com/` is a *restricted* scope. While the app 
 
 Auto edit (and [Jarvis](#jarvis)) is only for admins (the addresses in `ADMIN_EMAILS` and people made admin in Admin → People), because it runs on your own API key. Set it up in **Admin → AI**: pick a service, follow its **Get a key** steps, paste the key and press **Save**, then **Test**. Keys are stored encrypted and never shown again (only their last four characters). Each service keeps its own key; **Use … for auto editing and Jarvis** switches between them.
 
-| Service | Where to get a key | Or set on the server |
-| --- | --- | --- |
-| **Claude** (Anthropic, the default) | console.anthropic.com → API keys | `ANTHROPIC_API_KEY` |
-| Gemini (Google) | aistudio.google.com/apikey | `GEMINI_API_KEY` |
-| Groq | console.groq.com/keys | `GROQ_API_KEY` |
-| OpenAI | platform.openai.com/api-keys | `OPENAI_API_KEY` |
-| OpenRouter | openrouter.ai/keys | `OPENROUTER_API_KEY` |
-| Mistral | console.mistral.ai → API keys | `MISTRAL_API_KEY` |
-| Grok (xAI) | console.x.ai | `XAI_API_KEY` |
-| Other (any OpenAI-compatible API: Together, DeepSeek, Ollama, LM Studio…) | that service | `AI_API_KEY` and `AI_BASE_URL` |
+| Service | Free? | Where to get a key | Or set on the server |
+| --- | --- | --- | --- |
+| Gemini (Google) | Free tier (Flash models) | aistudio.google.com/apikey | `GEMINI_API_KEY` |
+| Groq | Free (about 1,000 requests a day per model) | console.groq.com/keys | `GROQ_API_KEY` |
+| Mistral | Free Experiment plan (phone number) | console.mistral.ai/api-keys | `MISTRAL_API_KEY` |
+| OpenRouter | Free `:free` models (50 a day, 1,000 after buying $10 once) | openrouter.ai/keys | `OPENROUTER_API_KEY` |
+| SambaNova | Free without a payment method (about 20 a minute) | cloud.sambanova.ai/apis | `SAMBANOVA_API_KEY` |
+| Cohere | Free trial key (1,000 calls a month) | dashboard.cohere.com/api-keys | `COHERE_API_KEY` |
+| NVIDIA (build.nvidia.com) | Free for developers (about 40 a minute) | build.nvidia.com/settings/api-keys | `NVIDIA_API_KEY` |
+| Hugging Face | Small free credit every month | huggingface.co/settings/tokens | `HF_TOKEN` |
+| Z.ai (GLM) | GLM Flash models free | z.ai/manage-apikey/apikey-list | `ZAI_API_KEY` |
+| Cerebras | Trial credits | cloud.cerebras.ai | `CEREBRAS_API_KEY` |
+| Qwen (Alibaba Cloud Model Studio) | 1M tokens per model for 90 days | alibabacloud.com → Model Studio | `DASHSCOPE_API_KEY` |
+| Fireworks | A little sign-up credit | fireworks.ai/account/api-keys | `FIREWORKS_API_KEY` |
+| **Claude** (Anthropic) | Paid | console.anthropic.com → API keys | `ANTHROPIC_API_KEY` |
+| OpenAI | Paid | platform.openai.com/api-keys | `OPENAI_API_KEY` |
+| DeepSeek | Paid, very cheap (no pictures) | platform.deepseek.com/api_keys | `DEEPSEEK_API_KEY` |
+| Grok (xAI) | Paid | console.x.ai | `XAI_API_KEY` |
+| Together AI | Paid | api.together.ai/settings/api-keys | `TOGETHER_API_KEY` |
+| Other (any OpenAI-compatible API: Ollama, LM Studio, Cloudflare Workers AI, OVHcloud…) | Ollama and LM Studio on your own computer are free | that service | `AI_API_KEY` and `AI_BASE_URL` |
+
+Admin → AI groups them as Free, Free trial credits, Paid and Your own, and has a longer **Free AI APIs** list (with Cloudflare Workers AI, OVHcloud, Ollama Cloud and running Ollama or LM Studio yourself) with a **Set up** button for each built-in one. These free tiers are as of November 2026 and change often; check each service's own site. Free tiers often use what you send to improve their models. GitHub Models closed in July 2026.
 
 A key set in Coolify's environment variables wins over one pasted in Admin. For **Other**, give the service's API address (like `https://api.together.xyz/v1`); plain `http://` is only allowed for this computer or your own network, like `http://localhost:11434/v1` for Ollama (type any word as the key).
 
@@ -248,7 +260,7 @@ A key set in Coolify's environment variables wins over one pasted in Admin. For 
 
 Jarvis is only for admins: everyone else doesn't see him on the dashboard and gets “not found” at `/jarvis/`. He uses the same service as auto editing (**Admin → AI**), so set one up there first:
 
-- **Free:** Gemini (Google). Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with a Google account and press **Create API key**. In Admin → AI pick **Gemini**, paste the key, **Save**, and **Use Gemini** if another service was in use. The suggested model, `gemini-2.5-flash`, is on the free tier; Google shows your limits at aistudio.google.com/rate-limit. On the free tier Google may use what you send to improve its products, so switch billing on (pay as you go) for private use.
+- **Free:** Gemini (Google). Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with a Google account and press **Create API key**. In Admin → AI pick **Gemini**, paste the key, **Save**, and **Use Gemini** if another service was in use. The suggested model, `gemini-flash-latest`, always points to Google’s current Flash model (older Gemini 2.5 models are being retired) and is on the free tier; Google shows your limits at aistudio.google.com/rate-limit. On the free tier Google may use what you send to improve its products, so switch billing on (pay as you go) for private use.
 - **Free and very fast:** Groq ([console.groq.com/keys](https://console.groq.com/keys)), with daily limits per model. Pick a model that can use tools.
 - **Best answers:** Claude, on a paid Anthropic key.
 

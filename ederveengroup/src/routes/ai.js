@@ -71,7 +71,7 @@ module.exports = function aiRoutes(ctx) {
         const st = load();
         const list = ids.map(id => {
             const s = service(id, st);
-            return { id, name: P[id].name, by: P[id].by, configured: !!s.apiKey, source: s.source, hint: s.hint, model: s.model, defaultModel: P[id].model, baseUrl: s.baseUrl, maxImages: s.maxImages, env: P[id].env, keysUrl: P[id].keys, keyHint: P[id].hint, custom: !!P[id].custom, savedAt: s.savedAt, savedBy: s.savedBy };
+            return { id, name: P[id].name, by: P[id].by, tier: P[id].tier, free: P[id].free, configured: !!s.apiKey, source: s.source, hint: s.hint, model: s.model, defaultModel: P[id].model, baseUrl: s.baseUrl, maxImages: s.maxImages, env: P[id].env, keysUrl: P[id].keys, keyHint: P[id].hint, custom: !!P[id].custom, savedAt: s.savedAt, savedBy: s.savedBy };
         });
         const a = list.find(x => x.id === st.active);
         return {

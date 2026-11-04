@@ -1715,7 +1715,11 @@ test('Auto editing with other AI services: any OpenAI-compatible one, chosen in 
     await jo('POST', '/mail/api/login', { email: USER, password: PASS });
     await jo('POST', '/api/username', { username: 'jo.smith' });
     const all = (await jo('GET', '/api/admin/ai')).body;
-    assert.deepEqual(all.providers.map(p => p.id), ['claude', 'gemini', 'groq', 'openai', 'openrouter', 'mistral', 'xai', 'custom']);
+    assert.deepEqual(all.providers.map(p => p.id), ['gemini', 'groq', 'mistral', 'openrouter', 'sambanova', 'cohere', 'nvidia', 'huggingface', 'zai', 'cerebras', 'alibaba', 'fireworks', 'claude', 'openai', 'deepseek', 'xai', 'together', 'custom']);
+    // every service says what's free about it, free ones first
+    assert.ok(all.providers.every(p => p.tier && p.free));
+    assert.deepEqual([...new Set(all.providers.map(p => p.tier))], ['free', 'trial', 'paid', 'own']);
+    assert.ok(all.providers.filter(p => p.tier !== 'own').every(p => /^https:\/\//.test(p.keysUrl)));
     assert.equal(all.active, 'claude');
     // an address: https anywhere, http only on this machine or the local network
     assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: 'http://example.com/v1' })).status, 400);

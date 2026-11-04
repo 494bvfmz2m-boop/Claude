@@ -57,7 +57,7 @@ function loadConfig(env = process.env) {
         anthropicApiKey: String(env.ANTHROPIC_API_KEY || '').trim(),
         anthropicBaseUrl: String(env.ANTHROPIC_BASE_URL || '').trim(),
         // other AI services for auto editing (also pasted into Admin → AI); AI_API_KEY + AI_BASE_URL for any OpenAI-compatible one
-        aiKeys: { gemini: env.GEMINI_API_KEY || env.GOOGLE_API_KEY, groq: env.GROQ_API_KEY, openai: env.OPENAI_API_KEY, openrouter: env.OPENROUTER_API_KEY, mistral: env.MISTRAL_API_KEY, xai: env.XAI_API_KEY, custom: env.AI_API_KEY },
+        aiKeys: { gemini: env.GEMINI_API_KEY || env.GOOGLE_API_KEY, groq: env.GROQ_API_KEY, openai: env.OPENAI_API_KEY, openrouter: env.OPENROUTER_API_KEY, mistral: env.MISTRAL_API_KEY, xai: env.XAI_API_KEY, sambanova: env.SAMBANOVA_API_KEY, cohere: env.COHERE_API_KEY || env.CO_API_KEY, nvidia: env.NVIDIA_API_KEY, huggingface: env.HF_TOKEN, zai: env.ZAI_API_KEY, cerebras: env.CEREBRAS_API_KEY, alibaba: env.DASHSCOPE_API_KEY, fireworks: env.FIREWORKS_API_KEY, deepseek: env.DEEPSEEK_API_KEY, together: env.TOGETHER_API_KEY, custom: env.AI_API_KEY },
         aiBaseUrl: String(env.AI_BASE_URL || '').trim(),
         adminEmails: String(env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
         // testing only: let requests point at mail servers on private networks

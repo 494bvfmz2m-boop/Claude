@@ -392,11 +392,45 @@
         gemini: ['Go to <b>aistudio.google.com/apikey</b> and sign in with a Google account.', 'Choose <b>Create API key</b> and copy it (it starts with <code>AIza</code>).', 'The free tier has daily limits; for more, turn on billing for its Google Cloud project.'],
         groq: ['Go to <b>console.groq.com/keys</b> and sign in.', 'Choose <b>Create API Key</b> and copy it (it starts with <code>gsk_</code>).', 'Groq is very fast, but its vision models look at only a few pictures at a time, so video edits use fewer frames.'],
         openai: ['Go to <b>platform.openai.com/api-keys</b> and sign in.', 'Under <b>Billing</b>, add some credit (separate from a ChatGPT subscription).', 'Choose <b>Create new secret key</b> and copy it.'],
-        openrouter: ['Go to <b>openrouter.ai/keys</b> and sign in.', 'Add credits, then choose <b>Create key</b> and copy it.', 'Pick a model below that can look at images (vision).'],
+        openrouter: ['Go to <b>openrouter.ai/keys</b> and sign in.', 'Choose <b>Create key</b> and copy it.', 'For free use, pick a model whose name ends in <code>:free</code> (50 requests a day, 1,000 once you’ve bought $10 of credit). For auto edit it must look at images (vision).'],
         mistral: ['Go to <b>console.mistral.ai</b> → <b>API keys</b> and sign in.', 'Choose <b>Create new key</b> and copy it.', 'Pick a model below that can look at images.'],
         xai: ['Go to <b>console.x.ai</b> and sign in.', 'Under <b>API keys</b>, create a key and copy it (it starts with <code>xai-</code>).', 'Pick a Grok model below that can look at images.'],
+        sambanova: ['Go to <b>cloud.sambanova.ai</b> and sign in (a Google or GitHub account works).', 'Open <b>APIs</b>, choose <b>Create API key</b> and copy it.', 'It stays free as long as no payment method is on the account (about 20 requests a minute per model).'],
+        cohere: ['Go to <b>dashboard.cohere.com</b> and sign up.', 'Under <b>API keys</b>, copy the free <b>Trial key</b>.', 'The trial key gives 1,000 calls a month, for trying out.'],
+        nvidia: ['Go to <b>build.nvidia.com</b> and sign in (this joins the free NVIDIA Developer Program).', 'Open <b>API Keys</b> (build.nvidia.com/settings/api-keys), choose <b>Generate API Key</b> and copy it (it starts with <code>nvapi-</code>).', 'Free for trying things out, about 40 requests a minute.'],
+        huggingface: ['Go to <b>huggingface.co/settings/tokens</b> and sign in.', 'Choose <b>Create new token</b>, type <b>Fine-grained</b>, tick <b>Make calls to Inference Providers</b>, then copy it (it starts with <code>hf_</code>).', 'Free accounts get a small amount of credit every month.'],
+        zai: ['Go to <b>z.ai</b>, sign up, and open <b>API Keys</b> (z.ai/manage-apikey/apikey-list).', 'Create a key and copy it.', 'The GLM Flash models, like <code>glm-4.7-flash</code>, are free.'],
+        cerebras: ['Go to <b>cloud.cerebras.ai</b> and sign up.', 'New accounts get trial credits (a payment method may be asked for); after that it is paid per use.', 'Under <b>API Keys</b>, copy your key (it starts with <code>csk-</code>).'],
+        alibaba: ['Go to <b>Alibaba Cloud Model Studio</b> (alibabacloud.com → Products → Model Studio) and sign up, in the international (Singapore) region.', 'New users get 1 million free tokens per model for 90 days. Turn on <b>Free quota only</b> so nothing is ever charged.', 'Under <b>API Key</b>, create a key and copy it.'],
+        fireworks: ['Go to <b>fireworks.ai</b> → <b>API Keys</b> and sign in.', 'New accounts get a little free credit; after that it is paid per use.', 'Create a key and copy it, then use <b>Load models</b> below to pick a model.'],
+        deepseek: ['Go to <b>platform.deepseek.com/api_keys</b> and sign in.', 'Top up a little credit (DeepSeek is very cheap).', 'Create a key and copy it (it starts with <code>sk-</code>). DeepSeek can’t look at pictures, so it’s for Jarvis, not auto edit.'],
+        together: ['Go to <b>api.together.ai</b> → <b>Settings</b> → <b>API Keys</b> and sign in.', 'Add some credit (it’s paid per use).', 'Copy the key.'],
         custom: ['Any service that speaks the OpenAI API works: Together, DeepSeek, Fireworks, a company proxy, or one on your own computer.', 'For <b>Ollama</b> use the address <code>http://localhost:11434/v1</code>, for <b>LM Studio</b> <code>http://localhost:1234/v1</code>, and type any word as the key.', 'Pick a model that can look at images (vision).']
     };
+    const AI_TIERS = [['free', 'Free'], ['trial', 'Free trial credits'], ['paid', 'Paid'], ['own', 'Your own']];
+    // a big list of AI APIs with a free tier (November 2026): built in, or through Other with their address
+    const FREE_AI = [
+        { name: 'Google Gemini', id: 'gemini', tag: 'built', url: 'https://aistudio.google.com/apikey', free: 'Free tier for the Flash models, no card. Limits are per project and shown in AI Studio. The best free all-rounder, and it can look at pictures.' },
+        { name: 'Groq', id: 'groq', tag: 'built', url: 'https://console.groq.com/keys', free: 'Free, no card. About 30 requests a minute and 1,000 a day per model (Llama 3.3 70B), more for small models. Extremely fast.' },
+        { name: 'Mistral', id: 'mistral', tag: 'built', url: 'https://console.mistral.ai/api-keys', free: 'Free Experiment plan with just a phone number. Requests may be used to train their models.' },
+        { name: 'OpenRouter', id: 'openrouter', tag: 'built', url: 'https://openrouter.ai/keys', free: 'One key for dozens of free models (names end in :free): 20 a minute, 50 a day, or 1,000 a day after buying $10 of credit once.' },
+        { name: 'SambaNova Cloud', id: 'sambanova', tag: 'built', url: 'https://cloud.sambanova.ai/apis', free: 'Free while there’s no payment method on the account: about 20 requests a minute per model and 200K tokens a day. Llama, DeepSeek, gpt-oss.' },
+        { name: 'Cohere', id: 'cohere', tag: 'built', url: 'https://dashboard.cohere.com/api-keys', free: 'Free trial key: 1,000 calls a month, 20 a minute (Command A). For trying out, not production.' },
+        { name: 'NVIDIA (build.nvidia.com)', id: 'nvidia', tag: 'built', url: 'https://build.nvidia.com/settings/api-keys', free: 'Free with the NVIDIA Developer Program: about 40 requests a minute across 100+ models. Meant for trying out.' },
+        { name: 'Hugging Face', id: 'huggingface', tag: 'built', url: 'https://huggingface.co/settings/tokens', free: 'A small free credit every month for open models through Inference Providers (20x more with PRO).' },
+        { name: 'Z.ai (GLM)', id: 'zai', tag: 'built', url: 'https://z.ai/manage-apikey/apikey-list', free: 'GLM-4.7-Flash and GLM-4.5-Flash are free to use (limits about 1 request a second, and they change).' },
+        { name: 'Cerebras', id: 'cerebras', tag: 'trial', url: 'https://cloud.cerebras.ai', free: 'The fastest inference. New accounts get trial credits (card may be needed, they expire); then pay as you go.' },
+        { name: 'Qwen (Alibaba Cloud)', id: 'alibaba', tag: 'trial', url: 'https://www.alibabacloud.com/en/product/modelstudio', free: '1 million free tokens per model for 90 days for new users, international region. Turn on “Free quota only”.' },
+        { name: 'Fireworks AI', id: 'fireworks', tag: 'trial', url: 'https://fireworks.ai/account/api-keys', free: 'A little free credit on sign-up, then pay as you go.' },
+        { name: 'Cloudflare Workers AI', tag: 'other', url: 'https://dash.cloudflare.com/', base: 'https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1', free: '10,000 “neurons” a day free (roughly a few hundred answers). Use a Cloudflare API token as the key; model names start with @cf/.' },
+        { name: 'OVHcloud AI Endpoints', tag: 'other', url: 'https://endpoints.ai.cloud.ovh.net/', free: 'Free with rate limits: 400 requests a minute per model with a key (2 without). Address: in their model catalog. European hosting.' },
+        { name: 'Ollama Cloud', tag: 'other', url: 'https://ollama.com/settings/keys', free: 'A free tier for a handful of big open models, with limits that reset every few hours and weekly. Address and models: in their docs.' },
+        { name: 'Ollama (your own computer)', tag: 'local', local: true, url: 'https://ollama.com/download', base: 'http://localhost:11434/v1', free: 'Free forever and fully private: the AI runs on your own computer or server (needs a good one). On the Coolify server: http://host.docker.internal:11434/v1. Any word as the key.' },
+        { name: 'LM Studio (your own computer)', tag: 'local', local: true, url: 'https://lmstudio.ai', base: 'http://localhost:1234/v1', free: 'Free and private, with a friendly app to download models. Turn on its local server.' },
+        { name: 'DeepSeek', id: 'deepseek', url: 'https://platform.deepseek.com/api_keys', free: 'Not free, but very cheap (cents for a lot of talking). Strong at reasoning; can’t look at pictures.' },
+        { name: 'Together AI', id: 'together', url: 'https://api.together.ai/settings/api-keys', free: 'Pay as you go, with many open models.' }
+    ];
+    let aiListOpen = false;
     let aiShown = null; // the service whose settings are open
     async function aiTab() {
         const s = await call('/api/admin/ai');
@@ -408,9 +442,13 @@
         const status = p.configured ? (p.source === 'env' ? `Set on the server (${esc(p.env)}), ends in …${esc(p.hint)}` : `Saved, ends in …${esc(p.hint)}${p.savedBy ? ` · by ${esc(p.savedBy)}` : ''}${p.savedAt ? ` · ${esc(new Date(p.savedAt).toLocaleDateString())}` : ''}`) : 'Not set up yet';
         main.innerHTML = `<h1>AI</h1><p class="cp-sub">Auto editing in the Photo Editor and the Video Editor, and Jarvis, your assistant. Only admins see it. It runs on your own API key, and that service bills it.</p>
             <section class="cp-card"><h2>Service</h2><p class="cp-muted">In use for auto editing and Jarvis: ${inUse}. Pick a service to set it up; each keeps its own key.</p>
-                <div class="ai-provs">${s.providers.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? `<i class="cp-off">${s.fallback && x.model ? 'Backup' : 'Key saved'}</i>` : ''}</button>`).join('')}</div>
+                ${AI_TIERS.map(([t, label]) => {
+                    const list = s.providers.filter(x => x.tier === t);
+                    return list.length ? `<h3 class="ai-tier ai-tier-${t}">${label}</h3><div class="ai-provs">${list.map(x => `<button class="ai-prov${x.id === id ? ' on' : ''}" data-prov="${x.id}" title="${esc(x.free || '')}"><b>${esc(x.name)}</b><small>${esc(x.custom ? 'OpenAI-compatible' : x.by)}</small>${x.id === s.active && x.configured ? `<i class="cp-ok">${ic('check')} In use</i>` : x.configured ? `<i class="cp-off">${s.fallback && x.model ? 'Backup' : 'Key saved'}</i>` : ''}</button>`).join('')}</div>` : '';
+                }).join('')}
                 <label class="ai-backup"><span><b>Backups for Jarvis</b><small>If the service in use stops working (key refused, free limit reached, down or too slow), Jarvis switches to the next service with a key, in the order above, and carries on where he was, remembering everything. ${s.fallback ? (s.backups.length ? `Backups now: ${esc(s.backups.join(', '))}.` : 'Add a key for another service (Groq is free too) to have a backup.') : 'Off: Jarvis only uses the service in use.'}</small></span><input type="checkbox" class="cp-toggle" data-fallback${s.fallback ? ' checked' : ''}></label></section>
             <section class="cp-card"><div class="si-head"><span class="si-logo ai-logo">${ic('zap')}</span><div><h2>${esc(p.name)} API key</h2><small>${status}</small></div>${p.configured ? (p.id === s.active ? `<span class="cp-ok">${ic('check')} In use</span>` : '<span class="cp-off">Ready</span>') : '<span class="cp-off">Off</span>'}</div>
+                ${p.free ? `<p class="ai-free-line ai-free-${p.tier}">${ic(p.tier === 'free' ? 'sparkle' : p.tier === 'trial' ? 'clock' : p.tier === 'own' ? 'laptop' : 'key')}<span>${esc(p.free)}</span></p>` : ''}
                 ${p.source === 'env' ? `<p class="cp-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
                 <form class="si-form" id="aiform" novalidate>
                     ${p.custom ? `<label class="pf-field"><span>Address of the service’s API</span><input class="input" name="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://api.example.com/v1" spellcheck="false" autocomplete="off"></label>` : ''}
@@ -420,6 +458,11 @@
                 </form>
                 ${p.configured && p.id !== s.active ? `<div class="ai-use-this"><span>${esc(p.name)} is ready.</span><button class="btn btn-primary" data-activate>${ic('check')}<span>Use ${esc(p.name)} for auto editing and Jarvis</span></button></div>` : ''}
             </section>
+            <details class="cp-card ai-freelist"${aiListOpen ? ' open' : ''}><summary><h2>Free AI APIs</h2><span class="cp-muted">${FREE_AI.filter(f => f.tag).length} services you can use without paying (and two cheap ones). Tap one to set it up.</span></summary>
+                <p class="cp-muted">As of November 2026. Free tiers and limits change often, so check the service’s own site. Free tiers often use what you send to improve their models: fine for trying out, but think twice with private things. Several free keys together make good backups for Jarvis.</p>
+                <div class="ai-free">${FREE_AI.map(f => `<div class="ai-free-row"><div class="ai-free-what"><b>${esc(f.name)}</b>${f.tag ? `<i class="ai-free-tag ai-free-tag-${f.tag}">${f.tag === 'built' ? 'Built in' : f.tag === 'other' ? 'Use with Other' : f.tag === 'local' ? 'On your own computer' : 'Trial'}</i>` : ''}<small>${esc(f.free)}</small>${f.base ? `<small>Address: <code>${esc(f.base)}</code></small>` : ''}</div><div class="ai-free-acts">${f.id ? `<button class="btn" data-setup="${f.id}">Set up</button>` : ''}${f.url ? `<a class="btn btn-ghost" href="${esc(f.url)}" target="_blank" rel="noopener">${ic('external')}<span>${f.local ? 'Download' : 'Get a key'}</span></a>` : ''}</div></div>`).join('')}</div>
+                <p class="cp-muted">Gone: GitHub Models closed in July 2026. Not free: OpenAI, Claude and Grok are paid per use (separate from their chat subscriptions).</p>
+            </details>
             <section class="cp-card"><h2>Model</h2>${
                 p.id === 'claude'
                     ? `<p class="cp-muted">Which Claude makes the edits. Opus gives the best edits; the others are quicker and cost less.</p><div class="ai-models">${s.models.map(m => `<label class="ai-model"><input type="radio" name="model" value="${m.id}"${m.id === p.model ? ' checked' : ''}><span><b>${esc(m.name.split(' (')[0])}</b><small>${esc((m.name.match(/\((.*)\)/) || [])[1] || '')}</small></span></label>`).join('')}</div>`
@@ -430,6 +473,13 @@
                 <label class="ai-frames"><span>Pictures per video auto edit</span><input class="input" type="number" min="1" max="90" id="aiframes" value="${p.maxImages}"><small>Frames from your clips that ${esc(p.name)} looks at. More gives better edits but costs more; some services take only a few.</small></label></section>
             <section class="cp-card"><h2>This month</h2><div class="cp-tiles ai-use"><div class="cp-tile"><b>${n(s.usage.requests)}</b><span>auto edits, Jarvis and tests</span></div><div class="cp-tile"><b>${n(s.usage.input)}</b><span>tokens sent (frames, photos)</span></div><div class="cp-tile"><b>${n(s.usage.output)}</b><span>tokens answered</span></div></div><p class="cp-muted">Counted for every service together. The exact cost is on each service’s own site, under usage or billing.</p></section>`;
         const put = body => call('/api/admin/ai', { method: 'PUT', body: JSON.stringify({ provider: id, ...body }) });
+        $('.ai-freelist', main).addEventListener('toggle', e => (aiListOpen = e.target.open));
+        $$('[data-setup]', main).forEach(b =>
+            b.addEventListener('click', () => {
+                aiShown = b.dataset.setup;
+                aiTab().then(() => $('#aiform', main)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+            })
+        );
         $$('[data-prov]', main).forEach(b =>
             b.addEventListener('click', () => {
                 aiShown = b.dataset.prov;
