@@ -1715,11 +1715,20 @@ test('Auto editing with other AI services: any OpenAI-compatible one, chosen in 
     await jo('POST', '/mail/api/login', { email: USER, password: PASS });
     await jo('POST', '/api/username', { username: 'jo.smith' });
     const all = (await jo('GET', '/api/admin/ai')).body;
-    assert.deepEqual(all.providers.map(p => p.id), ['gemini', 'groq', 'mistral', 'openrouter', 'sambanova', 'cohere', 'nvidia', 'huggingface', 'zai', 'cerebras', 'alibaba', 'fireworks', 'claude', 'openai', 'deepseek', 'xai', 'together', 'custom']);
+    assert.deepEqual(all.providers.map(p => p.id), ['gemini', 'groq', 'mistral', 'openrouter', 'sambanova', 'cohere', 'nvidia', 'huggingface', 'zai', 'cloudflare', 'cerebras', 'alibaba', 'fireworks', 'claude', 'openai', 'deepseek', 'xai', 'together', 'custom']);
     // every service says what's free about it, free ones first
     assert.ok(all.providers.every(p => p.tier && p.free));
     assert.deepEqual([...new Set(all.providers.map(p => p.tier))], ['free', 'trial', 'paid', 'own']);
     assert.ok(all.providers.filter(p => p.tier !== 'own').every(p => /^https:\/\//.test(p.keysUrl)));
+    // Cloudflare needs an account ID as well as the token: until it has one it isn't used
+    assert.equal(all.providers.find(p => p.id === 'cloudflare').needsAccount, true);
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'cloudflare', account: 'not-an-id' })).status, 400);
+    assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'gemini', account: '0123456789abcdef0123456789abcdef' })).status, 400);
+    await jo('PUT', '/api/admin/ai', { provider: 'cloudflare', apiKey: 'cf-token-for-tests-only-12345' });
+    assert.match((await jo('POST', '/api/admin/ai/test', { provider: 'cloudflare' })).body.error, /Add your Cloudflare account ID/);
+    const cf = (await jo('PUT', '/api/admin/ai', { provider: 'cloudflare', account: '0123456789ABCDEF0123456789abcdef' })).body.providers.find(p => p.id === 'cloudflare');
+    assert.deepEqual([cf.account, cf.configured, cf.model], ['0123456789abcdef0123456789abcdef', true, '@cf/meta/llama-4-scout-17b-16e-instruct']);
+    await jo('DELETE', '/api/admin/ai?provider=cloudflare');
     assert.equal(all.active, 'claude');
     // an address: https anywhere, http only on this machine or the local network
     assert.equal((await jo('PUT', '/api/admin/ai', { provider: 'custom', baseUrl: 'http://example.com/v1' })).status, 400);

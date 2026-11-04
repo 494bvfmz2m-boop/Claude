@@ -235,9 +235,10 @@ Auto edit (and [Jarvis](#jarvis)) is only for admins (the addresses in `ADMIN_EM
 | OpenRouter | Free `:free` models (50 a day, 1,000 after buying $10 once) | openrouter.ai/keys | `OPENROUTER_API_KEY` |
 | SambaNova | Free without a payment method (about 20 a minute) | cloud.sambanova.ai/apis | `SAMBANOVA_API_KEY` |
 | Cohere | Free trial key (1,000 calls a month) | dashboard.cohere.com/api-keys | `COHERE_API_KEY` |
-| NVIDIA (build.nvidia.com) | Free for developers (about 40 a minute) | build.nvidia.com/settings/api-keys | `NVIDIA_API_KEY` |
+| NVIDIA (build.nvidia.com) | Free for developers (about 40 a minute); suggested model Nemotron 3.5 Super VL, which sees pictures and uses tools | build.nvidia.com/settings/api-keys | `NVIDIA_API_KEY` |
 | Hugging Face | Small free credit every month | huggingface.co/settings/tokens | `HF_TOKEN` |
 | Z.ai (GLM) | GLM Flash models free | z.ai/manage-apikey/apikey-list | `ZAI_API_KEY` |
+| Cloudflare Workers AI | Free: 10,000 neurons a day (needs your account ID too) | dash.cloudflare.com → My Profile → API Tokens (Workers AI) | `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` |
 | Cerebras | Trial credits | cloud.cerebras.ai | `CEREBRAS_API_KEY` |
 | Qwen (Alibaba Cloud Model Studio) | 1M tokens per model for 90 days | alibabacloud.com → Model Studio | `DASHSCOPE_API_KEY` |
 | Fireworks | A little sign-up credit | fireworks.ai/account/api-keys | `FIREWORKS_API_KEY` |
@@ -248,7 +249,7 @@ Auto edit (and [Jarvis](#jarvis)) is only for admins (the addresses in `ADMIN_EM
 | Together AI | Paid | api.together.ai/settings/api-keys | `TOGETHER_API_KEY` |
 | Other (any OpenAI-compatible API: Ollama, LM Studio, Cloudflare Workers AI, OVHcloud…) | Ollama and LM Studio on your own computer are free | that service | `AI_API_KEY` and `AI_BASE_URL` |
 
-Admin → AI groups them as Free, Free trial credits, Paid and Your own, and has a longer **Free AI APIs** list (with Cloudflare Workers AI, OVHcloud, Ollama Cloud and running Ollama or LM Studio yourself) with a **Set up** button for each built-in one. These free tiers are as of November 2026 and change often; check each service's own site. Free tiers often use what you send to improve their models. GitHub Models closed in July 2026.
+Admin → AI groups them as Free, Free trial credits, Paid and Your own, and has a longer **Free AI APIs** list (with OVHcloud, Ollama Cloud and running Ollama or LM Studio yourself) with a **Set up** button for each built-in one. These free tiers are as of November 2026 and change often; check each service's own site. Free tiers often use what you send to improve their models. GitHub Models closed in July 2026.
 
 A key set in Coolify's environment variables wins over one pasted in Admin. For **Other**, give the service's API address (like `https://api.together.xyz/v1`); plain `http://` is only allowed for this computer or your own network, like `http://localhost:11434/v1` for Ollama (type any word as the key).
 

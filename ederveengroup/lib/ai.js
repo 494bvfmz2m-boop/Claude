@@ -28,9 +28,10 @@ const PROVIDERS = {
     openrouter: { name: 'OpenRouter', by: 'OpenRouter', tier: 'free', free: 'Dozens of free models (names end in :free): 20 a minute, 50 a day, or 1,000 a day once you’ve bought $10 of credit.', kind: 'openai', base: 'https://openrouter.ai/api/v1', env: 'OPENROUTER_API_KEY', keys: 'https://openrouter.ai/keys', model: '', maxImages: 30, hint: 'sk-or-…' },
     sambanova: { name: 'SambaNova', by: 'SambaNova Cloud', tier: 'free', free: 'Free while no payment method is on the account: about 20 requests a minute per model, 200K tokens a day.', kind: 'openai', base: 'https://api.sambanova.ai/v1', env: 'SAMBANOVA_API_KEY', keys: 'https://cloud.sambanova.ai/apis', model: 'Meta-Llama-3.3-70B-Instruct', maxImages: 5, hint: '' },
     cohere: { name: 'Cohere', by: 'Cohere', tier: 'free', free: 'Free trial key: 1,000 calls a month, 20 a minute, for trying out (not for production).', kind: 'openai', base: 'https://api.cohere.ai/compatibility/v1', env: 'COHERE_API_KEY', keys: 'https://dashboard.cohere.com/api-keys', model: 'command-a-03-2025', maxImages: 5, hint: '' },
-    nvidia: { name: 'NVIDIA', by: 'build.nvidia.com', tier: 'free', free: 'Free with the NVIDIA Developer Program: about 40 requests a minute, 100+ models. For trying out, not production.', kind: 'openai', base: 'https://integrate.api.nvidia.com/v1', env: 'NVIDIA_API_KEY', keys: 'https://build.nvidia.com/settings/api-keys', model: 'meta/llama-3.3-70b-instruct', maxImages: 5, hint: 'nvapi-…' },
+    nvidia: { name: 'NVIDIA', by: 'build.nvidia.com', tier: 'free', free: 'Free with the NVIDIA Developer Program: about 40 requests a minute, 100+ models. For trying out, not production.', kind: 'openai', base: 'https://integrate.api.nvidia.com/v1', env: 'NVIDIA_API_KEY', keys: 'https://build.nvidia.com/settings/api-keys', model: 'nvidia/nemotron-3.5-super-vl-120b-a12b', maxImages: 5, hint: 'nvapi-…' },
     huggingface: { name: 'Hugging Face', by: 'Inference Providers', tier: 'free', free: 'A small amount of free credit every month for thousands of open models (more with PRO).', kind: 'openai', base: 'https://router.huggingface.co/v1', env: 'HF_TOKEN', keys: 'https://huggingface.co/settings/tokens', model: 'moonshotai/Kimi-K2-Instruct-0905', maxImages: 5, hint: 'hf_…' },
     zai: { name: 'Z.ai (GLM)', by: 'Zhipu', tier: 'free', free: 'The GLM Flash models (glm-4.7-flash, glm-4.5-flash) are free to use.', kind: 'openai', base: 'https://api.z.ai/api/paas/v4', env: 'ZAI_API_KEY', keys: 'https://z.ai/manage-apikey/apikey-list', model: 'glm-4.7-flash', maxImages: 5, hint: '' },
+    cloudflare: { name: 'Cloudflare', by: 'Workers AI', tier: 'free', free: '10,000 “neurons” a day free (a few hundred answers), on Cloudflare’s network. Needs your account ID and an API token.', kind: 'openai', base: 'https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1', account: true, env: 'CLOUDFLARE_API_TOKEN', keys: 'https://dash.cloudflare.com/profile/api-tokens', model: '@cf/meta/llama-4-scout-17b-16e-instruct', maxImages: 4, hint: '' },
     cerebras: { name: 'Cerebras', by: 'Cerebras', tier: 'trial', free: 'The fastest of all. New accounts get trial credits (a card may be asked for); then paid per use.', kind: 'openai', base: 'https://api.cerebras.ai/v1', env: 'CEREBRAS_API_KEY', keys: 'https://cloud.cerebras.ai', model: 'gpt-oss-120b', maxImages: 5, hint: 'csk-…' },
     alibaba: { name: 'Qwen', by: 'Alibaba Cloud Model Studio', tier: 'trial', free: 'New users: 1 million free tokens per model for 90 days (international region). Turn on “Free quota only” to never pay.', kind: 'openai', base: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', env: 'DASHSCOPE_API_KEY', keys: 'https://www.alibabacloud.com/en/product/modelstudio', model: 'qwen-plus', maxImages: 10, hint: 'sk-…' },
     fireworks: { name: 'Fireworks', by: 'Fireworks AI', tier: 'trial', free: 'A little free credit for new accounts; then paid per use.', kind: 'openai', base: 'https://api.fireworks.ai/inference/v1', env: 'FIREWORKS_API_KEY', keys: 'https://fireworks.ai/account/api-keys', model: '', maxImages: 10, hint: '' },
@@ -221,7 +222,7 @@ async function askClaude({ apiKey, baseURL, model, system, content, schema, effo
 const toOpenAI = b => (b.type === 'image' ? { type: 'image_url', image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } } : { type: 'text', text: b.text });
 async function chat({ provider, apiKey, baseURL, model, messages, json, timeout = 5 * 60 * 1000 }) {
     const name = (PROVIDERS[provider] || PROVIDERS.custom).name;
-    if (!baseURL) throw new AiError(`Set the address of the ${name} service in Admin → AI.`, 409);
+    if (!baseURL) throw new AiError(provider === 'cloudflare' ? 'Add your Cloudflare account ID in Admin → AI.' : `Set the address of the ${name} service in Admin → AI.`, 409);
     if (!model) throw new AiError(`Pick a ${name} model in Admin → AI.`, 409);
     const send = async withFormat => {
         let res;
@@ -251,13 +252,15 @@ async function chat({ provider, apiKey, baseURL, model, messages, json, timeout 
     }
     const choice = (data.choices || [])[0] || {};
     const msg = choice.message || {};
-    const text = Array.isArray(msg.content) ? msg.content.map(x => x.text || '').join('') : String(msg.content || '');
+    const text = unthink(Array.isArray(msg.content) ? msg.content.map(x => x.text || '').join('') : String(msg.content || ''));
     if (choice.finish_reason === 'content_filter' || (!text && msg.refusal)) throw new AiError(`${name} declined to edit this.`, 422);
     if (choice.finish_reason === 'length' && !text.trim().endsWith('}')) throw new AiError(`${name}’s answer was cut off. Try fewer clips.`, 502);
     const u = data.usage || {};
     return { text, usage: { input_tokens: u.prompt_tokens || u.input_tokens || 0, output_tokens: u.completion_tokens || u.output_tokens || 0 }, model: data.model || model };
 }
 // the JSON in an answer, also when it's wrapped in ```json fences or a sentence
+// some models (Nemotron, DeepSeek R1, Qwen…) write their thinking into the answer: only the answer counts
+const unthink = t => String(t || '').replace(/<think>[\s\S]*?<\/think>\s*/gi, '').replace(/^[\s\S]*?<\/think>\s*/i, '');
 function jsonIn(text) {
     const t = String(text || '').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '');
     const a = t.indexOf('{');
@@ -348,7 +351,7 @@ async function converseClaude({ apiKey, baseURL, model, system, messages, tools,
 // the same over the OpenAI-style API, with function calling
 async function converseOpenAI({ provider, apiKey, baseURL, model, system, messages, tools, run, maxSteps = 6, timeoutMs = 120 * 1000 }) {
     const name = (PROVIDERS[provider] || PROVIDERS.custom).name;
-    if (!baseURL) throw new AiError(`Set the address of the ${name} service in Admin → AI.`, 409);
+    if (!baseURL) throw new AiError(provider === 'cloudflare' ? 'Add your Cloudflare account ID in Admin → AI.' : `Set the address of the ${name} service in Admin → AI.`, 409);
     if (!model) throw new AiError(`Pick a ${name} model in Admin → AI.`, 409);
     const msgs = [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))];
     // (Gemini turns down a tool with an empty list of parameters, so those go without)
@@ -393,7 +396,7 @@ async function converseOpenAI({ provider, apiKey, baseURL, model, system, messag
         usage.output_tokens += u.completion_tokens || u.output_tokens || 0;
         const choice = (data.choices || [])[0] || {};
         const m = choice.message || {};
-        const said = (Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '')).trim();
+        const said = unthink(Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '')).trim();
         const calls = Array.isArray(m.tool_calls) ? m.tool_calls.filter(c => c && c.function && c.function.name) : [];
         if (!calls.length) return { text: said || (choice.finish_reason === 'content_filter' ? 'I’m afraid I can’t help with that one.' : '…'), used, usage, model: served };
         msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls });
@@ -436,7 +439,7 @@ async function ping(cfg) {
 async function listModels(cfg) {
     if (!PROVIDERS[cfg.provider] || PROVIDERS[cfg.provider].kind !== 'openai') return Object.keys(MODELS);
     const name = PROVIDERS[cfg.provider].name;
-    if (!cfg.baseURL) throw new AiError(`Set the address of the ${name} service first.`, 409);
+    if (!cfg.baseURL) throw new AiError(cfg.provider === 'cloudflare' ? 'Add your Cloudflare account ID first.' : `Set the address of the ${name} service first.`, 409);
     let res;
     try {
         res = await fetch(`${cfg.baseURL}/models`, { headers: { Authorization: `Bearer ${cfg.apiKey}` }, signal: AbortSignal.timeout(30 * 1000) });

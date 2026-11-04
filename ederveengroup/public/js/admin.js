@@ -400,6 +400,7 @@
         nvidia: ['Go to <b>build.nvidia.com</b> and sign in (this joins the free NVIDIA Developer Program).', 'Open <b>API Keys</b> (build.nvidia.com/settings/api-keys), choose <b>Generate API Key</b> and copy it (it starts with <code>nvapi-</code>).', 'Free for trying things out, about 40 requests a minute.'],
         huggingface: ['Go to <b>huggingface.co/settings/tokens</b> and sign in.', 'Choose <b>Create new token</b>, type <b>Fine-grained</b>, tick <b>Make calls to Inference Providers</b>, then copy it (it starts with <code>hf_</code>).', 'Free accounts get a small amount of credit every month.'],
         zai: ['Go to <b>z.ai</b>, sign up, and open <b>API Keys</b> (z.ai/manage-apikey/apikey-list).', 'Create a key and copy it.', 'The GLM Flash models, like <code>glm-4.7-flash</code>, are free.'],
+        cloudflare: ['Go to <b>dash.cloudflare.com</b> and sign in (a free account works).', 'Copy your <b>Account ID</b>: it’s on the Account home page (and in the address bar, right after dash.cloudflare.com/). Paste it below.', 'Under <b>My Profile → API Tokens</b>, choose <b>Create Token</b> → <b>Workers AI</b> (template), create it and copy the token.'],
         cerebras: ['Go to <b>cloud.cerebras.ai</b> and sign up.', 'New accounts get trial credits (a payment method may be asked for); after that it is paid per use.', 'Under <b>API Keys</b>, copy your key (it starts with <code>csk-</code>).'],
         alibaba: ['Go to <b>Alibaba Cloud Model Studio</b> (alibabacloud.com → Products → Model Studio) and sign up, in the international (Singapore) region.', 'New users get 1 million free tokens per model for 90 days. Turn on <b>Free quota only</b> so nothing is ever charged.', 'Under <b>API Key</b>, create a key and copy it.'],
         fireworks: ['Go to <b>fireworks.ai</b> → <b>API Keys</b> and sign in.', 'New accounts get a little free credit; after that it is paid per use.', 'Create a key and copy it, then use <b>Load models</b> below to pick a model.'],
@@ -422,7 +423,7 @@
         { name: 'Cerebras', id: 'cerebras', tag: 'trial', url: 'https://cloud.cerebras.ai', free: 'The fastest inference. New accounts get trial credits (card may be needed, they expire); then pay as you go.' },
         { name: 'Qwen (Alibaba Cloud)', id: 'alibaba', tag: 'trial', url: 'https://www.alibabacloud.com/en/product/modelstudio', free: '1 million free tokens per model for 90 days for new users, international region. Turn on “Free quota only”.' },
         { name: 'Fireworks AI', id: 'fireworks', tag: 'trial', url: 'https://fireworks.ai/account/api-keys', free: 'A little free credit on sign-up, then pay as you go.' },
-        { name: 'Cloudflare Workers AI', tag: 'other', url: 'https://dash.cloudflare.com/', base: 'https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1', free: '10,000 “neurons” a day free (roughly a few hundred answers). Use a Cloudflare API token as the key; model names start with @cf/.' },
+        { name: 'Cloudflare Workers AI', id: 'cloudflare', tag: 'built', url: 'https://dash.cloudflare.com/profile/api-tokens', free: '10,000 “neurons” a day free (roughly a few hundred answers). Needs your account ID and a Workers AI API token; model names start with @cf/.' },
         { name: 'OVHcloud AI Endpoints', tag: 'other', url: 'https://endpoints.ai.cloud.ovh.net/', free: 'Free with rate limits: 400 requests a minute per model with a key (2 without). Address: in their model catalog. European hosting.' },
         { name: 'Ollama Cloud', tag: 'other', url: 'https://ollama.com/settings/keys', free: 'A free tier for a handful of big open models, with limits that reset every few hours and weekly. Address and models: in their docs.' },
         { name: 'Ollama (your own computer)', tag: 'local', local: true, url: 'https://ollama.com/download', base: 'http://localhost:11434/v1', free: 'Free forever and fully private: the AI runs on your own computer or server (needs a good one). On the Coolify server: http://host.docker.internal:11434/v1. Any word as the key.' },
@@ -451,6 +452,7 @@
                 ${p.free ? `<p class="ai-free-line ai-free-${p.tier}">${ic(p.tier === 'free' ? 'sparkle' : p.tier === 'trial' ? 'clock' : p.tier === 'own' ? 'laptop' : 'key')}<span>${esc(p.free)}</span></p>` : ''}
                 ${p.source === 'env' ? `<p class="cp-muted">To change it, edit ${esc(p.env)} in Coolify.</p>` : `<details class="si-guide"${p.configured ? '' : ' open'}><summary>Get a key</summary><ol class="si-steps">${AI_GUIDE[p.id].map(x => `<li>${x}</li>`).join('')}<li>Paste it below and save. It’s stored encrypted and never shown again.</li></ol></details>`}
                 <form class="si-form" id="aiform" novalidate>
+                    ${p.needsAccount ? `<label class="pf-field"><span>Cloudflare account ID</span><input class="input" name="account" value="${esc(p.account || '')}" placeholder="32 letters and numbers" spellcheck="false" autocomplete="off"></label>` : ''}
                     ${p.custom ? `<label class="pf-field"><span>Address of the service’s API</span><input class="input" name="baseUrl" value="${esc(p.baseUrl)}" placeholder="https://api.example.com/v1" spellcheck="false" autocomplete="off"></label>` : ''}
                     ${p.source === 'env' ? '' : `<label class="pf-field"><span>API key</span><input class="input" name="apiKey" type="password" placeholder="${p.configured ? `Saved, ends in …${esc(p.hint)}. Paste a new one to replace it.` : esc(p.keyHint || 'Paste the key')}" autocomplete="new-password" spellcheck="false"></label>`}
                     <div class="form-error hidden" role="alert"></div>
@@ -493,6 +495,7 @@
             err.classList.add('hidden');
             const body = {};
             if (form.baseUrl) body.baseUrl = form.baseUrl.value;
+            if (form.account && form.account.value.trim() !== (p.account || '')) body.account = form.account.value;
             if (form.apiKey && form.apiKey.value.trim()) body.apiKey = form.apiKey.value;
             if (!Object.keys(body).length) return (err.textContent = 'Paste the key first.'), err.classList.remove('hidden');
             try {

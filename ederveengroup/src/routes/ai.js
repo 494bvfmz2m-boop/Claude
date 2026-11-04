@@ -53,8 +53,10 @@ module.exports = function aiRoutes(ctx) {
             }
         }
         const model = id === 'claude' ? (ai.MODELS[p.model] ? p.model : ai.DEFAULT_MODEL) : p.model || def.model || '';
-        const baseURL = id === 'claude' ? config.anthropicBaseUrl : def.custom ? p.baseUrl || (config.aiBaseUrl ? ai.checkBaseUrl(config.aiBaseUrl) : '') || '' : def.base;
-        return { provider: id, apiKey, baseURL, model, maxImages: p.maxImages || def.maxImages, source: env ? 'env' : apiKey ? 'saved' : null, hint: env ? env.slice(-4) : p.hint || '', savedAt: p.savedAt || null, savedBy: p.savedBy || '', baseUrl: def.custom ? p.baseUrl || config.aiBaseUrl || '' : '' };
+        // (Cloudflare's address holds the account ID)
+        const account = def.account ? p.account || config.cloudflareAccount || '' : '';
+        const baseURL = id === 'claude' ? config.anthropicBaseUrl : def.custom ? p.baseUrl || (config.aiBaseUrl ? ai.checkBaseUrl(config.aiBaseUrl) : '') || '' : def.account ? (account ? def.base.replace('{account}', account) : '') : def.base;
+        return { provider: id, apiKey, baseURL, model, maxImages: p.maxImages || def.maxImages, source: env ? 'env' : apiKey ? 'saved' : null, hint: env ? env.slice(-4) : p.hint || '', savedAt: p.savedAt || null, savedBy: p.savedBy || '', baseUrl: def.custom ? p.baseUrl || config.aiBaseUrl || '' : '', account };
     }
     // "Claude Opus 5.5", "Gemini · gemini-2.5-flash" (or just the model, for another service), for people
     const named = (id, model) => (id === 'claude' ? (ai.MODELS[model] || String(model || 'Claude')).replace(/ \(.*\)$/, '') : P[id].custom ? String(model || 'AI') : `${P[id].name} · ${model}`);
@@ -71,7 +73,7 @@ module.exports = function aiRoutes(ctx) {
         const st = load();
         const list = ids.map(id => {
             const s = service(id, st);
-            return { id, name: P[id].name, by: P[id].by, tier: P[id].tier, free: P[id].free, configured: !!s.apiKey, source: s.source, hint: s.hint, model: s.model, defaultModel: P[id].model, baseUrl: s.baseUrl, maxImages: s.maxImages, env: P[id].env, keysUrl: P[id].keys, keyHint: P[id].hint, custom: !!P[id].custom, savedAt: s.savedAt, savedBy: s.savedBy };
+            return { id, name: P[id].name, by: P[id].by, tier: P[id].tier, free: P[id].free, configured: !!s.apiKey, source: s.source, hint: s.hint, model: s.model, defaultModel: P[id].model, baseUrl: s.baseUrl, maxImages: s.maxImages, env: P[id].env, keysUrl: P[id].keys, keyHint: P[id].hint, custom: !!P[id].custom, needsAccount: !!P[id].account, account: s.account, savedAt: s.savedAt, savedBy: s.savedBy };
         });
         const a = list.find(x => x.id === st.active);
         return {
@@ -182,6 +184,13 @@ module.exports = function aiRoutes(ctx) {
             if (!url) throw httpError(400, 'Use the service’s API address, like https://api.example.com/v1 (http:// only for this computer or your own network, like http://localhost:11434/v1 for Ollama).');
             p.baseUrl = url;
             said.push(`Set the address of the other AI service to ${url}`);
+        }
+        if (b.account !== undefined) {
+            if (!def.account) throw httpError(400, `${def.name} doesn’t need an account ID`);
+            const acc = String(b.account || '').trim().toLowerCase();
+            if (!/^[a-f0-9]{32}$/.test(acc)) throw httpError(400, 'That isn’t a Cloudflare account ID: it’s 32 letters and numbers, shown on your Cloudflare dashboard (Account home, or in the address bar after dash.cloudflare.com/).');
+            p.account = acc;
+            said.push('Set the Cloudflare account ID');
         }
         if (b.maxImages !== undefined) {
             const n = Math.round(Number(b.maxImages));
