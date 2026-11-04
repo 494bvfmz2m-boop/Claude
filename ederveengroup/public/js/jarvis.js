@@ -25,6 +25,13 @@
         }
     };
     const PREFS = 'eg-jarvis';
+    // the small pop-up in the other apps (jarvis-dock.js) shows this page in a frame
+    const mini = /[?&]mini=1\b/.test(location.search) && window.parent !== window;
+    if (mini) {
+        document.body.classList.add('jv-mini');
+        const base = document.querySelector('base');
+        if (base) base.target = '_top'; // links (Tasks, Calendar, Admin…) open in the app, not in the pop-up
+    }
     let status = null;
     let log = []; // the conversation: kept on the server, so it's the same on every device
     const prefs = { speak: true, wake: false, lang: 'auto', voice: '', rate: 1, pitch: 0.9, ...keep.get(localStorage, PREFS, {}) };
@@ -55,7 +62,7 @@
     function page() {
         root.innerHTML = `<div class="jv">
             <section class="jv-side">
-                <div class="jv-title"><h1>J.A.R.V.I.S.</h1><button class="icon-btn" data-settings aria-label="Jarvis settings" title="Settings">${ic('settings')}</button></div>
+                <div class="jv-title"><h1>J.A.R.V.I.S.</h1><span class="jv-title-acts"><button class="icon-btn" data-settings aria-label="Jarvis settings" title="Settings">${ic('settings')}</button>${mini ? `<a class="icon-btn" href="/jarvis/" target="_top" aria-label="Open Jarvis full size" title="Open full size">${ic('maximize')}</a><button class="icon-btn" data-close aria-label="Close Jarvis" title="Close (Esc)">${ic('x')}</button>` : ''}</span></div>
                 <p class="jv-sys" id="jv-sys"></p>
                 <button class="jv-orb" id="jv-orb" data-state="idle" aria-label="Talk to Jarvis" title="Tap and speak">${ORB}</button>
                 <p class="jv-status" id="jv-status" aria-live="polite"></p>
@@ -466,7 +473,7 @@
     }
     const WAKE = /\b(jarvis|jarvi|jervis|jarvas|djarvis)\b[\s,.!?:;-]*(.*)$/i;
     function startWake() {
-        if (!SR || !prefs.wake || !wakeOk || held || rec || busy || state === 'speaking' || document.hidden || !status || !status.on) return;
+        if (mini || !SR || !prefs.wake || !wakeOk || held || rec || busy || state === 'speaking' || document.hidden || !status || !status.on) return;
         const r = new SR();
         r.wake = true;
         rec = r;
@@ -641,6 +648,7 @@
     root.addEventListener('click', e => {
         if (e.target.closest('#jv-orb') || e.target.closest('[data-mic]')) return toggleListen();
         if (e.target.closest('[data-settings]')) return status && settings();
+        if (e.target.closest('[data-close]')) return closeMini();
         if (e.target.closest('[data-mute]')) {
             prefs.speak = !prefs.speak;
             savePrefs();
@@ -667,10 +675,32 @@
         send(text);
     });
     document.addEventListener('keydown', e => {
+        if (mini && e.altKey && e.code === 'KeyJ') return e.preventDefault(), closeMini();
         if (e.key !== 'Escape' || document.querySelector('.pf-crop-back')) return;
         if (state === 'speaking') stopSpeaking(), resumeWake();
         else if (state === 'listening' && rec && !rec.wake) rec.abort();
+        else if (mini) closeMini();
     });
+    // the pop-up around this page: it says when it opens and closes
+    function closeMini() {
+        try {
+            window.parent.EGJarvisDock.close();
+        } catch {
+            /* not in the pop-up */
+        }
+    }
+    let focusWhenReady = false;
+    window.jarvisMini = {
+        opened(focus) {
+            const input = $('#jv-input');
+            if (focus && input && !input.disabled) input.focus();
+            else focusWhenReady = focus; // still loading: as soon as he's ready
+        },
+        closed() {
+            stopSpeaking();
+            if (rec && !rec.wake) rec.abort();
+        }
+    };
 
     fetch('/api/jarvis/status', { headers: { 'X-EG': '1' } })
         .then(async res => {
@@ -680,6 +710,7 @@
             status = data;
             log = (data.history || []).filter(m => m && typeof m.content === 'string');
             page();
+            if (focusWhenReady && !$('#jv-input').disabled) $('#jv-input').focus();
             resumeWake();
         })
         .catch(e => (root.innerHTML = `<div class="pf-empty"><h1>Jarvis is unavailable</h1><p>${esc(e.message)}</p></div>`));

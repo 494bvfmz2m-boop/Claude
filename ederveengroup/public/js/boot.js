@@ -15,7 +15,14 @@
         root.style.setProperty('--on-accent', L > 0.36 ? '#17130b' : '#ffffff');
     };
     // phones get the Apple-style look (light unless chosen otherwise); computers Midnight aurora
-    var phone = matchMedia('(max-width: 760px)').matches;
+    // (inside a pop-up on this site, like Jarvis's, look at the page around it)
+    var host = window;
+    try {
+        if (window.parent !== window && window.parent.matchMedia) host = window.parent;
+    } catch (e) {
+        host = window;
+    }
+    var phone = host.matchMedia('(max-width: 760px)').matches;
     root.dataset.device = phone ? 'phone' : 'desk';
     try {
         var t = JSON.parse(localStorage.getItem('eg.look') || '{}');

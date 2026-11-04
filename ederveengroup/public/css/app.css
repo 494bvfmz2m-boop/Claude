@@ -3681,3 +3681,57 @@ span.jv-act:hover { background: var(--surface-3); }
 @media (prefers-reduced-motion: reduce) {
     .jv-r, .jv-halo, .jv-orb::after { animation: none !important; }
 }
+
+/* ---------- Jarvis in every app: a small button that opens him as a pop-up (jarvis-dock.js) ---------- */
+.jvd-btn { position: fixed; z-index: 55; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; color: #5fe3ff; background: radial-gradient(circle at 50% 40%, #0f3550, #050b14 72%); box-shadow: 0 0 0 1px rgba(90, 220, 255, .28), 0 10px 26px -8px rgba(0, 0, 0, .7), 0 0 22px -4px rgba(63, 220, 255, .55); cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; transition: transform .2s var(--ease), box-shadow .2s, opacity .2s; animation: jvd-in .5s var(--ease) both; }
+.jvd-btn svg { display: block; width: 100%; height: 100%; pointer-events: none; }
+.jvd-btn .jvd-ring { transform-origin: 24px 24px; transform-box: view-box; animation: jv-spin 14s linear infinite; }
+.jvd-btn:hover { transform: scale(1.07); box-shadow: 0 0 0 1px rgba(90, 220, 255, .4), 0 10px 26px -8px rgba(0, 0, 0, .7), 0 0 30px -2px rgba(63, 220, 255, .75); }
+.jvd-btn:focus-visible { outline: 2px solid #8cecff; outline-offset: 3px; }
+.jvd-btn.dragging { transition: none; transform: scale(1.12); cursor: grabbing; }
+.jvd-open .jvd-btn { box-shadow: 0 0 0 2px #5fe3ff, 0 10px 26px -8px rgba(0, 0, 0, .7), 0 0 30px -2px rgba(63, 220, 255, .8); }
+.jvd-panel { position: fixed; z-index: 57; overflow: hidden; border-radius: 20px; background: #05080f; box-shadow: 0 0 0 1px rgba(90, 220, 255, .22), 0 30px 80px -20px rgba(0, 0, 0, .85), 0 0 40px -12px rgba(63, 220, 255, .35); opacity: 0; transform: scale(.92); visibility: hidden; pointer-events: none; transition: opacity .2s var(--ease), transform .28s var(--ease), visibility 0s .28s; }
+.jvd-panel.on { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .2s var(--ease), transform .28s var(--ease), visibility 0s; }
+.jvd-panel iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+.jvd-back { display: none; }
+@keyframes jvd-in { from { opacity: 0; transform: scale(.6); } }
+@media (max-width: 760px) {
+    .jvd-btn { width: 46px; height: 46px; }
+    .jvd-panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 84dvh; padding-bottom: env(safe-area-inset-bottom, 0px); border-radius: 22px 22px 0 0; transform: translateY(100%); transform-origin: bottom center; }
+    .jvd-panel.on { transform: none; }
+    .jvd-back { position: fixed; inset: 0; z-index: 56; display: block; background: rgba(2, 3, 8, .5); opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s .25s; }
+    .jvd-back.on { opacity: 1; visibility: visible; transition: opacity .25s; }
+    .jvd-open .jvd-btn { opacity: 0; pointer-events: none; }
+}
+@media print { .jvd-btn, .jvd-panel, .jvd-back { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .jvd-btn .jvd-ring { animation: none; } }
+
+/* Jarvis inside the pop-up: one compact column */
+.jv-mini { background: var(--surface); }
+.jv-mini .pf-top, .jv-mini .ambient { display: none; }
+.jv-mini .ea { max-width: none; margin: 0; padding: 0; }
+.jv-mini .jv { display: flex; flex-direction: column; gap: 0; height: 100dvh; min-height: 0; }
+.jv-mini .jv-side { flex: none; display: grid; grid-template-columns: 50px minmax(0, 1fr); grid-template-areas: 'orb title' 'orb status' 'heard heard' 'chips chips'; column-gap: 12px; align-items: center; padding: 10px 12px 10px; border-radius: 0; }
+.jv-mini .jv-orb { grid-area: orb; width: 50px; margin: 0; }
+.jv-mini .jv-title { grid-area: title; }
+.jv-mini .jv-title h1 { font-size: 12.5px; letter-spacing: .32em; }
+.jv-mini .jv-title .icon-btn { width: 30px; height: 30px; }
+.jv-mini .jv-sys { display: none; }
+.jv-mini .jv-status { grid-area: status; min-height: 0; margin: 2px 0 0; font-size: 12.5px; text-align: left; }
+.jv-mini .jv-heard { grid-area: heard; min-height: 0; margin: 6px 0 0; font-size: 16px; }
+.jv-mini .jv-heard:empty { display: none; }
+.jv-mini .jv-chips { grid-area: chips; flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; margin: 0 -12px; padding: 10px 12px 0; scrollbar-width: none; }
+.jv-mini .jv-chips::-webkit-scrollbar { display: none; }
+.jv-mini .jv-chip { height: 28px; padding: 0 11px; font-size: 12.5px; }
+.jv-mini .jv-main { flex: 1; min-height: 0; border-radius: 0; box-shadow: none; }
+.jv-mini .jv-log { padding: 12px 12px 8px; gap: 10px; }
+.jv-mini .jv-msg { max-width: 92%; }
+.jv-mini .jv-msg p { font-size: 14px; }
+.jv-mini .jv-bar { gap: 6px; padding: 8px; }
+.jv-mini .jv-bar .input { height: 40px; padding: 0 14px; }
+.jv-mini .jv-mic, .jv-mini .jv-send { width: 40px; height: 40px; }
+.jv-mini .jv-setup { padding: 4px; }
+.jv-mini .jv-setup h2 { font-size: 24px; }
+.jv-title-acts { display: flex; align-items: center; gap: 2px; }
+.jv-title-acts a.icon-btn { color: #8cecff; }
+.jv-title-acts .icon-btn:hover { background: rgba(63, 220, 255, .12); color: #fff; }

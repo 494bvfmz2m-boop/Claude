@@ -1950,6 +1950,15 @@ test('Jarvis: admins only, talks with tools, remembers on the server, and switch
     assert.equal(pageRes.status, 200);
     assert.match(pageRes.body, /js\/jarvis\.js/);
     assert.match(pageRes.headers.get('permissions-policy'), /microphone=\(self\)/);
+    // the pop-up in every app frames him: only this site may, and no other page can be framed at all
+    assert.equal(pageRes.headers.get('x-frame-options'), 'SAMEORIGIN');
+    assert.match(pageRes.headers.get('content-security-policy'), /frame-ancestors 'self'/);
+    const notesPage = await jo('GET', '/notes/');
+    assert.equal(notesPage.headers.get('x-frame-options'), 'DENY');
+    assert.match(notesPage.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    assert.match(notesPage.body, /js\/jarvis-dock\.js/);
+    assert.equal((await ann('GET', '/api/jarvis/status?lite=1')).status, 403); // the button stays away for everyone else
+    assert.deepEqual(Object.keys((await jo('GET', '/api/jarvis/status?lite=1')).body).sort(), ['on', 'service']);
     assert.ok((await jo('GET', '/api/apps-summary')).body.pages.includes('jarvis'));
 
     // without an AI service he says what to do

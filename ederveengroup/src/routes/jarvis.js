@@ -84,6 +84,8 @@ module.exports = function jarvisRoutes(ctx) {
     r.get('/jarvis/status', (req, res) => {
         const list = ctx.aiServices ? ctx.aiServices() : [];
         const s = list[0];
+        // the pop-up button in every app only asks whether Jarvis is there (?lite=1)
+        if (req.query.lite) return res.json({ on: !!s, service: s ? s.name : null });
         const m = mind(req.session.email);
         res.json({ on: !!s, service: s ? s.name : null, model: s ? s.label : null, backups: list.slice(1).map(x => x.name), name: nameOf(req.session.email), address: m.prefs.address || 'name', addresses: ADDRESSES, history: m.log, memories: m.facts });
     });

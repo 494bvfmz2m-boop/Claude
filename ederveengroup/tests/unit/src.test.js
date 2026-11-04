@@ -105,3 +105,14 @@ test('no page part has a name ad blockers hide', () => {
     }
     assert.deepEqual([...new Set(bad)], []);
 });
+
+test('the Jarvis button is on every signed-in app page, and not on the sign-in, error or Jarvis pages', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const views = path.join(__dirname, '..', '..', 'views');
+    const without = ['jarvis.html', 'login.html', 'notfound.html', 'request.html', 'respond.html', 'welcome.html'];
+    for (const f of fs.readdirSync(views).filter(f => f.endsWith('.html'))) {
+        const has = fs.readFileSync(path.join(views, f), 'utf8').includes('js/jarvis-dock.js');
+        assert.equal(has, !without.includes(f), `${f} ${has ? 'shouldn’t' : 'should'} load the Jarvis button`);
+    }
+});

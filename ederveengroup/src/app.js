@@ -187,6 +187,8 @@ function createApp(config, { mail = defaultMail, checkMailbox } = {}) {
             if (ADMIN_ONLY.includes(app) && !ctx.isAdmin(req.session.email)) return ctx.pages.send(res, 'notfound.html', 404);
             if (needsName(req)) return toWelcome(res, `/${app}/`);
             if (!req.path.endsWith('/')) return res.redirect(301, `/${app}/`);
+            // Jarvis also opens as a small pop-up inside the other apps: only this site may frame him
+            if (app === 'jarvis') res.set({ 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': String(res.get('Content-Security-Policy') || '').replace("frame-ancestors 'none'", "frame-ancestors 'self'") });
             ctx.pages.send(res, `${app}.html`);
         });
     }
