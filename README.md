@@ -16,3 +16,19 @@ An interactive 3D map of markdown notes.
 python3 build.py            # or: python3 build.py /path/to/your/notes
 python3 server.py           # then open http://localhost:4700
 ```
+
+## Deploy on Coolify (use it on all your devices)
+
+1. **Database:** a PostgreSQL resource in your Coolify project. Keep it Private; copy its *Postgres URL (internal)*.
+2. **App:** in the same project and environment, + New → Private Repository (GitHub App) → this repo, branch `claude/cool-fermat-c7xwj1`, build pack **Dockerfile**, port **4700**. Set a domain, for example `https://jarvis.example.com`. HTTPS is required for the microphone.
+3. **Environment variables** (runtime only; leave "available at build time" off):
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | the database's internal Postgres URL |
+| `JARVIS_PASSWORD` | the password for the login page (required) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | from `claude setup-token` on your PC, so Jarvis runs on your Claude subscription |
+| `JARVIS_API_KEY` *(optional)* | an Anthropic or Gemini key instead, or in front of Claude |
+| `SEED_SAMPLE_NOTES` *(optional)* | `0` to start with an empty database instead of the 25 sample notes |
+
+The notes live in Postgres (`notes` table; removed notes go to `notes_trash`). Turn on Coolify's scheduled backups for the database. `/healthz` is the health check, and `/logout` signs you out.

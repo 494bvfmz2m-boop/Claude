@@ -25,6 +25,8 @@ The API key is read server-side only and is never sent to the browser.
 """
 import argparse
 import functools
+import hashlib
+import hmac
 import json
 import math
 import os
@@ -101,13 +103,31 @@ many please thing things anything something does doesn did us also use used usin
 
 # ---------------------------------------------------------------- config
 
+ENV_KEYS = {  # environment variables override config.json (that's how Coolify passes secrets)
+    "api_key": ("JARVIS_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"),
+    "model": ("JARVIS_MODEL",),
+    "provider": ("JARVIS_PROVIDER",),
+    "fallback": ("JARVIS_FALLBACK",),
+    "cli_model": ("JARVIS_CLI_MODEL",),
+}
+
+
 def load_config():
-    if not os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(DEFAULT_CONFIG, f)
-            f.write("\n")
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f)
+    cfg = dict(DEFAULT_CONFIG)
+    if not os.path.exists(CONFIG_PATH) and not any(os.environ.get(v) for vs in ENV_KEYS.values() for v in vs):
+        try:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(DEFAULT_CONFIG, f)
+                f.write("\n")
+        except OSError:
+            pass
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            cfg.update(json.load(f))
+    for field, names in ENV_KEYS.items():
+        value = next((os.environ[n] for n in names if os.environ.get(n, "").strip()), None)
+        if value is not None:
+            cfg[field] = value.strip()
     key = str(cfg.get("api_key") or "").strip()
     cfg["api_key"] = "" if key in ("", PLACEHOLDER_KEY) else key
     provider = str(cfg.get("provider") or "auto").strip().lower()
@@ -462,6 +482,18 @@ def answer(sid, question):
     raise ChatError(" | ".join(errors))
 
 
+def sync_db():
+    """Push the notes on disk to PostgreSQL (when DATABASE_URL is set). Returns an error string or None."""
+    if not DB:
+        return None
+    try:
+        DB.push(NOTES_DIR)
+        return None
+    except Exception as e:
+        print(f"[db] sync failed: {e!r}", flush=True)
+        return type(e).__name__
+
+
 def finish(sid, question, reply, index, retrieved, provider, fallback):
     """Resolve sources to node ids, apply any note changes, build the response."""
     by_label = {build.norm(n["label"]): i for i, n in enumerate(index.nodes)}
@@ -483,6 +515,9 @@ def finish(sid, question, reply, index, retrieved, provider, fallback):
     if reply["actions"]:
         changes, touched = STORE.apply(reply["actions"])
         result["changes"] = changes
+        sync_error = sync_db()
+        if sync_error:
+            result["answer"] += f" (Warning: saved here but not to the database: {sync_error})"
         if any(c["ok"] for c in changes):
             # ids are array positions, so re-map everything onto the rebuilt graph
             graph = build.build(NOTES_DIR)
@@ -499,6 +534,72 @@ def finish(sid, question, reply, index, retrieved, provider, fallback):
                 f'{c["op"]} {c["title"]}: {c["error"]}'.replace("  ", " ") for c in failed) + ".)"
     SESSIONS.add(sid, question, result["answer"])
     return result
+
+
+# ---------------------------------------------------------------- auth
+
+PASSWORD = os.environ.get("JARVIS_PASSWORD", "")
+AUTH_COOKIE = "jarvis_auth"
+AUTH_DAYS = 30
+_SECRET = hashlib.sha256(("jarvis-session:" + PASSWORD + ":" + os.environ.get("SESSION_SECRET", "")).encode()).digest()
+_failures = {}                 # ip -> [timestamps of failed logins]
+_fail_lock = threading.Lock()
+
+
+def sign_session(expires):
+    return f"{expires}.{hmac.new(_SECRET, str(expires).encode(), hashlib.sha256).hexdigest()}"
+
+
+def valid_session(value):
+    try:
+        expires, sig = value.split(".", 1)
+        return int(expires) > time.time() and hmac.compare_digest(sign_session(int(expires)), value)
+    except (ValueError, AttributeError):
+        return False
+
+
+def too_many_failures(ip):
+    now = time.time()
+    with _fail_lock:
+        recent = [t for t in _failures.get(ip, []) if now - t < 300]
+        _failures[ip] = recent
+        total = sum(1 for ts in _failures.values() for t in ts if now - t < 300)
+        return len(recent) >= 5 or total >= 50
+
+
+def record_failure(ip):
+    with _fail_lock:
+        _failures.setdefault(ip, []).append(time.time())
+
+
+LOGIN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Knowledge Galaxy</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #000; color: #e8ecf8;
+  font: 15px/1.5 Inter, system-ui, sans-serif; padding: 16px;
+  background-image: radial-gradient(1px 1px at 20% 30%, #fff8, transparent), radial-gradient(1px 1px at 70% 60%, #fff6, transparent),
+    radial-gradient(1.5px 1.5px at 40% 80%, #cfe0ff88, transparent), radial-gradient(1px 1px at 85% 20%, #fff7, transparent),
+    radial-gradient(ellipse at 50% 120%, #1b1640 0%, transparent 60%); }
+form { width: min(360px, 100%); padding: 28px; border-radius: 18px; background: rgba(10,14,30,.8);
+  border: 1px solid rgba(140,170,255,.18); box-shadow: 0 20px 80px rgba(0,0,0,.7); }
+h1 { margin: 0 0 4px; font-size: 18px; letter-spacing: .16em; text-transform: uppercase; text-shadow: 0 0 18px rgba(124,196,255,.55); }
+p { margin: 0 0 20px; color: #8a93ad; font-size: 13px; }
+input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(140,170,255,.25); background: rgba(0,0,0,.4);
+  color: inherit; font: inherit; outline: none; }
+input:focus { border-color: #7cc4ff; box-shadow: 0 0 0 3px rgba(124,196,255,.15); }
+button { margin-top: 12px; width: 100%; padding: 11px; border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 600;
+  background: linear-gradient(135deg, #7cc4ff, #b388ff); color: #050815; }
+.err { color: #ffb4b4; font-size: 13px; margin: 10px 0 0; min-height: 1em; }
+</style></head><body>
+<form method="post" action="/login">
+  <h1>Knowledge Galaxy</h1>
+  <p>Jarvis will see you now, once you've said the password.</p>
+  <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password" aria-label="Password">
+  <button type="submit">Enter</button>
+  <div class="err">__ERROR__</div>
+</form></body></html>"""
 
 
 # ---------------------------------------------------------------- HTTP
@@ -521,11 +622,97 @@ class ViewerHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "same-origin")
         super().end_headers()
+
+    # -- auth helpers
+    def client_ip(self):
+        # behind Coolify's proxy the right-most X-Forwarded-For entry is the real client
+        fwd = [p.strip() for p in (self.headers.get("X-Forwarded-For") or "").split(",") if p.strip()]
+        return fwd[-1] if fwd else self.client_address[0]
+
+    def is_https(self):
+        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
+
+    def authorized(self):
+        if not PASSWORD:
+            return True
+        m = re.search(AUTH_COOKIE + r"=([0-9]+\.[0-9a-f]{64})", self.headers.get("Cookie") or "")
+        return bool(m and valid_session(m.group(1)))
+
+    def redirect(self, location, cookie=None):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
+    def send_html(self, status, html):
+        body = html.encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def auth_cookie(self, value, max_age):
+        return (f"{AUTH_COOKIE}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}"
+                + ("; Secure" if self.is_https() else ""))
+
+    def gate_get(self):
+        """Handle /healthz, /login, /logout and the login wall. True = request handled."""
+        path = self.path.split("?", 1)[0]
+        if path == "/healthz":
+            self.send_json(200, {"ok": True})
+            return True
+        if path == "/logout":
+            self.redirect("/login" if PASSWORD else "/", self.auth_cookie("", 0))
+            return True
+        if path == "/login":
+            if not PASSWORD or self.authorized():
+                self.redirect("/")
+            else:
+                err = "Wrong password." if "e=1" in self.path else ("Too many attempts; try again in a few minutes."
+                                                                      if "e=2" in self.path else "")
+                self.send_html(200, LOGIN_PAGE.replace("__ERROR__", err))
+            return True
+        if not self.authorized():
+            self.redirect("/login")
+            return True
+        return False
+
+    def do_GET(self):
+        if not self.gate_get():
+            super().do_GET()
+
+    def do_HEAD(self):
+        if not self.gate_get():
+            super().do_HEAD()
+
+    def handle_login(self):
+        ip = self.client_ip()
+        if too_many_failures(ip):
+            return self.redirect("/login?e=2")
+        length = min(int(self.headers.get("Content-Length") or 0), 4096)
+        form = urllib.parse.parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
+        given = (form.get("password") or [""])[0]
+        ok = bool(PASSWORD) and hmac.compare_digest(hashlib.sha256(given.encode()).digest(),
+                                                     hashlib.sha256(PASSWORD.encode()).digest())
+        if not ok:
+            record_failure(ip)
+            time.sleep(0.6)
+            return self.redirect("/login?e=1")
+        self.redirect("/", self.auth_cookie(sign_session(int(time.time()) + AUTH_DAYS * 86400), AUTH_DAYS * 86400))
 
     # -- JSON API
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if path == "/login":
+            return self.handle_login()
+        if not self.authorized():
+            return self.send_json(401, {"error": "Please log in again (reload the page)."})
         if path not in ("/chat", "/chat/reset", "/chat/undo"):
             return self.send_json(404, {"error": "Not found"})
         # Only same-origin JSON requests: a cross-site page can't send
@@ -546,6 +733,8 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             return self.send_json(200, {"ok": True}, new_cookie)
         if path == "/chat/undo":
             message = STORE.undo()
+            if message and sync_db():
+                message += " (Warning: not saved to the database.)"
             if not message:
                 return self.send_json(200, {"ok": False, "message": "Nothing to undo."}, new_cookie)
             SESSIONS.reset(sid)     # the conversation referred to the undone state
@@ -577,16 +766,51 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         if new_cookie:
-            self.send_header("Set-Cookie", f"{COOKIE}={new_cookie}; Path=/; HttpOnly; SameSite=Strict")
+            self.send_header("Set-Cookie", f"{COOKIE}={new_cookie}; Path=/; HttpOnly; SameSite=Strict"
+                             + ("; Secure" if self.is_https() else ""))
         self.end_headers()
         self.wfile.write(body)
 
 
+DB = None
+
+
+def connect_db():
+    """Open DATABASE_URL (retrying while the database starts), seed it if empty, pull notes."""
+    global DB
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if not url:
+        return "notes folder (files)"
+    import notes_db
+    db = notes_db.NotesDB(url)
+    for attempt in range(30):
+        try:
+            db.init()
+            break
+        except Exception as e:
+            if attempt == 29:
+                raise SystemExit(f"Could not connect to the database ({db.describe()}): {e}")
+            print(f"[db] waiting for {db.describe()} ({type(e).__name__})…", flush=True)
+            time.sleep(2)
+    if db.count() == 0 and os.environ.get("SEED_SAMPLE_NOTES", "1") != "0":
+        print(f"[db] empty database: seeding with {db.push(NOTES_DIR)} notes from the image", flush=True)
+    print(f"[db] loaded {db.pull(NOTES_DIR)} notes from {db.describe()}", flush=True)
+    DB = db
+    return db.describe()
+
+
 def main():
     ap = argparse.ArgumentParser(description="Serve the Knowledge Galaxy viewer and /chat.")
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=4700)
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "4700")))
     args = ap.parse_args()
+    if (args.host not in ("127.0.0.1", "localhost", "::1") and not PASSWORD
+            and os.environ.get("JARVIS_ALLOW_NO_PASSWORD") != "1"):
+        raise SystemExit("Refusing to serve on a public address without a password: set JARVIS_PASSWORD "
+                         "(or JARVIS_ALLOW_NO_PASSWORD=1 if something else protects it).")
+    os.makedirs(NOTES_DIR, exist_ok=True)
+    storage = connect_db()
+    build.write_graph(build.build(NOTES_DIR), os.path.join(VIEWER_DIR, "graph-data.js"))
     cfg = load_config()
     INDEX.get()
     handler = functools.partial(ViewerHandler, directory=VIEWER_DIR)
@@ -595,7 +819,8 @@ def main():
         mode = {"anthropic": f"Anthropic API ({cfg.get('model')})",
                 "gemini": "Gemini API",
                 "claude-cli": "claude -p (subscription)"}[cfg["provider"]]
-        print(f"Serving {VIEWER_DIR} at http://localhost:{args.port}/  ·  /chat via {mode}  (Ctrl+C to stop)")
+        print(f"Serving {VIEWER_DIR} at http://localhost:{args.port}/  ·  /chat via {mode}  ·  notes: {storage}"
+              f"  ·  login: {'on' if PASSWORD else 'off'}  (Ctrl+C to stop)", flush=True)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

@@ -1,0 +1,7 @@
+.git
+.gitignore
+config.json
+notes/.trash
+**/__pycache__
+*.png
+*.tmp
