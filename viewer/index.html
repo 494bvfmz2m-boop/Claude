@@ -530,6 +530,8 @@
       if (!res.ok || data.error) throw new Error(data.error || `Server returned ${res.status}`);
       const ids = (data.nodes || []).filter(i => byId(i));
       renderAnswer(question, data.answer, ids);
+      const via = { gemini: 'Gemini', anthropic: 'Claude API', 'claude-cli': 'Claude' }[data.backend] || data.backend;
+      aQ.textContent = `${question}  ·  answered by ${via}${data.fallback ? ' (backup)' : ''}`;
       highlightNotes(ids);
     } catch (err) {
       aText.classList.add('error');

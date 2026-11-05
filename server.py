@@ -45,7 +45,8 @@ PLACEHOLDER_KEY = "PUT-YOUR-KEY-HERE"
 DEFAULT_CONFIG = {"api_key": PLACEHOLDER_KEY, "model": "claude-opus-4-8"}
 DEFAULT_GEMINI_MODEL = "gemini-flash-latest"
 # Tried in order when the chosen Gemini model is overloaded or unavailable.
-GEMINI_FALLBACKS = ("gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
+GEMINI_FALLBACKS = ("gemini-2.5-flash", "gemini-flash-lite-latest")
+GEMINI_BUDGET = 40            # seconds Gemini gets in total before we hand over to Claude
 PROVIDERS = ("anthropic", "gemini", "claude-cli")
 
 TOP_K = 6
@@ -283,14 +284,19 @@ def ask_gemini(cfg, history, prompt):
     }).encode()
     models = [model] + [m for m in GEMINI_FALLBACKS if m != model]
     last_error = None
+    deadline = time.monotonic() + GEMINI_BUDGET
+    data = None
     for attempt, name in enumerate(models):
+        remaining = deadline - time.monotonic()
+        if remaining < 3:
+            break
         url = ("https://generativelanguage.googleapis.com/v1beta/models/"
                + urllib.parse.quote(name) + ":generateContent")
         # Key goes in a header, not the URL, so it never shows up in logs.
         req = urllib.request.Request(url, data=body, method="POST", headers={
             "x-goog-api-key": cfg["api_key"], "content-type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=min(25, remaining)) as r:
                 data = json.load(r)
             break
         except urllib.error.HTTPError as e:
@@ -304,10 +310,12 @@ def ask_gemini(cfg, history, prompt):
                 time.sleep(0.5 * (attempt + 1))
                 continue
             raise last_error
-        except urllib.error.URLError as e:
-            raise ChatError(f"Could not reach the Gemini API: {e.reason}")
-    else:
-        raise last_error
+        except (TimeoutError, OSError) as e:   # includes URLError and read timeouts
+            reason = getattr(e, "reason", None) or type(e).__name__
+            last_error = ChatError(f"Gemini didn't answer in time ({name}): {reason}")
+            continue
+    if data is None:
+        raise last_error or ChatError("Gemini ran out of time.")
     candidates = data.get("candidates") or []
     if not candidates:
         reason = (data.get("promptFeedback") or {}).get("blockReason", "no answer")
@@ -345,6 +353,9 @@ def ask_cli(cfg, history, prompt):
     return r.stdout.strip()
 
 
+BACKENDS = {"anthropic": ask_api, "gemini": ask_gemini, "claude-cli": ask_cli}
+
+
 def answer(sid, question):
     cfg = load_config()
     index = INDEX.get()
@@ -352,12 +363,27 @@ def answer(sid, question):
     previous = history[-1][0] if history else ""
     ids = index.search(question, context=previous)
     prompt = f"{notes_block(index.nodes, ids)}\n\nQuestion: {question}"
-    backend = {"anthropic": ask_api, "gemini": ask_gemini, "claude-cli": ask_cli}[cfg["provider"]]
-    text = backend(cfg, history, prompt)
-    if not text:
-        raise ChatError("The model returned an empty answer.")
-    SESSIONS.add(sid, question, text)
-    return {"answer": text, "nodes": ids, "backend": cfg["provider"]}
+
+    # Try the configured provider first; if it fails, fall back to Claude via
+    # `claude -p` (set "fallback": "none" in config.json to turn this off).
+    chain = [cfg["provider"]]
+    if cfg["provider"] != "claude-cli" and str(cfg.get("fallback", "claude-cli")).lower() != "none":
+        chain.append("claude-cli")
+    errors = []
+    for provider in chain:
+        try:
+            text = BACKENDS[provider](cfg, history, prompt)
+        except ChatError as e:
+            text, err = "", str(e)
+        else:
+            err = "empty answer"
+        if text:
+            SESSIONS.add(sid, question, text)
+            return {"answer": text, "nodes": ids, "backend": provider,
+                    "fallback": provider != chain[0]}
+        errors.append(f"{provider}: {err}")
+        print(f"[chat] {provider} failed: {err}" + ("  -> trying Claude" if provider != chain[-1] else ""), flush=True)
+    raise ChatError(" | ".join(errors))
 
 
 # ---------------------------------------------------------------- HTTP
