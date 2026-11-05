@@ -3635,7 +3635,8 @@ span.jv-act:hover { background: var(--surface-3); }
 @keyframes jv-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes jv-in { from { opacity: 0; transform: translateY(6px); } }
 .jv-bar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--surface); }
-.jv-bar .input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border-radius: 99px; font-size: 15px; }
+.jv-bar .input { flex: 1; min-width: 0; height: 44px; min-height: 44px; max-height: 150px; padding: 11px 16px; border-radius: 22px; font: 15px/1.45 var(--ui); resize: none; overflow-y: auto; }
+.jv-bar { align-items: flex-end; }
 .jv-mic { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; color: #04131c; background: linear-gradient(145deg, #8cecff, #2bb8ff); box-shadow: 0 6px 18px -6px rgba(43, 184, 255, .8); cursor: pointer; transition: .2s var(--ease); }
 .jv-mic.on { color: #fff; background: linear-gradient(145deg, #ff8a95, #ff4d5e); box-shadow: 0 0 0 6px rgba(255, 77, 94, .18); }
 .jv-mic:disabled, .jv-send:disabled { opacity: .45; cursor: default; }
@@ -3975,3 +3976,24 @@ span.jv-act:hover { background: var(--surface-3); }
 .jv-confirm.cancelled { opacity: .55; }
 .jv-mem li .btn { height: 28px; padding: 0 10px; font-size: 12.5px; }
 .jv-mem li small { color: var(--text-3); }
+
+/* talking to Jarvis: his answers laid out, buttons to copy or hear them again, what he's doing */
+.jv-text p { margin: 0 0 .55em; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.jv-text p:last-child { margin-bottom: 0; }
+.jv-text ul, .jv-text ol { margin: .2em 0 .55em; padding-left: 1.3em; font-size: 15px; line-height: 1.5; }
+.jv-text li + li { margin-top: .2em; }
+.jv-tools { display: flex; gap: 2px; margin: 6px -6px -4px auto; opacity: .55; transition: opacity .2s; }
+.jv-msg:hover .jv-tools, .jv-tools:focus-within { opacity: 1; }
+.jv-tools .icon-btn { width: 28px; height: 28px; }
+.jv-tools .icon-btn .i { width: 15px; height: 15px; }
+.jv-tools .btn { height: 30px; font-size: 13px; }
+.jv-msg.bad .jv-tools { opacity: 1; margin-left: -6px; }
+.jv-wait p { align-items: center; }
+.jv-wait #jv-step { margin-left: 8px; font-size: 13.5px; color: var(--text-2); animation: jv-in .3s var(--ease); }
+/* the ring around the core grows with your voice while he listens */
+.jv-orb { --mic: 0; }
+.jv-orb[data-state='listening']::before { content: ''; position: absolute; inset: 2%; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 2px rgba(140, 236, 255, calc(.25 + var(--mic) * .6)), 0 0 calc(10px + var(--mic) * 40px) rgba(63, 220, 255, calc(.2 + var(--mic) * .5)); transform: scale(calc(1 + var(--mic) * .12)); transition: transform .08s linear; }
+/* opened from a widget on a phone: the core asks to be tapped */
+.jv-orb.invite { animation: jv-invite 1.6s ease-in-out infinite; }
+@keyframes jv-invite { 50% { transform: scale(1.07); filter: drop-shadow(0 0 30px rgba(63, 220, 255, .9)); } }
+@media (pointer: coarse) { .jv-tools { opacity: 1; } }

@@ -34,7 +34,7 @@
     }
     let status = null;
     let log = []; // the conversation: kept on the server, so it's the same on every device
-    const prefs = { speak: true, wake: false, lang: 'auto', voice: '', rate: 1, pitch: 0.9, ...keep.get(localStorage, PREFS, {}) };
+    const prefs = { speak: true, wake: false, convo: true, sounds: true, lang: 'auto', voice: '', rate: 1, pitch: 0.9, ...keep.get(localStorage, PREFS, {}) };
     prefs.rate = Math.min(1.3, Math.max(0.7, Number(prefs.rate) || 1));
     prefs.pitch = Math.min(1.2, Math.max(0.6, Number(prefs.pitch) || 0.9));
     let state = 'idle'; // idle · listening · thinking · speaking
@@ -73,7 +73,7 @@
                 <div class="jv-log" id="jv-log" aria-live="polite"></div>
                 <form class="jv-bar" id="jv-bar" autocomplete="off">
                     ${SR ? `<button type="button" class="jv-mic" data-mic aria-label="Speak to Jarvis" title="Speak">${ic('mic')}</button>` : ''}
-                    <input class="input" id="jv-input" placeholder="${dutch() ? 'Vraag Jarvis iets…' : 'Ask Jarvis anything…'}" maxlength="2000" enterkeyhint="send">
+                    <textarea class="input" id="jv-input" rows="1" placeholder="${dutch() ? 'Vraag Jarvis iets…' : 'Ask Jarvis anything…'}" maxlength="2000" enterkeyhint="send" aria-label="Message to Jarvis"></textarea>
                     <button type="button" class="icon-btn" data-mute aria-pressed="${!prefs.speak}"></button>
                     <button class="btn btn-primary jv-send" aria-label="Send">${ic('send')}</button>
                 </form>
@@ -84,6 +84,13 @@
         chips();
         drawLog();
         setState(state);
+    }
+    // the message box grows with what you write (up to a few lines)
+    function grow() {
+        const el = $('#jv-input');
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(150, el.scrollHeight)}px`;
     }
     function muteButton() {
         const b = $('[data-mute]', root);
@@ -111,14 +118,32 @@
         return `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, ${who()}. All systems are online. How can I help?`;
     }
     let drawn = 0; // messages already on screen (only new ones fade in)
+    // his words, laid out: paragraphs, and lists where he made one
+    function fmt(t) {
+        const item = /^\s*(?:[-•*]|\d+[.)])\s+/;
+        return String(t || '')
+            .replace(/\r/g, '')
+            .split(/\n{2,}/)
+            .map(block => {
+                const lines = block.split('\n').filter(l => l.trim());
+                if (lines.length > 1 && lines.every(l => item.test(l))) {
+                    const tag = /^\s*\d/.test(lines[0]) ? 'ol' : 'ul';
+                    return `<${tag}>${lines.map(l => `<li>${esc(l.replace(item, ''))}</li>`).join('')}</${tag}>`;
+                }
+                return `<p>${lines.map(esc).join('<br>')}</p>`;
+            })
+            .join('');
+    }
     function bubble(m, i = Infinity) {
         const seen = i < drawn ? ' seen' : '';
-        if (m.role === 'user') return `<div class="jv-msg me${seen}"><p>${esc(m.content)}</p></div>`;
+        const at = Number.isFinite(i) && i > 0 ? ` data-i="${i - 1}"` : '';
+        if (m.role === 'user') return `<div class="jv-msg me${seen}"${at}><p>${esc(m.content)}</p></div>`;
         const acts = (m.actions || []).filter(a => a && a.text && !a.draft && !a.pending);
         const drafts = (m.actions || []).filter(a => a && a.draft);
         const asks = (m.actions || []).filter(a => a && a.pending);
         const act = a => (/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`);
-        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${asks.map(askCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
+        const tools = !at ? '' : m.error ? `<div class="jv-tools"><button type="button" class="btn btn-ghost" data-retry>${ic('refresh')}<span>${dutch() ? 'Opnieuw' : 'Try again'}</span></button></div>` : `<div class="jv-tools"><button type="button" class="icon-btn" data-copy title="${dutch() ? 'Kopiëren' : 'Copy'}" aria-label="Copy">${ic('copy')}</button>${synth ? `<button type="button" class="icon-btn" data-replay title="${dutch() ? 'Nog eens voorlezen' : 'Read it again'}" aria-label="Read it again">${ic('volume')}</button>` : ''}</div>`;
+        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"${at}><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><div class="jv-text">${fmt(m.content)}</div>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${asks.map(askCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}${tools}</div>`;
     }
     // an email or chat message he wrote: change it if you like, then Send (nothing goes out before that)
     const rows = t => Math.min(14, Math.max(3, String(t || '').split('\n').length + Math.floor(String(t || '').length / 60)));
@@ -208,7 +233,7 @@
         const box = $('#jv-log');
         if (!box) return;
         const on = status && status.on;
-        box.innerHTML = !on ? setup() : bubble({ role: 'assistant', content: greeting() }, drawn ? 0 : Infinity) + log.map((m, i) => bubble(m, i + 1)).join('') + (busy ? '<div class="jv-msg ai jv-wait" aria-label="Jarvis is thinking"><span class="jv-who">Jarvis</span><p><i></i><i></i><i></i></p></div>' : '');
+        box.innerHTML = !on ? setup() : bubble({ role: 'assistant', content: greeting() }, drawn ? 0 : Infinity) + log.map((m, i) => bubble(m, i + 1)).join('') + (busy ? `<div class="jv-msg ai jv-wait" aria-label="Jarvis is working"><span class="jv-who">Jarvis</span><p><i></i><i></i><i></i><span id="jv-step">${esc(stepText)}</span></p></div>` : '');
         drawn = log.length + 1;
         $('#jv-input').disabled = !on;
         $('.jv-send', root).disabled = !on;
@@ -233,14 +258,15 @@
         const line = !status || !status.on
             ? nl ? 'Offline: nog geen AI ingesteld' : 'Offline: no AI service set up yet'
             : {
-                  idle: SR ? (prefs.wake && wakeOk ? (nl ? 'Zeg “Jarvis” en dan je vraag, of tik op de kern.' : 'Say “Jarvis” and then your question, or tap the core.') : nl ? 'Tik op de kern en praat, of typ hieronder.' : 'Tap the core and speak, or type below.') : nl ? 'Typ hieronder. (Praten kan in Chrome, Edge en Safari.)' : 'Type below. (Speaking works in Chrome, Edge and Safari.)',
-                  listening: nl ? 'Ik luister…' : 'Listening…',
-                  thinking: nl ? 'Even denken…' : 'Thinking…',
-                  speaking: nl ? 'Aan het woord. Tik om te stoppen.' : 'Speaking. Tap to stop.'
+                  idle: SR ? (prefs.wake && wakeOk ? (nl ? 'Zeg “Jarvis” en dan je vraag, of tik op de kern.' : 'Say “Jarvis” and then your question, or tap the core.') : desk() ? (nl ? 'Tik op de kern of houd de spatiebalk ingedrukt en praat, of typ hieronder.' : 'Tap the core or hold Space and speak, or type below.') : nl ? 'Tik op de kern en praat, of typ hieronder.' : 'Tap the core and speak, or type below.') : nl ? 'Typ hieronder. (Praten kan in Chrome, Edge en Safari.)' : 'Type below. (Speaking works in Chrome, Edge and Safari.)',
+                  listening: talking && prefs.convo ? (nl ? 'Ik luister… zeg “bedankt” als je klaar bent.' : 'Listening… say “thanks” when you’re done.') : nl ? 'Ik luister…' : 'Listening…',
+                  thinking: nl ? 'Even denken… (tik om te stoppen)' : 'Working on it… (tap to stop)',
+                  speaking: nl ? 'Aan het woord. Tik om hem te onderbreken.' : 'Speaking. Tap to interrupt him.'
               }[s];
         $('#jv-status').textContent = line;
         if (s === 'speaking') pulse();
     }
+    const desk = () => !matchMedia('(pointer: coarse)').matches;
     function heard(text) {
         const el = $('#jv-heard');
         if (el) el.textContent = text ? `“${text}”` : '';
@@ -268,31 +294,70 @@
             );
         });
     }
-    async function send(text) {
+    // what he's doing right now ("Checking your agenda…"), streamed in while he works
+    let stepText = '';
+    const STEP_NL = { thinking: 'Even denken', get_agenda: 'Je agenda bekijken', get_tasks: 'Je taken bekijken', check_mail: 'Je mail bekijken', check_chats: 'Je chats bekijken', get_weather: 'Het weer bekijken', site_status: 'De site bekijken', write_email: 'De mail schrijven', write_chat: 'Het bericht schrijven', search_mail: 'In je mail zoeken', read_mail: 'De mail lezen', look_at_screen: 'Naar je scherm kijken', type_here: 'Klaarmaken om te schrijven', add_task: 'De taak toevoegen', add_event: 'In je agenda zetten', change_item: 'Het aanpassen', delete_item: 'Het verwijderen' };
+    function step(name, label) {
+        stepText = `${(dutch() && STEP_NL[name]) || label}…`;
+        const el = $('#jv-step');
+        if (el) el.textContent = stepText;
+    }
+    let asking = null; // the request in flight (tap the core while he thinks to cancel it)
+    let voiceTurn = false; // the last thing you said was spoken (so he listens again after answering)
+    async function send(text, { voice = false } = {}) {
         text = String(text || '').trim().slice(0, 2000);
         if (!text || busy || !status || !status.on) return;
         unlockSpeech();
         stopSpeaking();
         pauseWake();
+        voiceTurn = voice;
+        if (!voice) talking = false;
         log.push({ role: 'user', content: text });
         busy = true;
+        stepText = dutch() ? 'Even denken…' : 'Thinking…';
         drawLog();
         setState('thinking');
         let reply = null;
+        const ctl = (asking = new AbortController());
         try {
             if (!where && WEATHERY.test(text)) await locate();
             const res = await fetch('/api/jarvis/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-EG': '1' },
-                body: JSON.stringify({ message: text, tz: tz(), where, screen: screenNow() })
+                headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson', 'X-EG': '1' },
+                body: JSON.stringify({ message: text, tz: tz(), where, screen: screenNow() }),
+                signal: ctl.signal
             });
             if (res.status === 401) return location.replace('/login?next=%2Fjarvis%2F');
-            const data = await res.json().catch(() => ({}));
-            if (res.status === 409) {
-                status.on = false;
-                throw new Error(data.error || 'Jarvis needs an AI service first.');
+            let data = {};
+            if (/ndjson/.test(res.headers.get('content-type') || '') && res.body) {
+                // line by line: steps as he goes, then the answer (or what went wrong)
+                const reader = res.body.getReader();
+                const dec = new TextDecoder();
+                let buf = '';
+                for (;;) {
+                    const { value, done } = await reader.read();
+                    if (value) buf += dec.decode(value, { stream: true });
+                    let nl;
+                    while ((nl = buf.indexOf('\n')) >= 0) {
+                        const line = buf.slice(0, nl).trim();
+                        buf = buf.slice(nl + 1);
+                        if (!line) continue;
+                        const msg = JSON.parse(line);
+                        if (msg.step) step(msg.step, msg.label);
+                        if (msg.done || msg.error) data = msg;
+                    }
+                    if (done) break;
+                }
+                if (data.error) throw new Error(data.error);
+                if (!data.done) throw new Error('The answer was cut off. Try again?');
+            } else {
+                data = await res.json().catch(() => ({}));
+                if (res.status === 409) {
+                    status.on = false;
+                    throw new Error(data.error || 'Jarvis needs an AI service first.');
+                }
+                if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
             }
-            if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
             reply = String(data.reply || '…');
             log.push({ role: 'assistant', content: reply, actions: data.actions || [], via: data.service, note: handedOver(data) });
             for (const a of data.actions || []) if (a.kind === 'type' && (a.type || a.mode === 'clear')) typeIntoApp(a);
@@ -301,15 +366,26 @@
             if (go) setTimeout(() => (mini ? window.top : window).location.assign(go.href), 1200);
             if (data.memories) status.memories = data.memories;
         } catch (e) {
-            log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
+            if (e.name === 'AbortError') log.push({ role: 'assistant', content: dutch() ? 'Gestopt.' : 'Stopped.', error: true });
+            else log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
         } finally {
             busy = false;
+            if (asking === ctl) asking = null;
             if (status && !status.on) page();
             else drawLog();
         }
         setState('idle');
+        if (ctl.signal.aborted) return;
         if (reply && prefs.speak && synth) speak(reply);
-        else resumeWake();
+        else afterSpeech();
+    }
+    // after his answer: in a spoken conversation he listens again, otherwise back to waiting
+    function afterSpeech() {
+        if (talking && prefs.convo && voiceTurn && SR && !busy) setTimeout(() => talking && state === 'idle' && !busy && listen({ again: true }), 250);
+        else {
+            talking = false;
+            resumeWake();
+        }
     }
 
     // the app behind the pop-up: what's on it, and typing his text into it, bit by bit
@@ -428,12 +504,12 @@
                 u.onend = u.onerror = () => {
                     if (run !== speakingRun) return;
                     if (state === 'speaking') setState('idle');
-                    resumeWake();
+                    afterSpeech();
                 };
             synth.speak(u);
         });
-        // a voice that never starts (no voices, or blocked until the page is tapped): listen again anyway
-        setTimeout(() => run === speakingRun && state !== 'speaking' && !synth.speaking && resumeWake(), 4000);
+        // a voice that never starts (no voices, or blocked until the page is tapped): carry on anyway
+        setTimeout(() => run === speakingRun && state !== 'speaking' && !synth.speaking && afterSpeech(), 4000);
     }
     function stopSpeaking() {
         speakingRun++;
@@ -470,7 +546,10 @@
             const t = (now - t0) / 1000;
             kick *= 0.88;
             const base = state === 'speaking' ? 0.07 * Math.abs(Math.sin(t * 9.3)) * (0.6 + 0.4 * Math.sin(t * 2.1)) : 0;
-            if (orb) orb.style.setProperty('--lvl', (1 + base + 0.12 * kick).toFixed(3));
+            if (orb) {
+                orb.style.setProperty('--lvl', (1 + base + (state === 'listening' ? 0.2 : 0.12) * kick).toFixed(3));
+                orb.style.setProperty('--mic', (state === 'listening' ? kick : 0).toFixed(3));
+            }
             requestAnimationFrame(step);
         };
         requestAnimationFrame(step);
@@ -501,18 +580,31 @@
         if (e.error === 'network') toast('Speech recognition needs the internet in this browser.', { bad: true });
         return false;
     }
-    // tap and talk: what you say is sent when you stop
-    function listen() {
+    // Talking. Tap the core (or hold Space) and speak: what you say shows in the box as you go, and is
+    // sent when you stop. In a conversation he listens again after every answer, like a phone call;
+    // "thanks" or "that's all" (or a tap) ends it, and so does a few seconds of silence.
+    let talking = false;
+    const ENDS = /^(ok(ay)?[, ]+)?(thanks?|thank you( very much)?|cheers|that'?s (all|it)|that is all|stop|bye|goodbye|good night|never ?mind|no thanks?|dank( je| u)?( wel)?|bedankt|dat was (het|alles)|stop maar|doei|laat maar|tot (straks|later))( jarvis)?[.!]*$/i;
+    function endConversation(say) {
+        talking = false;
+        cue('down');
+        setState('idle');
+        if (say && prefs.speak && synth) speak(dutch() ? `Tot uw dienst, ${who()}.` : `Very good, ${who()}.`);
+        resumeWake();
+    }
+    function listen({ again = false, ptt = false } = {}) {
         if (!SR) return toast('Speaking to Jarvis works in Chrome, Edge and Safari. You can always type.');
         unlockSpeech();
         stopSpeaking();
         stopRec(true);
         const r = new SR();
         rec = r;
+        r.ptt = ptt;
         r.lang = recLang();
         r.interimResults = true;
-        r.continuous = false;
+        r.continuous = ptt; // holding Space: keep listening through pauses until you let go
         r.maxAlternatives = 1;
+        const box = $('#jv-input');
         let said = '';
         r.onresult = e => {
             let interim = '';
@@ -520,36 +612,133 @@
                 if (e.results[i].isFinal) said += e.results[i][0].transcript;
                 else interim += e.results[i][0].transcript;
             }
-            heard(`${said}${interim}`.trim());
-            kick = 1;
+            const now = `${said}${interim}`.trim();
+            heard(now);
+            if (box) {
+                box.value = now;
+                grow();
+            }
         };
         r.onerror = e => {
-            if (!micRefused(e) && e.error !== 'no-speech' && e.error !== 'aborted') toast('I didn’t catch that. Try again?', { bad: true });
+            if (micRefused(e)) talking = false;
+            else if (e.error !== 'no-speech' && e.error !== 'aborted') toast(dutch() ? 'Dat verstond ik niet. Nog eens?' : 'I didn’t catch that. Try again?', { bad: true });
         };
         r.onend = () => {
             if (rec === r) rec = null;
+            stopMeter();
             heard('');
-            if (said.trim()) send(said);
-            else {
-                setState('idle');
-                resumeWake();
+            if (box) {
+                box.value = '';
+                grow();
             }
+            const text = said.trim();
+            if (text && talking && ENDS.test(text)) return endConversation(true);
+            if (text) {
+                cue('send');
+                return send(text, { voice: true });
+            }
+            // nothing heard: a conversation ends quietly, a tap just goes back to waiting
+            if (talking && again) return endConversation(false);
+            setState('idle');
+            resumeWake();
         };
         try {
             r.start();
             setState('listening');
+            cue('up');
             pulse();
+            startMeter();
         } catch {
             rec = null;
             setState('idle');
         }
     }
     function toggleListen() {
-        if (state === 'speaking') return stopSpeaking(), resumeWake();
-        if (state === 'listening' && rec && !rec.wake) return rec.stop();
-        if (busy) return;
+        // talking over him: he stops, and listens to you
+        if (state === 'speaking') {
+            stopSpeaking();
+            talking = true;
+            return listen();
+        }
+        // a tap while he listens in a conversation ends it; otherwise it sends what you said
+        if (state === 'listening' && rec && !rec.wake) {
+            if (talking && !$('#jv-input').value.trim()) {
+                stopRec(true);
+                stopMeter();
+                return endConversation(false);
+            }
+            return rec.stop();
+        }
+        // a tap while he works cancels it
+        if (busy) {
+            if (asking) asking.abort();
+            talking = false;
+            return;
+        }
         held = true;
+        talking = true;
         listen();
+    }
+    // the core moves with your voice while he listens (computers; phones keep the microphone for listening)
+    let meter = null;
+    const appleTouch = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    async function startMeter() {
+        if (meter || appleTouch() || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            if (state !== 'listening') return stream.getTracks().forEach(t => t.stop());
+            const A = window.AudioContext || window.webkitAudioContext;
+            const ac = (cue.ctx = cue.ctx || new A());
+            const src = ac.createMediaStreamSource(stream);
+            const an = ac.createAnalyser();
+            an.fftSize = 512;
+            src.connect(an);
+            const buf = new Uint8Array(an.fftSize);
+            const m = (meter = { stream, src });
+            const tick = () => {
+                if (meter !== m) return;
+                an.getByteTimeDomainData(buf);
+                let sum = 0;
+                for (const v of buf) sum += ((v - 128) / 128) ** 2;
+                kick = Math.max(kick * 0.9, Math.min(1, Math.sqrt(sum / buf.length) * 7));
+                requestAnimationFrame(tick);
+            };
+            tick();
+        } catch {
+            /* no level ring, no matter */
+        }
+    }
+    function stopMeter() {
+        if (!meter) return;
+        meter.stream.getTracks().forEach(t => t.stop());
+        try {
+            meter.src.disconnect();
+        } catch {
+            /* gone */
+        }
+        meter = null;
+    }
+    // soft sounds: he starts listening (up), stops (down), heard you (send)
+    function cue(kind) {
+        if (!prefs.sounds) return;
+        try {
+            const A = window.AudioContext || window.webkitAudioContext;
+            const c = (cue.ctx = cue.ctx || new A());
+            const [f1, f2, vol, len] = { up: [660, 990, 0.09, 0.18], down: [700, 420, 0.07, 0.22], send: [990, 1320, 0.05, 0.1] }[kind] || [880, 1320, 0.1, 0.25];
+            const o = c.createOscillator();
+            const g = c.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(f1, c.currentTime);
+            o.frequency.exponentialRampToValueAtTime(f2, c.currentTime + len * 0.7);
+            g.gain.setValueAtTime(0.0001, c.currentTime);
+            g.gain.exponentialRampToValueAtTime(vol, c.currentTime + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + len);
+            o.connect(g).connect(c.destination);
+            o.start();
+            o.stop(c.currentTime + len + 0.02);
+        } catch {
+            /* no sound, no matter */
+        }
     }
     // the wake word: always listening for “Jarvis” while this page is open
     function chime() {
@@ -573,7 +762,7 @@
     }
     const WAKE = /\b(jarvis|jarvi|jervis|jarvas|djarvis)\b[\s,.!?:;-]*(.*)$/i;
     function startWake() {
-        if (mini || !SR || !prefs.wake || !wakeOk || held || rec || busy || state === 'speaking' || document.hidden || !status || !status.on) return;
+        if (mini || talking || !SR || !prefs.wake || !wakeOk || held || rec || busy || state === 'speaking' || document.hidden || !status || !status.on) return;
         const r = new SR();
         r.wake = true;
         rec = r;
@@ -586,8 +775,8 @@
                 const m = WAKE.exec(e.results[i][0].transcript.trim());
                 if (!m) continue;
                 stopRec(true);
-                chime();
-                if (m[2].trim().length > 2) send(m[2]);
+                talking = true;
+                if (m[2].trim().length > 2) send(m[2], { voice: true });
                 else {
                     held = true;
                     listen();
@@ -645,6 +834,8 @@
             <h2 id="jv-set-h">Jarvis</h2>
             <div class="jv-row"><span><b>He calls you</b></span><div class="seg" data-address>${status.addresses.map(a => `<button type="button" data-a="${esc(a)}" class="${status.address === a ? 'on' : ''}">${esc(addr[a] || a)}</button>`).join('')}</div></div>
             <label class="jv-row"><span><b>Speak answers out loud</b></span><input type="checkbox" class="cp-toggle" data-p="speak"${prefs.speak ? ' checked' : ''}></label>
+            ${SR ? `<label class="jv-row"><span><b>Conversation mode</b><small>After he answers he listens again, so you can just keep talking, like a call. Say “thanks” or “that’s all”, or tap the core, to finish.${desk() ? ' Or hold Space to talk, and let go to send.' : ''}</small></span><input type="checkbox" class="cp-toggle" data-p="convo"${prefs.convo ? ' checked' : ''}></label>` : ''}
+            <label class="jv-row"><span><b>Sounds</b><small>A soft tone when he starts and stops listening.</small></span><input type="checkbox" class="cp-toggle" data-p="sounds"${prefs.sounds ? ' checked' : ''}></label>
             ${synth ? `<label class="jv-row"><span><b>Voice</b><small>Free voices on this device, the most Jarvis-like first. Automatic picks a British man (or a Dutch one, for Dutch answers).</small></span><select class="input" data-voice><option value="">Automatic${auto ? ` (${esc(short(auto))})` : ''}</option>${vs.map(v => `<option value="${esc(v.voiceURI || v.name)}"${(v.voiceURI || v.name) === prefs.voice ? ' selected' : ''}>${esc(short(v))} (${esc(v.lang)})</option>`).join('')}</select></label>
             ${tip() ? `<p class="jv-tip">${ic('sparkle')}<span>${tip()}</span></p>` : ''}
             <label class="jv-row"><span><b>Speed</b></span><input type="range" class="jv-range" data-r="rate" min="0.7" max="1.3" step="0.05" value="${prefs.rate}"></label>
@@ -775,7 +966,7 @@
 
     /* ---------- what you tap ---------- */
     root.addEventListener('click', e => {
-        if (e.target.closest('#jv-orb') || e.target.closest('[data-mic]')) return toggleListen();
+        if (e.target.closest('#jv-orb') || e.target.closest('[data-mic]')) return $('#jv-orb').classList.remove('invite'), toggleListen();
         if (e.target.closest('[data-settings]')) return status && settings();
         if (e.target.closest('[data-close]')) return closeMini();
         if (e.target.closest('[data-mute]')) {
@@ -784,6 +975,26 @@
             if (!prefs.speak) stopSpeaking();
             muteButton();
             return;
+        }
+        const msg = e.target.closest('[data-i]');
+        const m = msg && log[Number(msg.dataset.i)];
+        if (m && e.target.closest('[data-copy]')) {
+            navigator.clipboard.writeText(m.content).then(() => toast(dutch() ? 'Gekopieerd' : 'Copied'), () => toast('Couldn’t copy', { bad: true }));
+            return;
+        }
+        if (m && e.target.closest('[data-replay]')) {
+            unlockSpeech();
+            talking = false;
+            return speak(m.content);
+        }
+        if (m && e.target.closest('[data-retry]')) {
+            // the question before this error, asked again (the failed try is taken out)
+            const i = Number(msg.dataset.i);
+            const q = log[i - 1] && log[i - 1].role === 'user' ? log[i - 1] : null;
+            if (!q || busy) return;
+            log.splice(i - 1, 2);
+            drawn = 0;
+            return send(q.content, { voice: voiceTurn });
         }
         const ask = e.target.closest('[data-pending]');
         if (ask && e.target.closest('[data-doit]')) return answerAsk(ask, true);
@@ -803,6 +1014,7 @@
         }
     });
     root.addEventListener('input', e => {
+        if (e.target.id === 'jv-input') return grow();
         const card = e.target.closest('[data-draft]');
         const a = card && draftById(card.dataset.draft);
         if (!a) return;
@@ -815,13 +1027,56 @@
         const input = $('#jv-input');
         const text = input.value;
         input.value = '';
+        grow();
         send(text);
+    });
+    // in the box: Enter sends, Shift+Enter is a new line, Up brings back what you said last
+    root.addEventListener('keydown', e => {
+        if (e.target.id !== 'jv-input') return;
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            e.preventDefault();
+            $('#jv-bar').requestSubmit();
+        } else if (e.key === 'ArrowUp' && !e.target.value) {
+            const last = [...log].reverse().find(m => m.role === 'user');
+            if (last) {
+                e.preventDefault();
+                e.target.value = last.content;
+                grow();
+            }
+        }
+    });
+    // hold Space to talk (when you're not typing), let go to send
+    const typingSomewhere = el => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(el.tagName));
+    let spaceHeld = false;
+    document.addEventListener('keydown', e => {
+        if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || typingSomewhere(document.activeElement) || document.querySelector('.pf-crop-back') || !status || !status.on || !SR) return;
+        e.preventDefault();
+        if (busy) return;
+        spaceHeld = true;
+        if (state === 'speaking') stopSpeaking();
+        talking = true;
+        held = true;
+        listen({ ptt: true });
+    });
+    document.addEventListener('keyup', e => {
+        if (e.code !== 'Space' || !spaceHeld) return;
+        e.preventDefault();
+        spaceHeld = false;
+        if (rec && rec.ptt) rec.stop();
     });
     document.addEventListener('keydown', e => {
         if (mini && e.altKey && e.code === 'KeyJ') return e.preventDefault(), closeMini();
         if (e.key !== 'Escape' || document.querySelector('.pf-crop-back')) return;
         if (state === 'speaking') stopSpeaking(), resumeWake();
-        else if (state === 'listening' && rec && !rec.wake) rec.abort();
+        else if (state === 'listening' && rec && !rec.wake) {
+            talking = false;
+            stopRec(true);
+            stopMeter();
+            setState('idle');
+            heard('');
+            $('#jv-input').value = '';
+            grow();
+        } else if (busy && asking) asking.abort();
         else if (mini) closeMini();
     });
     // the pop-up around this page: it says when it opens and closes
@@ -854,6 +1109,16 @@
             log = (data.history || []).filter(m => m && typeof m.content === 'string');
             page();
             if (focusWhenReady && !$('#jv-input').disabled) $('#jv-input').focus();
+            // /jarvis/#talk (the widgets, Siri…): start talking; phones need a tap first, so the core asks for one
+            if (location.hash === '#talk' && status.on && SR) {
+                history.replaceState(null, '', location.pathname + location.search);
+                if (appleTouch()) $('#jv-orb').classList.add('invite');
+                else {
+                    talking = true;
+                    held = true;
+                    listen();
+                }
+            }
             resumeWake();
         })
         .catch(e => (root.innerHTML = `<div class="pf-empty"><h1>Jarvis is unavailable</h1><p>${esc(e.message)}</p></div>`));

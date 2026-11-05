@@ -2339,3 +2339,48 @@ test('Jarvis has the run of EderveenGroup: asks first, or acts at once with full
     assert.deepEqual(r3.body.actions, [{ kind: 'open', text: 'Opening calendar', href: '/calendar/', open: true }]);
     app.close();
 });
+
+test('Jarvis streams what he is doing, then his answer (or what went wrong)', async () => {
+    const http = require('http');
+    let script = [];
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            const next = script.shift() || { text: 'Done.' };
+            if (next.status) return res.writeHead(next.status, { 'Content-Type': 'application/json' }).end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'nope' } }));
+            const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${i}`, name, input }))];
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }));
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${fake.address().port}` });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
+    const lines = r => String(r.body).trim().split('\n').map(l => JSON.parse(l));
+    // (read as text: the test browser would read it as one JSON answer)
+    const ask = async message => {
+        const res = await fetch(`${app.base}/api/jarvis/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson', 'X-EG': '1', Cookie: jo.cookies() }, body: JSON.stringify({ message, tz: 'UTC' }) });
+        return { headers: res.headers, body: await res.text() };
+    };
+
+    script = [{ calls: [['get_agenda', { days: 1 }], ['get_tasks', {}]] }, { text: 'A quiet day, Jo.' }];
+    const r1 = await ask('What’s on today?');
+    assert.match(r1.headers.get('content-type'), /application\/x-ndjson/);
+    const l1 = lines(r1);
+    assert.deepEqual(l1.slice(0, 3).map(l => l.label), ['Thinking', 'Checking your agenda', 'Looking at your tasks']);
+    const last = l1[l1.length - 1];
+    assert.deepEqual([last.done, last.reply, last.used], [true, 'A quiet day, Jo.', ['get_agenda', 'get_tasks']]);
+    // something going wrong once the stream has started: it's the last line
+    script = [{ status: 401 }];
+    const l2 = lines(await ask('Hello?'));
+    assert.match(l2[l2.length - 1].error, /isn’t accepted/);
+    // without asking for a stream: one answer, as before
+    script = [{ text: 'Hi.' }];
+    assert.equal((await jo('POST', '/api/jarvis/chat', { message: 'Hi', tz: 'UTC' })).body.reply, 'Hi.');
+    app.close();
+});
