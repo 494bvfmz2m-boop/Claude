@@ -2282,22 +2282,27 @@ test('Jarvis has the run of EderveenGroup: asks first, or acts at once with full
     const dent = (await jo('GET', '/api/apps/calendar')).body.items.find(e => e.title === 'Dentist');
     assert.deepEqual([dent.start, dent.end], [`${day}T14:15`, `${day}T14:45`]);
 
-    // asking first: deleting waits for "Do it"
-    script = [{ calls: [['delete_item', { app: 'tasks', find: 'milk' }]] }, { text: 'Tap Do it to delete it.' }];
+    // their own things happen straight away, with Undo (and Recently deleted)
+    script = [{ calls: [['delete_item', { app: 'tasks', find: 'milk' }]] }, { text: 'Deleted.' }];
     const r1 = await talk('Delete the milk task');
-    const ask = r1.body.actions[0];
-    assert.deepEqual([ask.kind, ask.pending.summary], ['confirm', 'Delete the task “Buy milk”']);
-    assert.ok((await jo('GET', '/api/apps/tasks')).body.items.some(t => t.text === 'Buy milk')); // still there
-    const done = (await jo('POST', `/api/jarvis/pending/${ask.pending.id}`, {})).body;
-    assert.deepEqual([done.ok, done.text], [true, 'Deleted the task “Buy milk”']);
+    const del = r1.body.actions[0];
+    assert.deepEqual([del.kind, del.text, !!del.undo], ['deleted', 'Deleted the task “Buy milk”', true]);
     assert.equal((await jo('GET', '/api/apps/tasks')).body.items.some(t => t.text === 'Buy milk'), false);
-    assert.equal((await jo('POST', `/api/jarvis/pending/${ask.pending.id}`, {})).status, 404); // only once
-    // it's in Recently deleted, and comes back
-    const st = (await jo('GET', '/api/jarvis/status')).body;
+    let st = (await jo('GET', '/api/jarvis/status')).body;
     assert.deepEqual(st.bin.map(b => b.label), ['Buy milk']);
-    assert.equal(st.history.slice(-1)[0].actions[0].done > 0, true);
     await jo('POST', `/api/jarvis/bin/${st.bin[0].id}/restore`, {});
     assert.ok((await jo('GET', '/api/apps/tasks')).body.items.some(t => t.text === 'Buy milk'));
+    // what reaches everyone waits for "Do it" (without full control)
+    script = [{ calls: [['post_news', { title: 'Cake in the kitchen' }]] }, { text: 'Tap Do it to post it.' }];
+    const ask = (await talk('Tell everyone there is cake')).body.actions[0];
+    assert.deepEqual([ask.kind, ask.pending.summary], ['confirm', 'Post “Cake in the kitchen” on everyone’s dashboard']);
+    assert.equal((await jo('GET', '/api/admin/news')).body.some(n => n.title === 'Cake in the kitchen'), false);
+    const done = (await jo('POST', `/api/jarvis/pending/${ask.pending.id}`, {})).body;
+    assert.deepEqual([done.ok, done.text], [true, 'Posted “Cake in the kitchen”']);
+    assert.ok((await jo('GET', '/api/admin/news')).body.some(n => n.title === 'Cake in the kitchen'));
+    assert.equal((await jo('POST', `/api/jarvis/pending/${ask.pending.id}`, {})).status, 404); // only once
+    st = (await jo('GET', '/api/jarvis/status')).body;
+    assert.equal(st.history.slice(-1)[0].actions[0].done > 0, true);
     // an email without full control is a draft
     script = [{ calls: [['send_email', { to: ['ann@example.com'], subject: 'Hi', body: 'Hello Ann' }]] }, { text: 'Ready to send.' }];
     const sentBefore = app.mail.sent.length;
@@ -2425,5 +2430,89 @@ test('The Jarvis widget: for admins only, with his greeting, your day and the la
     assert.match(large.tree.url, /\/jarvis\/#talk$/);
     const inline = await runScript(src, GLOBALS, { family: 'accessoryInline', param: '', fetchJSON, files: new Map() });
     assert.match(textOf(inline.tree), /^Jarvis · /);
+    app.close();
+});
+
+test('Jarvis runs your schedule: clears days, moves things, cancels one day of a repeat, all with Undo', async () => {
+    const http = require('http');
+    const asked = [];
+    let script = [];
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            asked.push(b);
+            const next = script.shift() || { text: 'Done.' };
+            const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${asked.length}_${i}`, name, input }))];
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }));
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${fake.address().port}` });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
+    const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    await jo('PUT', '/api/apps/calendar/ev-dentist', { title: 'Dentist', start: `${day(1)}T09:00`, end: `${day(1)}T09:30` });
+    await jo('PUT', '/api/apps/calendar/ev-meeting', { title: 'Team meeting', start: `${day(1)}T14:00`, end: `${day(1)}T15:00` });
+    await jo('PUT', '/api/apps/calendar/ev-gym0001', { title: 'Gym', start: `${day(0)}T18:00`, end: `${day(0)}T19:00`, repeat: 'daily' });
+    await jo('PUT', '/api/apps/tasks/tk-done001', { text: 'Old thing', done: true });
+    await jo('PUT', '/api/apps/tasks/tk-open001', { text: 'Keep me' });
+    const talk = message => jo('POST', '/api/jarvis/chat', { message, tz: 'UTC' });
+    const events = async () => (await jo('GET', '/api/apps/calendar')).body.items;
+    const lastResult = () => JSON.parse(asked[asked.length - 1].messages.slice(-1)[0].content[0].content);
+
+    // he sees ids and repeats in the agenda, and knows the schedule is his to run
+    script = [{ calls: [['get_agenda', { days: 2, from: day(1) }]] }, { text: 'Three things.' }];
+    await talk('What have I got tomorrow and the day after?');
+    const agenda = lastResult().events;
+    assert.deepEqual(agenda.filter(e => e.day === day(1)).map(e => [e.id, e.title, e.repeats]), [['ev-dentist', 'Dentist', undefined], ['ev-meeting', 'Team meeting', undefined], ['ev-gym0001', 'Gym', 'daily']]);
+    assert.match(asked[asked.length - 1].system, /You're in charge of their schedule/);
+
+    // "clear tomorrow": the one-off events go, the daily gym only skips tomorrow; no "Do it" needed
+    script = [{ calls: [['delete_events', { from: day(1) }]] }, { text: 'Tomorrow is clear.' }];
+    const r1 = await talk('Clear my day tomorrow');
+    const chip = r1.body.actions[0];
+    assert.deepEqual([chip.kind, chip.text, !!chip.undo], ['deleted', 'Deleted 3 events', true]);
+    let all = await events();
+    assert.deepEqual(all.map(e => e.title).sort(), ['Gym', 'Gym']);
+    const gyms = all.sort((a, b) => a.start.localeCompare(b.start));
+    assert.deepEqual([gyms[0].start, gyms[0].until, gyms[1].start, gyms[1].repeat], [`${day(0)}T18:00`, day(0), `${day(2)}T18:00`, 'daily']);
+    // Undo puts everything back as it was
+    assert.equal((await jo('POST', `/api/jarvis/undo/${chip.undo}`, {})).body.ok, true);
+    all = await events();
+    assert.deepEqual(all.map(e => e.id).sort(), ['ev-dentist', 'ev-gym0001', 'ev-meeting']);
+    assert.equal(all.find(e => e.id === 'ev-gym0001').until, '');
+    assert.equal((await jo('POST', `/api/jarvis/undo/${chip.undo}`, {})).status, 404);
+    assert.equal((await jo('GET', '/api/jarvis/status')).body.history.slice(-1)[0].actions[0].undone > 0, true);
+
+    // moving: to another day and time, shifting by minutes
+    script = [{ calls: [['move_events', { find: 'meeting', to_date: day(3), new_time: '10:00' }], ['move_events', { ids: ['ev-dentist'], shift_minutes: 30 }]] }, { text: 'Moved.' }];
+    await talk('Move the meeting to Thursday at ten and the dentist half an hour later');
+    all = await events();
+    const at = id => all.find(e => e.id === id);
+    assert.deepEqual([at('ev-meeting').start, at('ev-meeting').end], [`${day(3)}T10:00`, `${day(3)}T11:00`]);
+    assert.deepEqual([at('ev-dentist').start, at('ev-dentist').end], [`${day(1)}T09:30`, `${day(1)}T10:00`]);
+    // one day of a repeat moved: the rest of the series stays
+    script = [{ calls: [['move_events', { ids: ['ev-gym0001'], from: day(2), new_time: '20:00' }]] }, { text: 'Gym moved that evening.' }];
+    await talk('On the day after tomorrow, gym at 8 instead');
+    all = await events();
+    const gym = all.filter(e => e.title === 'Gym').map(e => [e.start, e.repeat, e.until]).sort();
+    assert.deepEqual(gym, [[`${day(0)}T18:00`, 'daily', day(1)], [`${day(2)}T20:00`, '', ''], [`${day(3)}T18:00`, 'daily', '']]);
+    // a repeating event added by him, and done tasks cleared
+    script = [{ calls: [['add_event', { title: 'Piano lesson', date: day(4), time: '16:00', minutes: 45, repeat: 'weekly' }], ['delete_tasks', { done: true }]] }, { text: 'Done.' }];
+    const r2 = await talk('Piano every week from Monday at four, and get rid of my done tasks');
+    assert.deepEqual(r2.body.actions.map(a => a.kind), ['event', 'deleted']);
+    assert.ok((await events()).some(e => e.title === 'Piano lesson' && e.repeat === 'weekly' && e.end === `${day(4)}T16:45`));
+    assert.deepEqual((await jo('GET', '/api/apps/tasks')).body.items.map(t => t.text), ['Keep me']);
+    await jo('POST', `/api/jarvis/undo/${r2.body.actions[1].undo}`, {});
+    assert.deepEqual((await jo('GET', '/api/apps/tasks')).body.items.map(t => t.text).sort(), ['Keep me', 'Old thing']);
+    // nothing matching: he says so instead of guessing
+    script = [{ calls: [['delete_events', { find: 'swimming' }]] }, { text: 'Nothing called swimming.' }];
+    await talk('Delete swimming');
+    assert.match(lastResult().note, /None of their own events match/);
     app.close();
 });

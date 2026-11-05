@@ -1,6 +1,6 @@
 {
   "name": "ederveengroup",
-  "version": "2026.11.15",
+  "version": "2026.11.16",
   "description": "EderveenGroup: webmail for Purelymail (IMAP/SMTP)",
   "main": "server.js",
   "scripts": {

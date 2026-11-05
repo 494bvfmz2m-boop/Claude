@@ -3997,3 +3997,12 @@ span.jv-act:hover { background: var(--surface-3); }
 .jv-orb.invite { animation: jv-invite 1.6s ease-in-out infinite; }
 @keyframes jv-invite { 50% { transform: scale(1.07); filter: drop-shadow(0 0 30px rgba(63, 220, 255, .9)); } }
 @media (pointer: coarse) { .jv-tools { opacity: 1; } }
+
+/* Undo on what Jarvis changed */
+.jv-act-wrap { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.jv-undo { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 0; border-radius: 99px; font: 600 12px/1 var(--ui); color: var(--accent-ink); background: var(--accent-soft); cursor: pointer; }
+.jv-undo .i { width: 13px; height: 13px; }
+.jv-undo:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.jv-undo:disabled { opacity: .5; cursor: default; }
+.jv-undone { font-size: 12px; color: var(--text-3); }
+.jv-act.undone { opacity: .55; text-decoration: line-through; }

@@ -141,7 +141,9 @@
         const acts = (m.actions || []).filter(a => a && a.text && !a.draft && !a.pending);
         const drafts = (m.actions || []).filter(a => a && a.draft);
         const asks = (m.actions || []).filter(a => a && a.pending);
-        const act = a => (/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`);
+        // (with Undo on what he changed)
+        const undo = a => (a.undo ? (a.undone ? `<span class="jv-undone">${dutch() ? 'ongedaan' : 'undone'}</span>` : `<button type="button" class="jv-undo" data-undo="${esc(a.undo)}">${ic('undo')}<span>${dutch() ? 'Ongedaan maken' : 'Undo'}</span></button>`) : '');
+        const act = a => `<span class="jv-act-wrap">${/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act${a.undone ? ' undone' : ''}" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`}${undo(a)}</span>`;
         const tools = !at ? '' : m.error ? `<div class="jv-tools"><button type="button" class="btn btn-ghost" data-retry>${ic('refresh')}<span>${dutch() ? 'Opnieuw' : 'Try again'}</span></button></div>` : `<div class="jv-tools"><button type="button" class="icon-btn" data-copy title="${dutch() ? 'Kopiëren' : 'Copy'}" aria-label="Copy">${ic('copy')}</button>${synth ? `<button type="button" class="icon-btn" data-replay title="${dutch() ? 'Nog eens voorlezen' : 'Read it again'}" aria-label="Read it again">${ic('volume')}</button>` : ''}</div>`;
         return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"${at}><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><div class="jv-text">${fmt(m.content)}</div>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${asks.map(askCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}${tools}</div>`;
     }
@@ -365,6 +367,7 @@
             const go = (data.actions || []).find(a => a.open && /^\/[a-z]*\/?/.test(String(a.href || '')));
             if (go) setTimeout(() => (mini ? window.top : window).location.assign(go.href), 1200);
             if (data.memories) status.memories = data.memories;
+            if (mini && (data.actions || []).some(a => a.undo || /^(changed|deleted|event|task|done|note|restored)$/.test(a.kind))) behindChanged = true;
         } catch (e) {
             if (e.name === 'AbortError') log.push({ role: 'assistant', content: dutch() ? 'Gestopt.' : 'Stopped.', error: true });
             else log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
@@ -996,6 +999,19 @@
             drawn = 0;
             return send(q.content, { voice: voiceTurn });
         }
+        const un = e.target.closest('[data-undo]');
+        if (un) {
+            un.disabled = true;
+            window.EG.call(`/api/jarvis/undo/${encodeURIComponent(un.dataset.undo)}`, { method: 'POST', body: {} })
+                .then(r => {
+                    for (const x of log) for (const a of x.actions || []) if (a.undo === un.dataset.undo) a.undone = Date.now();
+                    drawLog();
+                    behindChanged = true;
+                    toast(dutch() ? 'Ongedaan gemaakt' : `Undone: ${r.undone}`);
+                })
+                .catch(err => ((un.disabled = false), toast(err.message, { bad: true })));
+            return;
+        }
         const ask = e.target.closest('[data-pending]');
         if (ask && e.target.closest('[data-doit]')) return answerAsk(ask, true);
         if (ask && e.target.closest('[data-cancel]')) return answerAsk(ask, false);
@@ -1088,6 +1104,7 @@
         }
     }
     let focusWhenReady = false;
+    let behindChanged = false; // he changed something the app behind the pop-up shows: it refreshes when the pop-up closes
     window.jarvisMini = {
         opened(focus) {
             const input = $('#jv-input');
@@ -1097,6 +1114,11 @@
         closed() {
             stopSpeaking();
             if (rec && !rec.wake) rec.abort();
+            if (behindChanged && !/^\/(mail|docs|sheets|slides|whiteboard|photoedit|videoedit)\b/.test(window.parent.location.pathname)) {
+                // (editors and Mail keep what you have open; the other apps simply show the new state)
+                behindChanged = false;
+                window.parent.location.reload();
+            }
         }
     };
 

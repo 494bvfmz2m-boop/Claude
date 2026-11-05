@@ -477,7 +477,7 @@ module.exports = function appRoutes(ctx) {
                 // a repeat starts afresh each time; a long event that began earlier is under way
                 const ongoing = !e.repeat && e.start.slice(0, 10) < day;
                 const at = e.allDay || ongoing ? null : e.start.slice(11, 16);
-                out.push({ title: e.title, day, at, end: e.allDay || !e.end ? null : e.end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[e.color] || HEX[''], ts: momentOf(`${day}T${at || '00:00'}`, tz) });
+                out.push({ id: e.id, title: e.title, day, at, end: e.allDay || !e.end ? null : e.end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[e.color] || HEX[''], ts: momentOf(`${day}T${at || '00:00'}`, tz), ...(e.repeat ? { repeat: e.repeat } : {}) });
             }
         }
         for (const [id, sub] of Object.entries(subs(email).items)) {
@@ -489,7 +489,7 @@ module.exports = function appRoutes(ctx) {
                 const day = start.slice(0, 10) < today ? today : start.slice(0, 10);
                 const ongoing = start.slice(0, 10) < day;
                 const at = e.allDay || ongoing ? null : start.slice(11, 16);
-                out.push({ title: e.title || 'Event', day, at, end: e.allDay ? null : end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[sub.color] || HEX.green, ts: momentOf(`${day}T${at || '00:00'}`, tz) });
+                out.push({ title: e.title || 'Event', day, at, end: e.allDay ? null : end.slice(11, 16), allDay: !!e.allDay || ongoing, location: e.location || '', color: HEX[sub.color] || HEX.green, ts: momentOf(`${day}T${at || '00:00'}`, tz), shared: sub.name || 'Shared calendar' });
             }
         }
         return out.sort((a, b) => a.day.localeCompare(b.day) || (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || String(a.at).localeCompare(String(b.at)));
@@ -612,6 +612,7 @@ module.exports = function appRoutes(ctx) {
         return out;
     }
     ctx.agendaFor = (email, tz, from, span) => eventsAhead(email, tz, from, span);
+    ctx.eventOccurs = (e, day) => occursOn(e, day); // (for Jarvis: the calendar's own rules for repeats)
     ctx.localOf = localOf;
     const widgetsOn = () => !ctx.appOn || ctx.appOn('widgets');
     // the widgets this person can have (Jarvis's are for admins, while Jarvis is switched on)
