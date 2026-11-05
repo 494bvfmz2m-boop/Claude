@@ -9,10 +9,13 @@ POST /chat/reset  forget this browser session's conversation history
 
 /chat picks the 6 notes that best match the question by keyword overlap
 (title matches weigh extra) and asks Claude to answer from them only.
-Backend is chosen per request from config.json:
-  * "api_key" filled in  -> Anthropic Messages API with "model"
-  * placeholder / empty  -> `claude -p` (runs on your Claude Code subscription;
-                            optional "cli_model" picks its model)
+Backend is chosen per request from config.json ("provider" is optional;
+by default it is detected from the key):
+  * Anthropic key (sk-ant-...)       -> Anthropic Messages API with "model"
+  * Google Gemini key (AIza... / AQ.) -> Gemini API with "model"
+                                        (a claude-* model falls back to gemini-flash-latest)
+  * placeholder / empty               -> `claude -p` on your Claude Code subscription
+                                        (optional "cli_model" picks its model)
 The API key is read server-side only and is never sent to the browser.
 """
 import argparse
@@ -28,6 +31,7 @@ import tempfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
@@ -39,6 +43,10 @@ NOTES_DIR = os.path.join(ROOT, "notes")
 CONFIG_PATH = os.path.join(ROOT, "config.json")
 PLACEHOLDER_KEY = "PUT-YOUR-KEY-HERE"
 DEFAULT_CONFIG = {"api_key": PLACEHOLDER_KEY, "model": "claude-opus-4-8"}
+DEFAULT_GEMINI_MODEL = "gemini-flash-latest"
+# Tried in order when the chosen Gemini model is overloaded or unavailable.
+GEMINI_FALLBACKS = ("gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite")
+PROVIDERS = ("anthropic", "gemini", "claude-cli")
 
 TOP_K = 6
 MAX_TURNS = 6                 # remembered question/answer pairs per session
@@ -82,6 +90,15 @@ def load_config():
         cfg = json.load(f)
     key = str(cfg.get("api_key") or "").strip()
     cfg["api_key"] = "" if key in ("", PLACEHOLDER_KEY) else key
+    provider = str(cfg.get("provider") or "auto").strip().lower()
+    if provider not in PROVIDERS:
+        if not cfg["api_key"]:
+            provider = "claude-cli"
+        elif cfg["api_key"].startswith(("AIza", "AQ.")):
+            provider = "gemini"
+        else:
+            provider = "anthropic"
+    cfg["provider"] = provider
     return cfg
 
 
@@ -249,6 +266,56 @@ def ask_api(cfg, history, prompt):
     return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
 
 
+def ask_gemini(cfg, history, prompt):
+    model = str(cfg.get("model") or "")
+    if not model or model.startswith("claude"):
+        model = DEFAULT_GEMINI_MODEL
+    model = model.removeprefix("models/")
+    contents = []
+    for q, a in history:
+        contents += [{"role": "user", "parts": [{"text": q}]},
+                     {"role": "model", "parts": [{"text": a}]}]
+    contents.append({"role": "user", "parts": [{"text": prompt}]})
+    body = json.dumps({
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.3},
+    }).encode()
+    models = [model] + [m for m in GEMINI_FALLBACKS if m != model]
+    last_error = None
+    for attempt, name in enumerate(models):
+        url = ("https://generativelanguage.googleapis.com/v1beta/models/"
+               + urllib.parse.quote(name) + ":generateContent")
+        # Key goes in a header, not the URL, so it never shows up in logs.
+        req = urllib.request.Request(url, data=body, method="POST", headers={
+            "x-goog-api-key": cfg["api_key"], "content-type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=90) as r:
+                data = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            try:
+                msg = json.load(e).get("error", {}).get("message", "")
+            except Exception:
+                msg = ""
+            last_error = ChatError(f"Gemini API error {e.code} ({name}): {msg or e.reason}")
+            # overloaded / rate-limited / model gone -> try the next model
+            if e.code in (429, 500, 503, 404):
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            raise last_error
+        except urllib.error.URLError as e:
+            raise ChatError(f"Could not reach the Gemini API: {e.reason}")
+    else:
+        raise last_error
+    candidates = data.get("candidates") or []
+    if not candidates:
+        reason = (data.get("promptFeedback") or {}).get("blockReason", "no answer")
+        raise ChatError(f"Gemini returned no answer ({reason}).")
+    parts = (candidates[0].get("content") or {}).get("parts") or []
+    return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+
+
 def ask_cli(cfg, history, prompt):
     exe = shutil.which("claude")
     if not exe:
@@ -285,12 +352,12 @@ def answer(sid, question):
     previous = history[-1][0] if history else ""
     ids = index.search(question, context=previous)
     prompt = f"{notes_block(index.nodes, ids)}\n\nQuestion: {question}"
-    backend = ask_api if cfg["api_key"] else ask_cli
+    backend = {"anthropic": ask_api, "gemini": ask_gemini, "claude-cli": ask_cli}[cfg["provider"]]
     text = backend(cfg, history, prompt)
     if not text:
         raise ChatError("The model returned an empty answer.")
     SESSIONS.add(sid, question, text)
-    return {"answer": text, "nodes": ids, "backend": "api" if cfg["api_key"] else "claude-cli"}
+    return {"answer": text, "nodes": ids, "backend": cfg["provider"]}
 
 
 # ---------------------------------------------------------------- HTTP
@@ -377,7 +444,9 @@ def main():
     handler = functools.partial(ViewerHandler, directory=VIEWER_DIR)
     ThreadingHTTPServer.allow_reuse_address = True
     with ThreadingHTTPServer((args.host, args.port), handler) as httpd:
-        mode = "Anthropic API (" + str(cfg.get("model")) + ")" if cfg["api_key"] else "claude -p (subscription)"
+        mode = {"anthropic": f"Anthropic API ({cfg.get('model')})",
+                "gemini": "Gemini API",
+                "claude-cli": "claude -p (subscription)"}[cfg["provider"]]
         print(f"Serving {VIEWER_DIR} at http://localhost:{args.port}/  ·  /chat via {mode}  (Ctrl+C to stop)")
         try:
             httpd.serve_forever()
