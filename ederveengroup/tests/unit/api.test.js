@@ -2516,3 +2516,90 @@ test('Jarvis runs your schedule: clears days, moves things, cancels one day of a
     assert.match(lastResult().note, /None of their own events match/);
     app.close();
 });
+
+test('Jarvis knows everything he can do: in his instructions, as a tool, and on his page (apps switched off drop out)', async () => {
+    const http = require('http');
+    const asked = [];
+    let script = [];
+    const fake = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', c => (body += c));
+        req.on('end', () => {
+            const b = JSON.parse(body || '{}');
+            asked.push(b);
+            const next = script.shift() || { text: 'Done.' };
+            const content = [...(next.text ? [{ type: 'text', text: next.text }] : []), ...(next.calls || []).map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${asked.length}_${i}`, name, input }))];
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'msg', type: 'message', role: 'assistant', model: b.model, content, stop_reason: next.calls ? 'tool_use' : 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }));
+        });
+    });
+    await new Promise(r => fake.listen(0, '127.0.0.1', r));
+    fake.unref();
+    const app = await start({ ADMIN_EMAILS: USER, ANTHROPIC_BASE_URL: `http://127.0.0.1:${fake.address().port}` });
+    const jo = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await jo('PUT', '/api/admin/ai', { apiKey: 'sk-ant-test-key-1234567890abcdefghij' });
+    const talk = (message, extra = {}) => jo('POST', '/api/jarvis/chat', { message, tz: 'UTC', ...extra });
+    const last = () => asked[asked.length - 1];
+
+    // his page lists every area, with things to say
+    const page = (await jo('GET', '/api/jarvis/abilities')).body;
+    const areas = page.abilities.map(a => a.id);
+    for (const id of ['day', 'calendar', 'tasks', 'notes', 'contacts', 'mail', 'chat', 'write', 'site', 'open', 'memory', 'undo']) assert.ok(areas.includes(id), id);
+    assert.ok(page.abilities.every(a => a.area && a.can && a.say.length));
+    assert.match(page.how, /hold Space/);
+    assert.match(page.cant, /shared calendars/);
+    assert.equal(page.control, 'ask');
+
+    // his instructions hold the whole list, what he can't do and how he's used; he never says "I can't" to something on it
+    script = [{ text: 'Plenty.' }];
+    await talk('What can you do?');
+    assert.match(last().system, /What you can do \(all of it, so never say you can't/);
+    assert.match(last().system, /- Your schedule: See your agenda/);
+    assert.match(last().system, /- Running EderveenGroup:/);
+    assert.match(last().system, /You can’t: delete single events from shared calendars/);
+    assert.match(last().system, /How they use you: Talking: tap the glowing core/);
+    assert.match(last().system, /Right now: the Jarvis page; full control is off; thinking with/);
+    assert.doesNotMatch(last().system, /out loud and will hear your answer/);
+    assert.ok(last().tools.some(t => t.name === 'your_abilities'));
+
+    // spoken: short answers for listening
+    script = [{ text: 'Yes.' }];
+    await talk('Are you there?', { spoken: true });
+    assert.match(last().system, /They said this out loud and will hear your answer/);
+
+    // the your_abilities tool gives him the catalog, or one area
+    script = [{ calls: [['your_abilities', {}]] }, { text: 'Here you go.' }];
+    await talk('How do I use you?');
+    let got = JSON.parse(last().messages.slice(-1)[0].content[0].content);
+    assert.ok(got.abilities.length >= 12);
+    assert.match(got.how, /conversation mode/);
+    assert.match(got.cant, /shared calendars/);
+    assert.match(got.mode, /Do it/);
+    script = [{ calls: [['your_abilities', { area: 'schedule' }]] }, { text: 'Your schedule.' }];
+    await talk('What can you do with my calendar?');
+    got = JSON.parse(last().messages.slice(-1)[0].content[0].content);
+    assert.deepEqual(got.abilities.map(a => a.id), ['calendar']);
+
+    // switch Chat off: the chat tools and the chat ability are gone, and back when it's on
+    await jo('PUT', '/api/admin/apps', { off: ['chat'] });
+    script = [{ text: 'Hello.' }];
+    await talk('Hi');
+    const names = last().tools.map(t => t.name);
+    for (const t of ['check_chats', 'write_chat', 'read_chat', 'send_chat']) assert.ok(!names.includes(t), t);
+    assert.ok(names.includes('get_agenda'));
+    assert.doesNotMatch(last().system, /- Chat: /);
+    assert.ok(!(await jo('GET', '/api/jarvis/abilities')).body.abilities.some(a => a.id === 'chat'));
+    await jo('PUT', '/api/admin/apps', { off: [] });
+    script = [{ text: 'Hello.' }];
+    await talk('Hi again');
+    assert.ok(last().tools.some(t => t.name === 'send_chat'));
+    assert.match(last().system, /- Chat: /);
+
+    // in the pop-up over another app, he knows where he is
+    script = [{ text: 'I see it.' }];
+    await talk('Where are you?', { screen: { app: 'Docs', title: 'Cars', path: '/docs/', focused: { kind: 'document', label: 'Cars', chars: 0 } } });
+    assert.match(last().system, /Right now: the pop-up over Docs/);
+    assert.match(last().system, /You’re in that pop-up now, over Docs/);
+    app.close();
+});

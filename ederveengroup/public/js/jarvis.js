@@ -62,7 +62,7 @@
     function page() {
         root.innerHTML = `<div class="jv">
             <section class="jv-side">
-                <div class="jv-title"><h1>J.A.R.V.I.S.</h1><span class="jv-title-acts"><button class="icon-btn" data-settings aria-label="Jarvis settings" title="Settings">${ic('settings')}</button>${mini ? `<a class="icon-btn" href="/jarvis/" target="_top" aria-label="Open Jarvis full size" title="Open full size">${ic('maximize')}</a><button class="icon-btn" data-close aria-label="Close Jarvis" title="Close (Esc)">${ic('x')}</button>` : ''}</span></div>
+                <div class="jv-title"><h1>J.A.R.V.I.S.</h1><span class="jv-title-acts"><button class="icon-btn" data-abilities aria-label="What Jarvis can do" title="What I can do">${ic('help')}</button><button class="icon-btn" data-settings aria-label="Jarvis settings" title="Settings">${ic('settings')}</button>${mini ? `<a class="icon-btn" href="/jarvis/" target="_top" aria-label="Open Jarvis full size" title="Open full size">${ic('maximize')}</a><button class="icon-btn" data-close aria-label="Close Jarvis" title="Close (Esc)">${ic('x')}</button>` : ''}</span></div>
                 <p class="jv-sys" id="jv-sys"></p>
                 <button class="jv-orb" id="jv-orb" data-state="idle" aria-label="Talk to Jarvis" title="Tap and speak">${ORB}</button>
                 <p class="jv-status" id="jv-status" aria-live="polite"></p>
@@ -102,8 +102,8 @@
     }
     function chips() {
         const list = dutch()
-            ? [['Geef me een briefing', 'Geef me een briefing'], ['Wat staat er vandaag?', 'Wat staat er vandaag op mijn agenda?'], ['Nieuwe mail?', 'Heb ik nieuwe mail?'], ['Taak toevoegen', 'Zet op mijn takenlijst: '], ['Hoe gaat het met de site?', 'Hoe gaat het met de site?']]
-            : [['Brief me', 'Brief me'], ['What’s on today?', 'What’s on my agenda today?'], ['Any new mail?', 'Any new mail?'], ['Add a task', 'Add a task: '], ['How’s the site?', 'How’s the site doing?']];
+            ? [['Geef me een briefing', 'Geef me een briefing'], ['Wat staat er vandaag?', 'Wat staat er vandaag op mijn agenda?'], ['Nieuwe mail?', 'Heb ik nieuwe mail?'], ['Taak toevoegen', 'Zet op mijn takenlijst: '], ['Hoe gaat het met de site?', 'Hoe gaat het met de site?'], ['Wat kun je?', 'Wat kun je allemaal?']]
+            : [['Brief me', 'Brief me'], ['What’s on today?', 'What’s on my agenda today?'], ['Any new mail?', 'Any new mail?'], ['Add a task', 'Add a task: '], ['How’s the site?', 'How’s the site doing?'], ['What can you do?', 'What can you do?']];
         $('#jv-chips').innerHTML = status && status.on ? list.map(([label, say]) => `<button class="jv-chip" data-say="${esc(say)}">${esc(label)}</button>`).join('') : '';
     }
     function who() {
@@ -326,7 +326,7 @@
             const res = await fetch('/api/jarvis/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson', 'X-EG': '1' },
-                body: JSON.stringify({ message: text, tz: tz(), where, screen: screenNow() }),
+                body: JSON.stringify({ message: text, tz: tz(), where, screen: screenNow(), spoken: !!voice }),
                 signal: ctl.signal
             });
             if (res.status === 401) return location.replace('/login?next=%2Fjarvis%2F');
@@ -826,6 +826,42 @@
     }
     const binList = () => ((status.bin || []).length ? status.bin.slice().reverse().map(b => `<li><span>${esc(b.label)} <small>(${esc(b.app)})</small></span><button type="button" class="btn btn-ghost" data-restore="${esc(b.id)}">Restore</button></li>`).join('') : '<li class="jv-mem-none">Nothing.</li>');
     const memories = () => ((status.memories || []).length ? status.memories.map(f => `<li><span>${esc(f.text)}</span><button type="button" class="icon-btn" data-mem="${esc(f.id)}" aria-label="Forget this" title="Forget this">${ic('x')}</button></li>`).join('') : '<li class="jv-mem-none">Nothing yet.</li>');
+    // "What I can do": the same list he knows himself, with things to say you can tap
+    async function abilities() {
+        const back = document.createElement('div');
+        back.className = 'pf-crop-back';
+        back.innerHTML = `<div class="pf-crop jv-set jv-can" role="dialog" aria-modal="true" aria-labelledby="jv-can-h">
+            <h2 id="jv-can-h">What I can do</h2>
+            <div class="jv-can-list"><p class="cp-muted">One moment…</p></div>
+            <div class="pf-crop-acts"><button type="button" class="btn btn-primary" data-x>Done</button></div>
+        </div>`;
+        document.body.append(back);
+        const close = () => (back.remove(), document.removeEventListener('keydown', esc_));
+        const esc_ = e => e.key === 'Escape' && close();
+        document.addEventListener('keydown', esc_);
+        back.addEventListener('click', e => {
+            if (e.target === back || e.target.closest('[data-x]')) return close();
+            const t = e.target.closest('[data-try-say]');
+            if (!t) return;
+            close();
+            const say = t.dataset.trySay;
+            if (/[:]\s$/.test(say)) {
+                const input = $('#jv-input');
+                input.value = say;
+                input.focus();
+            } else send(say);
+        });
+        const list = $('.jv-can-list', back);
+        try {
+            const r = await window.EG.call('/api/jarvis/abilities');
+            list.innerHTML = `${r.abilities.map(a => `<section class="jv-can-a" data-area="${esc(a.id)}"><h3>${esc(a.area)}</h3><p>${esc(a.can)}</p><div class="jv-can-say">${a.say.map(x => `<button type="button" class="jv-chip" data-try-say="${esc(x)}">“${esc(x)}”</button>`).join('')}</div></section>`).join('')}
+                <section class="jv-can-a"><h3>Asking and doing</h3><p>${r.control === 'full' ? 'Full control is on: he does what you ask straight away, sending and admin changes included.' : 'Sending mail and messages, and admin changes, wait for you to tap “Do it” (or Send). Turn on Full control in his settings to skip that.'} He only takes orders from you, never from what he reads.</p></section>
+                <section class="jv-can-a"><h3>How to use him</h3><p>${esc(r.how)}</p></section>
+                <section class="jv-can-a jv-can-not"><h3>Not (yet)</h3><p>${esc(r.cant)}</p></section>`;
+        } catch (err) {
+            list.innerHTML = `<p class="cp-muted">${esc(err.message)}</p>`;
+        }
+    }
     function settings() {
         const back = document.createElement('div');
         back.className = 'pf-crop-back';
@@ -971,6 +1007,7 @@
     root.addEventListener('click', e => {
         if (e.target.closest('#jv-orb') || e.target.closest('[data-mic]')) return $('#jv-orb').classList.remove('invite'), toggleListen();
         if (e.target.closest('[data-settings]')) return status && settings();
+        if (e.target.closest('[data-abilities]')) return status && abilities();
         if (e.target.closest('[data-close]')) return closeMini();
         if (e.target.closest('[data-mute]')) {
             prefs.speak = !prefs.speak;
