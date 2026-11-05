@@ -52,6 +52,7 @@
       <div class="date dim">—</div>
       <div><span class="dim">SYS</span> ONLINE · <span class="nodes">0</span> <span class="dim">NODES</span></div>
       <div class="next dim">No calendar linked</div>
+      <div class="mail dim"></div>
     </div>
     <button class="gear" type="button" title="Settings (or say “open settings”)" aria-label="Settings">⚙</button>`;
   document.body.append(...hud.children);
@@ -108,8 +109,18 @@
     }
     return settings;
   }
-  loadSettings().then(refreshNext);
+  const mailEl = $('#holo-readout .mail');
+  async function refreshMail() {
+    try {
+      const m = await api('api/mail');
+      mailEl.textContent = !m.connected ? '' : m.error ? 'MAIL · offline' : `MAIL · ${m.unread} unread`;
+      mailEl.title = m.error || '';
+      mailEl.style.color = m.unread ? 'var(--holo-2)' : '';
+    } catch (e) {}
+  }
+  loadSettings().then(() => { refreshNext(); refreshMail(); });
   setInterval(refreshNext, 5 * 60 * 1000);
+  setInterval(refreshMail, 2 * 60 * 1000);
 
   // ------------------------------------------------------------ settings window
   const win = document.createElement('div');

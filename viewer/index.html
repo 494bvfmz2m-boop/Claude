@@ -663,7 +663,7 @@
       showUndo(!!data.can_undo && !!data.changes);
       // Small talk leaves the camera where it is; only questions about notes (or edits) move it.
       document.dispatchEvent(new CustomEvent('jarvis:answer', { detail: data }));   // drafts, settings (holo.js)
-      if (changed.length || !['chat', 'schedule', 'send', 'settings'].includes(data.intent))
+      if (changed.length || !['chat', 'schedule', 'mail', 'send', 'settings'].includes(data.intent))
         setTimeout(() => proveAnswer(changed.length ? changed : ids), data.graph ? 900 : 0);  // let a new graph settle
       setStatus(null);
       speak(data.speech || firstSentence(data.answer), data.lang);
