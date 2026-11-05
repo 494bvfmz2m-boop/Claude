@@ -5,3 +5,5 @@ notes/.trash
 **/__pycache__
 *.png
 *.tmp
+screen-guide
+CLAUDE.md

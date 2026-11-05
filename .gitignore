@@ -3,3 +3,5 @@ config.json
 __pycache__/
 # Jarvis keeps deleted/overwritten notes here (restore or empty it yourself).
 notes/.trash/
+# Screen-guide screenshots are private
+screen-guide/*.png
