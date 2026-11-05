@@ -186,7 +186,7 @@
   <div id="status" hidden aria-live="polite"><span class="sdot">●</span><span id="status-text"></span><button type="button" id="status-stop" hidden>stop</button></div>
   <form id="ask" autocomplete="off">
     <span class="spark">✦</span>
-    <input id="q" type="text" maxlength="1000" placeholder="Ask Jarvis, or tell it to add, edit or delete notes…  (press /)" aria-label="Ask Jarvis">
+    <input id="q" type="text" maxlength="1000" placeholder="Ask Jarvis, or say “remember that…”  (press /)" aria-label="Ask Jarvis">
     <button type="button" id="newchat" title="Forget this conversation">New chat</button>
     <button type="button" id="voice" title="Read answers aloud" aria-label="Toggle spoken answers" aria-pressed="true">🔊</button>
     <button type="button" id="mic" title="Ask by voice" aria-label="Ask by voice">🎙</button>
@@ -294,7 +294,9 @@
     .linkDirectionalParticleColor(l => groupColor[l.source.group])
     .onNodeClick(n => select(n))
     .onNodeHover(n => { elem.style.cursor = n ? 'pointer' : 'grab'; })
-    .onBackgroundClick(() => deselect());
+    .onBackgroundClick(() => deselect())
+    .onEngineStop(() => releasePins())
+    .onNodeDragEnd(() => releasePins());
 
   // Mention links shape the galaxy; shared-wikilink links pull only gently.
   Graph.d3Force('link').strength(l => l.type === 'mention' ? 0.35 : 0.02).distance(l => l.type === 'mention' ? 60 : 120);
@@ -424,8 +426,18 @@
       p.halo.material.opacity += ((dim ? .05 : focus ? 1 : .9) - p.halo.material.opacity) * .1;
       p.corona.material.opacity += ((dim ? .02 : focus ? .45 : .3) - p.corona.material.opacity) * .1;
       p.core.material.opacity += (targetOp - p.core.material.opacity) * .1;
-      p.halo.scale.setScalar(p.r * 6 * pulse * (focus ? 1.4 : 1));
-      p.corona.scale.setScalar(p.r * 15 * pulse * (focus ? 1.5 : 1));
+      // a newborn note grows in and flares a few times
+      let born = 1, flare = 1;
+      if (n.__bornAt) {
+        const age = (performance.now() - n.__bornAt) / 1000;
+        if (age < 4) {
+          born = Math.min(1, age / 0.7);
+          flare = 1 + 2.2 * Math.max(0, 1 - age / 4) * (0.55 + 0.45 * Math.sin(age * 9));
+        } else n.__bornAt = 0;
+      }
+      p.core.scale.setScalar(p.r * born);
+      p.halo.scale.setScalar(p.r * 6 * pulse * (focus ? 1.4 : 1) * flare);
+      p.corona.scale.setScalar(p.r * 15 * pulse * (focus ? 1.5 : 1) * flare);
     });
     updateViewOffset();
     stars.rotation.y += 0.00004; stars.rotation.x += 0.00001;
@@ -491,11 +503,37 @@
   buildLegend();
 
   // Swap in a new graph (after Jarvis created/deleted/edited notes) without a page reload.
-  function reloadGraph(data) {
+  function reloadGraph(data, { bornId = null, nearId = null } = {}) {
+    // ids are array positions and shift when notes are added/removed, so carry the
+    // current layout over by file path: existing stars stay exactly where they are.
+    const prev = new Map(nodes.map(n => [n.path, n]));
     selected = null; answerSet = null; hot.clear(); closePanel();
+    // New data restarts the physics, so pin existing stars for a few seconds (fx/fy/fz)
+    // and let only the new arrivals move; by the time they're released the layout has cooled.
+    data.nodes.forEach(n => {
+      const old = prev.get(n.path);
+      if (old && old.x !== undefined)
+        Object.assign(n, { x: old.x, y: old.y, z: old.z, fx: old.x, fy: old.y, fz: old.z, vx: 0, vy: 0, vz: 0 });
+    });
+    const born = bornId !== null ? data.nodes[bornId] : null;
+    if (born) {
+      const near = nearId !== null ? data.nodes[nearId] : null;
+      const at = near && near.x !== undefined ? near : { x: 0, y: 0, z: 0 };
+      // born right beside its closest relative (a hair's breadth, or repulsion would fling it away)
+      const d = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize().multiplyScalar(22);
+      Object.assign(born, { x: at.x + d.x, y: at.y + d.y, z: at.z + d.z, vx: 0, vy: 0, vz: 0, __bornAt: performance.now() });
+      Object.assign(born, { fx: born.x, fy: born.y, fz: born.z });
+    }
     loadData(data);
     buildLegend();
     Graph.graphData(data);
+    pinsHeld = true;   // released in onEngineStop, once the physics has gone quiet
+  }
+  let pinsHeld = false;
+  function releasePins() {
+    if (!pinsHeld) return;
+    pinsHeld = false;
+    nodes.forEach(n => { delete n.fx; delete n.fy; delete n.fz; });
   }
 
   // ---------- search ----------
@@ -640,8 +678,47 @@
     const question = qInput.value.trim();
     if (!question) return;
     qInput.value = '';
-    ask(question);
+    submitText(question, 'typed');
   });
+
+  // "remember that …" (typed or spoken) files a note; anything else goes to Jarvis.
+  const REMEMBER = /^\s*(?:(?:hey|ok|okay)\s+)?(?:jarvis[,!.\s]+)?(?:please\s+|alsjeblieft\s+)?(?:remember|onthoud)\b/i;
+  function submitText(text, source) {
+    return REMEMBER.test(text) ? rememberIt(text, source) : ask(text);
+  }
+
+  async function rememberIt(text, source) {
+    if (asking) return;
+    asking = true; sendBtn.disabled = true;
+    stopSpeaking(); setStatus('thinking', '(filing it away)');
+    aQ.textContent = text; aSources.innerHTML = ''; aText.classList.remove('error');
+    aText.innerHTML = '<span class="thinking"><i></i><i></i><i></i>&nbsp; Filing it away…</span>';
+    answerBox.classList.add('show'); showUndo(false);
+    try {
+      const res = await fetch('remember', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, source }) });
+      const data = await res.json().catch(() => ({ error: `Server returned ${res.status}` }));
+      if (!res.ok || data.error) throw new Error(data.error || `Server returned ${res.status}`);
+      reloadGraph(data.graph, { bornId: data.id, nearId: data.near });
+      const n = byId(data.id);
+      aQ.textContent = `${text}  ·  remembered`;
+      aText.textContent = data.quip + (data.warning ? ` (${data.warning})` : '');
+      aSources.innerHTML = '';
+      if (n) aSources.appendChild(chip(n));
+      if (data.related && data.near !== null && byId(data.near)) aSources.appendChild(chip(byId(data.near)));
+      showUndo(!!data.can_undo);
+      setStatus(null);
+      speak(data.quip, data.lang);
+      // let it grow in for a moment, then fly over and open it
+      if (n) setTimeout(() => select(n, { extra: data.near !== null ? [data.near] : [] }), 650);
+    } catch (err) {
+      aText.classList.add('error');
+      aText.textContent = err.message === 'Failed to fetch' ? 'Could not reach the server. Is server.py running?' : err.message;
+      setStatus(null);
+    } finally {
+      asking = false; sendBtn.disabled = false;
+    }
+  }
   document.getElementById('newchat').onclick = async () => {
     await fetch('chat/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
     stopSpeaking(); hideAnswer(); deselect(); qInput.focus();
@@ -820,7 +897,7 @@
         setStatus('error', MIC_ERRORS[recError] || `Voice input error (${recError}).`);
         return;
       }
-      if (text) { qInput.value = ''; ask(text); }      // same flow as typing + Enter
+      if (text) { qInput.value = ''; submitText(text, 'voice'); }      // same flow as typing + Enter
       else setStatus('error', MIC_ERRORS['no-speech']);
     };
     try { rec.start(); }
@@ -859,7 +936,7 @@
   }, 400);
 
   // Expose for later features: look nodes up by index.
-  window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, speak, startListening };
+  window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, rememberIt, speak, startListening };
 })();
 </script>
 </body>

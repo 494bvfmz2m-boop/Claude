@@ -9,6 +9,7 @@ An interactive 3D map of markdown notes.
 - `build.py`: scans every `.md` file and writes `viewer/graph-data.js` (`const GRAPH = {nodes, links}`). Each node's `id` is its index in `nodes`.
 - `viewer/index.html`: the 3D viewer, using 3d-force-graph from a CDN
 - `server.py`: serves only `viewer/` on port 4700, plus `POST /chat` for Jarvis, the ask bar (typed or 🎙 voice, answers read aloud)
+- Say or type **"remember that…"** (or "onthoud dat…") to file a note in `notes/captures/`. The new star is born next to its most related note.
 - `notes_store.py`: lets Jarvis create, edit, rename, move and delete notes, only inside `notes/`. Removed or overwritten notes go to `notes/.trash/`, and the **Undo** button reverts the last change.
 - `config.json`: created on first run and git-ignored. Paste an Anthropic key (`sk-ant-...`) or a Google Gemini key (`AIza...` / `AQ....`) into `api_key`; the provider is detected from the key. Leave the placeholder to answer through `claude -p` on your Claude Code subscription.
 

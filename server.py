@@ -7,6 +7,7 @@ GET  /            static files from viewer/ ONLY (config.json lives outside it)
 POST /chat        {"question": "..."} -> {"answer": "...", "nodes": [note ids]}
 POST /chat/reset  forget this browser session's conversation history
 POST /chat/undo   revert Jarvis's most recent batch of note changes
+POST /remember    {"text": "remember that …"} -> writes notes/captures/<Title>.md
 
 Jarvis can also change notes (create / update / append / rename / move /
 delete). That happens only inside notes/; deleted or overwritten notes are
@@ -536,6 +537,93 @@ def finish(sid, question, reply, index, retrieved, provider, fallback):
     return result
 
 
+# ---------------------------------------------------------------- remember
+
+CAPTURE_FOLDER = "captures"
+REMEMBER_RE = re.compile(
+    r"^\s*(?:(?:hey|ok|okay)\s+)?(?:jarvis[,!.\s]+)?(?:please\s+|alsjeblieft\s+)?"
+    r"(?P<verb>remember|onthoud)(?:\s+(?:that|dat|this|dit))?\s*[,:\-]?\s*(?P<fact>.+)$",
+    re.I | re.S)
+TITLE_DROP = {
+    "en": set("a an the that this these those of to and or but for in on at by with from as is are was were be".split()),
+    "nl": set("de het een dat dit die van voor met en of op in aan bij om te is zijn".split()),
+}
+QUIPS = {
+    "en": [
+        "Filed under “{title}”, sir. I shall remember it so you needn't.",
+        "Noted, sir. “{title}” now has a star of its own.",
+        "Committed to memory. Mine, that is; yours may carry on as before.",
+        "A new star is born, sir. I've named it “{title}”, with your permission retroactively assumed.",
+        "Duly noted. I shall bring it up at the most inconvenient moment possible.",
+        "Remembered, sir. Forgetting things remains entirely your department.",
+        "Written down, filed, and quietly admired.",
+        "Very good, sir. “{title}” has joined the galaxy and is already settling in nicely.",
+        "Captured, sir. It shan't escape.",
+        "Into the archive it goes, sir, alongside everything else you were certain you'd recall.",
+    ],
+    "nl": [
+        "Genoteerd onder “{title}”, meneer. Ik onthoud het, dan hoeft u dat niet.",
+        "Vastgelegd, meneer. “{title}” heeft nu een eigen ster.",
+        "Een nieuwe ster is geboren, meneer. Ik heb hem “{title}” genoemd; uw toestemming neem ik achteraf aan.",
+        "Keurig opgeborgen. Ik breng het ter sprake op het meest ongelegen moment.",
+        "Onthouden, meneer. Vergeten blijft geheel uw afdeling.",
+    ],
+}
+
+
+def make_title(fact, lang="en"):
+    drop = TITLE_DROP.get(lang, TITLE_DROP["en"])
+    words = re.findall(r"[\w'’&+-]+", fact)
+    while words and words[0].lower() in drop:
+        words.pop(0)
+    words = words[:6]
+    while len(words) > 1 and words[-1].lower() in drop:
+        words.pop()
+    title = " ".join(words) or "Captured thought"
+    return notes_store.clean_part(title[0].upper() + title[1:], 80)
+
+
+def remember(text, source="typed"):
+    """Write a capture note. Returns the JSON response for /remember."""
+    m = REMEMBER_RE.match(text)
+    verb = m.group("verb").lower() if m else "remember"
+    fact = (m.group("fact") if m else text).strip().strip("\"'“”")
+    if not fact:
+        raise ChatError("Remember what, exactly? Say “remember that…” followed by the thing.")
+    lang = "nl" if verb == "onthoud" else "en"
+    fact = fact[0].upper() + fact[1:]
+    if fact[-1] not in ".!?…":
+        fact += "."
+
+    index = INDEX.get()
+    related = index.search(fact, k=1)
+    related_label = index.nodes[related[0]]["label"] if related else None
+
+    base = title = make_title(fact, lang)
+    n = 2
+    while STORE.find(title):
+        title = f"{base} ({n})"
+        n += 1
+    stamp = time.strftime("%Y-%m-%d %H:%M")
+    body = f"# {title}\n\n{fact}\n\n_Captured {stamp} ({source})._\n"
+    if related_label:
+        body += f"\nRelated: [[{related_label}]]\n"
+    changes, touched = STORE.apply([{"op": "create", "title": title, "folder": CAPTURE_FOLDER, "content": body}])
+    if not changes or not changes[0]["ok"]:
+        raise ChatError("Couldn't write the note: " + (changes[0].get("error", "unknown error") if changes else "nothing to do"))
+    sync_error = sync_db()
+
+    graph = build.build(NOTES_DIR)
+    by_path = {node["path"]: node["id"] for node in graph["nodes"]}
+    new_id = by_path.get(changes[0]["path"])
+    near_id = next((node["id"] for node in graph["nodes"] if node["label"] == related_label), None)
+    quip = secrets.choice(QUIPS[lang]).format(title=title)
+    return {"ok": True, "title": title, "path": changes[0]["path"], "id": new_id, "near": near_id,
+            "related": related_label, "quip": quip, "lang": lang, "graph": graph,
+            "can_undo": STORE.can_undo(),
+            "warning": f"Saved here but not to the database ({sync_error})." if sync_error else None}
+
+
 # ---------------------------------------------------------------- auth
 
 PASSWORD = os.environ.get("JARVIS_PASSWORD", "")
@@ -713,7 +801,7 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             return self.handle_login()
         if not self.authorized():
             return self.send_json(401, {"error": "Please log in again (reload the page)."})
-        if path not in ("/chat", "/chat/reset", "/chat/undo"):
+        if path not in ("/chat", "/chat/reset", "/chat/undo", "/remember"):
             return self.send_json(404, {"error": "Not found"})
         # Only same-origin JSON requests: a cross-site page can't send
         # application/json without a CORS preflight, which we never approve.
@@ -740,6 +828,14 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             SESSIONS.reset(sid)     # the conversation referred to the undone state
             return self.send_json(200, {"ok": True, "message": message, "graph": build.build(NOTES_DIR),
                                         "can_undo": STORE.can_undo()}, new_cookie)
+
+        if path == "/remember":
+            text = str(payload.get("text") or "").strip()[:2000]
+            source = "voice" if payload.get("source") == "voice" else "typed"
+            try:
+                return self.send_json(200, remember(text, source), new_cookie)
+            except ChatError as e:
+                return self.send_json(400, {"error": str(e)}, new_cookie)
 
         question = str(payload.get("question") or "").strip()[:1000]
         if not question:
