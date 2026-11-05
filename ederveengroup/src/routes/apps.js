@@ -585,6 +585,26 @@ module.exports = function appRoutes(ctx) {
             const disk = ctx.vault && ctx.vault.disk ? await ctx.vault.disk().catch(() => null) : null;
             out.storage = { used, quota: (ctx.config.files && ctx.config.files.quota) || 0, free: disk ? disk.free : 0, files: files.length, photos: files.filter(f => /^image\//.test(f.type || '')).length, videos: files.filter(f => /^video\//.test(f.type || '')).length };
         }
+        if (has('jarvis')) {
+            // Jarvis's widget: his greeting, your day at a glance and the last thing he said (admins only)
+            if (!(ctx.isAdmin && ctx.isAdmin(email)) || (ctx.appOn && !ctx.appOn('jarvis'))) return { v: 2, kind, error: 'Jarvis is only for admins on this EderveenGroup.' };
+            const evs = await eventsAhead(email, tz, today, 2);
+            out.events = evs.filter(e => !(e.day === today && e.at && (e.end || e.at) < out.now && (e.end || e.at) !== '00:00')).slice(0, 6);
+            out.todayCount = out.events.filter(e => e.day === today).length;
+            const open = items('tasks').filter(t => !t.done);
+            const due = open.filter(t => (t.due && t.due <= today) || t.starred).sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
+            out.tasks = { open: open.length, today: open.filter(t => t.due === today).length, overdue: open.filter(t => t.due && t.due < today).length, list: due.slice(0, 5).map(t => ({ text: t.text, due: t.due || '', late: !!(t.due && t.due < today), today: t.due === today, starred: !!t.starred })) };
+            const extra = ctx.summaryExtras ? await ctx.summaryExtras(email) : {};
+            const mail = ((store.getApp(email, 'mailcount') || { items: {} }).items || {}).inbox || null;
+            out.mail = mail ? { unread: mail.unread, at: mail.at } : null;
+            out.chat = typeof extra.chat === 'number' ? extra.chat : null;
+            const j = (store.getApp(email, 'jarvis') || {}).items || {};
+            const said = [...(Array.isArray(j.log) ? j.log : [])].reverse().find(m => m.role === 'assistant' && !m.error && m.content);
+            const first = String(settings.displayName || '').trim().split(/\s+/)[0] || (u => u.charAt(0).toUpperCase() + u.slice(1))(String(store.usernameOf(email) || email.split('@')[0]).split(/[._-]/)[0]);
+            out.jarvis = { first, address: (j.prefs || {}).address || 'name', online: !!(ctx.aiService && ctx.aiService()), last: said ? { text: String(said.content).replace(/\s+/g, ' ').slice(0, 240), at: said.at || 0 } : null };
+            out.links.jarvis = `${site}/jarvis/`;
+            out.links.talk = `${site}/jarvis/#talk`;
+        }
         if (kind === 'overview') {
             // the first widget's shape (v1), kept for scripts copied before there were more kinds
             out.events = out.events || [];
@@ -594,9 +614,11 @@ module.exports = function appRoutes(ctx) {
     ctx.agendaFor = (email, tz, from, span) => eventsAhead(email, tz, from, span);
     ctx.localOf = localOf;
     const widgetsOn = () => !ctx.appOn || ctx.appOn('widgets');
+    // the widgets this person can have (Jarvis's are for admins, while Jarvis is switched on)
+    const kindsFor = email => WIDGET_KINDS.filter(k => !k.admin || (ctx.isAdmin && ctx.isAdmin(email) && (!ctx.appOn || ctx.appOn('jarvis'))));
     r.get('/widget', wrap(async (req, res) => {
         if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');
-        res.json({ feed: widgetUrl(req, req.session.email), kinds: WIDGET_KINDS });
+        res.json({ feed: widgetUrl(req, req.session.email), kinds: kindsFor(req.session.email) });
     }));
     r.post('/widget', (req, res) => {
         const v = doc(req.session.email, 'widgetfeed').items.v || { n: 0 };
@@ -606,14 +628,14 @@ module.exports = function appRoutes(ctx) {
     // the Scriptable script for one widget, with this person's feed in it
     r.get('/widget/script', (req, res) => {
         if (!widgetsOn()) throw httpError(404, 'Widgets are switched off on this EderveenGroup');
-        const kind = WIDGET_KINDS.some(k => k.id === req.query.kind) ? req.query.kind : 'overview';
+        const kind = kindsFor(req.session.email).some(k => k.id === req.query.kind) ? req.query.kind : 'overview';
         const meta = WIDGET_KINDS.find(k => k.id === kind);
         const text = widgetScript({ feed: widgetUrl(req, req.session.email), site: siteOf(req), kind });
         res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store', ...(req.query.download ? { 'Content-Disposition': `attachment; filename="${meta.script.replace(/[^A-Za-z0-9 -]/g, '')}.js"` } : {}) }).send(text);
     });
     // every widget's script, wrapped so the Widgets page can draw live previews with them
     r.get('/widget/previews.js', (req, res) => {
-        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store' }).send(widgetPreviews({ feed: widgetUrl(req, req.session.email), site: siteOf(req) }));
+        res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'private, no-store' }).send(widgetPreviews({ feed: widgetUrl(req, req.session.email), site: siteOf(req), kinds: kindsFor(req.session.email) }));
     });
     // GET /w/<token>.json?tz=Europe/Amsterdam&kind=calendar, mounted on the site by src/app.js (no cookie: a widget has none)
     const feedHits = new Map();

@@ -23,7 +23,8 @@ const WIDGET_KINDS = [
     { id: 'progress', name: 'Progress', script: 'EG Progress', group: 'Fun', blurb: 'Rings for how much of the day, week, month and year has gone by.', sizes: ['small', 'medium', 'large', 'lock'], param: 'nothing to set' },
     { id: 'quote', name: 'Quote of the day', script: 'EG Quote', group: 'Fun', blurb: 'A short, kind push for the day, on a colour that changes daily.', sizes: ['small', 'medium', 'large', 'lock'], param: '“random” for a new one at every refresh' },
     { id: 'inbox', name: 'Inbox', script: 'EG Inbox', group: 'Counts', blurb: 'Unread mail, chats and cards due. Inbox zero gets a party.', sizes: ['small', 'medium', 'large', 'lock'], param: 'nothing to set' },
-    { id: 'storage', name: 'Storage', script: 'EG Storage', group: 'Counts', blurb: 'How full your own cloud is, with your files, photos and videos.', sizes: ['small', 'medium', 'large', 'lock'], param: 'nothing to set' }
+    { id: 'storage', name: 'Storage', script: 'EG Storage', group: 'Counts', blurb: 'How full your own cloud is, with your files, photos and videos.', sizes: ['small', 'medium', 'large', 'lock'], param: 'nothing to set' },
+    { id: 'jarvis', name: 'Jarvis', script: 'EG Jarvis', group: 'Jarvis', blurb: 'His glowing core, a greeting and your day at a glance, with the last thing he said. Tap it to talk to him.', sizes: ['small', 'medium', 'large', 'lock'], param: 'nothing to set', admin: true }
 ];
 
 // safe inside the script's single quotes
@@ -46,7 +47,8 @@ function widgetScript({ feed, site, kind = 'overview' }) {
 const GLOBALS = ['ListWidget', 'Color', 'Font', 'Size', 'Point', 'Rect', 'LinearGradient', 'SFSymbol', 'DrawContext', 'Path', 'Image', 'Request', 'FileManager', 'DateFormatter', 'Location', 'Alert', 'Script', 'Device', 'config', 'args'];
 
 /** every widget's script as a function, for the Widgets page's live previews (no eval needed) */
-function widgetPreviews({ feed, site }) {
+function widgetPreviews({ feed, site, kinds = WIDGET_KINDS }) {
+    const WIDGET_KINDS = kinds; // (only the ones this person can have)
     const parts = WIDGET_KINDS.map(k => `${JSON.stringify(k.id)}: async function (${GLOBALS.join(', ')}) {\n${widgetScript({ feed, site, kind: k.id })}\n}`);
     const sources = Object.fromEntries(WIDGET_KINDS.map(k => [k.id, widgetScript({ feed, site, kind: k.id })]));
     // the texts too, for the Copy buttons (a copy has to happen right away when tapped, on iPhone)

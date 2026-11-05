@@ -2384,3 +2384,46 @@ test('Jarvis streams what he is doing, then his answer (or what went wrong)', as
     assert.equal((await jo('POST', '/api/jarvis/chat', { message: 'Hi', tz: 'UTC' })).body.reply, 'Hi.');
     app.close();
 });
+
+test('The Jarvis widget: for admins only, with his greeting, your day and the last thing he said', async () => {
+    const { runScript, textOf } = require('./scriptable-mock');
+    const { GLOBALS } = require('../../lib/widget');
+    const app = await start({ ADMIN_EMAILS: USER });
+    const jo = app.device();
+    const ann = app.device();
+    await jo('POST', '/mail/api/login', { email: USER, password: PASS });
+    await jo('POST', '/api/username', { username: 'jo.smith' });
+    await ann('POST', '/mail/api/login', { email: USER2, password: PASS });
+    await ann('POST', '/api/username', { username: 'ann' });
+    const day = new Date().toISOString().slice(0, 10);
+    await jo('PUT', '/api/apps/tasks/task-jw1', { text: 'Call the bank', due: day });
+    app.store.setApp(USER, 'jarvis', { items: { prefs: { address: 'sir' }, log: [{ role: 'user', content: 'Brief me', at: 1 }, { role: 'assistant', content: 'A quiet day, sir. One task is due.', at: 2 }] } });
+    // only admins get it in the gallery; for anyone else the script is the Overview one
+    assert.ok((await jo('GET', '/api/widget')).body.kinds.some(k => k.id === 'jarvis'));
+    assert.equal((await ann('GET', '/api/widget')).body.kinds.some(k => k.id === 'jarvis'), false);
+    assert.match((await ann('GET', '/api/widget/script?kind=jarvis')).body, /const KIND = 'overview';/);
+    assert.equal(/MAKERS\.jarvis/.test((await ann('GET', '/api/widget/previews.js')).body), false);
+    // his feed: what the widget shows
+    const feedOf = async who => new URL((await who('GET', '/api/widget')).body.feed).pathname;
+    const d = (await app.device()('GET', `${await feedOf(jo)}?tz=UTC&kind=jarvis`)).body;
+    assert.deepEqual([d.jarvis.first, d.jarvis.address, d.jarvis.last.text], ['Jo', 'sir', 'A quiet day, sir. One task is due.']);
+    assert.equal(d.tasks.today, 1);
+    assert.match(d.links.talk, /\/jarvis\/#talk$/);
+    assert.equal(d.notes, undefined);
+    // a non-admin's feed won't give it out
+    assert.match((await app.device()('GET', `${await feedOf(ann)}?tz=UTC&kind=jarvis`)).body.error, /only for admins/);
+    // drawn: greeting, status and what he said, and tapping it talks to him
+    const src = (await jo('GET', '/api/widget/script?kind=jarvis')).body;
+    const fetchJSON = async url => {
+        const r = await app.device()('GET', new URL(url).pathname + new URL(url).search);
+        return { status: r.status, body: r.body };
+    };
+    const large = await runScript(src, GLOBALS, { family: 'large', param: '', fetchJSON, files: new Map() });
+    assert.match(textOf(large.tree), /Good (morning|afternoon|evening), sir\./);
+    assert.match(textOf(large.tree), /A quiet day, sir\./);
+    assert.match(textOf(large.tree), /1 task due/);
+    assert.match(large.tree.url, /\/jarvis\/#talk$/);
+    const inline = await runScript(src, GLOBALS, { family: 'accessoryInline', param: '', fetchJSON, files: new Map() });
+    assert.match(textOf(inline.tree), /^Jarvis · /);
+    app.close();
+});

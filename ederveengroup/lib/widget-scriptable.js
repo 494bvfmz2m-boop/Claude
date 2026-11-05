@@ -1668,6 +1668,183 @@ MAKERS.storage = {
 };
 /*@end*/
 
+/*@kind:jarvis*/
+// Jarvis: his core (a glowing centre with three orbits), a greeting, your day, the last thing he said
+MAKERS.jarvis = {
+    feed: true,
+    theme: ['#0b2234', '#02060c', '#5fe3ff'],
+    core(size) {
+        const dc = new DrawContext();
+        dc.size = new Size(size, size);
+        dc.opaque = false;
+        dc.respectScreenScale = true;
+        const c = size / 2;
+        const disc = (r, color) => {
+            dc.setFillColor(color);
+            dc.fillEllipse(new Rect(c - r, c - r, 2 * r, 2 * r));
+        };
+        const orbit = (r, color, width) => {
+            dc.setStrokeColor(color);
+            dc.setLineWidth(width);
+            dc.strokeEllipse(new Rect(c - r, c - r, 2 * r, 2 * r));
+        };
+        for (let i = 7; i >= 1; i--) disc(size * (0.1 + i * 0.045), new Color('#3fdcff', 0.045)); // the glow
+        orbit(size * 0.29, new Color('#5fe3ff', 0.9), Math.max(1, size * 0.018));
+        orbit(size * 0.39, new Color('#5fe3ff', 0.5), Math.max(1, size * 0.011));
+        orbit(size * 0.47, new Color('#5fe3ff', 0.28), Math.max(1, size * 0.008));
+        disc(size * 0.17, new Color('#9ff1ff', 0.55));
+        disc(size * 0.11, new Color('#e9fdff'));
+        // a dot on each orbit, a little further round at every refresh
+        const t = Date.now() / 60000;
+        [[0.29, 0.4, 0.034], [0.39, 2.5, 0.027], [0.47, 4.4, 0.022]].forEach(([r, phase, dot], k) => {
+            const a = phase + t * 0.05 * (k + 1);
+            dc.setFillColor(new Color('#d9fbff'));
+            const x = c + size * r * Math.cos(a);
+            const y = c + size * r * Math.sin(a);
+            dc.fillEllipse(new Rect(x - size * dot, y - size * dot, 2 * size * dot, 2 * size * dot));
+        });
+        return dc.getImage();
+    },
+    image(stack, size) {
+        const img = stack.addImage(this.core(size));
+        img.imageSize = new Size(size, size);
+        return img;
+    },
+    who(d) {
+        const j = d.jarvis;
+        return j.address === 'name' ? j.first : { sir: 'sir', "ma'am": 'ma’am', boss: 'boss' }[j.address] || j.first;
+    },
+    greeting(d) {
+        const h = new Date().getHours();
+        return `${h < 5 ? 'Good evening' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, ${this.who(d)}.`;
+    },
+    status(d) {
+        const bits = [];
+        if (d.todayCount) bits.push(`${d.todayCount} ${d.todayCount === 1 ? 'event' : 'events'} today`);
+        if (tasksDue(d)) bits.push(`${tasksDue(d)} ${tasksDue(d) === 1 ? 'task' : 'tasks'} due`);
+        if (d.mail && d.mail.unread) bits.push(`${d.mail.unread} unread`);
+        return bits.length ? bits.join(' · ') : 'A clear day ahead';
+    },
+    name(stack, size = 10) {
+        const t = text(stack, 'J A R V I S', size, A, 'bold');
+        t.shadowColor = new Color('#3fdcff', 0.6);
+        t.shadowRadius = 4;
+        return t;
+    },
+    small(d) {
+        const w = base(d.links.talk, ...this.theme);
+        w.setPadding(10, 12, 10, 12);
+        const top = w.addStack();
+        top.size = new Size(dims().w - 24, 74);
+        this.image(top, 70);
+        w.addSpacer(4);
+        centered(w, r => this.name(r, 9));
+        w.addSpacer(2);
+        centered(w, r => text(r, d.jarvis.online ? this.status(d) : 'Needs an AI key', 10, C.dim, 'medium', 2).centerAlignText());
+        offline(w, d);
+        return w;
+    },
+    medium(d) {
+        const w = base(d.links.talk, ...this.theme);
+        w.setPadding(12, 14, 12, 14);
+        const r = w.addStack();
+        r.centerAlignContent();
+        this.image(r, 104);
+        r.addSpacer(12);
+        const c = column(r, 3);
+        this.name(c, 9);
+        text(c, this.greeting(d), 15, C.text, 'bold');
+        const line = (sym, value, color) => {
+            const s = row(c, 5);
+            icon(s, sym, 10, color || A);
+            text(s, value, 11, C.dim, 'semibold');
+        };
+        const next = d.events[0];
+        line('calendar', next ? `${next.day === d.date ? '' : `${fmt(dateOf(next.day), 'EEE')} `}${next.allDay ? 'All day' : next.at}  ${next.title}` : 'Nothing planned');
+        line(d.tasks.overdue ? 'exclamationmark.circle' : 'checkmark.circle', tasksDue(d) ? `${tasksDue(d)} ${tasksDue(d) === 1 ? 'task' : 'tasks'} due` : 'No tasks due', d.tasks.overdue ? C.late : A);
+        line('envelope', d.mail ? `${d.mail.unread} unread mail${d.chat ? ` · ${d.chat} chats` : ''}` : 'Open Mail once to count');
+        c.addSpacer(2);
+        const t = row(c, 4);
+        icon(t, 'mic.fill', 9, A);
+        text(t, d.jarvis.online ? 'Tap to talk' : 'Add an AI key in Admin → AI', 9, C.faint, 'semibold');
+        r.addSpacer();
+        offline(w, d);
+        return w;
+    },
+    large(d) {
+        const w = base(d.links.talk, ...this.theme);
+        w.setPadding(16, 16, 14, 16);
+        const top = w.addStack();
+        top.centerAlignContent();
+        this.image(top, 64);
+        top.addSpacer(12);
+        const c = column(top, 2);
+        this.name(c, 10);
+        text(c, this.greeting(d), 18, C.text, 'bold');
+        text(c, this.status(d), 11, C.dim, 'medium');
+        top.addSpacer();
+        w.addSpacer(10);
+        if (d.jarvis.last) {
+            const q = w.addStack();
+            q.layoutVertically();
+            q.setPadding(8, 10, 8, 10);
+            q.cornerRadius = 12;
+            q.backgroundColor = new Color('#5fe3ff', 0.08);
+            q.borderColor = new Color('#5fe3ff', 0.25);
+            q.borderWidth = 1;
+            section(q, 'He said', A);
+            text(q, d.jarvis.last.text, 12, C.text, 'medium', 3);
+            const qs = q.addStack();
+            qs.addSpacer();
+            w.addSpacer(10);
+        }
+        section(w, 'Coming up', C.faint);
+        w.addSpacer(3);
+        const ev = column(w, 4);
+        agenda(ev, d, d.jarvis.last ? 3 : 4, 12);
+        w.addSpacer(8);
+        section(w, 'Due', C.faint);
+        w.addSpacer(3);
+        const tk = column(w, 4);
+        taskRows(tk, d, 3, 12);
+        w.addSpacer();
+        const t = row(w, 4);
+        icon(t, 'mic.fill', 10, A);
+        text(t, d.jarvis.online ? 'Tap to talk to Jarvis' : 'Add an AI key in Admin → AI to talk', 10, C.dim, 'semibold');
+        t.addSpacer();
+        offline(t, d);
+        return w;
+    },
+    circular(d) {
+        const w = base(d.links.talk);
+        w.addAccessoryWidgetBackground = true;
+        const s = column(w, 0);
+        s.centerAlignContent();
+        const a = s.addStack();
+        a.size = new Size(50, 30);
+        this.image(a, 28);
+        const b = s.addStack();
+        b.size = new Size(54, 18);
+        text(b, d.todayCount + tasksDue(d), 14, Color.white(), 'round');
+        return w;
+    },
+    rectangular(d) {
+        const w = base(d.links.talk);
+        const r = row(w, 6);
+        this.image(r, 30);
+        const c = column(r, 0);
+        text(c, 'Jarvis', 13, Color.white(), 'bold');
+        text(c, this.status(d), 11, Color.white(), 'medium', 2);
+        return w;
+    },
+    inline(d) {
+        const w = base(d.links.talk);
+        w.addText(`Jarvis · ${this.status(d)}`);
+        return w;
+    }
+};
+/*@end*/
+
 /* ---------- the lock screen's round widget: a symbol and a number ---------- */
 function lockNumber(url, sym, value) {
     const w = base(url);
