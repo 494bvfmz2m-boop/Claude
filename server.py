@@ -324,11 +324,35 @@ def ask_gemini(cfg, history, prompt):
     return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
 
 
+def find_claude(cfg):
+    """Locate the Claude Code CLI: config "claude_path", then PATH, then the
+    usual install folders (native installer and npm, Windows/macOS/Linux)."""
+    explicit = str(cfg.get("claude_path") or "").strip()
+    if explicit:
+        return explicit if os.path.exists(explicit) else None
+    found = shutil.which("claude")
+    if found:
+        return found
+    home = os.path.expanduser("~")
+    appdata = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
+    candidates = [
+        os.path.join(home, ".local", "bin", "claude.exe"),
+        os.path.join(home, ".local", "bin", "claude"),
+        os.path.join(home, ".claude", "local", "claude"),
+        os.path.join(home, ".claude", "local", "claude.exe"),
+        os.path.join(appdata, "npm", "claude.cmd"),
+        os.path.join(appdata, "npm", "claude"),
+        "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+    ]
+    return next((c for c in candidates if os.path.isfile(c)), None)
+
+
 def ask_cli(cfg, history, prompt):
-    exe = shutil.which("claude")
+    exe = find_claude(cfg)
     if not exe:
-        raise ChatError("No API key in config.json and the `claude` CLI isn't installed, "
-                        "so there's nothing to answer with.")
+        raise ChatError("Couldn't find the Claude Code CLI (`claude`). Install it, run `claude` once "
+                        "to log in, then restart server.py. If it's installed somewhere unusual, "
+                        'add "claude_path" to config.json.')
     transcript = ""
     if history:
         transcript = "Earlier in this conversation:\n" + "\n".join(
