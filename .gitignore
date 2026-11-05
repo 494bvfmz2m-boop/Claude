@@ -1,3 +1,5 @@
 # Holds your API key: never commit it.
 config.json
 __pycache__/
+# Jarvis keeps deleted/overwritten notes here (restore or empty it yourself).
+notes/.trash/

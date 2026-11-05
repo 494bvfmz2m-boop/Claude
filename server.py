@@ -6,6 +6,11 @@
 GET  /            static files from viewer/ ONLY (config.json lives outside it)
 POST /chat        {"question": "..."} -> {"answer": "...", "nodes": [note ids]}
 POST /chat/reset  forget this browser session's conversation history
+POST /chat/undo   revert Jarvis's most recent batch of note changes
+
+Jarvis can also change notes (create / update / append / rename / move /
+delete). That happens only inside notes/; deleted or overwritten notes are
+kept in notes/.trash/ and every batch can be undone.
 
 /chat picks the 6 notes that best match the question by keyword overlap
 (title matches weigh extra) and asks Claude to answer from them only.
@@ -36,6 +41,7 @@ import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 import build
+import notes_store
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 VIEWER_DIR = os.path.join(ROOT, "viewer")
@@ -55,17 +61,27 @@ SESSION_TTL = 60 * 60         # forget idle sessions after an hour
 MAX_SESSIONS = 500
 COOKIE = "galaxy_sid"
 
-SYSTEM_PROMPT = (
-    "You are the memory of a person's personal knowledge base. Answer the user's "
-    "question using ONLY the notes provided in the <notes> block of their message. "
-    "Do not use outside knowledge and do not invent facts, numbers or names. "
-    "Answer in 2-3 short sentences (under 80 words total) of plain prose, with no "
-    "lists and no markdown. "
-    "Mention the titles of the notes you relied on naturally where it helps. "
-    "If the notes do not cover the question, say plainly that your notes don't "
-    "cover it, and if something related is in the notes, mention that briefly. "
-    "Earlier turns of the conversation are context for follow-up questions."
-)
+SYSTEM_PROMPT = """You are Jarvis, the assistant built into the user's personal knowledge base (a folder of markdown notes shown as a 3D galaxy). You can answer questions from the notes AND change the notes.
+
+Reply with exactly ONE JSON object and nothing else (no code fences):
+{"answer": "...", "speech": "...", "lang": "en", "sources": ["Note title"], "actions": []}
+
+- answer: 2-3 short sentences (under 80 words), plain prose, no lists or markdown, in the language the user wrote in.
+- speech: ONE short sentence (max 20 words) to be read aloud. The notes are already on screen, so never read a note out; give the gist or confirm what you did.
+- lang: language code of answer/speech, e.g. "en" or "nl".
+- sources: exact titles of the notes your answer actually relies on, most important first. [] when nothing in the notes supports the answer.
+- actions: changes to the notes, ONLY when the user clearly asks to create, write, edit, add to, rename, move or delete notes; otherwise []. Allowed shapes:
+  {"op": "create", "title": "Title", "folder": "optional/folder", "content": "markdown body"}
+  {"op": "update", "title": "Existing title", "content": "complete new markdown body"}
+  {"op": "append", "title": "Existing title", "content": "markdown to add at the end"}
+  {"op": "rename", "title": "Existing title", "new_title": "New title"}
+  {"op": "move", "title": "Existing title", "folder": "target folder, '' for top level"}
+  {"op": "delete", "title": "Existing title"}
+  {"op": "delete_all"}
+  Use exact titles from <catalog>. Use "update" only when that note's full text is in <notes>; otherwise use "append". Write real, useful markdown content, and add [[Other note title]] wikilinks when a new note relates to existing ones. Deleted notes go to the trash and every change can be undone, so do what the user asks; for a request to delete everything, use delete_all. In answer, say briefly what you changed.
+
+Answering questions: use ONLY the notes in <notes>. Do not use outside knowledge or invent facts, numbers or names. If the notes don't cover the question, say so plainly (and mention anything related that is there). Earlier turns are context for follow-up questions.
+"""
 
 STOPWORDS = set("""
 a about above after again against all am an and any are aren as at be because been
@@ -220,6 +236,7 @@ class Sessions:
 
 
 INDEX = NoteIndex(NOTES_DIR)
+STORE = notes_store.NoteStore(NOTES_DIR, os.path.join(VIEWER_DIR, "graph-data.js"))
 SESSIONS = Sessions()
 
 
@@ -240,11 +257,12 @@ def notes_block(nodes, ids):
 def ask_api(cfg, history, prompt):
     messages = []
     for q, a in history:
-        messages += [{"role": "user", "content": q}, {"role": "assistant", "content": a}]
+        messages += [{"role": "user", "content": q},
+                     {"role": "assistant", "content": json.dumps({"answer": a}, ensure_ascii=False)}]
     messages.append({"role": "user", "content": prompt})
     body = json.dumps({
         "model": cfg.get("model") or DEFAULT_CONFIG["model"],
-        "max_tokens": 500,
+        "max_tokens": 4000,
         "system": SYSTEM_PROMPT,
         "messages": messages,
     }).encode()
@@ -275,12 +293,13 @@ def ask_gemini(cfg, history, prompt):
     contents = []
     for q, a in history:
         contents += [{"role": "user", "parts": [{"text": q}]},
-                     {"role": "model", "parts": [{"text": a}]}]
+                     {"role": "model", "parts": [{"text": json.dumps({"answer": a}, ensure_ascii=False)}]}]
     contents.append({"role": "user", "parts": [{"text": prompt}]})
     body = json.dumps({
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": contents,
-        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.3},
+        "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.3,
+                             "responseMimeType": "application/json"},
     }).encode()
     models = [model] + [m for m in GEMINI_FALLBACKS if m != model]
     last_error = None
@@ -380,13 +399,44 @@ def ask_cli(cfg, history, prompt):
 BACKENDS = {"anthropic": ask_api, "gemini": ask_gemini, "claude-cli": ask_cli}
 
 
+def catalog_block(nodes, limit=600):
+    lines = [f"- {n['label']}" + (f"  (folder: {n['group']})" if n["group"] != "root" else "")
+             for n in nodes[:limit]]
+    more = f"\n(and {len(nodes) - limit} more)" if len(nodes) > limit else ""
+    return "<catalog>\nAll notes that exist right now:\n" + ("\n".join(lines) or "(no notes yet)") + more + "\n</catalog>"
+
+
+def parse_reply(text):
+    """Pull the JSON object out of a model reply; fall back to plain text."""
+    t = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text.strip())
+    obj = None
+    for candidate in (t, (re.search(r"\{.*\}", t, re.S) or [None])[0]):
+        if not candidate:
+            continue
+        try:
+            obj = json.loads(candidate)
+            break
+        except ValueError:
+            continue
+    if not isinstance(obj, dict) or not str(obj.get("answer") or "").strip():
+        return {"answer": text.strip(), "speech": "", "lang": "", "sources": None, "actions": []}
+    return {
+        "answer": str(obj.get("answer")).strip(),
+        "speech": str(obj.get("speech") or "").strip(),
+        "lang": str(obj.get("lang") or "").strip()[:12],
+        "sources": [str(x) for x in obj["sources"]] if isinstance(obj.get("sources"), list) else None,
+        "actions": obj.get("actions") if isinstance(obj.get("actions"), list) else [],
+    }
+
+
 def answer(sid, question):
     cfg = load_config()
     index = INDEX.get()
     history = SESSIONS.history(sid)
     previous = history[-1][0] if history else ""
     ids = index.search(question, context=previous)
-    prompt = f"{notes_block(index.nodes, ids)}\n\nQuestion: {question}"
+    prompt = (f"{catalog_block(index.nodes)}\n\n{notes_block(index.nodes, ids)}\n\n"
+              f"User message: {question}")
 
     # Try the configured provider first; if it fails, fall back to Claude via
     # `claude -p` (set "fallback": "none" in config.json to turn this off).
@@ -402,12 +452,45 @@ def answer(sid, question):
         else:
             err = "empty answer"
         if text:
-            SESSIONS.add(sid, question, text)
-            return {"answer": text, "nodes": ids, "backend": provider,
-                    "fallback": provider != chain[0]}
+            return finish(sid, question, parse_reply(text), index, ids, provider, provider != chain[0])
         errors.append(f"{provider}: {err}")
         print(f"[chat] {provider} failed: {err}" + ("  -> trying Claude" if provider != chain[-1] else ""), flush=True)
     raise ChatError(" | ".join(errors))
+
+
+def finish(sid, question, reply, index, retrieved, provider, fallback):
+    """Resolve sources to node ids, apply any note changes, build the response."""
+    by_label = {build.norm(n["label"]): i for i, n in enumerate(index.nodes)}
+    if reply["sources"] is None:                # model ignored the format: use retrieval
+        used = list(retrieved)
+    else:
+        used = []
+        for title in reply["sources"]:
+            i = by_label.get(build.norm(title.removesuffix(".md")))
+            if i is not None and i not in used:
+                used.append(i)
+    result = {"answer": reply["answer"], "speech": reply["speech"], "lang": reply["lang"],
+              "nodes": used, "backend": provider, "fallback": fallback}
+
+    if reply["actions"]:
+        changes, touched = STORE.apply(reply["actions"])
+        result["changes"] = changes
+        if any(c["ok"] for c in changes):
+            # ids are array positions, so re-map everything onto the rebuilt graph
+            graph = build.build(NOTES_DIR)
+            by_path = {n["path"]: n["id"] for n in graph["nodes"]}
+            old_paths = [index.nodes[i]["path"] for i in used]
+            result["nodes"] = [by_path[p] for p in old_paths if p in by_path]
+            changed = [by_path[STORE.rel(p)] for p in touched if STORE.rel(p) in by_path]
+            result["changed"] = list(dict.fromkeys(changed))
+            result["graph"] = graph
+            result["can_undo"] = STORE.can_undo()
+        failed = [c for c in changes if not c["ok"]]
+        if failed:
+            result["answer"] += " (Not done: " + "; ".join(
+                f'{c["op"]} {c["title"]}: {c["error"]}'.replace("  ", " ") for c in failed) + ".)"
+    SESSIONS.add(sid, question, result["answer"])
+    return result
 
 
 # ---------------------------------------------------------------- HTTP
@@ -435,7 +518,7 @@ class ViewerHandler(SimpleHTTPRequestHandler):
     # -- JSON API
     def do_POST(self):
         path = self.path.split("?", 1)[0]
-        if path not in ("/chat", "/chat/reset"):
+        if path not in ("/chat", "/chat/reset", "/chat/undo"):
             return self.send_json(404, {"error": "Not found"})
         # Only same-origin JSON requests: a cross-site page can't send
         # application/json without a CORS preflight, which we never approve.
@@ -453,6 +536,13 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         if path == "/chat/reset":
             SESSIONS.reset(sid)
             return self.send_json(200, {"ok": True}, new_cookie)
+        if path == "/chat/undo":
+            message = STORE.undo()
+            if not message:
+                return self.send_json(200, {"ok": False, "message": "Nothing to undo."}, new_cookie)
+            SESSIONS.reset(sid)     # the conversation referred to the undone state
+            return self.send_json(200, {"ok": True, "message": message, "graph": build.build(NOTES_DIR),
+                                        "can_undo": STORE.can_undo()}, new_cookie)
 
         question = str(payload.get("question") or "").strip()[:1000]
         if not question:
