@@ -79,24 +79,45 @@
             app: appName(),
             title: document.title,
             path: location.pathname,
-            focused: alive ? { kind: field.isContentEditable ? 'text editor' : field.tagName === 'TEXTAREA' ? 'text box' : 'text field', label: labelOf(field) } : null,
+            focused: alive ? { kind: field.isContentEditable ? 'text editor' : field.tagName === 'TEXTAREA' ? 'text box' : 'text field', label: labelOf(field), chars: (field.isContentEditable ? field.innerText : field.value).trim().length, selected: selected.length } : null,
             selected: selected.slice(0, 4000),
             text: (copy.innerText || copy.textContent || '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 12000)
         };
     }
     // type text where the cursor was, a few letters at a time (so you see it being written)
     let typing = null;
-    function type(text, { onDone } = {}) {
+    // mode: insert (at the cursor, after any selected text), replace_selection, replace_all (start the
+    // whole field over) or clear (empty it)
+    function type(text, { onDone, mode = 'insert' } = {}) {
         if (typing) typing.stop();
         const el = field && document.contains(field) ? field : null;
         if (!el) return onDone && onDone(false), null;
         el.focus({ preventScroll: false });
-        if (el.isContentEditable && range) {
-            const sel = getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
         const rich = el.isContentEditable;
+        const sel = getSelection();
+        if (mode === 'replace_all' || mode === 'clear') {
+            // everything in the field, removed the app's own way (so it saves, and Ctrl Z brings it back)
+            if (rich) {
+                const all = document.createRange();
+                all.selectNodeContents(el);
+                sel.removeAllRanges();
+                sel.addRange(all);
+            } else el.select();
+            if (!document.execCommand('delete') && !rich) {
+                el.value = '';
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            range = null;
+        } else if (rich && range) {
+            const r = range.cloneRange();
+            if (mode !== 'replace_selection') r.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(r);
+        } else if (!rich && mode !== 'replace_selection') el.setSelectionRange(el.selectionEnd, el.selectionEnd);
+        if (mode === 'clear' || !String(text || '').length) {
+            if (!rich) el.dispatchEvent(new Event('change', { bubbles: true }));
+            return onDone && onDone(true), null;
+        }
         const oneLine = el.tagName === 'INPUT';
         const pieces = String(text).replace(/\r/g, '').split(/(\n+)/).filter(Boolean);
         const per = Math.max(1, Math.ceil(text.length / 650)); // long texts type faster, so it never takes more than ~12 s

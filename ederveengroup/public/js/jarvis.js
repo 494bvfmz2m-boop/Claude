@@ -295,7 +295,7 @@
             if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
             reply = String(data.reply || '…');
             log.push({ role: 'assistant', content: reply, actions: data.actions || [], via: data.service, note: handedOver(data) });
-            for (const a of data.actions || []) if (a.kind === 'type' && a.type) typeIntoApp(a);
+            for (const a of data.actions || []) if (a.kind === 'type' && (a.type || a.mode === 'clear')) typeIntoApp(a);
             // "open my calendar": on the screen you're on (the whole window, from the pop-up too)
             const go = (data.actions || []).find(a => a.open && /^\/[a-z]*\/?/.test(String(a.href || '')));
             if (go) setTimeout(() => (mini ? window.top : window).location.assign(go.href), 1200);
@@ -324,8 +324,9 @@
     function typeIntoApp(a) {
         try {
             window.parent.EGJarvisDock.type(a.type, {
+                mode: a.mode || 'insert',
                 onDone: ok => {
-                    a.text = ok ? a.text.replace(/^Writing in/, 'Wrote in') : 'Stopped writing';
+                    a.text = ok ? a.text.replace(/^Writing in/, 'Wrote in').replace(/^Rewriting/, 'Rewrote').replace(/^Clearing/, 'Cleared') : 'Stopped writing';
                     drawLog();
                 }
             });

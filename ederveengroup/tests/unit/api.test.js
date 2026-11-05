@@ -2220,12 +2220,18 @@ test('Jarvis writes emails and chat messages as drafts (sent only with a tap), a
     assert.ok(sent5.tools.some(t => t.name === 'type_here') && sent5.tools.some(t => t.name === 'look_at_screen'));
     assert.match(sent5.system, /small Jarvis window over the Docs app/);
     assert.equal(resultOf()[0].title, 'Cars · Docs');
-    assert.deepEqual(r5.body.actions, [{ kind: 'type', text: 'Writing in Docs', type: 'Cars changed the world.\n\nThey made travel easy.' }]);
+    assert.deepEqual(r5.body.actions, [{ kind: 'type', text: 'Writing in Docs', type: 'Cars changed the world.\n\nThey made travel easy.', mode: 'insert' }]);
+    // starting over: clear it, or rewrite the whole thing
+    script = [{ calls: [['clear_here', {}]] }, { text: 'Cleared.' }];
+    assert.deepEqual((await talk('Clear the document', { screen })).body.actions, [{ kind: 'type', text: 'Clearing Docs', type: '', mode: 'clear' }]);
+    script = [{ calls: [['type_here', { text: 'A shorter essay.', mode: 'replace_all' }]] }, { text: 'Rewritten.' }];
+    assert.deepEqual((await talk('Rewrite it shorter', { screen })).body.actions, [{ kind: 'type', text: 'Rewriting Docs', type: 'A shorter essay.', mode: 'replace_all' }]);
+    assert.match(asked[asked.length - 2].system, /mode replace_all/);
     // nowhere to type: he asks you to click there first
     script = [{ calls: [['type_here', { text: 'Hello' }]] }, { text: 'Click where it should go first.' }];
     const r6 = await talk('Write hello', { screen: { ...screen, focused: null } });
     assert.deepEqual(r6.body.actions, []);
-    assert.match(resultOf()[0].note, /click where the text should go/);
+    assert.match(resultOf()[0].note, /click in the document or field first/);
     app.close();
 });
 
