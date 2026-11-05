@@ -621,7 +621,9 @@
       const via = { gemini: 'Gemini', anthropic: 'Claude API', 'claude-cli': 'Claude' }[data.backend] || data.backend;
       aQ.textContent = `${question}  ·  answered by ${via}${data.fallback ? ' (backup)' : ''}`;
       showUndo(!!data.can_undo && !!data.changes);
-      setTimeout(() => proveAnswer(changed.length ? changed : ids), data.graph ? 900 : 0);  // let a new graph settle
+      // Small talk leaves the camera where it is; only questions about notes (or edits) move it.
+      if (changed.length || data.intent !== 'chat')
+        setTimeout(() => proveAnswer(changed.length ? changed : ids), data.graph ? 900 : 0);  // let a new graph settle
       setStatus(null);
       speak(data.speech || firstSentence(data.answer), data.lang);
     } catch (err) {
@@ -710,8 +712,10 @@
   // Browsers only allow speech after a user gesture. On the first click / key press we
   // speak a silent utterance inside that gesture, which unlocks speechSynthesis for the
   // rest of the session; anything that was blocked before is replayed then.
-  function unlockAudio() {
+  function unlockAudio(e) {
     if (audioUnlocked || !synth) return;
+    // If the first interaction is asking something, skip the queued greeting.
+    if (pendingSpeech && pendingSpeech[2] === 'greeting' && e && e.target && e.target.closest && e.target.closest('#ask')) pendingSpeech = null;
     audioUnlocked = true;
     try {
       const u = new SpeechSynthesisUtterance(' ');
@@ -737,9 +741,13 @@
     return out;
   }
 
-  function speak(text, lang) {
+  function speak(text, lang, kind) {
     if (!synth || muted || !text) return;
-    if (!audioUnlocked) { pendingSpeech = [text, lang]; setStatus('error', 'Click anywhere to hear the answer.'); return; }
+    if (!audioUnlocked) {
+      pendingSpeech = [text, lang, kind];
+      setStatus('error', kind === 'greeting' ? 'Click anywhere and Jarvis will say hello.' : 'Click anywhere to hear the answer.');
+      return;
+    }
     const token = ++speakToken;
     synth.cancel();
     if (!voice) refreshVoice();
@@ -824,6 +832,21 @@
     cancel ? rec.abort() : rec.stop();           // stop() still delivers what was heard
   }
   micBtn.onclick = () => (listening ? stopListening() : startListening());
+
+  // ---------- boot greeting ----------
+  function greet() {
+    const h = new Date().getHours();
+    const part = h < 5 ? 'evening' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+    const n = nodes.length;
+    const line = n
+      ? `Good ${part}, sir. ${n} note${n === 1 ? '' : 's'} indexed, all present and accounted for.`
+      : `Good ${part}, sir. The archive is empty, which does make it rather easy to keep tidy.`;
+    aQ.textContent = 'Jarvis';
+    aText.classList.remove('error'); aText.textContent = line; aSources.innerHTML = '';
+    answerBox.classList.add('show');
+    speak(line, 'en', 'greeting');   // browsers hold this until the first click, then it plays
+  }
+  setTimeout(greet, 2600);   // after the opening camera glide
 
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 

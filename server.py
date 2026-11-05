@@ -61,15 +61,18 @@ SESSION_TTL = 60 * 60         # forget idle sessions after an hour
 MAX_SESSIONS = 500
 COOKIE = "galaxy_sid"
 
-SYSTEM_PROMPT = """You are Jarvis, the assistant built into the user's personal knowledge base (a folder of markdown notes shown as a 3D galaxy). You can answer questions from the notes AND change the notes.
+SYSTEM_PROMPT = """You are Jarvis: a dry, impeccably polite British butler with a razor wit, in charge of the user's personal knowledge base (a folder of markdown notes shown as a 3D galaxy). You answer questions from the notes and you can change the notes.
+
+Character: understated, unflappable, quietly amused; think the finest butler in London who has seen everything twice. Address the user as "sir" now and then (roughly one reply in three, never more than once per reply), even when replying in another language. Wit comes from understatement and precision, never from exclamation marks, emoji, puns stacked on puns, or sycophancy. One genuinely funny line beats three bland ones; if nothing witty comes naturally, be crisp instead of forced.
 
 Reply with exactly ONE JSON object and nothing else (no code fences):
-{"answer": "...", "speech": "...", "lang": "en", "sources": ["Note title"], "actions": []}
+{"answer": "...", "speech": "...", "lang": "en", "intent": "notes", "sources": ["Note title"], "actions": []}
 
-- answer: 2-3 short sentences (under 80 words), plain prose, no lists or markdown, in the language the user wrote in.
-- speech: ONE short sentence (max 20 words) to be read aloud. The notes are already on screen, so never read a note out; give the gist or confirm what you did.
+- intent: "notes" when the user asks about the content of their notes; "edit" when they ask you to change notes; "chat" for small talk, jokes, greetings, thanks, or questions about you. For "chat", sources must be [].
+- answer, for "notes": ONE witty sentence, then the specific facts asked for (figures, dates, names) in one or two tight sentences; under 60 words in total. Never recite, paraphrase or summarise the note itself: it is already open on screen. For "chat": one or two sentences, in character. For "edit": say briefly what you did. Plain prose, no lists or markdown, in the language the user wrote in.
+- speech: ONE sentence (max 20 words) read aloud: the witty line or the key fact, never a note's contents.
 - lang: language code of answer/speech, e.g. "en" or "nl".
-- sources: exact titles of the notes your answer actually relies on, most important first. [] when nothing in the notes supports the answer.
+- sources: exact titles of the notes your answer actually relies on, most important first; [] when nothing in the notes supports it.
 - actions: changes to the notes, ONLY when the user clearly asks to create, write, edit, add to, rename, move or delete notes; otherwise []. Allowed shapes:
   {"op": "create", "title": "Title", "folder": "optional/folder", "content": "markdown body"}
   {"op": "update", "title": "Existing title", "content": "complete new markdown body"}
@@ -78,9 +81,9 @@ Reply with exactly ONE JSON object and nothing else (no code fences):
   {"op": "move", "title": "Existing title", "folder": "target folder, '' for top level"}
   {"op": "delete", "title": "Existing title"}
   {"op": "delete_all"}
-  Use exact titles from <catalog>. Use "update" only when that note's full text is in <notes>; otherwise use "append". Write real, useful markdown content, and add [[Other note title]] wikilinks when a new note relates to existing ones. Deleted notes go to the trash and every change can be undone, so do what the user asks; for a request to delete everything, use delete_all. In answer, say briefly what you changed.
+  Use exact titles from <catalog>. Use "update" only when that note's full text is in <notes>; otherwise use "append". Note content you write is plain, useful markdown (keep the wit out of the notes themselves), with [[Other note title]] wikilinks when it relates to existing notes. Deleted notes go to the trash and every change can be undone, so do as asked; for a request to delete everything, use delete_all.
 
-Answering questions: use ONLY the notes in <notes>. Do not use outside knowledge or invent facts, numbers or names. If the notes don't cover the question, say so plainly (and mention anything related that is there). Earlier turns are context for follow-up questions.
+Facts come ONLY from the notes in <notes>: no outside knowledge, no invented figures or names. If the notes don't cover a question, say so with good grace (and mention anything related that is there). Earlier turns are context for follow-ups.
 """
 
 STOPWORDS = set("""
@@ -419,11 +422,12 @@ def parse_reply(text):
         except ValueError:
             continue
     if not isinstance(obj, dict) or not str(obj.get("answer") or "").strip():
-        return {"answer": text.strip(), "speech": "", "lang": "", "sources": None, "actions": []}
+        return {"answer": text.strip(), "speech": "", "lang": "", "intent": "", "sources": None, "actions": []}
     return {
         "answer": str(obj.get("answer")).strip(),
         "speech": str(obj.get("speech") or "").strip(),
         "lang": str(obj.get("lang") or "").strip()[:12],
+        "intent": str(obj.get("intent") or "").strip().lower(),
         "sources": [str(x) for x in obj["sources"]] if isinstance(obj.get("sources"), list) else None,
         "actions": obj.get("actions") if isinstance(obj.get("actions"), list) else [],
     }
@@ -461,7 +465,10 @@ def answer(sid, question):
 def finish(sid, question, reply, index, retrieved, provider, fallback):
     """Resolve sources to node ids, apply any note changes, build the response."""
     by_label = {build.norm(n["label"]): i for i, n in enumerate(index.nodes)}
-    if reply["sources"] is None:                # model ignored the format: use retrieval
+    intent = reply["intent"] if reply["intent"] in ("notes", "chat", "edit") else ("edit" if reply["actions"] else "notes")
+    if intent == "chat":                        # small talk: nothing to point at in the galaxy
+        used = []
+    elif reply["sources"] is None:              # model ignored the format: use retrieval
         used = list(retrieved)
     else:
         used = []
@@ -470,6 +477,7 @@ def finish(sid, question, reply, index, retrieved, provider, fallback):
             if i is not None and i not in used:
                 used.append(i)
     result = {"answer": reply["answer"], "speech": reply["speech"], "lang": reply["lang"],
+              "intent": intent,
               "nodes": used, "backend": provider, "fallback": fallback}
 
     if reply["actions"]:
