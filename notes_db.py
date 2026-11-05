@@ -98,6 +98,19 @@ class NotesDB:
         for stmt in SCHEMA:
             self._run(stmt)
 
+    # settings (calendar links, app credentials) live here on Coolify
+    def ensure_settings_table(self):
+        self._run("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
+                  "updated_at TIMESTAMPTZ NOT NULL DEFAULT now())")
+
+    def get_setting(self, key):
+        rows = self._run("SELECT value FROM settings WHERE key = :k", k=key)
+        return rows[0][0] if rows else None
+
+    def set_setting(self, key, value):
+        self._run("INSERT INTO settings (key, value, updated_at) VALUES (:k, :v, now()) "
+                  "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()", k=key, v=value)
+
     def count(self):
         return self._run("SELECT count(*) FROM notes")[0][0]
 

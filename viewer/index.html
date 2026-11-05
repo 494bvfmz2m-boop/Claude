@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knowledge Galaxy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Space+Grotesk:wght@500;700&family=Orbitron:wght@500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="holo.css">
 <style>
   :root {
     --bg: #000;
@@ -396,6 +397,7 @@
     let x = 0, y = 0;
     if (panelOpen) { if (W > 700) x = panel.offsetWidth / 2; else y += panel.offsetHeight / 2; }
     if (answerBox.classList.contains('show') && !(panelOpen && W <= 700)) y += (answerBox.offsetHeight + 90) / 2;
+    if (document.body.classList.contains('holo')) y -= 55;     // keep the galaxy clear of the holo core
     return { x, y };
   }
   function updateViewOffset() {
@@ -660,7 +662,8 @@
       aQ.textContent = `${question}  ·  answered by ${via}${data.fallback ? ' (backup)' : ''}`;
       showUndo(!!data.can_undo && !!data.changes);
       // Small talk leaves the camera where it is; only questions about notes (or edits) move it.
-      if (changed.length || data.intent !== 'chat')
+      document.dispatchEvent(new CustomEvent('jarvis:answer', { detail: data }));   // drafts, settings (holo.js)
+      if (changed.length || !['chat', 'schedule', 'send', 'settings'].includes(data.intent))
         setTimeout(() => proveAnswer(changed.length ? changed : ids), data.graph ? 900 : 0);  // let a new graph settle
       setStatus(null);
       speak(data.speech || firstSentence(data.answer), data.lang);
@@ -684,6 +687,7 @@
   // "remember that …" (typed or spoken) files a note; anything else goes to Jarvis.
   const REMEMBER = /^\s*(?:(?:hey|ok|okay)\s+)?(?:jarvis[,!.\s]+)?(?:please\s+|alsjeblieft\s+)?(?:remember|onthoud)\b/i;
   function submitText(text, source) {
+    if (window.JarvisUI && JarvisUI.intercept(text)) return;          // open settings, "send it", …
     return REMEMBER.test(text) ? rememberIt(text, source) : ask(text);
   }
 
@@ -731,6 +735,7 @@
   let statusTimer = null;
   function setStatus(state, detail) {
     clearTimeout(statusTimer);
+    document.dispatchEvent(new CustomEvent('jarvis:state', { detail: { state, detail } }));
     if (!state) { statusEl.hidden = true; statusEl.dataset.state = ''; return; }
     statusEl.hidden = false; statusEl.dataset.state = state;
     statusText.textContent = detail ? `${STATUS_TEXT[state] || ''} ${detail}`.trim() : (STATUS_TEXT[state] || '');
@@ -748,6 +753,9 @@
   function pickVoice(want = 'en') {
     if (!synth) return null;
     want = (want || 'en').toLowerCase().split('-')[0];
+    let preferred = ''; try { preferred = localStorage.getItem('galaxy-voice-name') || ''; } catch (e) {}
+    const chosen = preferred && want === 'en' && synth.getVoices().find(v => v.name === preferred);
+    if (chosen) return chosen;                                   // picked in Settings → Voice
     const score = v => {
       const lang = (v.lang || '').toLowerCase().replace('_', '-');
       let s;
@@ -839,6 +847,7 @@
       synth.resume();                        // Chrome can get stuck in a paused state
       parts.forEach((part, i) => {
         const u = new SpeechSynthesisUtterance(part);
+        u.onboundary = () => document.dispatchEvent(new Event('jarvis:word'));   // the holo core pulses with words
         if (voiceFor) { u.voice = voiceFor; u.lang = voiceFor.lang; } else u.lang = base === 'en' ? 'en-GB' : base;
         u.rate = 1.0; u.pitch = 1.0;
         if (i === parts.length - 1) u.onend = () => { if (token === speakToken) setStatus(null); };
@@ -973,6 +982,7 @@
       if (done) return;
       const d = e.inputBuffer.getChannelData(0);
       chunks.push(new Float32Array(d));
+      document.dispatchEvent(new CustomEvent('jarvis:level', { detail: Math.sqrt(d.reduce((a, x) => a + x * x, 0) / d.length) }));
       let sum = 0;
       for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
       const rms = Math.sqrt(sum / d.length), secs = d.length / rate;
@@ -1040,8 +1050,12 @@
   }, 400);
 
   // Expose for later features: look nodes up by index.
-  window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, rememberIt, speak, startListening };
+  window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, rememberIt,
+    setVoiceMode: mode => { voiceMode = mode === 'record' ? 'record' : (SR ? 'browser' : 'record');
+      try { mode === 'record' ? localStorage.setItem('galaxy-voice-mode', 'record') : localStorage.removeItem('galaxy-voice-mode'); } catch (e) {} },
+    refreshVoice: () => refreshVoice(), speak, startListening };
 })();
 </script>
+<script src="holo.js"></script>
 </body>
 </html>

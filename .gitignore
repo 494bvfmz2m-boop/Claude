@@ -5,3 +5,4 @@ __pycache__/
 notes/.trash/
 # Screen-guide screenshots are private
 screen-guide/*.png
+settings.json

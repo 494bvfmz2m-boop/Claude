@@ -1,2 +1,4 @@
 # Only needed when DATABASE_URL is set (e.g. on Coolify). Local use needs nothing.
 pg8000==1.31.2
+# timezone database for calendar times (Windows/slim images lack one)
+tzdata==2026.6
