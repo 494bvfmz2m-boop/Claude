@@ -788,6 +788,14 @@ def connect_db():
             db.init()
             break
         except Exception as e:
+            # wrong password / user / database name won't fix themselves: stop with a clear message
+            code = e.args[0].get("C") if e.args and isinstance(e.args[0], dict) else None
+            if code in ("28P01", "28000", "3D000"):
+                hint = {"28P01": "the password in DATABASE_URL is wrong",
+                        "28000": "that user isn't allowed to log in",
+                        "3D000": "that database doesn't exist"}[code]
+                raise SystemExit(f"Database login failed ({db.describe()}): {hint}. "
+                                 f"Server said: {e.args[0].get('M')}")
             if attempt == 29:
                 raise SystemExit(f"Could not connect to the database ({db.describe()}): {e}")
             print(f"[db] waiting for {db.describe()} ({type(e).__name__})…", flush=True)
