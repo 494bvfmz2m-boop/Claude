@@ -77,7 +77,9 @@ def scan(notes_dir):
     return files
 
 
-def build(notes_dir):
+def build(notes_dir, include_text=False):
+    """Return {nodes, links}. With include_text, each node also carries its
+    full plain text under "text" (used by server.py for /chat retrieval)."""
     nodes, raw = [], []
     for path in scan(notes_dir):
         with open(path, encoding="utf-8", errors="replace") as f:
@@ -94,6 +96,8 @@ def build(notes_dir):
             "path": rel.replace(os.sep, "/"),
             "words": len(plain.split()),
         })
+        if include_text:
+            nodes[-1]["text"] = plain
         raw.append({
             "wikilinks": {norm(m.group(1)) for m in WIKILINK_RE.finditer(text)},
             "search": " " + norm(plain) + " ",
