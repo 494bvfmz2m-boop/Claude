@@ -8,6 +8,8 @@ POST /chat        {"question": "..."} -> {"answer": "...", "nodes": [note ids]}
 POST /chat/reset  forget this browser session's conversation history
 POST /chat/undo   revert Jarvis's most recent batch of note changes
 POST /remember    {"text": "remember that …"} -> writes notes/captures/<Title>.md
+POST /transcribe  {"audio": base64 WAV, "mime": "audio/wav"} -> {"text"} (Gemini speech-to-text,
+                  the 🎙 backup when the browser's own speech service is unreachable)
 
 Jarvis can also change notes (create / update / append / rename / move /
 delete). That happens only inside notes/; deleted or overwritten notes are
@@ -309,25 +311,20 @@ def ask_api(cfg, history, prompt):
     return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
 
 
-def ask_gemini(cfg, history, prompt):
+def gemini_model(cfg):
     model = str(cfg.get("model") or "")
     if not model or model.startswith("claude"):
         model = DEFAULT_GEMINI_MODEL
-    model = model.removeprefix("models/")
-    contents = []
-    for q, a in history:
-        contents += [{"role": "user", "parts": [{"text": q}]},
-                     {"role": "model", "parts": [{"text": json.dumps({"answer": a}, ensure_ascii=False)}]}]
-    contents.append({"role": "user", "parts": [{"text": prompt}]})
-    body = json.dumps({
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": contents,
-        "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.3,
-                             "responseMimeType": "application/json"},
-    }).encode()
+    return model.removeprefix("models/")
+
+
+def gemini_generate(cfg, payload, budget=GEMINI_BUDGET):
+    """POST a generateContent payload, falling back across Flash models. Returns the text."""
+    body = json.dumps(payload).encode()
+    model = gemini_model(cfg)
     models = [model] + [m for m in GEMINI_FALLBACKS if m != model]
     last_error = None
-    deadline = time.monotonic() + GEMINI_BUDGET
+    deadline = time.monotonic() + budget
     data = None
     for attempt, name in enumerate(models):
         remaining = deadline - time.monotonic()
@@ -365,6 +362,43 @@ def ask_gemini(cfg, history, prompt):
         raise ChatError(f"Gemini returned no answer ({reason}).")
     parts = (candidates[0].get("content") or {}).get("parts") or []
     return "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+
+
+def ask_gemini(cfg, history, prompt):
+    contents = []
+    for q, a in history:
+        contents += [{"role": "user", "parts": [{"text": q}]},
+                     {"role": "model", "parts": [{"text": json.dumps({"answer": a}, ensure_ascii=False)}]}]
+    contents.append({"role": "user", "parts": [{"text": prompt}]})
+    return gemini_generate(cfg, {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": 8192, "temperature": 0.3,
+                             "responseMimeType": "application/json"},
+    })
+
+
+TRANSCRIBE_PROMPT = ("Transcribe exactly what is said in this recording, in the language it is spoken. "
+                     "Return only the words, with normal punctuation, and no quotes, labels or commentary. "
+                     "If nothing intelligible is said, return an empty string.")
+AUDIO_TYPES = ("audio/wav", "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/aac", "audio/flac")
+
+
+def transcribe(audio_b64, mime):
+    """Speech-to-text via Gemini, for browsers whose built-in speech service is unavailable."""
+    cfg = load_config()
+    if cfg["provider"] != "gemini" or not cfg["api_key"]:
+        raise ChatError("Voice backup needs a Gemini API key (JARVIS_API_KEY); "
+                        "otherwise use Google Chrome's own speech service.")
+    if mime.split(";")[0] not in AUDIO_TYPES:
+        raise ChatError(f"Unsupported audio type {mime!r}.")
+    text = gemini_generate(cfg, {
+        "contents": [{"role": "user", "parts": [
+            {"inline_data": {"mime_type": mime.split(";")[0], "data": audio_b64}},
+            {"text": TRANSCRIBE_PROMPT}]}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024},
+    }, budget=30)
+    return text.strip().strip('"“”').strip()
 
 
 def find_claude(cfg):
@@ -801,14 +835,14 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             return self.handle_login()
         if not self.authorized():
             return self.send_json(401, {"error": "Please log in again (reload the page)."})
-        if path not in ("/chat", "/chat/reset", "/chat/undo", "/remember"):
+        if path not in ("/chat", "/chat/reset", "/chat/undo", "/remember", "/transcribe"):
             return self.send_json(404, {"error": "Not found"})
         # Only same-origin JSON requests: a cross-site page can't send
         # application/json without a CORS preflight, which we never approve.
         if "application/json" not in (self.headers.get("Content-Type") or ""):
             return self.send_json(415, {"error": "Send JSON"})
         length = int(self.headers.get("Content-Length") or 0)
-        if length > 16_000:
+        if length > (6_000_000 if path == "/transcribe" else 16_000):
             return self.send_json(413, {"error": "Request too large"})
         try:
             payload = json.loads(self.rfile.read(length) or b"{}")
@@ -829,6 +863,12 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             return self.send_json(200, {"ok": True, "message": message, "graph": build.build(NOTES_DIR),
                                         "can_undo": STORE.can_undo()}, new_cookie)
 
+        if path == "/transcribe":
+            try:
+                text = transcribe(str(payload.get("audio") or ""), str(payload.get("mime") or "audio/wav"))
+            except ChatError as e:
+                return self.send_json(502, {"error": str(e)}, new_cookie)
+            return self.send_json(200, {"text": text}, new_cookie)
         if path == "/remember":
             text = str(payload.get("text") or "").strip()[:2000]
             source = "voice" if payload.get("source") == "voice" else "typed"

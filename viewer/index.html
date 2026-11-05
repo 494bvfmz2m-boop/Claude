@@ -869,7 +869,11 @@
     'network': "Chrome's speech service is unreachable. Voice input needs an internet connection.",
     'language-not-supported': 'This language is not supported for voice input.',
   };
-  if (!SR) { micBtn.disabled = true; micBtn.title = 'Voice input needs Google Chrome (or Edge)'; }
+  // 'browser' = the browser's own speech service; 'record' = record here and let the server
+  // (Gemini) transcribe. We switch to 'record' automatically when the browser service is unreachable.
+  let voiceMode = SR ? 'browser' : 'record';
+  try { if (localStorage.getItem('galaxy-voice-mode') === 'record') voiceMode = 'record'; } catch (e) {}
+  let recorder = null;
 
   function startListening() {
     if (!SR || listening || asking) return;
@@ -893,6 +897,13 @@
       listening = false; micBtn.classList.remove('on'); micBtn.title = 'Ask by voice';
       const text = heard.trim();
       if (discard) { setStatus(null); return; }
+      if (recError === 'network' && !text) {
+        // Chrome's speech servers are unreachable (or this is Brave/Opera/...): record locally instead.
+        voiceMode = 'record';
+        try { localStorage.setItem('galaxy-voice-mode', 'record'); } catch (e) {}
+        startRecording('(speech service unreachable, recording instead)');
+        return;
+      }
       if (recError && recError !== 'aborted' && !(recError === 'no-speech' && text)) {
         setStatus('error', MIC_ERRORS[recError] || `Voice input error (${recError}).`);
         return;
@@ -904,11 +915,104 @@
     catch (e) { setStatus('error', 'Could not start the microphone.'); }
   }
   function stopListening(cancel = false) {
+    if (recorder) { recorder.stop(cancel); return; }
     if (!rec || !listening) return;
     discard = cancel;
     cancel ? rec.abort() : rec.stop();           // stop() still delivers what was heard
   }
-  micBtn.onclick = () => (listening ? stopListening() : startListening());
+  micBtn.onclick = () => (listening ? stopListening() : voiceMode === 'record' ? startRecording() : startListening());
+
+  // ---------- voice in, backup: record here, transcribe on the server ----------
+  async function startRecording(note = '') {
+    if (listening || asking || recorder) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('error', 'This browser cannot record audio here (voice needs HTTPS or localhost).'); return;
+    }
+    stopSpeaking();
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+    } catch (e) {
+      setStatus('error', MIC_ERRORS[e && e.name === 'NotFoundError' ? 'audio-capture' : 'not-allowed']); return;
+    }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try { await ctx.resume(); } catch (e) {}
+    const src = ctx.createMediaStreamSource(stream);
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const rate = ctx.sampleRate, chunks = [];
+    let started = false, silentFor = 0, total = 0, noise = null, done = false;
+
+    const finish = async cancel => {
+      if (done) return;
+      done = true;
+      try { proc.disconnect(); src.disconnect(); } catch (e) {}
+      stream.getTracks().forEach(t => t.stop());
+      ctx.close().catch(() => {});
+      recorder = null; listening = false; micBtn.classList.remove('on'); micBtn.title = 'Ask by voice';
+      if (cancel) { setStatus(null); return; }
+      if (!started) { setStatus('error', MIC_ERRORS['no-speech']); return; }
+      setStatus('thinking', '(transcribing)');
+      try {
+        const res = await fetch('transcribe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: encodeWav(chunks, rate, 16000), mime: 'audio/wav' }) });
+        const data = await res.json().catch(() => ({ error: `Server returned ${res.status}` }));
+        if (!res.ok || data.error) throw new Error(data.error || `Server returned ${res.status}`);
+        const text = (data.text || '').trim();
+        if (!text) { setStatus('error', MIC_ERRORS['no-speech']); return; }
+        setStatus(null);
+        submitText(text, 'voice');
+      } catch (e) {
+        if (/Gemini API key/.test(e.message) && SR) {   // no transcription backend: go back to the browser service
+          voiceMode = 'browser'; try { localStorage.removeItem('galaxy-voice-mode'); } catch (x) {}
+        }
+        setStatus('error', e.message === 'Failed to fetch' ? 'Could not reach the server.' : e.message);
+      }
+    };
+
+    proc.onaudioprocess = e => {
+      if (done) return;
+      const d = e.inputBuffer.getChannelData(0);
+      chunks.push(new Float32Array(d));
+      let sum = 0;
+      for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
+      const rms = Math.sqrt(sum / d.length), secs = d.length / rate;
+      total += secs;
+      if (noise === null) noise = rms;                          // first ~0.1 s: room noise
+      else if (!started) noise = Math.min(noise * 1.02, noise * 0.9 + rms * 0.1);
+      const threshold = Math.max(0.012, noise * 3.5);
+      if (rms > threshold) { started = true; silentFor = 0; } else if (started) silentFor += secs;
+      // stop after ~1.4 s of silence once you've spoken, after 30 s, or if nothing is said in 7 s
+      if ((started && silentFor > 1.4) || total > 30 || (!started && total > 7)) finish(false);
+    };
+    src.connect(proc); proc.connect(ctx.destination);           // ScriptProcessor only runs when connected
+    listening = true; micBtn.classList.add('on'); micBtn.title = 'Stop recording';
+    setStatus('listening', note);
+    recorder = { stop: cancel => finish(cancel) };
+  }
+
+  // Float32 chunks at the device rate -> base64 16-bit mono WAV at outRate (small and widely supported).
+  function encodeWav(chunks, inRate, outRate) {
+    const len = chunks.reduce((n, c) => n + c.length, 0), all = new Float32Array(len);
+    let o = 0; chunks.forEach(c => { all.set(c, o); o += c.length; });
+    const ratio = inRate / outRate, n = Math.floor(len / ratio), pcm = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = Math.floor(i * ratio), b = Math.min(len, Math.floor((i + 1) * ratio));
+      let sum = 0; for (let j = a; j < b; j++) sum += all[j];
+      const v = Math.max(-1, Math.min(1, sum / Math.max(1, b - a)));
+      pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+    }
+    const buf = new ArrayBuffer(44 + pcm.length * 2), dv = new DataView(buf);
+    const str = (off, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); };
+    str(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, outRate, true); dv.setUint32(28, outRate * 2, true); dv.setUint16(32, 2, true);
+    dv.setUint16(34, 16, true); str(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
+    new Int16Array(buf, 44).set(pcm);
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
 
   // ---------- boot greeting ----------
   function greet() {
