@@ -332,8 +332,16 @@ def gemini_model(cfg):
     return model.removeprefix("models/")
 
 
+GEMINI_THINKING = {"off": {"thinkingBudget": 0}, "low": {"thinkingLevel": "low"}, "default": None}
+
+
 def gemini_generate(cfg, payload, budget=GEMINI_BUDGET):
-    """POST a generateContent payload, falling back across Flash models. Returns the text."""
+    """POST a generateContent payload, falling back across Flash models. Returns the text.
+    Thinking is off by default (answers ~3x faster); JARVIS_THINKING=low|default changes that."""
+    mode = str(cfg.get("thinking") or os.environ.get("JARVIS_THINKING") or "off").lower()
+    thinking = GEMINI_THINKING.get(mode, GEMINI_THINKING["off"])
+    if thinking:
+        payload = dict(payload, generationConfig=dict(payload.get("generationConfig") or {}, thinkingConfig=thinking))
     body = json.dumps(payload).encode()
     model = gemini_model(cfg)
     models = [model] + [m for m in GEMINI_FALLBACKS if m != model]
@@ -359,6 +367,13 @@ def gemini_generate(cfg, payload, budget=GEMINI_BUDGET):
             except Exception:
                 msg = ""
             last_error = ChatError(f"Gemini API error {e.code} ({name}): {msg or e.reason}")
+            if e.code == 400 and "thinking" in msg.lower() and b"thinkingConfig" in body:
+                # this model doesn't accept that thinking setting: retry it without
+                stripped = dict(payload, generationConfig={k: v for k, v in payload["generationConfig"].items()
+                                                           if k != "thinkingConfig"})
+                body = json.dumps(stripped).encode()
+                models.insert(attempt + 1, name)
+                continue
             # overloaded / rate-limited / model gone -> try the next model
             if e.code in (429, 500, 503, 404):
                 time.sleep(0.5 * (attempt + 1))

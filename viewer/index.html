@@ -19,7 +19,11 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
     font: 14px/1.55 Inter, system-ui, sans-serif; }
-  #graph { position: fixed; inset: 0; }
+  #graph { position: fixed; inset: 0;
+    /* the nebula is painted once by CSS instead of as huge additive sprites every frame */
+    background: radial-gradient(ellipse 55% 45% at 18% 30%, rgba(58,28,113,.22), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 82% 70%, rgba(15,76,117,.22), transparent 70%),
+      radial-gradient(ellipse 40% 35% at 70% 15%, rgba(92,42,107,.14), transparent 70%), #000; }
   /* soft vignette for depth */
   #vignette { position: fixed; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.75) 100%); }
@@ -33,18 +37,17 @@
 
   #search { margin-top: 14px; width: 260px; max-width: calc(100vw - 48px); padding: 9px 12px;
     background: var(--glass); border: 1px solid var(--edge); border-radius: 10px; color: var(--ink);
-    font: inherit; outline: none; backdrop-filter: blur(10px); }
+    font: inherit; outline: none; }
   #search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,196,255,.15); }
   #results { margin-top: 6px; width: 260px; max-width: calc(100vw - 48px); background: var(--glass);
-    border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; backdrop-filter: blur(10px); }
+    border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; }
   #results:empty { display: none; }
   #results button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: 0;
     background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
   #results button:hover, #results button.active { background: rgba(124,196,255,.12); }
 
   #legend { bottom: 20px; left: 24px; display: flex; flex-direction: column; gap: 4px;
-    padding: 12px 14px; background: var(--glass); border: 1px solid var(--edge); border-radius: 12px;
-    backdrop-filter: blur(10px); }
+    padding: 12px 14px; background: var(--glass); border: 1px solid var(--edge); border-radius: 12px; }
   #legend button { display: flex; align-items: center; gap: 9px; border: 0; background: none; color: var(--ink);
     font: inherit; font-size: 12.5px; cursor: pointer; padding: 2px 0; text-transform: capitalize; }
   #legend button.off { opacity: .35; }
@@ -58,7 +61,7 @@
   /* side panel */
   #panel { position: fixed; z-index: 10; top: 0; right: 0; height: 100%; width: 400px; max-width: 100vw;
     padding: 28px 26px; overflow-y: auto; background: linear-gradient(180deg, rgba(12,16,34,.88), rgba(6,8,18,.92));
-    border-left: 1px solid var(--edge); backdrop-filter: blur(16px);
+    border-left: 1px solid var(--edge);
     transform: translateX(105%); transition: transform .6s cubic-bezier(.2,.8,.2,1);
     box-shadow: -30px 0 80px rgba(0,0,0,.6); }
   #panel.open { transform: none; }
@@ -91,7 +94,7 @@
     width: min(660px, calc(100vw - 400px)); transition: right .6s cubic-bezier(.2,.8,.2,1); }
   body.panel-open #chat { right: 400px; width: min(600px, calc(100vw - 840px)); min-width: 340px; }
   #ask { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 18px; border-radius: 999px;
-    background: rgba(10,14,30,.78); border: 1px solid var(--edge); backdrop-filter: blur(14px);
+    background: rgba(10,14,30,.9); border: 1px solid var(--edge);
     box-shadow: 0 10px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(124,196,255,.04) inset; transition: border-color .3s, box-shadow .3s; }
   #ask:focus-within { border-color: rgba(124,196,255,.55); box-shadow: 0 10px 40px rgba(0,0,0,.55), 0 0 28px rgba(124,196,255,.18); }
   #ask .spark { color: var(--accent); font-size: 15px; text-shadow: 0 0 10px var(--accent); }
@@ -100,6 +103,10 @@
   #ask button { flex: none; height: 38px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; }
   #send { width: 38px; background: linear-gradient(135deg, #7cc4ff, #b388ff); color: #050815; font-size: 17px; font-weight: 700; }
   #send:disabled { opacity: .4; cursor: default; }
+  #handsfree { width: 38px; background: none; color: var(--muted); font-size: 15px; border: 1px solid transparent !important; filter: grayscale(1); opacity: .7; }
+  #handsfree:hover { opacity: 1; border-color: var(--edge) !important; }
+  #handsfree.on { filter: none; opacity: 1; background: rgba(123,241,168,.12); border-color: rgba(123,241,168,.5) !important;
+    box-shadow: 0 0 12px rgba(123,241,168,.25); }
   #mic, #voice { width: 38px; background: none; color: var(--muted); font-size: 16px; border: 1px solid transparent !important; }
   #mic:hover, #voice:hover { color: var(--ink); border-color: var(--edge) !important; }
   #mic.on { color: #fff; background: rgba(255,70,90,.22); border-color: rgba(255,90,110,.7) !important;
@@ -122,8 +129,8 @@
   @keyframes sblink { 50% { opacity: .25; } }
   #newchat { padding: 0 12px; background: none; color: var(--muted); font-size: 12px; }
   #newchat:hover { color: var(--ink); }
-  #answer { margin-bottom: 10px; padding: 16px 18px 14px;  border-radius: 16px; background: rgba(10,14,30,.82);
-    border: 1px solid var(--edge); backdrop-filter: blur(14px); box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  #answer { margin-bottom: 10px; padding: 16px 18px 14px;  border-radius: 16px; background: rgba(10,14,30,.93);
+    border: 1px solid var(--edge); box-shadow: 0 10px 40px rgba(0,0,0,.5);
     max-height: 34vh; overflow-y: auto; opacity: 0; transform: translateY(10px); pointer-events: none;
     transition: opacity .45s, transform .45s; position: relative; }
   #answer.show { opacity: 1; transform: none; pointer-events: auto; }
@@ -190,6 +197,7 @@
     <input id="q" type="text" maxlength="1000" placeholder="Ask Jarvis, or say “remember that…”  (press /)" aria-label="Ask Jarvis">
     <button type="button" id="newchat" title="Forget this conversation">New chat</button>
     <button type="button" id="voice" title="Read answers aloud" aria-label="Toggle spoken answers" aria-pressed="true">🔊</button>
+    <button type="button" id="handsfree" title="Hands-free: say “Jarvis”" aria-label="Hands-free mode" aria-pressed="false">👂</button>
     <button type="button" id="mic" title="Ask by voice" aria-label="Ask by voice">🎙</button>
     <button type="submit" id="send" aria-label="Ask">↑</button>
   </form>
@@ -241,6 +249,12 @@
   }
   loadData(GRAPH);
 
+  // quality settings (used while building stars and nodes)
+  let quality = 'auto';
+  try { quality = localStorage.getItem('galaxy-quality') || 'auto'; } catch (e) {}
+  let fastMode = quality === 'fast';
+  let starLayers = [];
+
   // ---------- glow texture ----------
   function glowTexture() {
     const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -267,10 +281,11 @@
     core.scale.setScalar(r);
     core.renderOrder = 10;               // draw after all glows so cores keep their true color
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .9 }));
-    halo.scale.setScalar(r * 6);
-    const corona = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .3 }));
-    corona.scale.setScalar(r * 15);
+    halo.scale.setScalar(r * 5);
+    const corona = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .22 }));
+    corona.scale.setScalar(r * 9);
     group.add(corona, halo, core);
+    corona.visible = !fastMode;
     n.__parts = { core, halo, corona, r, phase: Math.random() * Math.PI * 2 };
     return group;
   }
@@ -278,7 +293,7 @@
   // ---------- graph ----------
   const elem = document.getElementById('graph');
   const Graph = ForceGraph3D({ controlType: 'trackball' })(elem)
-    .backgroundColor('#000000')
+    .backgroundColor('rgba(0,0,0,0)')
     .showNavInfo(false)
     .graphData(GRAPH)
     .nodeId('id')
@@ -305,7 +320,28 @@
 
   const scene = Graph.scene();
   const renderer = Graph.renderer();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // ---------- quality: 'high' | 'fast' | 'auto' (default: measure, then pick) ----------
+  function applyQuality() {
+    renderer.setPixelRatio(fastMode ? 1 : Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(elem.clientWidth, elem.clientHeight, false);
+    starLayers.forEach((l, i) => { l.visible = !fastMode || i === 0; });
+    nodes.forEach(n => { if (n.__parts) n.__parts.corona.visible = !fastMode; });
+    document.body.classList.toggle('fast', fastMode);
+  }
+  function setQuality(q) {
+    quality = q; try { localStorage.setItem('galaxy-quality', q); } catch (e) {}
+    fastMode = q === 'fast'; applyQuality();
+    if (q === 'auto') measureAndPick();
+  }
+  function measureAndPick() {
+    // after the layout settles, count frames for 3 s; under ~32 fps switch to fast mode
+    setTimeout(() => {
+      let n = 0; const t0 = performance.now();
+      const f = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(f);
+        else if (quality === 'auto' && n / 3 < 32 && !fastMode) { fastMode = true; applyQuality(); console.info('Galaxy: switched to fast mode at', (n / 3).toFixed(0), 'fps'); } };
+      requestAnimationFrame(f);
+    }, 6000);
+  }
 
   // ---------- starfield ----------
   function starLayer(count, rMin, rMax, size, opacity) {
@@ -326,16 +362,12 @@
     return new THREE.Points(geo, mat);
   }
   const stars = new THREE.Group();
-  stars.add(starLayer(6000, 1800, 4000, 9, 0.9), starLayer(1500, 1200, 3000, 18, 0.55), starLayer(120, 1500, 3500, 40, 0.8));
-  // faint nebula clouds
-  ['#3a1c71', '#0f4c75', '#5c2a6b', '#123a5a'].forEach((c, i) => {
-    const neb = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: c, transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending }));
-    const a = i * Math.PI / 2 + .6;
-    neb.position.set(Math.cos(a) * 2600, (i % 2 ? 1 : -1) * 700, Math.sin(a) * 2600);
-    neb.scale.setScalar(2600 + i * 400);
-    stars.add(neb);
-  });
+  // lean starfield: overdraw from big additive points is the main GPU cost
+  starLayers = [starLayer(2600, 1800, 4000, 6, 0.95), starLayer(500, 1200, 3000, 11, 0.6), starLayer(60, 1500, 3500, 22, 0.85)];
+  stars.add(...starLayers);
   scene.add(stars);
+  applyQuality();
+  if (quality === 'auto') measureAndPick();
   Graph.camera().far = 20000; Graph.camera().updateProjectionMatrix();
 
   // ---------- selection & highlight ----------
@@ -426,7 +458,7 @@
       const pulse = 1 + Math.sin(t * 1.6 + p.phase) * 0.08 + (focus ? Math.sin(t * 3) * 0.12 : 0);
       const targetOp = dim ? 0.06 : 1;
       p.halo.material.opacity += ((dim ? .05 : focus ? 1 : .9) - p.halo.material.opacity) * .1;
-      p.corona.material.opacity += ((dim ? .02 : focus ? .45 : .3) - p.corona.material.opacity) * .1;
+      p.corona.material.opacity += ((dim ? .02 : focus ? .4 : .22) - p.corona.material.opacity) * .1;
       p.core.material.opacity += (targetOp - p.core.material.opacity) * .1;
       // a newborn note grows in and flares a few times
       let born = 1, flare = 1;
@@ -438,8 +470,8 @@
         } else n.__bornAt = 0;
       }
       p.core.scale.setScalar(p.r * born);
-      p.halo.scale.setScalar(p.r * 6 * pulse * (focus ? 1.4 : 1) * flare);
-      p.corona.scale.setScalar(p.r * 15 * pulse * (focus ? 1.5 : 1) * flare);
+      p.halo.scale.setScalar(p.r * 5 * pulse * (focus ? 1.4 : 1) * flare);
+      p.corona.scale.setScalar(p.r * 9 * pulse * (focus ? 1.5 : 1) * flare);
     });
     updateViewOffset();
     stars.rotation.y += 0.00004; stars.rotation.x += 0.00001;
@@ -929,7 +961,98 @@
     discard = cancel;
     cancel ? rec.abort() : rec.stop();           // stop() still delivers what was heard
   }
-  micBtn.onclick = () => (listening ? stopListening() : voiceMode === 'record' ? startRecording() : startListening());
+  micBtn.onclick = () => { pauseWake(); return listening ? stopListening() : voiceMode === 'record' ? startRecording() : startListening(); };
+
+  // ---------- hands-free: say "Jarvis …" ----------
+  // Uses only the browser's built-in speech recognition (free; no API key, no tokens): it listens
+  // continuously, and once it hears "Jarvis" the rest of the sentence goes through the usual flow.
+  // While Jarvis thinks or talks the listener is paused, so he never hears himself.
+  const WAKE = /\b(?:hey\s+|ok\s+|okay\s+)?(jarvis|jarviss|jervis|jarvus|jarves|javis|charvis|jarbis)\b[\s,.!?:;-]*/gi;
+  const hfBtn = document.getElementById('handsfree');
+  let handsFree = false, wake = null, wakeBlocked = false, chimeCtx = null;
+  try { handsFree = localStorage.getItem('galaxy-handsfree') === '1'; } catch (e) {}
+
+  function chime(up = true) {
+    try {
+      chimeCtx = chimeCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = chimeCtx.currentTime;
+      [up ? 660 : 880, up ? 990 : 590].forEach((f, i) => {
+        const o = chimeCtx.createOscillator(), g = chimeCtx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t + i * .09); g.gain.linearRampToValueAtTime(.12, t + i * .09 + .02);
+        g.gain.exponentialRampToValueAtTime(.0001, t + i * .09 + .22);
+        o.connect(g).connect(chimeCtx.destination); o.start(t + i * .09); o.stop(t + i * .09 + .25);
+      });
+    } catch (e) {}
+  }
+  function renderHandsFree() {
+    if (!hfBtn) return;
+    hfBtn.classList.toggle('on', handsFree);
+    hfBtn.setAttribute('aria-pressed', String(handsFree));
+    hfBtn.title = handsFree ? 'Hands-free is on: say “Jarvis, …” (click to turn off)' : 'Hands-free: say “Jarvis” to talk (click to turn on)';
+    document.dispatchEvent(new CustomEvent('jarvis:handsfree', { detail: { on: handsFree } }));
+  }
+  function setHandsFree(on, why) {
+    handsFree = !!on;
+    try { localStorage.setItem('galaxy-handsfree', handsFree ? '1' : '0'); } catch (e) {}
+    wakeBlocked = false;
+    if (!handsFree) pauseWake();
+    renderHandsFree();
+    if (why) setStatus('error', why);
+  }
+  function pauseWake() { if (wake) { const w = wake; wake = null; try { w.abort(); } catch (e) {} } }
+
+  function startWake() {
+    if (!SR) { setHandsFree(false, 'Hands-free needs Google Chrome or Microsoft Edge (their speech recognition is free).'); return; }
+    const r = new SR();
+    r.lang = 'en-GB'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+    let armed = false, command = '', settle = null, giveUp = null, fired = false;
+    const fire = () => {
+      if (fired) return;
+      fired = true; clearTimeout(settle); clearTimeout(giveUp);
+      const text = command.trim();
+      wake = null; try { r.abort(); } catch (e) {}
+      if (text.replace(/[^\p{L}\p{N}]/gu, '').length < 2) { setStatus(null); chime(false); return; }
+      qInput.value = '';
+      setStatus(null);
+      submitText(text, 'voice');
+    };
+    r.onresult = e => {
+      if (wake !== r) return;
+      const all = Array.from(e.results).map(x => x[0].transcript).join(' ');
+      const last = e.results[e.results.length - 1];
+      WAKE.lastIndex = 0;
+      let m, after = -1;
+      while ((m = WAKE.exec(all))) after = m.index + m[0].length;      // text after the last "Jarvis"
+      if (after < 0) return;
+      if (!armed) {
+        armed = true; chime(true);
+        giveUp = setTimeout(() => { if (!command.trim()) fire(); }, 7000);   // just "Jarvis" and silence
+      }
+      command = all.slice(after);
+      qInput.value = command.trim();
+      setStatus('listening', command.trim() ? `“${command.trim()}”` : '(yes, sir?)');
+      clearTimeout(settle);
+      // send once a final result arrives (or the speech goes quiet for a moment)
+      if (command.trim()) settle = setTimeout(fire, last.isFinal ? 450 : 1600);
+    };
+    r.onerror = e => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { wakeBlocked = true; setHandsFree(false, MIC_ERRORS['not-allowed']); }
+      else if (e.error === 'network') { wakeBlocked = true; setHandsFree(false, 'Hands-free needs the browser’s speech service, which is unreachable here (Brave, VPN or an ad-blocker?). Try Chrome or Edge.'); }
+      else if (e.error === 'audio-capture') { wakeBlocked = true; setHandsFree(false, MIC_ERRORS['audio-capture']); }
+    };
+    r.onend = () => { if (wake === r) { wake = null; if (armed && command.trim() && !fired) fire(); } };
+    try { r.start(); wake = r; } catch (e) { wake = null; }
+  }
+
+  // keep the listener running whenever hands-free is on and Jarvis isn't busy
+  setInterval(() => {
+    const busy = asking || listening || recorder || (synth && (synth.speaking || synth.pending)) || document.hidden;
+    if (handsFree && !wakeBlocked && !wake && !busy && audioUnlocked) startWake();
+    else if (wake && busy && !listening) pauseWake();
+  }, 700);
+  if (hfBtn) hfBtn.onclick = () => { setHandsFree(!handsFree); if (handsFree) { chime(true); setStatus('listening', '(say “Jarvis”)'); setTimeout(() => setStatus(null), 1800); } };
+  renderHandsFree();
 
   // ---------- voice in, backup: record here, transcribe on the server ----------
   async function startRecording(note = '') {
@@ -1051,6 +1174,8 @@
 
   // Expose for later features: look nodes up by index.
   window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, rememberIt,
+    setQuality, getQuality: () => quality, isFast: () => fastMode,
+    setHandsFree: on => setHandsFree(on), isHandsFree: () => handsFree,
     setVoiceMode: mode => { voiceMode = mode === 'record' ? 'record' : (SR ? 'browser' : 'record');
       try { mode === 'record' ? localStorage.setItem('galaxy-voice-mode', 'record') : localStorage.removeItem('galaxy-voice-mode'); } catch (e) {} },
     refreshVoice: () => refreshVoice(), speak, startListening };

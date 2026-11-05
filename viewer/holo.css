@@ -34,9 +34,10 @@ body.holo #p-title { font-family: Orbitron, sans-serif; letter-spacing: .06em; f
 
 /* scanlines + vignette sweep */
 #holo-scan { position: fixed; inset: 0; pointer-events: none; z-index: 4; display: none;
-  background: repeating-linear-gradient(to bottom, rgba(94,231,255,.035) 0 1px, transparent 1px 3px); mix-blend-mode: screen; }
+  background: repeating-linear-gradient(to bottom, rgba(94,231,255,.03) 0 1px, transparent 1px 3px); }
 #holo-scan::after { content: ""; position: absolute; left: 0; right: 0; height: 22vh; top: -22vh;
-  background: linear-gradient(to bottom, transparent, rgba(94,231,255,.06), transparent); animation: sweep 9s linear infinite; }
+  background: linear-gradient(to bottom, transparent, rgba(94,231,255,.06), transparent); animation: sweep 9s linear infinite; will-change: transform; }
+body.fast #holo-scan::after { display: none; }
 @keyframes sweep { to { transform: translateY(144vh); } }
 body.holo #holo-scan { display: block; }
 body.holo.no-scan #holo-scan { display: none; }
@@ -54,7 +55,8 @@ body.holo #holo-frame { display: block; }
 #holo-core { position: fixed; z-index: 6; top: 14px; left: 50%; transform: translateX(-50%); width: 132px;
   text-align: center; display: none; cursor: pointer; }
 body.holo #holo-core { display: block; }
-#holo-core svg { width: 132px; height: 132px; overflow: visible; filter: drop-shadow(0 0 10px rgba(94,231,255,.55)); }
+#holo-core svg { width: 132px; height: 132px; overflow: visible; border-radius: 50%;
+  background: radial-gradient(circle, rgba(94,231,255,.18) 0%, rgba(94,231,255,.06) 45%, transparent 70%); }
 #holo-core .ring, #holo-core .ticks, #holo-core .arcs { transform-box: fill-box; transform-origin: center; fill: none; stroke: var(--holo); }
 #holo-core .r1 { stroke-width: 1.4; stroke-dasharray: 2 5; opacity: .8; animation: spin 26s linear infinite; }
 #holo-core .r2 { stroke-width: 2.2; stroke-dasharray: 46 9 6 9; opacity: .9; animation: spin 18s linear infinite reverse; }
@@ -69,7 +71,7 @@ body.holo #holo-core { display: block; }
 #holo-core[data-state="thinking"] .arcs { animation-duration: 1.1s; }
 #holo-core[data-state="thinking"] .r2 { animation-duration: 3s; }
 #holo-core[data-state="listening"] .ring, #holo-core[data-state="listening"] .arcs, #holo-core[data-state="listening"] .ticks { stroke: var(--holo-hot); }
-#holo-core[data-state="listening"] svg { filter: drop-shadow(0 0 12px rgba(255,107,122,.65)); }
+#holo-core[data-state="listening"] svg { background: radial-gradient(circle, rgba(255,107,122,.22) 0%, rgba(255,107,122,.07) 45%, transparent 70%); }
 #holo-core[data-state="speaking"] .arcs { animation-duration: 3s; }
 #holo-core[data-state="error"] .ring, #holo-core[data-state="error"] .arcs { stroke: var(--holo-warn); }
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -62,7 +62,8 @@
   document.addEventListener('jarvis:state', e => {
     let s = (e.detail && e.detail.state) || 'idle';
     if (s === 'error' && /Click anywhere/.test((e.detail && e.detail.detail) || '')) s = 'idle';   // just the audio hint
-    core.dataset.state = s; coreState.textContent = STATE_LABEL[s] || 'STANDBY';
+    core.dataset.state = s;
+    coreState.textContent = s === 'idle' && window.Galaxy && Galaxy.isHandsFree && Galaxy.isHandsFree() ? 'SAY “JARVIS”' : (STATE_LABEL[s] || 'STANDBY');
     if (s !== 'speaking' && s !== 'listening') heart.style.transform = '';
   });
   let pulseT = null;
@@ -71,6 +72,9 @@
     clearTimeout(pulseT); pulseT = setTimeout(() => { heart.style.transform = ''; }, 140);
   };
   document.addEventListener('jarvis:word', () => pulse(.28));
+  document.addEventListener('jarvis:handsfree', e => {
+    if (core.dataset.state === 'idle' || !core.dataset.state) coreState.textContent = e.detail.on ? 'SAY “JARVIS”' : 'STANDBY';
+  });
   document.addEventListener('jarvis:level', e => pulse(Math.min(.5, (e.detail || 0) * 6)));
   core.addEventListener('click', () => openSettings());
   $('.gear').addEventListener('click', () => openSettings());
@@ -148,11 +152,12 @@
   async function openSettings(which) {
     if (which) tab = which;
     win.hidden = false;
+    try { Galaxy.Graph.pauseAnimation(); } catch (e) {}
     render();
     await loadSettings();
     render();
   }
-  function closeSettings() { win.hidden = true; }
+  function closeSettings() { win.hidden = true; try { Galaxy.Graph.resumeAnimation(); } catch (e) {} }
 
   function render() {
     win.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
@@ -173,11 +178,17 @@
           <span>The original calm galaxy, nothing in the way.</span></label>
       </div>
       <label class="check"><input type="checkbox" id="opt-scan" ${store.get('galaxy-scan', '1') !== '0' ? 'checked' : ''}> Scanlines and sweep</label>
+      <h4>Performance</h4>
+      <div class="choice">${[['auto', 'AUTO', 'Measures your device and lowers detail if it stutters.'],
+        ['high', 'HIGH', 'Full glow and starfield. For a decent graphics card.'],
+        ['fast', 'FAST', 'Lighter glow and fewer stars. Smooth on laptops and phones.']].map(([v, b, d]) =>
+        `<label><input type="radio" name="q" value="${v}" ${(Galaxy.getQuality ? Galaxy.getQuality() : 'auto') === v ? 'checked' : ''}><b>${b}</b><span>${d}</span></label>`).join('')}</div>
       <h4>Shortcuts</h4>
       <p class="help">Say or type <b>“open settings”</b> (or “open instellingen”) any time · <b>/</b> focuses the ask bar ·
         <b>Esc</b> closes this window · say <b>“send it”</b> to approve a draft.</p>`;
     body.querySelectorAll('input[name=ui]').forEach(r => r.onchange = () => { store.set('galaxy-ui', r.value); applyUi(); });
     $('#opt-scan', body).onchange = e => { store.set('galaxy-scan', e.target.checked ? '1' : '0'); applyUi(); };
+    body.querySelectorAll('input[name=q]').forEach(r => r.onchange = () => Galaxy.setQuality && Galaxy.setQuality(r.value));
   }
 
   function renderCalendars() {
@@ -302,6 +313,13 @@
         <label><input type="radio" name="vm" value="record" ${mode === 'record' ? 'checked' : ''}><b>RECORD + GEMINI</b>
           <span>Records here and lets Gemini transcribe. Works in every browser; uses a little Gemini credit.</span></label>
       </div>
+      <h4>Hands-free</h4>
+      <label class="check"><input type="checkbox" id="opt-hf" ${Galaxy.isHandsFree && Galaxy.isHandsFree() ? 'checked' : ''}>
+        Listen for “Jarvis” (also the 👂 button)</label>
+      <p class="help">Say <b>“Jarvis, what's on today?”</b> in one go, or “Jarvis”, wait for the chime, then speak.
+        This uses the browser's own free speech recognition (Chrome or Edge), never your API key. While it's on,
+        the browser streams microphone audio to its speech service (Google for Chrome, Microsoft for Edge).
+        Jarvis pauses listening while he answers.</p>
       <h4>Speaking</h4>
       <label class="f">Jarvis's voice (English)</label>
       <select id="voice-pick"><option value="">Automatic (British English preferred)</option>
@@ -309,6 +327,7 @@
       <div class="row"><button class="hbtn" id="voice-try">Test voice</button></div>
       <p class="help">Answers in other languages use a matching voice automatically. The 🔊 button in the ask bar mutes him.</p>`;
     body.querySelectorAll('input[name=vm]').forEach(r => r.onchange = () => Galaxy.setVoiceMode && Galaxy.setVoiceMode(r.value));
+    $('#opt-hf', body).onchange = e => Galaxy.setHandsFree && Galaxy.setHandsFree(e.target.checked);
     $('#voice-pick', body).onchange = e => { store.set('galaxy-voice-name', e.target.value); Galaxy.refreshVoice && Galaxy.refreshVoice(); };
     $('#voice-try', body).onclick = () => say('Good evening, sir. This is how I sound at present.');
   }
