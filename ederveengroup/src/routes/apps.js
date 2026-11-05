@@ -243,6 +243,16 @@ module.exports = function appRoutes(ctx) {
             if (JSON.stringify(next).length > MAX_BYTES) throw httpError(413, 'That’s more than can be saved');
             store.setApp(email, app, next);
             return { id: key, ...item };
+        },
+        // (and take one away; Jarvis keeps a copy so it can be put back)
+        remove(email, app, id) {
+            const d = doc(email, app);
+            const item = d.items[id];
+            if (!item) return null;
+            const items = { ...d.items };
+            delete items[id];
+            store.setApp(email, app, { items });
+            return { id, ...item };
         }
     };
 

@@ -46,7 +46,7 @@
     const NL = /\b(de|het|een|ik|je|jij|jouw|niet|van|en|dat|op|voor|met|zijn|er|maar|ook|nog|wat|vandaag|morgen|heb|hebt|heeft|staat|geen|uw|taak|taken|alle|nieuwe|graag|meneer|mevrouw)\b/gi;
     const EN = /\b(the|you|a|to|and|of|your|it|for|on|today|tomorrow|have|has|are|no|what|there|with|all|new|sir|ma'am)\b/gi;
     const isDutch = t => (String(t).match(NL) || []).length > (String(t).match(EN) || []).length;
-    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note', memory: 'sparkle', forget: 'eraser', type: 'pen', email: 'mail', chat: 'send' };
+    const ACT_ICON = { task: 'check', done: 'check', event: 'calendar', note: 'note', memory: 'sparkle', forget: 'eraser', type: 'pen', email: 'mail', chat: 'send', changed: 'pen', deleted: 'trash', restored: 'undo', mailed: 'mail', chatted: 'send', admin: 'shield', open: 'external' };
     const WEATHERY = /weather|weer|rain|regen|umbrella|paraplu|temperat|forecast|outside|buiten|cold|warm|koud|jas|coat|snow|sneeuw|wind|brief|ochtend|morning|today|vandaag/i;
 
     /* ---------- the page ---------- */
@@ -79,7 +79,7 @@
                 </form>
             </section>
         </div>`;
-        $('#jv-sys').textContent = status && status.on ? `Online · ${status.model || status.service}${status.backups && status.backups.length ? ` · ${status.backups.length === 1 ? '1 backup' : `${status.backups.length} backups`}` : ''}` : 'Offline';
+        $('#jv-sys').textContent = status && status.on ? `Online · ${status.model || status.service}${status.backups && status.backups.length ? ` · ${status.backups.length === 1 ? '1 backup' : `${status.backups.length} backups`}` : ''}${status.control === 'full' ? ' · full control' : ''}` : 'Offline';
         muteButton();
         chips();
         drawLog();
@@ -114,10 +114,11 @@
     function bubble(m, i = Infinity) {
         const seen = i < drawn ? ' seen' : '';
         if (m.role === 'user') return `<div class="jv-msg me${seen}"><p>${esc(m.content)}</p></div>`;
-        const acts = (m.actions || []).filter(a => a && a.text && !a.draft);
+        const acts = (m.actions || []).filter(a => a && a.text && !a.draft && !a.pending);
         const drafts = (m.actions || []).filter(a => a && a.draft);
+        const asks = (m.actions || []).filter(a => a && a.pending);
         const act = a => (/^\/[a-z]/.test(String(a.href || '')) ? `<a class="jv-act" href="${esc(a.href)}">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></a>` : `<span class="jv-act">${ic(ACT_ICON[a.kind] || 'check')}<span>${esc(a.text)}</span></span>`);
-        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
+        return `<div class="jv-msg ai${m.error ? ' bad' : ''}${seen}"><span class="jv-who">${m.error ? ic('alert') : ''}Jarvis</span><p>${esc(m.content)}</p>${acts.length ? `<div class="jv-acts">${acts.map(act).join('')}</div>` : ''}${drafts.map(draftCard).join('')}${asks.map(askCard).join('')}${m.note ? `<small class="jv-note">${ic('refresh')}${esc(m.note)}</small>` : ''}</div>`;
     }
     // an email or chat message he wrote: change it if you like, then Send (nothing goes out before that)
     const rows = t => Math.min(14, Math.max(3, String(t || '').split('\n').length + Math.floor(String(t || '').length / 60)));
@@ -133,6 +134,37 @@
             <textarea class="jv-d-text" rows="${rows(d.body || d.text)}"${off}>${esc(d.kind === 'email' ? d.body : d.text)}</textarea>
             ${done ? '' : `<div class="jv-draft-acts"><button type="button" class="btn btn-ghost" data-discard>Discard</button><button type="button" class="btn btn-primary" data-send>${ic('send')}<span>Send</span></button></div>`}
         </div>`;
+    }
+    // something he'll do once you tap "Do it" (without full control)
+    function askCard(a) {
+        const state = a.done ? 'done' : a.cancelled ? 'cancelled' : '';
+        return `<div class="jv-confirm${state ? ` ${state}` : ''}" data-pending="${esc(a.pending.id)}">
+            <span class="jv-confirm-what">${ic(state === 'done' ? 'check' : 'alert')}<b>${esc(state === 'done' && a.result ? a.result : a.pending.summary)}</b></span>
+            ${state ? `<i>${state === 'done' ? 'Done' : 'Cancelled'}</i>` : '<div class="jv-draft-acts"><button type="button" class="btn btn-ghost" data-cancel>Cancel</button><button type="button" class="btn btn-primary" data-doit>Do it</button></div>'}
+        </div>`;
+    }
+    const askById = id => {
+        for (const m of log) for (const a of m.actions || []) if (a.pending && a.pending.id === id) return a;
+        return null;
+    };
+    async function answerAsk(card, yes) {
+        const a = askById(card.dataset.pending);
+        if (!a) return;
+        card.querySelectorAll('button').forEach(b => (b.disabled = true));
+        try {
+            if (yes) {
+                const r = await window.EG.call(`/api/jarvis/pending/${encodeURIComponent(a.pending.id)}`, { method: 'POST', body: {} });
+                Object.assign(a, { done: Date.now(), result: r.text, href: r.href });
+                toast(r.text || 'Done');
+            } else {
+                await window.EG.call(`/api/jarvis/pending/${encodeURIComponent(a.pending.id)}`, { method: 'DELETE' });
+                a.cancelled = Date.now();
+            }
+            drawLog();
+        } catch (err) {
+            card.querySelectorAll('button').forEach(b => (b.disabled = false));
+            toast(err.message, { bad: true });
+        }
     }
     const draftById = id => {
         for (const m of log) for (const a of m.actions || []) if (a.draft && a.draft.id === id) return a;
@@ -264,6 +296,9 @@
             reply = String(data.reply || '…');
             log.push({ role: 'assistant', content: reply, actions: data.actions || [], via: data.service, note: handedOver(data) });
             for (const a of data.actions || []) if (a.kind === 'type' && a.type) typeIntoApp(a);
+            // "open my calendar": on the screen you're on (the whole window, from the pop-up too)
+            const go = (data.actions || []).find(a => a.open && /^\/[a-z]*\/?/.test(String(a.href || '')));
+            if (go) setTimeout(() => (mini ? window.top : window).location.assign(go.href), 1200);
             if (data.memories) status.memories = data.memories;
         } catch (e) {
             log.push({ role: 'assistant', content: e.message === 'Failed to fetch' ? 'I can’t reach the server just now. Check the connection?' : e.message, error: true });
@@ -596,6 +631,7 @@
         if (/Android/.test(ua)) return 'For another voice: Android Settings → Text-to-speech → Google → English (United Kingdom), and pick a male voice.';
         return '';
     }
+    const binList = () => ((status.bin || []).length ? status.bin.slice().reverse().map(b => `<li><span>${esc(b.label)} <small>(${esc(b.app)})</small></span><button type="button" class="btn btn-ghost" data-restore="${esc(b.id)}">Restore</button></li>`).join('') : '<li class="jv-mem-none">Nothing.</li>');
     const memories = () => ((status.memories || []).length ? status.memories.map(f => `<li><span>${esc(f.text)}</span><button type="button" class="icon-btn" data-mem="${esc(f.id)}" aria-label="Forget this" title="Forget this">${ic('x')}</button></li>`).join('') : '<li class="jv-mem-none">Nothing yet.</li>');
     function settings() {
         const back = document.createElement('div');
@@ -615,7 +651,9 @@
             <div class="jv-row jv-row-end"><button type="button" class="btn btn-ghost" data-reset>Like Jarvis</button><button type="button" class="btn" data-try>${ic('volume')}<span>Hear it</span></button></div>` : ''}
             <label class="jv-row"><span><b>I speak</b></span><select class="input" data-lang>${[['auto', 'Like this browser'], ['en-GB', 'English (UK)'], ['en-US', 'English (US)'], ['nl-NL', 'Nederlands']].map(([v, l]) => `<option value="${v}"${prefs.lang === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
             ${SR ? `<label class="jv-row"><span><b>Wake word “Jarvis”</b><small>Keeps listening while this page is open, so you can say “Jarvis, what’s on today?” without tapping. Your browser turns speech into text (Chrome and Edge do that on their servers).</small></span><input type="checkbox" class="cp-toggle" data-p="wake"${prefs.wake ? ' checked' : ''}></label>` : ''}
+            <label class="jv-row"><span><b>Full control</b><small>On: he does what you ask straight away, sending, deleting and admin changes included. Off: those wait for you to tap “Do it” (or Send). Either way he only takes orders from you, never from what he reads in emails or messages.</small></span><input type="checkbox" class="cp-toggle" data-control${status.control === 'full' ? ' checked' : ''}></label>
             <div class="jv-mem"><b>What he remembers</b><small>Things you asked him to remember, or told him for later. Say “Jarvis, remember that…” or “forget…”.</small><ul id="jv-mem">${memories()}</ul></div>
+            <div class="jv-mem"><b>Recently deleted by Jarvis</b><small>Kept for 30 days. Restore puts it back where it was.</small><ul id="jv-bin">${binList()}</ul></div>
             <p class="cp-muted">Thinking with ${esc(status.model || status.service || 'the AI service')}${status.backups && status.backups.length ? `, with ${esc(status.backups.join(', '))} as backup` : ''}. Change it in <a href="/admin/#/ai">Admin → AI</a>.</p>
             <div class="pf-crop-acts"><button type="button" class="btn btn-danger" data-forget>Forget this conversation</button><button type="button" class="btn btn-primary" data-x>Done</button></div>
         </div>`;
@@ -652,6 +690,18 @@
                 speak(dutch() ? `Zo beter, ${who()}?` : `Better, ${who()}?`);
                 return;
             }
+            const rs = e.target.closest('[data-restore]');
+            if (rs) {
+                try {
+                    const r = await window.EG.call(`/api/jarvis/bin/${encodeURIComponent(rs.dataset.restore)}/restore`, { method: 'POST', body: {} });
+                    status.bin = r.bin;
+                    $('#jv-bin', back).innerHTML = binList();
+                    toast('Put back');
+                } catch (err) {
+                    toast(err.message, { bad: true });
+                }
+                return;
+            }
             const m = e.target.closest('[data-mem]');
             if (m) {
                 try {
@@ -677,7 +727,21 @@
                 toast('The conversation is forgotten. What he was asked to remember stays.');
             }
         });
-        back.addEventListener('change', e => {
+        back.addEventListener('change', async e => {
+            if (e.target.matches('[data-control]')) {
+                const want = e.target.checked ? 'full' : 'ask';
+                try {
+                    const r = await window.EG.call('/api/jarvis/prefs', { method: 'PUT', body: { control: want } });
+                    status.control = r.control;
+                    $('#jv-sys').textContent = '';
+                    page();
+                    toast(r.control === 'full' ? 'Full control: Jarvis acts straight away' : 'Jarvis asks before sending, deleting or admin changes');
+                } catch (err) {
+                    e.target.checked = !e.target.checked;
+                    toast(err.message, { bad: true });
+                }
+                return;
+            }
             const p = e.target.dataset.p;
             if (p) {
                 prefs[p] = e.target.checked;
@@ -720,6 +784,9 @@
             muteButton();
             return;
         }
+        const ask = e.target.closest('[data-pending]');
+        if (ask && e.target.closest('[data-doit]')) return answerAsk(ask, true);
+        if (ask && e.target.closest('[data-cancel]')) return answerAsk(ask, false);
         const card = e.target.closest('[data-draft]');
         if (card && e.target.closest('[data-send]')) return sendDraft(card, false);
         if (card && e.target.closest('[data-discard]')) return sendDraft(card, true);
