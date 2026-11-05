@@ -233,6 +233,8 @@
   const groups = [];
   const groupColor = {};
   const hiddenGroups = new Set();
+  let timeCut = null;                                  // timeline view: hide notes changed after this time
+  const nodeShown = n => !!n && !hiddenGroups.has(n.group) && (timeCut === null || (n.t || 0) <= timeCut);
 
   function loadData(data) {
     nodes.length = 0; data.nodes.forEach(n => nodes.push(n));
@@ -299,8 +301,9 @@
     .nodeId('id')
     .nodeLabel(n => `<span style="color:${groupColor[n.group]}">●</span> ${escapeHtml(n.label)}`)
     .nodeThreeObject(makeNodeObject)
-    .nodeVisibility(n => !hiddenGroups.has(n.group))
-    .linkVisibility(l => !hiddenGroups.has(l.source.group ?? byId(l.source).group) && !hiddenGroups.has(l.target.group ?? byId(l.target).group))
+    .nodeVisibility(n => nodeShown(n))
+    .linkVisibility(l => nodeShown(typeof l.source === 'object' ? l.source : byId(l.source)) &&
+                         nodeShown(typeof l.target === 'object' ? l.target : byId(l.target)))
     .linkColor(l => linkColor(l))
     .linkOpacity(0.35)
     .linkWidth(l => isHotLink(l) ? (l.type === 'mention' ? 1.4 : 0.5) : 0)
@@ -578,7 +581,7 @@
     matches.forEach((n, i) => {
       const b = document.createElement('button');
       b.className = i === active ? 'active' : '';
-      b.innerHTML = `<span class="dot" style="color:${groupColor[n.group]}"></span>${escapeHtml(n.label)}`;
+      b.innerHTML = `<span class="dot" style="color:${groupColor[n.group]}"></span>${escapeHtml(n.label)}${n.__smart ? ' <span style="opacity:.55;margin-left:auto">✦ related</span>' : ''}`;
       b.onclick = () => pick(n);
       results.appendChild(b);
     });
@@ -589,6 +592,15 @@
     matches = q ? nodes.filter(n => n.label.toLowerCase().includes(q) || n.excerpt.toLowerCase().includes(q))
       .sort((a, b) => b.label.toLowerCase().includes(q) - a.label.toLowerCase().includes(q)).slice(0, 7) : [];
     active = 0; renderResults();
+    clearTimeout(search.smartT);
+    if (q.length >= 4) search.smartT = setTimeout(async () => {
+      try {
+        const { ids = [] } = await (await fetch('api/search?q=' + encodeURIComponent(q))).json();
+        if (search.value.trim().toLowerCase() !== q) return;
+        const extra = ids.map(byId).filter(n => n && !matches.includes(n)).slice(0, 7 - Math.min(matches.length, 4));
+        if (extra.length) { extra.forEach(n => n.__smart = true); matches = [...matches.slice(0, 4), ...extra]; renderResults(); }
+      } catch (e) {}
+    }, 550);
   });
   search.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown') { active = Math.min(active + 1, matches.length - 1); renderResults(); e.preventDefault(); }
@@ -900,6 +912,8 @@
 
   // ---------- voice in: webkitSpeechRecognition ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let uiLang = 'auto';                                 // Settings → Assistant → Language (en / nl / auto)
+  const recLang = () => uiLang === 'nl' ? 'nl-NL' : uiLang === 'en' ? 'en-GB' : (/^nl/i.test(navigator.language) ? 'nl-NL' : 'en-GB');
   const micBtn = document.getElementById('mic');
   let rec = null, listening = false, heard = '', recError = null, discard = false;
   const MIC_ERRORS = {
@@ -920,7 +934,7 @@
     if (!SR || listening || asking) return;
     stopSpeaking();                              // don't let the mic hear our own voice
     rec = new SR();
-    rec.lang = 'en-GB'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.lang = recLang(); rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     heard = ''; recError = null; discard = false;
     rec.onstart = () => { listening = true; micBtn.classList.add('on'); micBtn.title = 'Stop listening'; setStatus('listening'); };
     rec.onresult = e => {
@@ -1005,7 +1019,7 @@
   function startWake() {
     if (!SR) { setHandsFree(false, 'Hands-free needs Google Chrome or Microsoft Edge (their speech recognition is free).'); return; }
     const r = new SR();
-    r.lang = 'en-GB'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+    r.lang = recLang(); r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
     let armed = false, command = '', settle = null, giveUp = null, fired = false;
     const fire = () => {
       if (fired) return;
@@ -1152,13 +1166,16 @@
     const h = new Date().getHours();
     const part = h < 5 ? 'evening' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
     const n = nodes.length;
-    const line = n
-      ? `Good ${part}, sir. ${n} note${n === 1 ? '' : 's'} indexed, all present and accounted for.`
+    const nl = uiLang === 'nl';
+    const nlPart = { morning: 'Goedemorgen', afternoon: 'Goedemiddag', evening: 'Goedenavond' }[part];
+    const line = nl ? (n ? `${nlPart}, meneer. ${n} notities geïndexeerd, allemaal present en op hun plek.`
+                         : `${nlPart}, meneer. Het archief is leeg; dat houdt het opruimen overzichtelijk.`)
+      : n ? `Good ${part}, sir. ${n} note${n === 1 ? '' : 's'} indexed, all present and accounted for.`
       : `Good ${part}, sir. The archive is empty, which does make it rather easy to keep tidy.`;
     aQ.textContent = 'Jarvis';
     aText.classList.remove('error'); aText.textContent = line; aSources.innerHTML = '';
     answerBox.classList.add('show');
-    speak(line, 'en', 'greeting');   // browsers hold this until the first click, then it plays
+    speak(line, nl ? 'nl' : 'en', 'greeting');   // browsers hold this until the first click, then it plays
   }
   setTimeout(greet, 2600);   // after the opening camera glide
 
@@ -1176,6 +1193,11 @@
   window.Galaxy = { Graph, nodes, byId, neighbors, select, deselect, flyTo, ask, highlightNotes, proveAnswer, reloadGraph, rememberIt,
     setQuality, getQuality: () => quality, isFast: () => fastMode,
     setHandsFree: on => setHandsFree(on), isHandsFree: () => handsFree,
+    setLang: l => { uiLang = l || 'auto'; }, getLang: () => uiLang,
+    setTimeCut: t => { timeCut = t; Graph.nodeVisibility(Graph.nodeVisibility()).linkVisibility(Graph.linkVisibility()); },
+    showAnswer: (q, text, ids = []) => { renderAnswer(q, text, ids); answerBox.classList.add('show'); },
+    chime: up => chime(up), setStatus: (st, d) => setStatus(st, d), submitText: (t, s) => submitText(t, s),
+    groupColor: g => groupColor[g],
     setVoiceMode: mode => { voiceMode = mode === 'record' ? 'record' : (SR ? 'browser' : 'record');
       try { mode === 'record' ? localStorage.setItem('galaxy-voice-mode', 'record') : localStorage.removeItem('galaxy-voice-mode'); } catch (e) {} },
     refreshVoice: () => refreshVoice(), speak, startListening };

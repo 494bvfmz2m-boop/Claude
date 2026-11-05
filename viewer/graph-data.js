@@ -8,6 +8,7 @@ const GRAPH = {
    "excerpt": "Revenue target: $1.14M (up 18% from 2025's projected $965K).\n• Wholesale $520K · Bar $330K · Online & subscriptions $210K · Markets & events $80K\n\nCost of goods target: 38% of revenue. Green coffee is the biggest swing factor — see Green Coffee Sourcing.\n\nPayroll: $372K including the two new roles in the Hiring Plan and a 4% raise for current staff.\n\nCapital expenses:\n• Cold brew equipment, $2,800 — for the Cold Brew Launch\n• Second grinder for the bar, $3,200\n• Annual roaster service, $1,450 — see Equipment Maintenance Log\n• New nitrogen flusher, $6,500 (only if the repaired one fails again)\n\nMarketing: $14K total — Instagram boosts, market fees, printed materials, newsletter software…",
    "path": "finance/2026 Budget.md",
    "words": 158,
+   "t": 1793886143,
    "degree": 21
   },
   {
@@ -17,6 +18,7 @@ const GRAPH = {
    "excerpt": "Rolling 13-week forecast, updated every Monday by Maya.\n\nCurrent position: $41,200 in operating checking, $15,000 line of credit unused.\n\nBig inflows coming:\n• Holiday season. November–December typically brings 24% of annual retail revenue, driven by the Seasonal Holiday Blend and gift subscriptions from the Subscription Program.\n• Wholesale invoices average $9,800/week, Net 15.\n\nBig outflows:\n• Green coffee contract payment of $18,600 due Jan 10 — see Supplier Contracts.\n• Loan payment of $2,180 on the 1st — Small Business Loan.\n• Payroll every other Friday, about $13,900.\n\nRisk: January–February are thin. Last year we dipped to $9K in early February. Plan this year: hold $25K minimum…",
    "path": "finance/Cash Flow Forecast.md",
    "words": 152,
+   "t": 1793886143,
    "degree": 22
   },
   {
@@ -26,6 +28,7 @@ const GRAPH = {
    "excerpt": "Principle: price for margin on retail, price for volume on wholesale, and never compete with grocery-store coffee on price.\n\nRetail (12 oz bags):\n• House Blend Profile — $17\n• Single Origin Lineup — $19 to $24 depending on green cost\n• Seasonal Holiday Blend — $19\n\nWholesale (per lb):\n• Tier 1 (10–39 lb/wk) — $11.50 blend, $14+ single origin\n• Tier 2 (40+ lb/wk) — $10.75 blend\n• Tier rules and delivery minimums are in Wholesale Fulfillment.\n\nBar drinks: 12 oz latte $5.25, drip $3.25. Cost per latte is about $1.15 including milk and cup.\n\nReview cadence: quarterly, or immediately if green coffee moves more than 20 cents a pound (see Green Coffee Sourcing and Supplier Contracts). Last…",
    "path": "finance/Pricing Strategy.md",
    "words": 146,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -35,6 +38,7 @@ const GRAPH = {
    "excerpt": "SBA 7(a) loan through Willamette Community Bank, closed February 2025.\n\n• Amount: $185,000\n• Term: 10 years, 8.25% variable (prime + 0.75)\n• Payment: ~$2,180/month\n• Use of funds: the Diedrich roaster ($68K), roastery buildout ($74K), working capital ($43K)\n\nCovenants:\n• Debt service coverage ratio of at least 1.25×, tested annually on year-end financials.\n• Monthly inventory report with signed count — see Inventory Management.\n• Notify the bank of any new debt over $25K.\n\nWe're at 1.48× DSCR on the trailing 12 months, comfortable but not huge. The bank liked the recurring revenue from the Subscription Program and the signed wholesale accounts in Local Cafe Partnerships.\n\nThoughts for 2026…",
    "path": "finance/Small Business Loan.md",
    "words": 149,
+   "t": 1793886143,
    "degree": 22
   },
   {
@@ -44,6 +48,7 @@ const GRAPH = {
    "excerpt": "Green coffee\n• Pacific Bean Co. — forward contract for 40 bags Brazil Cerrado + 24 bags Colombia Huila, price fixed at C + differential, deliveries every 8 weeks through June. Payment Net 30 from each release. Next payment $18,600 on Jan 10 (tracked in Cash Flow Forecast).\n• Altura Direct — no contract, spot purchases of micro-lots. Minimum order 2 bags. Details in Green Coffee Sourcing.\n\nPackaging\n• Northwest Bag Supply — bags with valves, 10,000-unit minimum, 6-week lead time. Price locked through 2026.\n• Labelworks Printing — labels, 3-week lead time. Not contracted; quote per run.\n\nDairy & alt-milk\n• Valley Creamery — weekly delivery, 30-day cancellation. Oat milk through the restaurant…",
    "path": "finance/Supplier Contracts.md",
    "words": 162,
+   "t": 1793886143,
    "degree": 16
   },
   {
@@ -53,6 +58,7 @@ const GRAPH = {
    "excerpt": "Name: Ember & Oak Coffee Roasters. Never \"Ember and Oak\", never just \"Ember\" (that's the blend).\n\nVoice: warm, plain-spoken, a little nerdy about coffee but never snobby. We explain, we don't lecture. Short sentences. No \"artisanal\", no \"curated\".\n\nColors:\n• Ember orange #D9622B — primary\n• Charcoal #2B2B2B — text\n• Oat #F2EADF — backgrounds\n• Holiday variant swaps orange for cranberry #9E2B3A (see Seasonal Holiday Blend)\n\nType: Fraunces for headlines, Inter for body text.\n\nLogo: the oak leaf with a flame inside it. Minimum width 24 px online, 0.75 in on print. Always give it breathing room — at least the height of the leaf on every side.\n\nPhotography: natural light, real hands, real mess…",
    "path": "marketing/Brand Guidelines.md",
    "words": 155,
+   "t": 1793886143,
    "degree": 19
   },
   {
@@ -62,6 +68,7 @@ const GRAPH = {
    "excerpt": "Platform: Mailchimp (Essentials plan, $28/mo). 2,340 subscribers, 41% open rate, 3.8% click rate — well above industry average for food & beverage.\n\nCadence: every other Tuesday, plus one-off launches.\n\nStandard sections:\n• A short note from Maya about what's happening at the roastery.\n• New coffee — usually from the Single Origin Lineup, with brew tips.\n• Something useful: a brew guide, a grinder recommendation, a recipe.\n• Where to find us: Farmers Market Booth dates and new wholesale cafes from Local Cafe Partnerships.\n\nRevenue: the newsletter drove 31% of online sales last quarter, mostly bag sales and Subscription Program sign-ups. Pre-orders for the Seasonal Holiday Blend go to…",
    "path": "marketing/Email Newsletter.md",
    "words": 141,
+   "t": 1793886143,
    "degree": 21
   },
   {
@@ -71,6 +78,7 @@ const GRAPH = {
    "excerpt": "Saturdays, 9 am–2 pm, April through November at the Riverside Farmers Market. Booth fee is $45/week plus 3% of sales over $1,000.\n\nAverage Saturday: $1,180 in sales — about 60% drinks (pour-over, iced coffee) and 40% retail bags. It's also our best place to sign people up for the Subscription Program; we averaged 6 new subscribers per market in September.\n\nSetup: two-person crew, 10×10 tent, the folding brew bar, a 3-group batch brewer on the generator. Banner and menu boards follow Brand Guidelines.\n\nLessons:\n• Sampling is great for sales but blew our shrink numbers in Inventory Management. Now we use 1 oz cups and a sample log.\n• Bring twice the ice you think. Every time.\n• Cold brew in…",
    "path": "marketing/Farmers Market Booth.md",
    "words": 169,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -80,6 +88,7 @@ const GRAPH = {
    "excerpt": "Account: @emberandoak — 4,870 followers, growing ~150/month. Engagement is best on reels from the roastery floor.\n\nWeekly rhythm:\n• Monday — roast day reel (charge, first crack, drop). Ties into the Roasting Schedule.\n• Wednesday — \"Meet the coffee\": one card about a coffee from the Single Origin Lineup.\n• Friday — people post: a barista, a wholesale partner, or a customer. Partner shout-outs are coordinated through Local Cafe Partnerships.\n• Saturday — stories live from the Farmers Market Booth.\n\nCampaigns coming up:\n• Nov — Seasonal Holiday Blend countdown, gift box unboxing.\n• Apr–May — Cold Brew Launch teaser series.\n\nAll visuals follow Brand Guidelines. Jonah drafts posts on Thursdays…",
    "path": "marketing/Instagram Content Plan.md",
    "words": 148,
+   "t": 1793886143,
    "degree": 24
   },
   {
@@ -89,6 +98,7 @@ const GRAPH = {
    "excerpt": "Our wholesale cafe accounts, with weekly volume:\n\n• Fern & Fig (downtown) — 38 lb/wk, espresso + drip\n• The Reading Room — 22 lb/wk\n• Northside Bagel Co. — 30 lb/wk, drip only\n• Little Owl Bakery — 12 lb/wk\n• Copper Kettle — 45 lb/wk (tier 2 pricing)\n• Moss Street Cafe — 18 lb/wk\n• Harbor Light (Salem) — 26 lb/wk, ships UPS\n\nWhat partners get: free equipment dial-in, quarterly staff training from our Barista Training Program, the \"Proudly serving Ember & Oak\" window badge per Brand Guidelines, and a shout-out in the Instagram Content Plan when they join.\n\nWhat we ask: a minimum of 10 lb/week, using the House Blend Profile or a single origin as their main espresso, and paying on time…",
    "path": "marketing/Local Cafe Partnerships.md",
    "words": 157,
+   "t": 1793886143,
    "degree": 20
   },
   {
@@ -98,6 +108,7 @@ const GRAPH = {
    "excerpt": "Diedrich IR-12 roaster\n• Weekly: empty chaff collector, brush the cooling tray, check the drum bearings for noise.\n• Monthly: clean the exhaust duct to the cyclone. Last done Oct 28. Chaff build-up here is a fire risk, so it is not optional.\n• Annually: full service by the tech from Portland ($1,450, budgeted in 2026 Budget).\n\nLa Marzocco Linea PB (bar)\n• Daily backflush, weekly group gasket check. Gaskets replaced Sept 9.\n• Water filter cartridge swapped every 3 months — next due Dec 1.\n\nPackaging\n• The nitrogen flusher on the bagging line leaked twice in October. Replacement valve ordered ($310). Until it arrives, Wholesale Fulfillment is packing 5 lb bags by hand.\n\nDowntime this year: 3…",
    "path": "operations/Equipment Maintenance Log.md",
    "words": 164,
+   "t": 1793886143,
    "degree": 19
   },
   {
@@ -107,6 +118,7 @@ const GRAPH = {
    "excerpt": "We buy green coffee from two importers: Pacific Bean Co. (bulk Brazil and Colombia for blends) and Altura Direct (micro-lots from Ethiopia, Kenya and Guatemala). Terms and minimums are written up in Supplier Contracts.\n\nCurrent positions (60 kg bags):\n• Brazil Cerrado natural — 14 bags, forward-contracted through March\n• Colombia Huila washed — 9 bags\n• Ethiopia Guji natural — 4 bags (spot)\n• Guatemala Huehuetenango — 3 bags (spot)\n\nThe C-market jumped again this quarter. Every 10 cent move per pound changes our cost of goods by roughly $1,100 a month at current volume, which is why the Pricing Strategy has a quarterly review. We aim to keep 10–12 weeks of blend components on hand and no…",
    "path": "operations/Green Coffee Sourcing.md",
    "words": 161,
+   "t": 1793886143,
    "degree": 17
   },
   {
@@ -116,6 +128,7 @@ const GRAPH = {
    "excerpt": "We track three kinds of inventory in one spreadsheet (moving to Square for Retail in Q1):\n\n• Green coffee — by bag and lot number, updated on arrival and every Friday after roasting. Reorder points come from Green Coffee Sourcing.\n• Roasted coffee — retail bags on the shelf, wholesale stock, and the Subscription Program reserve. Roasted coffee older than 21 days is moved to cold brew or staff coffee.\n• Packaging and dry goods — bags, valves, labels, cups, oat milk. Labels have a 3-week lead time from the printer, so the Seasonal Holiday Blend labels must be ordered by Oct 15.\n\nMonthly count happens on the last Sunday. Shrink last month was 2.1% by value, mostly from over-pouring samples at…",
    "path": "operations/Inventory Management.md",
    "words": 161,
+   "t": 1793886143,
    "degree": 20
   },
   {
@@ -125,6 +138,7 @@ const GRAPH = {
    "excerpt": "We roast Monday, Wednesday and Friday on the 15 kg Diedrich. Monday is the big day: wholesale orders for the week plus the House Blend Profile for our own bar. Wednesday covers the Subscription Program shipments, which have to leave by Thursday noon to arrive fresh. Friday is for small-batch Single Origin Lineup coffees and anything Farmers Market needs on Saturday.\n\nRules of thumb:\n• First batch of the day is always a \"seasoning\" batch of the house blend — the drum runs cooler for the first 20 minutes.\n• Log every batch (charge temp, first crack time, drop temp, weight loss) in the roast log. Target weight loss is 14–16%.\n• Cupping happens Tuesday and Thursday mornings. Anything…",
    "path": "operations/Roasting Schedule.md",
    "words": 161,
+   "t": 1793886143,
    "degree": 22
   },
   {
@@ -134,6 +148,7 @@ const GRAPH = {
    "excerpt": "Wholesale is 46% of revenue across 11 accounts — 7 cafes, 2 restaurants, a grocery co-op and the university catering office. Most are listed under Local Cafe Partnerships.\n\nOrder flow:\n• Orders close Sunday at 6 pm via the order form or email.\n• Roasted Monday according to the Roasting Schedule, rested overnight, packed Tuesday.\n• Local deliveries Tuesday/Wednesday in the van; two accounts in Salem ship by UPS Ground.\n\nPackaging: 5 lb bags for cafes, 2 lb for restaurants, retail 12 oz bags for the co-op shelf. Each bag gets a roast date sticker — accounts are told to use within 3 weeks.\n\nInvoices go out the same day as delivery on Net 15 terms. Two accounts are routinely late, which…",
    "path": "operations/Wholesale Fulfillment.md",
    "words": 163,
+   "t": 1793886143,
    "degree": 22
   },
   {
@@ -143,6 +158,7 @@ const GRAPH = {
    "excerpt": "Goal: ready-to-drink cold brew in 12 oz cans and half-gallon growlers by May, sold at the bar, the Farmers Market Booth, and to 3–4 wholesale partners.\n\nRecipe: 1:8 concentrate, 18 hours at fridge temp, coarse ground House Blend Profile with 20% Ethiopia Guji for brightness. Diluted 1:1 for the can.\n\nOpen questions:\n• Shelf life. Without pasteurization we're limited to 14 days. Talking to a co-packer in Eugene about nitro-canning; quote expected in January.\n• Licensing. The county wants a separate food processor license for canned beverages ($340/yr).\n• Equipment. Two 20-gallon toddy systems (~$2,800) — proposed as a line item in the 2026 Budget.\n\nPricing target is $5.50 per can retail…",
    "path": "products/Cold Brew Launch.md",
    "words": 150,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -152,6 +168,7 @@ const GRAPH = {
    "excerpt": "Ember is our flagship blend and about 55% of all coffee we roast. It goes into every wholesale espresso program and is the default drip at the bar.\n\nRecipe (by green weight): 60% Brazil Cerrado natural, 30% Colombia Huila, 10% Guatemala Huehuetenango. Components come from Green Coffee Sourcing.\n\nRoast: medium, dropped about 90 seconds after first crack, ~15% weight loss. Tasting notes on the bag: milk chocolate, toasted almond, dark cherry.\n\nEspresso recipe we teach accounts: 18 g in, 38 g out, 28–30 seconds. This is the core of the Barista Training Program.\n\nHistory: we changed the recipe in May, dropping a Honduras component that kept tasting flat after two weeks. Customers barely…",
    "path": "products/House Blend Profile.md",
    "words": 150,
+   "t": 1793886143,
    "degree": 22
   },
   {
@@ -161,6 +178,7 @@ const GRAPH = {
    "excerpt": "Our second year doing a holiday blend. Last year we sold 640 bags between Nov 15 and Dec 31 and ran out on Dec 18, so we're planning for 900 bags this year.\n\nRecipe: 50% Ethiopia Guji natural, 30% Colombia Huila, 20% Brazil Cerrado. Slightly darker than the House Blend Profile. Notes of spiced plum, cocoa and orange peel.\n\nTimeline:\n• Oct 15 — labels ordered (lead time in Inventory Management)\n• Nov 1 — pre-orders open via the Email Newsletter\n• Nov 15 — launch day at the bar and the Farmers Market Booth\n• Dec 20 — last ship date for Christmas delivery\n\nPackaging uses the red-and-cream holiday variant described in Brand Guidelines. A gift box (bag + mug + tasting card) at $48 is new this…",
    "path": "products/Seasonal Holiday Blend.md",
    "words": 159,
+   "t": 1793886143,
    "degree": 21
   },
   {
@@ -170,6 +188,7 @@ const GRAPH = {
    "excerpt": "We keep four single origins on the shelf at any time, rotating one every 6–8 weeks. They sell for $19–24 per 12 oz bag and carry our best margin per bag (see Pricing Strategy).\n\nCurrent lineup:\n• Ethiopia Guji natural — blueberry, jasmine, very sweet. Our best seller this fall.\n• Kenya Nyeri AA — grapefruit, black currant. Polarizing; staff love it.\n• Guatemala Huehuetenango — caramel, red apple. Doubles as a blend component.\n• Colombia Pink Bourbon (coming Dec) — limited, 2 bags only.\n\nEach new coffee gets a launch post in the Instagram Content Plan and a short write-up in the Email Newsletter, including the farm or washing-station story from the importer.\n\nSingle origins are roasted on…",
    "path": "products/Single Origin Lineup.md",
    "words": 154,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -179,6 +198,7 @@ const GRAPH = {
    "excerpt": "Launched in March. 212 active subscribers as of Nov 1, up from 140 in June. Churn is running about 6% per month, mostly after month three.\n\nTiers:\n• Classic — 2 bags of House Blend Profile per month, $34\n• Explorer — 2 different single origins per month from the Single Origin Lineup, $42\n• Office — 5 lb bulk, $78, billed monthly\n\nSubscriptions ship every other Thursday. Coffee is roasted Wednesday (see Roasting Schedule) so it arrives 2–4 days off roast.\n\nSubscription revenue is the most predictable line in the Cash Flow Forecast and was a big part of the case for the Small Business Loan. Growth ideas: a gift subscription for the holidays tied to the Seasonal Holiday Blend, and a referral…",
    "path": "products/Subscription Program.md",
    "words": 144,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -188,6 +208,7 @@ const GRAPH = {
    "excerpt": "Three levels. Everyone does Level 1; Levels 2 and 3 come with a $1/hr raise each.\n\nLevel 1 — Foundations (first 2 weeks)\n• Dialing in the House Blend Profile on the Linea: dose, yield, time, taste.\n• Milk steaming to latte-art standard (heart and tulip).\n• Opening and closing checklists, including the cleaning routine in the Equipment Maintenance Log.\n\nLevel 2 — Coffee knowledge (month 2–3)\n• Cupping protocol, tasting the Single Origin Lineup, describing coffee to customers.\n• Running a pour-over station at the Farmers Market Booth.\n\nLevel 3 — Lead / wholesale trainer (month 6+)\n• Training wholesale partner staff on-site, as promised in Local Cafe Partnerships.\n• Troubleshooting grinders…",
    "path": "team/Barista Training Program.md",
    "words": 155,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -197,6 +218,7 @@ const GRAPH = {
    "excerpt": "The full handbook is a PDF everyone signs on day one. This note is the quick version.\n\nHours & scheduling\n• Schedules are posted two weeks ahead. Swaps are fine if you find your own cover and tell the shift lead.\n• Breaks: 10 minutes per 4 hours, 30-minute meal break for shifts over 6 hours (Oregon law).\n\nPay & benefits\n• Pay every other Friday. Tips are pooled by hours worked and paid on the same check.\n• After 90 days: 40 hours of paid sick leave per year, free bag of coffee per week, 50% off merch.\n• Raises tied to the Barista Training Program levels.\n\nConduct\n• We follow the voice in Brand Guidelines with customers too: warm, plain, no coffee snobbery.\n• Zero tolerance for harassment…",
    "path": "team/Employee Handbook.md",
    "words": 174,
+   "t": 1793886143,
    "degree": 15
   },
   {
@@ -206,6 +228,7 @@ const GRAPH = {
    "excerpt": "Current team: 9 people (Maya — owner, Jonah — head roaster, 5 baristas, 1 wholesale/delivery lead, 1 part-time bookkeeper).\n\n2026 hires:\n• Part-time production roaster (Q1) — 20 hrs/week, Wednesdays and Fridays to start. Takes pressure off Jonah and lets us add a fourth day to the Roasting Schedule. $21–23/hr.\n• Online & subscriptions coordinator (Q2) — packs and ships the Subscription Program, handles customer email, helps with the Email Newsletter. $19–20/hr, 30 hrs/week.\n• Holiday temp staff (Nov–Dec) — 2 people for packing the Seasonal Holiday Blend and gift boxes.\n\nProcess: post on the local job board and Instagram, 20-minute phone screen, paid 2-hour working interview, offer within a…",
    "path": "team/Hiring Plan.md",
    "words": 154,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -215,6 +238,7 @@ const GRAPH = {
    "excerpt": "Big picture: grow without burning out. Fewer 70-hour weeks, more systems.\n\n• Revenue to $1.14M with at least 7% net profit, per the 2026 Budget.\n• Subscriptions to 400 active subscribers. The Subscription Program is the steadiest revenue we have.\n• Wholesale to 15 accounts. Two spring cafe openings are in the pipeline under Local Cafe Partnerships.\n• Ship the Cold Brew Launch by May without taking on new debt.\n• Step back from daily roasting. Hire the production roaster from the Hiring Plan so Jonah can lead and I can stop covering Friday roasts.\n• Keep at least $25K cash on hand at all times — see Cash Flow Forecast.\n\nPersonal: take two full weeks off in August. Write the Email Newsletter…",
    "path": "team/Owner Goals 2026.md",
    "words": 160,
+   "t": 1793886143,
    "degree": 23
   },
   {
@@ -224,6 +248,7 @@ const GRAPH = {
    "excerpt": "Attendees: Maya, Jonah, Priya, Sam, Luis, Dana\n\n• Holiday prep. Pre-orders for the Seasonal Holiday Blend opened Saturday: 186 already. On pace for 900. Jonah wants two extra roast shifts per week through mid-December; Maya approved overtime.\n• Roaster. Exhaust duct cleaned on schedule. Nitrogen flusher valve still on backorder — packing 5 lb bags by hand continues. Logged in the Equipment Maintenance Log.\n• Wholesale. Copper Kettle asked about a decaf. Northside Bagel paid 34 days late again; Maya will call. See Wholesale Fulfillment.\n• Market. Last outdoor Farmers Market Booth Saturday is Nov 22. Need a volunteer for the indoor December market.\n• Hiring. Two good applicants for holiday…",
    "path": "team/Weekly Team Meeting Notes.md",
    "words": 170,
+   "t": 1793886143,
    "degree": 23
   }
  ],

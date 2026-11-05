@@ -117,10 +117,14 @@ class NotesDB:
     def all(self):
         return {path: content for path, content in self._run("SELECT path, content FROM notes")}
 
+    def times(self):
+        return {path: float(t) for path, t in self._run("SELECT path, EXTRACT(EPOCH FROM updated_at) FROM notes")}
+
     # -------------------------------------------------------- sync
     def pull(self, notes_dir):
         """Replace the .md files on disk with what's in the database."""
         rows = self.all()
+        stamps = self.times()
         for path in build.scan(notes_dir):
             os.remove(path)
         written = 0
@@ -133,6 +137,8 @@ class NotesDB:
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, "w", encoding="utf-8") as f:
                 f.write(content)
+            if raw in stamps:                       # keep the real "last changed" time (timeline view)
+                os.utime(dest, (stamps[raw], stamps[raw]))
             written += 1
         # tidy empty folders left behind
         for dirpath, dirnames, filenames in sorted(os.walk(notes_dir), reverse=True):

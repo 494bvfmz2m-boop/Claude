@@ -95,7 +95,7 @@ body:not(.holo) #hint { right: 64px; }
 
 /* ---------- settings ---------- */
 #settings { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
-  background: rgba(0, 6, 12, .62); backdrop-filter: blur(6px); }
+  background: rgba(0, 6, 12, .78); }
 #settings[hidden] { display: none; }
 #settings .win { position: relative; width: min(940px, 100%); height: min(680px, calc(100vh - 32px)); display: grid;
   grid-template-columns: 200px 1fr; grid-template-rows: auto 1fr; overflow: hidden;
@@ -189,4 +189,29 @@ body:not(.holo) #hint { right: 64px; }
   #holo-readout { display: none !important; }
   body.holo .gear { bottom: auto; top: 14px; right: 14px; }
   #holo-frame { display: none !important; }
+}
+
+/* ---------- views: timeline + topic clusters ---------- */
+#views { position: fixed; z-index: 6; bottom: 196px; left: 24px; display: flex; gap: 6px; }
+#views .hbtn { padding: 6px 10px; font-size: 11px; background: rgba(4,18,28,.85); }
+body:not(.holo) #views .hbtn { border-radius: 999px; border-color: rgba(140,170,255,.25); background: rgba(10,14,30,.85); }
+#timeline { position: fixed; z-index: 7; top: 168px; left: 50%; transform: translateX(-50%); width: min(620px, calc(100vw - 32px));
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid rgba(94,231,255,.35); border-radius: 4px;
+  background: rgba(3,14,24,.92); color: #dff8ff; font: 600 12px Rajdhani, Inter, sans-serif; letter-spacing: .08em; }
+#timeline[hidden] { display: none; }
+#timeline input[type=range] { flex: 1; accent-color: var(--holo); }
+#timeline .hbtn { padding: 4px 9px; }
+#tl-date { min-width: 150px; text-align: right; color: var(--holo-2); }
+
+/* ---------- attach + drop ---------- */
+#attach { width: 38px; background: none; color: var(--muted, #8a93ad); font-size: 15px; border: 1px solid transparent !important; }
+#attach:hover { color: #fff; border-color: rgba(140,170,255,.3) !important; }
+body.dropping::after { content: "Drop to file it as a note"; position: fixed; inset: 12px; z-index: 60; display: grid; place-items: center;
+  border: 2px dashed var(--holo); border-radius: 8px; background: rgba(0,10,18,.7); color: var(--holo-2);
+  font: 700 18px Orbitron, sans-serif; letter-spacing: .2em; pointer-events: none; }
+
+@media (max-width: 760px) {
+  #views { bottom: 250px; left: 16px; }
+  #timeline { top: 110px; }
+  #attach { display: none; }
 }

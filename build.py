@@ -95,6 +95,7 @@ def build(notes_dir, include_text=False):
             "excerpt": excerpt(plain, label),
             "path": rel.replace(os.sep, "/"),
             "words": len(plain.split()),
+            "t": int(os.path.getmtime(path)),       # last change (timeline view)
         })
         if include_text:
             nodes[-1]["text"] = plain
